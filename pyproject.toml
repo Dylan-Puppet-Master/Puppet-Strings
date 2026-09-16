@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "puppet-strings"
+version = "0.1.0"
+description = "Staff schedule automation for Camp Augusta"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ortools>=9.10",
+    "lark>=1.1",
+    "gspread>=6.0",
+    "PySide6>=6.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5", "mkdocs-material>=9.5"]
+
+[project.scripts]
+puppet-strings = "puppet_strings.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["puppet_strings*"]
+
+[tool.setuptools.package-data]
+"puppet_strings.skedge" = ["*.lark"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "D"]
+ignore = ["D100", "D104", "D105", "D107", "D203", "D213", "D401"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D", "E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,20 @@
+id,description,skedge,priority,weight,created
+counselor-hours,Counselors get a morning and an afternoon counselor hour,"ACROSS EACH staff.counselor
+TASK 'counselor hour' DURING {block.clinic_1 OR block.clinic_2} AS morning
+TASK 'counselor hour' DURING {block.clinic_3 OR block.clinic_4} AS afternoon
+GAP morning afternoon <= 5h",MUST_HAPPEN,,2026-09-01
+breaks,"Non-directors, non-counselors take three breaks","ACROSS EACH {staff.all - staff.director - staff.counselor}
+DURING 3 OF block.break_slots
+TASK 'break'",MUST_HAPPEN,,2026-09-01
+clinic-enjoyment,Facilitators run clinics they enjoy,"DURING block.any_clinic
+PREFER activity.any_clinic ~ metric.enjoyment",MEDIUM,1,2026-09-01
+clinic-variety,Do not repeat a clinic within a week,"ON date.target - 6d .. date.target
+DURING block.any_clinic
+AVOID activity.any_clinic PER staff activity BEYOND 1",MEDIUM,0.5,2026-09-01
+playstation-availability,Free as many non-directors as possible for playstation,"DURING block.playstation
+ACROSS {staff.all - staff.director}
+PREFER FREE",HIGH,,2026-09-01
+dylan-off-ropes,Dylan stays off ropes this week,"ON 2026-09-14 .. 2026-09-18
+DURING block.any_clinic
+ACROSS staff.dylan
+FORBID activity.ropes",MUST_HAPPEN,,2026-09-13

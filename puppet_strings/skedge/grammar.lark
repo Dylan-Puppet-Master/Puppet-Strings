@@ -1,0 +1,53 @@
+// Skedge grammar. See docs/skedge.md for the language reference.
+
+start       : _NL* line (_NL+ line)* _NL*
+line        : clause+
+?clause     : on | during | across | role | verb | for_ | label | metric | per | gap
+
+on          : "ON" selector
+during      : "DURING" selector
+across      : "ACROSS" selector
+role        : "ROLE" selector
+verb        : VERB target
+?target     : selector | STRING | FREE
+for_        : "FOR" DURATION CONTINUOUS?
+label       : "AS" NAME
+metric      : "~" ref
+per         : "PER" NAME+ "BEYOND" INT
+gap         : "GAP" NAME NAME COMPARISON DURATION
+
+selector    : quantifier? atom
+            | quantifier? "{" expr "}"
+quantifier  : ANY | ALL | EACH | INT "OF"
+?expr       : term ("OR" term)*        -> or_
+?term       : factor ("AND" factor)*   -> and_
+?factor     : setexpr | "(" expr ")"
+?setexpr    : atom (SETOP atom)*       -> setop
+?atom       : date_expr ".." date_expr -> date_range
+            | date_expr
+?date_expr  : date_atom OFFSET         -> date_offset
+            | date_atom
+?date_atom  : DATE                     -> date_literal
+            | ref
+ref         : NAME ("." NAME)+
+
+VERB        : "TASK" | "FORBID" | "PREFER" | "AVOID"
+FREE        : "FREE"
+ANY         : "ANY"
+ALL         : "ALL"
+EACH        : "EACH"
+CONTINUOUS  : "CONTINUOUS"
+SETOP       : "+" | "-" | "&"
+OFFSET.2    : /[+-][ \t]*\d+d/
+COMPARISON  : "<=" | ">=" | "=="
+DATE.3      : /\d{4}-\d{2}-\d{2}/
+DURATION.2  : /\d+(\.\d+)?[mh]/
+STRING      : /'[^']*'/
+NAME        : /[a-z_][a-z0-9_]*/
+
+COMMENT     : /#[^\n]*/
+_NL         : /(\r?\n[ \t]*)+/
+%import common.INT
+%import common.WS_INLINE
+%ignore WS_INLINE
+%ignore COMMENT

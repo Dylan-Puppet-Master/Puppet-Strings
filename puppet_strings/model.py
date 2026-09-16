@@ -1,0 +1,229 @@
+"""Domain objects shared by the sheet loaders, Skedge, the solver, and the app."""
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from datetime import date, time
+from enum import Enum
+
+
+class SkillStatus(Enum):
+    """A staff member's standing on one skill, as recorded on the Skills sheet."""
+
+    CHECKED_OFF = "checked off"
+    TRAINER = "trainer"
+    NEEDS_SCAFFOLD = "needs scaffold"
+    NEEDS_SHADOW = "needs shadow"
+    NONE = "none"
+
+    @property
+    def eligible(self) -> bool:
+        """Whether the staff member may fill a position requiring this skill."""
+        return self in (SkillStatus.CHECKED_OFF, SkillStatus.TRAINER)
+
+    @property
+    def can_scaffold(self) -> bool:
+        """Whether the staff member may supervise a scaffolded trainee on this skill."""
+        return self is SkillStatus.TRAINER
+
+    @property
+    def trainee_role(self) -> str:
+        """The trainee role a `role.trainee` task resolves to for this status."""
+        if self in (SkillStatus.NONE, SkillStatus.NEEDS_SHADOW):
+            return SHADOW
+        return SCAFFOLDED
+
+
+SHADOW = "shadow"
+SCAFFOLDED = "scaffolded"
+TRAINEE_ROLES = (SHADOW, SCAFFOLDED)
+POSITION_ROLES = ("first", "second", "third", "fourth", "fifth", "sixth")
+
+ANY_SKILL = "Any"
+
+
+@dataclass(frozen=True)
+class Staff:
+    """One staff member."""
+
+    name: str
+    id: str
+    ral: int
+    skills: Mapping[str, SkillStatus]
+
+    def status(self, skill: str | None) -> SkillStatus:
+        """Status on a skill; a position without a skill counts as checked off."""
+        if skill is None:
+            return SkillStatus.CHECKED_OFF
+        return self.skills.get(skill, SkillStatus.NONE)
+
+
+@dataclass(frozen=True)
+class Position:
+    """One staffing slot on a clinic."""
+
+    role: str
+    skill: str | None
+    ral: int
+
+
+@dataclass(frozen=True)
+class Activity:
+    """A clinic from Clinic_Data."""
+
+    name: str
+    id: str
+    category: str
+    slots: int
+    positions: tuple[Position, ...]
+    lifeguards: int = 0
+    double: bool = False
+
+    def position(self, role: str) -> Position | None:
+        """The position with this role, if any."""
+        return next((p for p in self.positions if p.role == role), None)
+
+
+@dataclass(frozen=True)
+class Block:
+    """A time block from the Blocks sheet."""
+
+    id: str
+    start: time
+    end: time
+    day_types: frozenset[str]
+    categories: frozenset[str]
+    display_group: str | None = None
+
+    @property
+    def minutes(self) -> int:
+        """Length in minutes."""
+        return _minutes(self.end) - _minutes(self.start)
+
+    def overlaps(self, other: "Block") -> bool:
+        """Whether the two blocks share any time."""
+        return _minutes(self.start) < _minutes(other.end) and _minutes(other.start) < _minutes(
+            self.end
+        )
+
+    def gap_to(self, other: "Block") -> int:
+        """Minutes from this block's end to the other's start; negative if not after."""
+        return _minutes(other.start) - _minutes(self.end)
+
+
+def _minutes(t: time) -> int:
+    return t.hour * 60 + t.minute
+
+
+@dataclass(frozen=True)
+class CalendarDay:
+    """One camp day from the Calendar sheet."""
+
+    date: date
+    session: str
+    day_type: str
+
+
+class Priority(Enum):
+    """Request priority tiers, highest first."""
+
+    MUST_HAPPEN = "MUST_HAPPEN"
+    CLINIC = "CLINIC"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+
+    @property
+    def hard(self) -> bool:
+        """Whether the tier is a hard constraint."""
+        return self is Priority.MUST_HAPPEN
+
+
+SOFT_TIERS = (Priority.CLINIC, Priority.HIGH, Priority.MEDIUM, Priority.LOW)
+
+
+@dataclass(frozen=True)
+class Request:
+    """One row of the Requests sheet."""
+
+    id: str
+    description: str
+    skedge: str
+    priority: Priority
+    weight: float = 1.0
+    created: date | None = None
+
+
+@dataclass(frozen=True)
+class Metric:
+    """A numeric table keyed by assignment fields, with its declared scale."""
+
+    name: str
+    keys: tuple[str, ...]
+    scale_min: float
+    scale_max: float
+    values: Mapping[tuple[str, ...], float]
+
+    def normalized(self, key: tuple[str, ...]) -> float:
+        """Value for this key scaled to 0..1, or 0 when absent."""
+        if key not in self.values:
+            return 0.0
+        return (self.values[key] - self.scale_min) / (self.scale_max - self.scale_min)
+
+
+@dataclass(frozen=True)
+class Assignment:
+    """One staff member doing one thing in one block on one date.
+
+    `activity` is an activity id for clinics or the quoted text of an ad hoc task.
+    `role` is a position role, a trainee role, or None for ad hoc tasks.
+    """
+
+    staff: str
+    activity: str
+    role: str | None
+    date: date
+    block: str
+    source: str = ""
+
+
+@dataclass(frozen=True)
+class Offering:
+    """A clinic offered on the target date in one or more blocks."""
+
+    activity: str
+    blocks: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Dataset:
+    """Everything the solver needs for one target date, loaded from the sheets."""
+
+    target: date
+    staff: Mapping[str, Staff]
+    staff_categories: Mapping[str, frozenset[str]]
+    activities: Mapping[str, Activity]
+    activity_categories: Mapping[str, frozenset[str]]
+    blocks: Mapping[str, Block]
+    block_categories: Mapping[str, frozenset[str]]
+    calendar: Mapping[date, CalendarDay]
+    offerings: tuple[Offering, ...] = ()
+    requests: tuple[Request, ...] = ()
+    metrics: Mapping[str, Metric] = field(default_factory=dict)
+    published: Mapping[date, tuple[Assignment, ...]] = field(default_factory=dict)
+    warnings: tuple[str, ...] = ()
+
+    @property
+    def session_dates(self) -> tuple[date, ...]:
+        """Dates of the session containing the target, in order."""
+        session = self.calendar[self.target].session
+        return tuple(sorted(d for d, day in self.calendar.items() if day.session == session))
+
+    def blocks_on(self, day: date) -> tuple[Block, ...]:
+        """Blocks that exist on a date, by start time."""
+        day_type = self.calendar[day].day_type
+        return tuple(
+            sorted(
+                (b for b in self.blocks.values() if day_type in b.day_types),
+                key=lambda b: (b.start, b.end),
+            )
+        )
