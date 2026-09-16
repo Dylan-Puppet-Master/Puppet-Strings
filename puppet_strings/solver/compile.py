@@ -309,6 +309,7 @@ class Compiler:
         tier = self.terms[priority]
         if st.per is None:
             metric = self.dataset.metrics[st.metric] if st.metric else None
+            self._check_metric(st, metric)
             for match in self._matched(st, past=False):
                 score = metric.normalized(_fields(match, metric.keys)) if metric else 1.0
                 coefficient = round(SCALE * weight * score)
@@ -328,37 +329,112 @@ class Compiler:
             tier.append((-round(SCALE * weight), excess))
 
     def _matched(self, st: Statement, past: bool) -> Iterator[Matched]:
-        """Assignments matching every clause. A (DBL) instance counts once."""
-        target = self.dataset.target
-        roles = self._role_filter(st)
-        dates = [d for d in st.on.items if d == target or (past and d < target)]
-        if isinstance(st.target, ast.Free):
-            for day, staff_id, block in product(dates, st.across.items, st.during.items):
-                yield Matched(
-                    staff_id, "", None, day, block, self.variables.is_free(staff_id, day, block)
-                )
+        """What a filter verb selects: assignments, or groups of staff sharing an instance.
+
+        `ACROSS {staff.james AND staff.paul}` makes an alternative of several staff, which
+        matches the two of them together rather than each on their own.
+        """
+        groups = [alt for alt in (st.across.alternatives or ()) if len(alt) > 1]
+        if groups:
+            yield from self._matched_together(st, past, groups)
             return
         seen: set = set()
-        for day in dates:
-            if day == target:
-                entries = [
-                    (slot.staff, slot.activity, slot.role, slot.block, var)
-                    for slot, var in self.variables.x.items()
-                ]
-            else:
-                entries = [(*key, True) for key in self.variables.past_assignments(day)]
-            for staff_id, activity, role, block, literal in entries:
-                if not self._accepts(st, roles, staff_id, activity, role, block):
-                    continue
-                key = (
-                    (day, staff_id, activity, role)
-                    if self._double(activity)
-                    else (day, staff_id, activity, role, block)
-                )
+        for day in self._dates(st, past):
+            for staff_id, activity, role, block, literal in self._entries(st, day):
+                key = (day, staff_id, activity, role, "" if self._double(activity) else block)
                 if key in seen:
                     continue
                 seen.add(key)
                 yield Matched(staff_id, activity, role, day, block, literal)
+
+    def _matched_together(self, st: Statement, past: bool, groups: list) -> Iterator[Matched]:
+        """One match per group of staff holding assignments in the same instance."""
+        for group in groups:
+            members = sorted(group)
+            for (day, activity, block), literals in self._per_member(st, past, members).items():
+                if len(literals) < len(members):
+                    continue  # someone in the group cannot be there at all
+                name = f"together:{'+'.join(members)}:{activity}:{day}:{block}"
+                together = self._all_of([literals[m] for m in members], name)
+                if together is False:
+                    continue
+                yield Matched(", ".join(members), activity, None, day, block, together)
+
+    def _per_member(self, st: Statement, past: bool, members: list[str]) -> dict:
+        """(date, activity, block) -> {member: literal for being in that instance}."""
+        found: dict[tuple, dict[str, list]] = {}
+        for day in self._dates(st, past):
+            if isinstance(st.target, ast.Free):
+                for block in st.during.items:
+                    free = {m: [self.variables.is_free(m, day, block)] for m in members}
+                    found[day, "", block] = free
+                continue
+            for staff_id, activity, _, block, literal in self._entries(st, day):
+                if staff_id not in members:
+                    continue
+                key = (day, activity, "" if self._double(activity) else block)
+                found.setdefault(key, {}).setdefault(staff_id, []).append(literal)
+        return {
+            key: {
+                member: self._any_of(literals, f"in:{member}:{key[1]}:{key[0]}")
+                for member, literals in per_member.items()
+            }
+            for key, per_member in found.items()
+        }
+
+    def _dates(self, st: Statement, past: bool) -> list[date]:
+        target = self.dataset.target
+        return [d for d in st.on.items if d == target or (past and d < target)]
+
+    def _entries(self, st: Statement, day: date) -> Iterator[tuple]:
+        """(staff, activity, role, block, literal) for assignments passing every filter."""
+        roles = self._role_filter(st)
+        if isinstance(st.target, ast.Free):
+            for staff_id, block in product(st.across.items, st.during.items):
+                yield staff_id, "", None, block, self.variables.is_free(staff_id, day, block)
+            return
+        if day == self.dataset.target:
+            rows = [
+                (slot.staff, slot.activity, slot.role, slot.block, var)
+                for slot, var in self.variables.x.items()
+            ]
+        else:
+            rows = [(*key, True) for key in self.variables.past_assignments(day)]
+        for staff_id, activity, role, block, literal in rows:
+            if self._accepts(st, roles, staff_id, activity, role, block):
+                yield staff_id, activity, role, block, literal
+
+    def _any_of(self, literals: list, name: str) -> Literal:
+        """A literal true when any of these are, with constants folded."""
+        if any(v is True for v in literals):
+            return True
+        real = [v for v in literals if v is not False]
+        if len(real) < 2:
+            return real[0] if real else False
+        var = self.model.NewBoolVar(name)
+        self.model.AddMaxEquality(var, real)
+        return var
+
+    def _all_of(self, literals: list, name: str) -> Literal:
+        """A literal true when all of these are, with constants folded."""
+        if any(v is False for v in literals):
+            return False
+        real = [v for v in literals if v is not True]
+        if len(real) < 2:
+            return real[0] if real else True
+        var = self.model.NewBoolVar(name)
+        self.model.AddMinEquality(var, real)
+        return var
+
+    def _check_metric(self, st: Statement, metric) -> None:
+        """A staff-keyed metric cannot score a group, which has no single staff member."""
+        grouped = any(len(alt) > 1 for alt in (st.across.alternatives or ()))
+        if metric and grouped and "staff" in metric.keys:
+            raise ast.SkedgeError(
+                f"metric.{metric.name} is keyed by staff, so it cannot score an ACROSS group",
+                st.pos.line,
+                st.pos.column,
+            )
 
     def _accepts(self, st, roles, staff_id, activity, role, block) -> bool:
         if isinstance(st.target, ast.AdHoc):

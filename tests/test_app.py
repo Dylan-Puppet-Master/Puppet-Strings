@@ -140,7 +140,7 @@ def test_calendar_click_inserts_a_date(window):
     assert (
         window.calendar.dateTextFormat(QDate(2026, 9, 13)).background().color().name() == "#d6efe6"
     )
-    assert window.calendar.dateTextFormat(QDate(2026, 9, 25)).background().style() == Qt.NoBrush
+    assert window.calendar.dateTextFormat(QDate(2026, 9, 30)).background().style() == Qt.NoBrush
     window.calendar.clicked.emit(QDate(2026, 10, 2))
     assert window.editor.skedge_edit.toPlainText().endswith("2026-10-02")
 

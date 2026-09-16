@@ -71,13 +71,11 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
         return value if field == "date" else normalize(value)
 
     index = metrics_sheet.parse_metric_index(config_tables[tabs["metrics"]])
-    metric_tables = source.read_many(
-        "config", [f"{metrics_sheet.TAB_PREFIX}{name}" for name, *_ in index]
-    )
-    metrics = {}
-    for name, keys, low, high in index:
-        table = metric_tables[f"{metrics_sheet.TAB_PREFIX}{name}"]
-        metrics[name] = metrics_sheet.parse_metric(name, keys, low, high, table, to_id)
+    tab_of = {m.name: f"{metrics_sheet.TAB_PREFIX}{m.name}" for m in index}
+    metric_tables = source.read_many("config", list(tab_of.values()))
+    metrics = {
+        m.name: metrics_sheet.parse_metric(m, metric_tables[tab_of[m.name]], to_id) for m in index
+    }
 
     session = calendar[target].session
     past_tabs = {}

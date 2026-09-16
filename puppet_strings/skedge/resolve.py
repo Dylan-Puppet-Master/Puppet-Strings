@@ -9,7 +9,13 @@ from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from itertools import product
 
-from puppet_strings.model import LIFEGUARD_ROLES, POSITION_ROLES, TRAINEE_ROLES, Dataset
+from puppet_strings.model import (
+    LIFEGUARD_ROLES,
+    ORDINALS,
+    POSITION_ROLES,
+    TRAINEE_ROLES,
+    Dataset,
+)
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.scope import ScopedDeclaration, ScopedVerb
 
@@ -83,13 +89,7 @@ class _Names:
     """Every valid name per namespace, each mapping to the items it stands for."""
 
     def __init__(self, dataset: Dataset) -> None:
-        session = dataset.session_dates
-        sunday = dataset.target - timedelta(days=(dataset.target.weekday() + 1) % 7)
-        week = {
-            WEEKDAYS[(sunday + timedelta(days=i)).weekday()]: sunday + timedelta(days=i)
-            for i in range(7)
-        }
-        self.session = frozenset(session)
+        self.session = frozenset(dataset.session_dates)
         self.spaces: dict[str, dict[str, frozenset[Item]]] = {
             "staff": _ids_and_categories(dataset.staff, dataset.staff_categories),
             "activity": _ids_and_categories(dataset.activities, dataset.activity_categories),
@@ -98,11 +98,7 @@ class _Names:
                 r: frozenset({r})
                 for r in POSITION_ROLES + LIFEGUARD_ROLES + TRAINEE_ROLES + (TRAINEE,)
             },
-            "date": {
-                "target": frozenset({dataset.target}),
-                "session": self.session,
-                **{name: frozenset({day}) & self.session for name, day in week.items()},
-            },
+            "date": date_names(dataset),
             "metric": {m: frozenset({m}) for m in dataset.metrics},
         }
 
@@ -113,6 +109,32 @@ class _Names:
             return self.spaces[namespace][ref.name]
         except KeyError:
             raise _error(f"unknown {namespace} name '{ref.name}'", ref.pos) from None
+
+
+def date_names(dataset: Dataset) -> dict[str, frozenset[Item]]:
+    """Every name in the `date` namespace, in listing order.
+
+    A weekday holds every date of the session that falls on it, so `ON date.monday` means
+    one Monday and `ON EACH date.monday` means every Monday. An ordinal or `last_` name
+    holds the single date of that occurrence, and exists only if the session reaches it.
+    """
+    session = dataset.session_dates
+    names: dict[str, frozenset[Item]] = {
+        "target": frozenset({dataset.target}),
+        "session": frozenset(session),
+    }
+    by_weekday: dict[str, list[date]] = {}
+    for day in session:
+        by_weekday.setdefault(WEEKDAYS[day.weekday()], []).append(day)
+    for weekday in WEEKDAYS:
+        days = by_weekday.get(weekday)
+        if not days:
+            continue
+        names[weekday] = frozenset(days)
+        for ordinal, day in zip(ORDINALS, days, strict=False):
+            names[f"{ordinal}_{weekday}"] = frozenset({day})
+        names[f"last_{weekday}"] = frozenset({days[-1]})
+    return names
 
 
 def _ids_and_categories(items, categories) -> dict[str, frozenset[Item]]:

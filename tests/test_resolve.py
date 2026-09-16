@@ -1,7 +1,10 @@
 from datetime import date
 
+import pytest
+
 from puppet_strings.model import Priority, Request
 from puppet_strings.skedge import ast
+from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.validate import validate_request
 
 
@@ -89,9 +92,41 @@ def test_date_windows(dataset):
     (copy,) = resolve(dataset, "ON date.session\nDURING block.any\nTASK 'x'")
     assert copy.statements[0].on.items == tuple(dataset.session_dates)
     (copy,) = resolve(dataset, "ON date.friday\nDURING block.any\nTASK 'x'")
-    assert copy.statements[0].on.items == (date(2026, 9, 18),)
+    assert copy.statements[0].on.items == (date(2026, 9, 18), date(2026, 9, 25))
     (copy,) = resolve(dataset, "ON 2026-10-01\nDURING block.any\nTASK 'x'")
     assert copy.statements[0].on.items == ()
+
+
+def test_weekday_names_hold_every_such_day_of_the_session(dataset):
+    (one_monday,) = resolve(dataset, "ON date.monday\nDURING block.any\nTASK 'x'")
+    assert one_monday.statements[0].on.items == (date(2026, 9, 14), date(2026, 9, 21))
+    every = resolve(dataset, "ON EACH date.monday\nDURING block.any\nTASK 'x'")
+    assert [c.statements[0].on.items for c in every] == [(date(2026, 9, 14),), (date(2026, 9, 21),)]
+    assert [c.key for c in every] == ["", ""]  # dates are left out of the copy key
+
+
+def test_ordinal_and_last_date_names(dataset):
+    def on(name):
+        (copy,) = resolve(dataset, f"ON date.{name}\nDURING block.any\nTASK 'x'")
+        return copy.statements[0].on.items
+
+    assert on("first_thursday") == (date(2026, 9, 17),)
+    assert on("second_thursday") == (date(2026, 9, 24),)
+    assert on("last_thursday") == (date(2026, 9, 24),)
+    assert on("first_sunday") == (date(2026, 9, 13),)
+    with pytest.raises(SkedgeError, match="unknown date name 'third_thursday'"):
+        resolve(dataset, "ON date.third_thursday\nDURING block.any\nTASK 'x'")
+
+
+def test_across_groups_keep_their_alternatives_for_filter_verbs(dataset):
+    (copy,) = resolve(
+        dataset,
+        "ON date.target\nDURING block.any_clinic\n"
+        "ACROSS {staff.james AND staff.paul}\nAVOID activity.any_clinic",
+    )
+    across = copy.statements[0].across
+    assert across.alternatives == (frozenset({"james", "paul"}),)
+    assert across.items == ("james", "paul")
 
 
 def test_quantifiers_and_groups(dataset):

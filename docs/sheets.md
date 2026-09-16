@@ -151,15 +151,16 @@ empty.
 
 **1. Add a row to the `Metrics` tab.**
 
-| metric | keys | scale_min | scale_max |
-|---|---|---|---|
-| enjoyment | staff, activity | 1 | 5 |
+| metric | keys | scale_min | scale_max | default |
+|---|---|---|---|---|
+| enjoyment | staff, activity | 1 | 5 | 3 |
 
 | Column | What to put there |
 |---|---|
 | `metric` | A short name. It becomes `metric.enjoyment` in requests, and names the ratings tab `metric_enjoyment`. |
 | `keys` | **Comma-separated.** What each rating is about. `staff, activity` means one rating per staff member per clinic. Choose from `staff`, `activity`, `role`, `date`, `block`. |
 | `scale_min`, `scale_max` | The lowest and highest rating you will ever enter. Ratings are converted to 0–1 against this scale, not against whatever ratings happen to exist, so adding a new rating never changes how the old ones weigh. |
+| `default` | Optional. What a pair with no row of its own is worth. Leave it blank and an unrated pair is worth `scale_min`, the bottom of the scale. Set it to the middle of the scale (3 of 1–5 above) and an unrated pair counts as ordinary rather than disliked. A default outside the scale is a load error. |
 
 **2. Create a tab named `metric_enjoyment`.** Give it one column for each key you listed,
 in any order, plus a `value` column:
@@ -174,10 +175,15 @@ Write the names as they appear on the other sheets (`Dylan`, `Archery 1 & 2`), n
 Skedge identifiers, so you can paste rows from elsewhere. A value outside the scale is a
 load error.
 
-**3. There is no step 3.** Any staff-and-clinic pair with no row scores 0, so you only
-need rows for the ratings you actually have. A second metric, say `variety_need` keyed by
-`staff`, is another row on the `Metrics` tab and another tab named `metric_variety_need`
-with columns `staff` and `value`.
+**3. There is no step 3.** A staff-and-clinic pair with no row of its own is worth the
+`default`, so you only need rows for the ratings you actually have. A second metric, say
+`variety_need` keyed by `staff`, is another row on the `Metrics` tab and another tab named
+`metric_variety_need` with columns `staff` and `value`.
+
+The default matters more than it looks. With a blank default, every clinic nobody has
+rated sits at the bottom of the scale, so the solver treats "not rated yet" as "disliked"
+and crowds people onto the few clinics that are rated. A default in the middle of the
+scale says "no opinion", and only the ratings you actually enter pull for or against.
 
 ## Published Schedules
 
@@ -192,4 +198,15 @@ back for past dates.
 | `minutes` | How long it lasts; a clinic fills its block |
 | `source` | `offering`, or the request id that required it |
 
-Three tabs are overwritten on every publish: **Staff View**, **Clinic View**, **Report**.
+Three tabs are overwritten on every publish:
+
+- **Staff View**: one row per staff member, one column per block, with each block's tasks
+  in time order and `DYOW/WPs` for unused time.
+- **Clinic View**: the printable clinic schedule. A merged title (`Day 4, Session 1 -
+  Wednesday`), a header of clinic blocks, then one row per clinic grouped by category in
+  Clinic_Data order with a blank row between groups. A clinic with two positions takes two
+  rows (1st above 2nd); trainees get a `Shadow` or `Scaffold` row beneath. An offered
+  clinic nobody could staff keeps its row, empty. After the clinics come the other tasks
+  (counselor hours, breaks) one name per row, and a final `DYOW/WPs` group listing everyone
+  with nothing in that block. Title and clinic names are bold and the top rows are frozen.
+- **Report**: unsatisfied and deferred requests, conflicts, and solver notes.

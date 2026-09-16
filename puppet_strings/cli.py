@@ -14,6 +14,7 @@ from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.requests import request_rows
 from puppet_strings.sheets.source import CsvSource, LoadError, SheetsSource, Source, Table
 from puppet_strings.skedge.ast import SkedgeError
+from puppet_strings.skedge.resolve import date_names
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.solve import RequestError, solve
 
@@ -101,7 +102,7 @@ def _names(dataset: Dataset) -> int:
             **_categories(dataset.activity_categories),
         },
         "block": {**{i: "" for i in dataset.blocks}, **_categories(dataset.block_categories)},
-        "date": {"target": "", "session": "", "sunday .. saturday": ""},
+        "date": {name: _dates(days) for name, days in date_names(dataset).items()},
         "role": {
             "first, second, third": "positions",
             "lifeguard, lifeguard_2": "extra lifeguards on water clinics",
@@ -114,6 +115,10 @@ def _names(dataset: Dataset) -> int:
         for name, note in sorted(names.items()):
             print(f"  {namespace}.{name}" + (f"  ({note})" if note else ""))
     return 0
+
+
+def _dates(days) -> str:
+    return next(iter(days)).isoformat() if len(days) == 1 else f"{len(days)} dates"
 
 
 def _categories(categories) -> dict[str, str]:

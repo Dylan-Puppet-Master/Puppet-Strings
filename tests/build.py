@@ -150,6 +150,7 @@ def published(day, *rows, blocks=None):
     return {day: tuple(assignments)}
 
 
-def enjoyment(values: dict[tuple[str, str], float]) -> dict[str, Metric]:
+def enjoyment(values: dict[tuple[str, str], float], default: float | None = None):
+    """A 1-5 enjoyment metric keyed by staff and activity."""
     table = {(normalize(s), normalize(a)): v for (s, a), v in values.items()}
-    return {"enjoyment": Metric("enjoyment", ("staff", "activity"), 1, 5, table)}
+    return {"enjoyment": Metric("enjoyment", ("staff", "activity"), 1, 5, table, default)}

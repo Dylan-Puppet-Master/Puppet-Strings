@@ -1,2 +1,2 @@
-metric,keys,scale_min,scale_max
-enjoyment,"staff, activity",1,5
+metric,keys,scale_min,scale_max,default
+enjoyment,"staff, activity",1,5,3

@@ -525,7 +525,9 @@ Assumptions added by this outline:
 17. **Category names** are used as-is: `staff.counselor`, `activity.ropes`. The proposal's `staff.counselors` and `activity.any_ropes` become whatever the sheets say; documentation examples will use the real names.
 18. **Activities are clinics only.** Clinic_Data lists no playstations or evening programs. `block.playstation` is just a block.
 19. **New sheets**: Blocks, Calendar, Requests, Metrics live in one new config spreadsheet; Published Schedules is a second new spreadsheet. `Calendar` is an addition beyond the proposal. Request scope is derived, not stored.
-20. **Metric misses** score 0. Values outside the declared scale are load errors.
+20. **Metric misses** score the metric's `default` column, or `scale_min` when that column
+    is blank, which is the original score-nothing behavior. Values and defaults outside the
+    declared scale are load errors.
 21. **Deferral incentive** is one scaled unit (0.001 of a weight-1 request) per satisfied deferrable task, or per minute for `FOR` tasks.
 22. **`GAP` labels** must be single-block `TASK`s on the same date.
 23. **`EACH` copies** each count as one satisfied request in their tier, and report as `id[item]`.
@@ -587,6 +589,15 @@ Recorded so the outline matches the code.
   `config.py`.
 - **Lifeguards are positions**, not a count over facilitators: `LG_Required` adds
   `role.lifeguard` (and `role.lifeguard_2`) positions requiring `LIFEGUARD` at RAL 5.
+- **Recurring dates and staff pairing** (Puppet Master, 2026-09-16), both inside the
+  existing grammar. A weekday name now holds every such date of the session rather than
+  only the target's week, so `ON EACH date.monday` is a weekly request; ordinal names
+  (`date.second_thursday`, `date.last_friday`) are added to the `date` namespace and exist
+  only when the session reaches them. For `FORBID`, `PREFER` and `AVOID`, an `ACROSS`
+  alternative holding several staff (`{staff.a AND staff.b}`) matches them as a group: one
+  match per instance, whose literal is the AND of each member's presence there, reified
+  with `AddMinEquality`. `AND` elsewhere on those verbs is a validation error, and a
+  staff-keyed metric cannot score a group. `POSITION_ROLES` is now an alias of `ORDINALS`.
 - **Requests have tags** (comma-separated column). Offerings are no longer generated
   inside the solver: **Load offerings** (app button or `load-offerings` command) writes
   one `CLINIC` request per offering to the Requests sheet, tagged `generated`, with ids

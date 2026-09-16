@@ -36,12 +36,30 @@ selects some assignments and states one thing about them:
 | `staff` | Staff members, staff categories, `staff.all`, `staff.clinic_trainers` |
 | `activity` | Clinics and their categories (`activity.ropes`), plus `activity.any_clinic` |
 | `block` | Blocks and block categories, plus `block.any` |
-| `date` | `date.target`, `date.session`, `date.monday` … `date.sunday` |
+| `date` | `date.target`, `date.session`, weekdays and their ordinals (see below) |
 | `role` | `role.first`, `role.second`, `role.third`; `role.lifeguard`, `role.lifeguard_2`; `role.shadow`, `role.scaffolded`, `role.trainee` |
 | `metric` | Metric tables, such as `metric.enjoyment` |
 
 `role.trainee` resolves per staff member: checked off or needing a scaffold becomes
 `scaffolded`; needing a shadow or no checkoff becomes `shadow`.
+
+### Dates
+
+| Name | Holds |
+|---|---|
+| `date.target` | The date being scheduled. |
+| `date.session` | Every date of the target's session. |
+| `date.monday` … `date.sunday` | Every date of the session falling on that weekday. |
+| `date.first_monday` … `date.sixth_sunday` | That one occurrence within the session. |
+| `date.last_monday` … `date.last_sunday` | The final occurrence within the session. |
+
+A weekday name holds every matching date of the session, so the quantifier says which you
+mean: `ON date.monday` is "one Monday", `ON EACH date.monday` is "every Monday". That is
+how a recurring weekly request is written.
+
+An ordinal name exists only if the session reaches it. A one-week session has a
+`date.first_thursday` but no `date.second_thursday`, and naming one that does not exist is
+a validation error rather than a request that silently never fires.
 
 ## Selectors
 
@@ -115,7 +133,22 @@ allowed.
 
 Each matching assignment adds (`PREFER`) or subtracts (`AVOID`) its score. `~ metric.x`
 uses the metric's value for the assignment, normalized to 0–1 against the metric's
-declared scale. Neither verb can be `MUST_HAPPEN`.
+declared scale; an assignment the metric has no row for is worth that metric's `default`.
+Neither verb can be `MUST_HAPPEN`.
+
+### Staff working together
+
+`AND` means "together" everywhere in Skedge, and on `FORBID`, `PREFER` and `AVOID` that
+gives pairing. `ACROSS {staff.james AND staff.paul}` matches the two of them **as a
+group**: one match per clinic instance (same activity, block and date) where both hold an
+assignment, whatever positions they hold. So `AVOID` keeps two people off the same clinic,
+`PREFER` puts them on it, and `FORBID` rules the pairing out. More than two names work the
+same way, and `ACROSS {staff.james + staff.paul}` (union, not `AND`) still matches each of
+them separately.
+
+Because `AND` selects a group of staff, it is only meaningful in `ACROSS` on these verbs;
+using it in `ON`, `DURING`, `ROLE` or the target is a validation error. A metric keyed by
+`staff` cannot score a group, since the group has no single staff member.
 
 ### AVOID … PER … BEYOND
 
@@ -152,6 +185,8 @@ Each error carries a line and column. The validator rejects:
 - a zero or negative weight
 - `PER` on a verb other than `AVOID`, or `BEYOND` below 1
 - `~` with `PER`, or `~` on a verb other than `PREFER` or `AVOID`
+- `~` with a staff-keyed metric on a verb whose `ACROSS` selects a group
+- `AND` outside `ACROSS` on `FORBID`, `PREFER` or `AVOID`
 - `FOR` with `DURING ALL`, or on a verb other than `TASK`
 - `ACROSS` with `ALL`, `OF` or `AND` on a clinic without `ROLE`
 - a date offset applied to a set of dates
@@ -361,6 +396,55 @@ TASK FREE
 ```
 
 Priority `MUST_HAPPEN`.
+
+### Something every Monday
+
+`EACH` makes a separate copy per Monday of the session, so this happens on all of them.
+Written with `ON date.monday` instead, it would happen on one Monday.
+
+```skedge
+ON EACH date.monday
+DURING block.clinic_1
+ACROSS staff.audrey
+TASK 'staff meeting' FOR 30m
+```
+
+Priority `HIGH`.
+
+### Something on the second Thursday of the session
+
+```skedge
+ON date.second_thursday
+DURING block.clinic_4
+ACROSS ALL staff.director
+TASK 'mid-session review'
+```
+
+Priority `MEDIUM`.
+
+### Keeping two staff off the same clinic
+
+James and Paul are matched as a group, so this costs a point only when both are on one
+clinic. `FORBID` in place of `AVOID` would rule it out outright, at the price of leaving a
+clinic unstaffed when they are the only two available.
+
+```skedge
+DURING block.any_clinic
+ACROSS {staff.james AND staff.paul}
+AVOID activity.any_clinic
+```
+
+Priority `HIGH`. Weight: `2`.
+
+### Putting two staff on the same clinic
+
+```skedge
+DURING block.any_clinic
+ACROSS {staff.rob AND staff.vic}
+PREFER activity.ropes
+```
+
+Priority `LOW`.
 
 ## Grammar
 

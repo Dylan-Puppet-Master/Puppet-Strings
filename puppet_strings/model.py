@@ -36,7 +36,8 @@ class SkillStatus(Enum):
 SHADOW = "shadow"
 SCAFFOLDED = "scaffolded"
 TRAINEE_ROLES = (SHADOW, SCAFFOLDED)
-POSITION_ROLES = ("first", "second", "third", "fourth", "fifth", "sixth")
+ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth")
+POSITION_ROLES = ORDINALS  # a clinic's positions are named by ordinal
 
 # A lifeguard is an extra person on a water clinic, beyond its facilitator positions.
 # Every lifeguard position requires the LIFEGUARD skill at RAL 5.
@@ -179,19 +180,28 @@ class Request:
 
 @dataclass(frozen=True)
 class Metric:
-    """A numeric table keyed by assignment fields, with its declared scale."""
+    """A numeric table keyed by assignment fields, with its declared scale.
+
+    `default` is what a key with no row is worth; without one that is the bottom of the
+    scale, so an unrated pairing scores nothing.
+    """
 
     name: str
     keys: tuple[str, ...]
     scale_min: float
     scale_max: float
     values: Mapping[tuple[str, ...], float]
+    default: float | None = None
+
+    @property
+    def missing(self) -> float:
+        """The value used for a key with no row."""
+        return self.scale_min if self.default is None else self.default
 
     def normalized(self, key: tuple[str, ...]) -> float:
-        """Value for this key scaled to 0..1, or 0 when absent."""
-        if key not in self.values:
-            return 0.0
-        return (self.values[key] - self.scale_min) / (self.scale_max - self.scale_min)
+        """Value for this key scaled to 0..1, using the default when the key has no row."""
+        value = self.values.get(key, self.missing)
+        return (value - self.scale_min) / (self.scale_max - self.scale_min)
 
 
 @dataclass(frozen=True)

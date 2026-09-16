@@ -138,7 +138,24 @@ def test_metrics(dataset):
     assert enjoyment.keys == ("staff", "activity")
     assert enjoyment.normalized(("dylan", "archery_1_2")) == 1.0
     assert enjoyment.normalized(("dylan", "candle_making")) == 0.5
-    assert enjoyment.normalized(("dylan", "riflery")) == 0.0
+    assert enjoyment.default == 3 and enjoyment.missing == 3
+    assert enjoyment.normalized(("dylan", "riflery")) == 0.5  # no row, so the default
+
+
+def test_metric_default_column(source):
+    from puppet_strings.sheets.metrics import parse_metric_index
+
+    table = source.read("config", "Metrics")
+    header, row = table[0], table[1]
+    blank = [header, [c if header[i] != "default" else "" for i, c in enumerate(row)]]
+    (metric,) = parse_metric_index(blank)
+    assert metric.default == 1 and metric.normalized(("anyone", "anything")) == 0.0
+    outside = [header, [c if header[i] != "default" else "9" for i, c in enumerate(row)]]
+    with pytest.raises(LoadError, match="default 9.0 is outside 1.0..5.0"):
+        parse_metric_index(outside)
+    without_column = [[c for c in header if c != "default"], row[: len(header) - 1]]
+    (metric,) = parse_metric_index(without_column)
+    assert metric.default == 1
 
 
 def test_published_round_trip(dataset, source):
@@ -174,7 +191,7 @@ def test_dataset(dataset):
         "clinic_4",
     }
     assert dataset.session_dates[0] == date(2026, 9, 13)
-    assert len(dataset.session_dates) == 7
+    assert len(dataset.session_dates) == 14  # a two-week session
     assert [b.id for b in dataset.blocks_on(dataset.target)][:3] == [
         "clinic_1",
         "clinic_2",

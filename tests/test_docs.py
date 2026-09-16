@@ -18,7 +18,7 @@ def test_doc_example_validates(dataset, skedge):
 
 
 def test_docs_have_every_proposal_example():
-    assert len(EXAMPLES) == 16
+    assert len(EXAMPLES) == 20
 
 
 @pytest.mark.parametrize("skedge", EXAMPLES, ids=[e.splitlines()[-1][:30] for e in EXAMPLES])

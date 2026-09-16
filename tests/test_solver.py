@@ -524,6 +524,71 @@ def test_past_minutes_count_toward_for():
     assert today.minutes == 45  # 75 done yesterday; 45 more reaches 2h
 
 
+PAIR = "DURING block.any_clinic\nACROSS {{staff.james AND staff.paul}}\n{verb} activity.any_clinic"
+CRAFT = clinic("Craft Fairy", (None, 1), (None, 1))
+SOLO = clinic("Candle Making", (None, 1))
+
+
+def test_avoid_pairs_two_staff_on_the_same_clinic():
+    members = [staff("James"), staff("Paul"), staff("Sarah")]
+    ds = dataset(
+        members,
+        [CRAFT],
+        offerings=[("Craft Fairy", ["clinic_1"])],
+        requests=[request("feud", PAIR.format(verb="AVOID"), Priority.HIGH, 2)],
+    )
+    holders = {a.staff for a in where(run(ds), activity="craft_fairy")}
+    assert len(holders) == 2 and holders != {"james", "paul"}
+
+
+def test_forbidden_pair_costs_the_clinic_when_nobody_else_can_fill_it():
+    members = [staff("James"), staff("Paul")]
+    ds = dataset(
+        members,
+        [CRAFT],
+        offerings=[("Craft Fairy", ["clinic_1"])],
+        requests=[request("feud", PAIR.format(verb="FORBID"), Priority.MUST_HAPPEN)],
+    )
+    result = run(ds)
+    assert result.feasible
+    assert [u.id for u in result.unsatisfied] == ["offering:2026-09-16:craft_fairy:clinic_1"]
+
+
+def test_a_forbidden_pair_may_still_work_in_different_blocks():
+    pin = (
+        "ON date.target\nDURING block.{block}\nACROSS staff.{who}\n"
+        "TASK activity.candle_making ROLE role.first"
+    )
+    ds = dataset(
+        [staff("James"), staff("Paul")],
+        [SOLO],
+        offerings=[("Candle Making", ["clinic_1"]), ("Candle Making", ["clinic_2"])],
+        requests=[
+            request("feud", PAIR.format(verb="FORBID"), Priority.MUST_HAPPEN),
+            request("a", pin.format(block="clinic_1", who="james"), Priority.MUST_HAPPEN),
+            request("b", pin.format(block="clinic_2", who="paul"), Priority.MUST_HAPPEN),
+        ],
+    )
+    result = run(ds)
+    assert result.feasible and result.unsatisfied == ()
+    assert {(a.block, a.staff) for a in where(result, activity="candle_making")} == {
+        ("clinic_1", "james"),
+        ("clinic_2", "paul"),
+    }
+
+
+def test_prefer_puts_two_staff_on_the_same_clinic():
+    members = [staff("James"), staff("Paul"), staff("Sarah")]
+    ds = dataset(
+        members,
+        [CRAFT, SOLO],
+        offerings=[("Craft Fairy", ["clinic_1"]), ("Candle Making", ["clinic_1"])],
+        requests=[request("friends", PAIR.format(verb="PREFER"), Priority.HIGH, 2)],
+    )
+    holders = {a.staff for a in where(run(ds), activity="craft_fairy")}
+    assert holders == {"james", "paul"}
+
+
 def test_invalid_request_raises():
     ds = dataset([staff("Dylan")], [], requests=[request("bad", "TASK 'x'")])
     with pytest.raises(RequestError, match="request 'bad'.*needs DURING"):

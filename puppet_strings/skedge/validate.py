@@ -70,10 +70,16 @@ def _check_verb(scoped: ScopedVerb, hard: bool) -> None:
         if bad:
             raise _error(f"PER fields must be some of {', '.join(KEY_FIELDS)}", per)
     if kind != "TASK":
-        for selector in _selectors(scoped):
+        for clause, selector in _selectors(scoped):
             if _quantifier(selector) not in (None, "ANY"):
                 raise ast.SkedgeError(
                     f"{kind} takes no quantifier; it filters assignments",
+                    selector.pos.line,
+                    selector.pos.column,
+                )
+            if clause != "ACROSS" and _has_and(selector.expr):
+                raise ast.SkedgeError(
+                    f"{kind}: AND belongs in ACROSS, where it means staff working together",
                     selector.pos.line,
                     selector.pos.column,
                 )
@@ -86,12 +92,18 @@ def _check_gap_task(scoped: ScopedVerb, gap: ast.Gap) -> None:
 
 
 def _selectors(scoped: ScopedVerb):
+    """(clause name, selector) for every selector the verb uses."""
     if isinstance(scoped.verb.target, ast.Selector):
-        yield scoped.verb.target
-    for kind in (ast.On, ast.During, ast.Across, ast.Role):
+        yield scoped.verb.kind, scoped.verb.target
+    for name, kind in (
+        ("ON", ast.On),
+        ("DURING", ast.During),
+        ("ACROSS", ast.Across),
+        ("ROLE", ast.Role),
+    ):
         clause = scoped.get(kind)
         if clause is not None:
-            yield clause.selector
+            yield name, clause.selector
 
 
 def _quantifier(selector: ast.Selector) -> str | None:

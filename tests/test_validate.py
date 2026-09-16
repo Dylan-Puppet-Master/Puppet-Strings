@@ -115,6 +115,21 @@ def request(skedge, priority=Priority.HIGH, weight=1.0):
         ),
         ("DURING block.clinic_1\nFORBID FREE", Priority.HIGH, "FORBID FREE", 2, 1),
         (
+            "DURING {block.clinic_1 AND block.clinic_2}\nAVOID activity.riflery",
+            Priority.HIGH,
+            "AND belongs in ACROSS",
+            1,
+            8,
+        ),
+        (
+            "DURING block.any_clinic\nACROSS {staff.james AND staff.paul}\n"
+            "PREFER {activity.riflery AND activity.archery_1_2}",
+            Priority.HIGH,
+            "AND belongs in ACROSS",
+            3,
+            8,
+        ),
+        (
             "DURING 3 OF block.any_clinic\nTASK 'a' AS x\nTASK 'b' AS y\nGAP x y >= 0m",
             Priority.HIGH,
             "GAP tasks must occupy a single block",

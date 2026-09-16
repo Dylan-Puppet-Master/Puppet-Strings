@@ -16,7 +16,8 @@ def test_solve_prints_views_and_report(capsys):
     assert main(["--fixtures", str(FIXTURES), "--date", "2026-09-16", "solve"]) == 0
     out = capsys.readouterr().out
     assert "Staff   Clinic 1" in out
-    assert "Clinic               Clinic 1" in out
+    assert "Day 4, Session 1 - Wednesday" in out
+    assert "Blacksmithing (DBL)                    Alexis    Alexis" in out
     assert "unsatisfied  offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1" in out
 
 
