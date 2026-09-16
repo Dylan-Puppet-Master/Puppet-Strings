@@ -14,7 +14,7 @@ from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.requests import request_rows
 from puppet_strings.sheets.source import CsvSource, LoadError, SheetsSource, Source, Table
 from puppet_strings.skedge.ast import SkedgeError
-from puppet_strings.skedge.resolve import date_names
+from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.solve import RequestError, solve
 
@@ -92,37 +92,11 @@ def _export(source: Source, folder: Path) -> int:
 
 
 def _names(dataset: Dataset) -> int:
-    spaces = {
-        "staff": {
-            **{i: s.name for i, s in dataset.staff.items()},
-            **_categories(dataset.staff_categories),
-        },
-        "activity": {
-            **{i: a.name for i, a in dataset.activities.items()},
-            **_categories(dataset.activity_categories),
-        },
-        "block": {**{i: "" for i in dataset.blocks}, **_categories(dataset.block_categories)},
-        "date": {name: _dates(days) for name, days in date_names(dataset).items()},
-        "role": {
-            "first, second, third": "positions",
-            "lifeguard, lifeguard_2": "extra lifeguards on water clinics",
-            "shadow, scaffolded, trainee": "",
-        },
-        "metric": {m: "" for m in dataset.metrics},
-    }
-    for namespace, names in spaces.items():
+    for namespace, names in name_listing(dataset).items():
         print(namespace)
-        for name, note in sorted(names.items()):
-            print(f"  {namespace}.{name}" + (f"  ({note})" if note else ""))
+        for name, note in names:
+            print(f"  {namespace}.{name}  ({note})")
     return 0
-
-
-def _dates(days) -> str:
-    return next(iter(days)).isoformat() if len(days) == 1 else f"{len(days)} dates"
-
-
-def _categories(categories) -> dict[str, str]:
-    return {name: f"category, {len(members)} members" for name, members in categories.items()}
 
 
 def _load_offerings(source: Source, config: Config, dataset: Dataset) -> int:

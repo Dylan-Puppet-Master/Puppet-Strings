@@ -41,8 +41,17 @@ line under the editor says whether the request is valid, or shows the first erro
 line and column. Save is enabled only for a valid request. Ctrl+S saves. **New** starts a
 fresh request; **Delete** removes the selected one. Every save rewrites the Requests tab.
 
-**Names.** The panel on the right lists every valid name. Double-click one to insert it at
-the cursor.
+**Name completion.** Type a namespace and a dot in the Skedge box, such as `staff.`, and a
+list of names appears and narrows as you keep typing.
+
+![Completing a staff name](img/completer.png)
+ Enter or Tab takes the highlighted
+name, Escape closes the list. The names offered are exactly the ones the validator
+accepts, so anything the list gives you is spelled right.
+
+**Names.** The panel on the right lists every valid name with what it stands for: a staff
+member's name, how many members a category has, a block's times, a date. Double-click one
+to insert it at the cursor.
 
 **Calendar.** Below the names, a calendar with camp days (the dates on the Calendar sheet)
 shaded. Click any date to insert it into the Skedge editor at the cursor, as `2026-06-15`.

@@ -94,11 +94,11 @@ class _Names:
             "staff": _ids_and_categories(dataset.staff, dataset.staff_categories),
             "activity": _ids_and_categories(dataset.activities, dataset.activity_categories),
             "block": _ids_and_categories(dataset.blocks, dataset.block_categories),
+            "date": date_names(dataset),
             "role": {
                 r: frozenset({r})
                 for r in POSITION_ROLES + LIFEGUARD_ROLES + TRAINEE_ROLES + (TRAINEE,)
             },
-            "date": date_names(dataset),
             "metric": {m: frozenset({m}) for m in dataset.metrics},
         }
 
@@ -109,6 +109,38 @@ class _Names:
             return self.spaces[namespace][ref.name]
         except KeyError:
             raise _error(f"unknown {namespace} name '{ref.name}'", ref.pos) from None
+
+
+def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
+    """Every valid name per namespace with a short note, in listing order.
+
+    Taken from the same table the resolver validates against, so what is listed, completed
+    and accepted can never drift apart.
+    """
+    described = {
+        "staff": {i: s.name for i, s in dataset.staff.items()},
+        "activity": {i: a.name for i, a in dataset.activities.items()},
+        "block": {i: f"{b.start:%H:%M}-{b.end:%H:%M}" for i, b in dataset.blocks.items()},
+        "metric": {m: f"scale {v.scale_min:g}-{v.scale_max:g}" for m, v in dataset.metrics.items()},
+    }
+    listing = {}
+    for namespace, names in _Names(dataset).spaces.items():
+        rows = [
+            (name, described.get(namespace, {}).get(name) or _note(namespace, name, items))
+            for name, items in names.items()
+        ]
+        listing[namespace] = sorted(rows)
+    return listing
+
+
+def _note(namespace: str, name: str, items: frozenset[Item]) -> str:
+    if namespace == "date":
+        return next(iter(items)).isoformat() if len(items) == 1 else f"{len(items)} dates"
+    if namespace == "role":
+        if name in LIFEGUARD_ROLES:
+            return "extra lifeguard on a water clinic"
+        return "trainee" if name in TRAINEE_ROLES + (TRAINEE,) else "clinic position"
+    return f"category, {len(items)} members"
 
 
 def date_names(dataset: Dataset) -> dict[str, frozenset[Item]]:

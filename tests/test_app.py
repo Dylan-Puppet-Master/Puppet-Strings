@@ -10,6 +10,7 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QDate, QItemSelectionModel, Qt  # noqa: E402
 from PySide6.QtGui import QTextCursor  # noqa: E402
+from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from puppet_strings.app.main import MainWindow  # noqa: E402
@@ -24,15 +25,25 @@ def app():
     return QApplication.instance() or QApplication([])
 
 
+OPEN_WINDOWS = []  # a window collected mid-solve would be destroyed off the main thread
+
+
+def make_window(path, loaded=True):
+    """A window on a copy of the fixtures, kept alive for the run."""
+    window = MainWindow(RequestStore(CsvSource(path), Config(time_limit_seconds=10)))
+    OPEN_WINDOWS.append(window)
+    window.date_edit.setDate(QDate(2026, 9, 16))
+    if loaded:
+        window.reload()
+        window.wait_for_load()
+    return window
+
+
 @pytest.fixture
 def window(app, tmp_path):
     copy = tmp_path / "fixtures"
     shutil.copytree(FIXTURES, copy)
-    window = MainWindow(RequestStore(CsvSource(copy), Config(time_limit_seconds=10)))
-    window.date_edit.setDate(QDate(2026, 9, 16))
-    window.reload()
-    window.wait_for_load()
-    return window
+    return make_window(copy)
 
 
 def visible_ids(window):
@@ -114,6 +125,68 @@ def test_selecting_a_row_fills_the_editor(window):
     assert window.editor.id_label.text() == window.proxy.data(index)
 
 
+def completions(editor):
+    model = editor.skedge_edit.completer.completionModel()
+    return [model.index(i, 0).data() for i in range(model.rowCount())]
+
+
+def test_completer_opens_after_a_namespace_and_a_dot(window):
+    editor = window.editor
+    editor.clear()
+    QTest.keyClicks(editor.skedge_edit, "ACROSS staff")
+    assert not editor.skedge_edit.completer.popup().isVisible()
+    QTest.keyClicks(editor.skedge_edit, ".")
+    assert editor.skedge_edit.completer.completionPrefix() == "staff."
+    assert "staff.dylan" in completions(editor) and "staff.counselor" in completions(editor)
+    assert "activity.riflery" not in completions(editor)
+
+
+def test_completer_narrows_as_the_name_is_typed(window):
+    editor = window.editor
+    editor.clear()
+    QTest.keyClicks(editor.skedge_edit, "DURING block.cl")
+    assert completions(editor) == [
+        "block.clinic_1",
+        "block.clinic_2",
+        "block.clinic_3",
+        "block.clinic_4",
+    ]
+    QTest.keyClicks(editor.skedge_edit, "inic_3")
+    assert completions(editor) == ["block.clinic_3"]
+    QTest.keyClicks(editor.skedge_edit, "9")
+    assert completions(editor) == []
+    assert not editor.skedge_edit.completer.popup().isVisible()
+
+
+def test_choosing_a_completion_replaces_what_was_typed(window):
+    editor = window.editor
+    editor.clear()
+    QTest.keyClicks(editor.skedge_edit, "ON date.sec")
+    assert "date.second_thursday" in completions(editor)
+    editor.skedge_edit.completer.activated.emit("date.second_thursday")
+    assert editor.skedge_edit.toPlainText() == "ON date.second_thursday"
+
+
+def test_completer_stays_shut_for_plain_words_and_dates(window):
+    editor = window.editor
+    editor.clear()
+    for text in ("TASK ", "ON 2026-09-16", "AVOID 'break'"):
+        editor.skedge_edit.setPlainText("")
+        QTest.keyClicks(editor.skedge_edit, text)
+        assert not editor.skedge_edit.completer.popup().isVisible(), text
+
+
+def test_completer_follows_the_loaded_dataset(app, tmp_path):
+    copy = tmp_path / "other"
+    shutil.copytree(FIXTURES, copy)
+    window = make_window(copy, loaded=False)
+    assert window.editor.skedge_edit.completer.completionModel().rowCount() == 0
+    window.reload()
+    window.wait_for_load()
+    QTest.keyClicks(window.editor.skedge_edit, "ACROSS staff.cam")
+    assert completions(window.editor) == ["staff.cam_vl"]
+
+
 def test_names_panel_lists_namespaces(window):
     names = window.names
     assert [names.topLevelItem(i).text(0) for i in range(names.topLevelItemCount())] == [
@@ -124,6 +197,7 @@ def test_names_panel_lists_namespaces(window):
         "role",
         "metric",
     ]
+    assert names.topLevelItem(3).child(0).text(0).startswith("date.")
     staff = names.topLevelItem(0)
     assert any(staff.child(i).text(0) == "staff.cam_vl" for i in range(staff.childCount()))
     names.picked.emit("staff.dylan")
@@ -191,10 +265,7 @@ def test_solve_uses_requests_saved_since_the_last_reload(app, tmp_path):
         rows = [r for r in csv.reader(f) if "generated" not in r]
     with path.open("w", newline="") as f:
         csv.writer(f).writerows(rows)
-    window = MainWindow(RequestStore(CsvSource(copy), Config(time_limit_seconds=10)))
-    window.date_edit.setDate(QDate(2026, 9, 16))
-    window.reload()
-    window.wait_for_load()
+    window = make_window(copy)
     assert not window.store.offerings_loaded
     window.load_offerings()  # no Reload in between
     assert window.store.offerings_loaded

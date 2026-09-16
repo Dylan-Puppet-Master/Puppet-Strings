@@ -1,11 +1,13 @@
 """The request editor: one field per request column, a Skedge editor, live validation."""
 
+import re
 from datetime import date
 
-from PySide6.QtCore import QRegularExpression, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat
+from PySide6.QtCore import QRegularExpression, QStringListModel, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
     QComboBox,
+    QCompleter,
     QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
@@ -19,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from puppet_strings.model import Dataset, Priority, Request
 from puppet_strings.skedge.ast import SkedgeError
+from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
 
 KEYWORDS = (
@@ -61,6 +64,62 @@ def _format(color: str, bold: bool = False, italic: bool = False) -> QTextCharFo
     return fmt
 
 
+class SkedgeEdit(QPlainTextEdit):
+    """The Skedge text box, which suggests names once a namespace and a dot are typed."""
+
+    PARTIAL_NAME = re.compile(r"[a-z_][a-z0-9_]*\.[a-z0-9_]*$")
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setFont(QFont("monospace"))
+        self.setTabStopDistance(24)
+        self.completer = QCompleter(self)
+        self.completer.setWidget(self)
+        self.completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.names = QStringListModel([], self.completer)
+        self.completer.setModel(self.names)
+        self.completer.activated.connect(self._insert_completion)
+
+    def set_names(self, names: list[str]) -> None:
+        """The names to suggest, as `namespace.name`. Reuses the model, leaving no garbage."""
+        self.names.setStringList(names)
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        """Type as usual, but leave the popup its own keys and suggest after each change."""
+        popup_keys = (Qt.Key_Enter, Qt.Key_Return, Qt.Key_Escape, Qt.Key_Tab, Qt.Key_Backtab)
+        if self.completer.popup().isVisible() and event.key() in popup_keys:
+            event.ignore()
+            return
+        super().keyPressEvent(event)
+        self.suggest()
+
+    def suggest(self) -> None:
+        """Open, narrow, or close the popup for the name being typed at the cursor."""
+        typed = self.toPlainText()[: self.textCursor().position()]
+        match = self.PARTIAL_NAME.search(typed)
+        popup = self.completer.popup()
+        if match is None:
+            popup.hide()
+            return
+        if match.group() != self.completer.completionPrefix():
+            self.completer.setCompletionPrefix(match.group())
+            popup.setCurrentIndex(self.completer.completionModel().index(0, 0))
+        if not self.completer.completionCount():
+            popup.hide()
+            return
+        rect = self.cursorRect()
+        rect.setWidth(popup.sizeHintForColumn(0) + popup.verticalScrollBar().sizeHint().width())
+        self.completer.complete(rect)
+
+    def _insert_completion(self, completion: str) -> None:
+        cursor = self.textCursor()
+        typed = len(self.completer.completionPrefix())
+        cursor.movePosition(QTextCursor.Left, QTextCursor.KeepAnchor, typed)
+        cursor.insertText(completion)
+        self.setTextCursor(cursor)
+
+
 class RequestEditor(QWidget):
     """Edits one request. Emits `saved(request, original_id)` and `deleted(request_id)`."""
 
@@ -82,9 +141,7 @@ class RequestEditor(QWidget):
         self.tags_edit = QLineEdit()
         self.tags_edit.setPlaceholderText("comma-separated")
         self.created_label = QLabel("")
-        self.skedge_edit = QPlainTextEdit()
-        self.skedge_edit.setFont(QFont("monospace"))
-        self.skedge_edit.setTabStopDistance(24)
+        self.skedge_edit = SkedgeEdit()
         self.highlighter = SkedgeHighlighter(self.skedge_edit.document())
         self.status = QLabel("")
         self.status.setWordWrap(True)
@@ -122,8 +179,18 @@ class RequestEditor(QWidget):
         self.clear()
 
     def set_dataset(self, dataset: Dataset | None) -> None:
-        """Names are validated against this dataset."""
+        """Names are validated and suggested against this dataset."""
         self.dataset = dataset
+        names = (
+            []
+            if dataset is None
+            else [
+                f"{namespace}.{name}"
+                for namespace, rows in name_listing(dataset).items()
+                for name, _ in rows
+            ]
+        )
+        self.skedge_edit.set_names(names)
         self.validate()
 
     def show_request(self, request: Request) -> None:

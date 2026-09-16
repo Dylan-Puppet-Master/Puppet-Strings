@@ -598,6 +598,12 @@ Recorded so the outline matches the code.
   match per instance, whose literal is the AND of each member's presence there, reified
   with `AddMinEquality`. `AND` elsewhere on those verbs is a validation error, and a
   staff-keyed metric cannot score a group. `POSITION_ROLES` is now an alias of `ORDINALS`.
+- **One name listing** (`resolve.name_listing`) feeds the `names` command, the app's names
+  panel and the editor's completer, built from the same table the resolver validates
+  against so the three cannot drift apart. The completer is a `QCompleter` on the Skedge
+  box, opened by a `namespace.` prefix. Its model is created once and refilled, because a
+  replaced Qt object can be collected inside the solver thread and destroyed off the main
+  thread, which crashes the process.
 - **No pass can lose a working schedule.** `solve_tiers` snapshots the solution after
   every successful pass (`ResponseProto().solution`, indexed by variable) and returns a
   `TierOutcome.value(var)` lookup instead of the live solver. A tier or cosmetic pass that

@@ -3,8 +3,8 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem
 
-from puppet_strings.model import LIFEGUARD_ROLES, POSITION_ROLES, TRAINEE_ROLES, Dataset
-from puppet_strings.skedge.resolve import TRAINEE, date_names
+from puppet_strings.model import Dataset
+from puppet_strings.skedge.resolve import name_listing
 
 
 class NamesPanel(QTreeWidget):
@@ -22,26 +22,10 @@ class NamesPanel(QTreeWidget):
         self.clear()
         if dataset is None:
             return
-        spaces = {
-            "staff": [(i, s.name) for i, s in dataset.staff.items()]
-            + [(c, f"category ({len(m)})") for c, m in dataset.staff_categories.items()],
-            "activity": [(i, a.name) for i, a in dataset.activities.items()]
-            + [(c, f"category ({len(m)})") for c, m in dataset.activity_categories.items()],
-            "block": [(i, f"{b.start:%H:%M}-{b.end:%H:%M}") for i, b in dataset.blocks.items()]
-            + [(c, f"category ({len(m)})") for c, m in dataset.block_categories.items()],
-            "date": [
-                (name, next(iter(days)).isoformat() if len(days) == 1 else f"{len(days)} dates")
-                for name, days in date_names(dataset).items()
-            ],
-            "role": [(r, "position") for r in POSITION_ROLES[:3]]
-            + [(r, "lifeguard") for r in LIFEGUARD_ROLES]
-            + [(r, "trainee") for r in TRAINEE_ROLES + (TRAINEE,)],
-            "metric": [(m, f"{v.scale_min}..{v.scale_max}") for m, v in dataset.metrics.items()],
-        }
-        for namespace, names in spaces.items():
+        for namespace, names in name_listing(dataset).items():
             top = QTreeWidgetItem([namespace, ""])
             self.addTopLevelItem(top)
-            for name, note in sorted(names):
+            for name, note in names:
                 top.addChild(QTreeWidgetItem([f"{namespace}.{name}", note]))
         self.expandAll()
         self.resizeColumnToContents(0)
