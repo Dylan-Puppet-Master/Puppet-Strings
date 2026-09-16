@@ -1,11 +1,13 @@
 """Assemble a Dataset for one target date from every sheet."""
 
+from dataclasses import replace
 from datetime import date
 
 from puppet_strings.config import Config
 from puppet_strings.model import Dataset
 from puppet_strings.names import normalize
 from puppet_strings.sheets import metrics as metrics_sheet
+from puppet_strings.sheets.adjustments import on_date, parse_adjustments
 from puppet_strings.sheets.blocks import block_categories, parse_blocks
 from puppet_strings.sheets.calendar import parse_calendar, parse_date
 from puppet_strings.sheets.categories import parse_staff_categories
@@ -16,6 +18,7 @@ from puppet_strings.sheets.requests import parse_requests
 from puppet_strings.sheets.skills import parse_position_skills, parse_skills, trainers
 from puppet_strings.sheets.source import LoadError, Source
 
+ADJUSTMENT_HEADER = ("date", "staff", "ral", "note")
 ALL_STAFF = "all"
 CLINIC_TRAINERS = "clinic_trainers"
 ANY_CLINIC = "any_clinic"
@@ -43,9 +46,15 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
         ALL_STAFF: frozenset(staff),
         CLINIC_TRAINERS: staff_categories.get(CLINIC_TRAINERS, trainers(staff)),
     }
-    config_tables = source.read_many(
-        "config", [tabs["blocks"], tabs["calendar"], tabs["requests"], tabs["metrics"]]
+    wanted = [tabs["blocks"], tabs["calendar"], tabs["requests"], tabs["metrics"]]
+    if tabs["adjustments"] in source.tabs("config"):
+        wanted.append(tabs["adjustments"])  # the tab is optional
+    config_tables = source.read_many("config", wanted)
+    adjustments = parse_adjustments(
+        config_tables.get(tabs["adjustments"], [[*ADJUSTMENT_HEADER]]), staff
     )
+    today = on_date(adjustments, target)
+    staff = {**staff, **{a.staff: replace(staff[a.staff], ral=a.ral) for a in today}}
     blocks = parse_blocks(config_tables[tabs["blocks"]])
     calendar = parse_calendar(config_tables[tabs["calendar"]])
     if target not in calendar:
@@ -78,18 +87,20 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
     }
 
     session = calendar[target].session
-    past_tabs = {}
+    days = {}
     for tab in source.tabs("published"):
         try:
             day = parse_date(tab, "Published Schedules")
         except LoadError:
             continue
-        if day < target and calendar.get(day) is not None and calendar[day].session == session:
-            past_tabs[tab] = day
-    published = {
-        past_tabs[tab]: parse_published(table, past_tabs[tab], staff, activities)
-        for tab, table in source.read_many("published", list(past_tabs)).items()
+        in_session = calendar.get(day) is not None and calendar[day].session == session
+        if day == target or (day < target and in_session):
+            days[tab] = day
+    schedules = {
+        days[tab]: parse_published(table, days[tab], staff, activities)
+        for tab, table in source.read_many("published", list(days)).items()
     }
+    baseline = schedules.pop(target, None)  # the target's own schedule is what to hold to
 
     return Dataset(
         target=target,
@@ -103,6 +114,8 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
         offerings=offerings,
         requests=requests,
         metrics=metrics,
-        published=published,
+        published=schedules,
+        baseline=baseline,
+        adjustments=today,
         warnings=tuple(warnings),
     )

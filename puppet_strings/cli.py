@@ -8,7 +8,7 @@ from pathlib import Path
 from puppet_strings.config import Config, load_config
 from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
 from puppet_strings.model import Dataset
-from puppet_strings.publish.views import clinic_view, report, staff_view
+from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
 from puppet_strings.publish.writer import is_published, publish
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.requests import request_rows
@@ -38,6 +38,11 @@ def main(argv: list[str] | None = None) -> int:
     solve_parser = commands.add_parser("solve", help="build the schedule for the target date")
     solve_parser.add_argument("--publish", action="store_true", help="write to Published Schedules")
     solve_parser.add_argument(
+        "--same-day",
+        action="store_true",
+        help="re-solve a published day, keeping it as close to what was published as it can",
+    )
+    solve_parser.add_argument(
         "--force", action="store_true", help="overwrite an already published date"
     )
     export = commands.add_parser("export-fixtures", help="download every tab as CSV")
@@ -46,7 +51,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
-    target = args.date or date.today() + timedelta(days=1)
+    default = date.today() if getattr(args, "same_day", False) else date.today() + timedelta(days=1)
+    target = args.date or default
     try:
         return _run(args, config, target)
     except (LoadError, RequestError) as e:
@@ -71,9 +77,15 @@ def _run(args, config: Config, target: date) -> int:
         return _validate(dataset)
     if args.command == "load-offerings":
         return _load_offerings(source, config, dataset)
+    if args.same_day and dataset.baseline is None:
+        print(f"error: {dataset.target} has no published schedule to change", file=sys.stderr)
+        return 1
     if not has_offerings_loaded(dataset.requests, dataset.target):
         print(f"warning: no offerings loaded for {dataset.target}; run load-offerings first")
-    return _solve(source, config, dataset, args.publish, args.force)
+    for adjustment in dataset.adjustments:
+        note = f" ({adjustment.note})" if adjustment.note else ""
+        print(f"today: {dataset.staff[adjustment.staff].name} is RAL {adjustment.ral}{note}")
+    return _solve(source, config, dataset, args)
 
 
 def _source(fixtures: Path | None, config: Config) -> Source:
@@ -119,8 +131,8 @@ def _validate(dataset: Dataset) -> int:
     return 1 if failures else 0
 
 
-def _solve(source: Source, config: Config, dataset: Dataset, do_publish: bool, force: bool) -> int:
-    result = solve(dataset, config)
+def _solve(source: Source, config: Config, dataset: Dataset, args) -> int:
+    result = solve(dataset, config, same_day=args.same_day)
     if not result.feasible:
         print("No schedule: these MUST_HAPPEN requests conflict:")
         for request_id in result.conflicts:
@@ -131,9 +143,12 @@ def _solve(source: Source, config: Config, dataset: Dataset, do_publish: bool, f
     _print_table(clinic_view(dataset, result.assignments, config.remainder).rows)
     print()
     _print_table(report(result))
-    if not do_publish:
+    if args.same_day:
+        print()
+        _print_table(changes_view(dataset, result))
+    if not args.publish:
         return 0
-    if is_published(source, dataset) and not force:
+    if is_published(source, dataset) and not (args.force or args.same_day):
         print(f"{dataset.target} is already published; use --force to overwrite", file=sys.stderr)
         return 1
     publish(source, config, dataset, result)

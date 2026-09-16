@@ -46,6 +46,7 @@ LIFEGUARD_SKILL = "LIFEGUARD"
 LIFEGUARD_RAL = 5
 
 ANY_SKILL = "Any"
+MAX_RAL = 5
 
 
 @dataclass(frozen=True)
@@ -148,10 +149,15 @@ class CalendarDay:
 
 
 class Priority(Enum):
-    """Request priority tiers, highest first."""
+    """Request priority tiers, highest first.
+
+    `CLINIC` and `STABILITY` are the solver's own: `CLINIC` comes from the Offerings tab
+    and `STABILITY` holds a published schedule together during a same-day change.
+    """
 
     MUST_HAPPEN = "MUST_HAPPEN"
     CLINIC = "CLINIC"
+    STABILITY = "STABILITY"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
     LOW = "LOW"
@@ -162,7 +168,14 @@ class Priority(Enum):
         return self is Priority.MUST_HAPPEN
 
 
-SOFT_TIERS = (Priority.CLINIC, Priority.HIGH, Priority.MEDIUM, Priority.LOW)
+SOFT_TIERS = (
+    Priority.CLINIC,
+    Priority.STABILITY,
+    Priority.HIGH,
+    Priority.MEDIUM,
+    Priority.LOW,
+)
+WRITABLE_PRIORITIES = tuple(p for p in Priority if p is not Priority.STABILITY)
 
 
 @dataclass(frozen=True)
@@ -230,6 +243,16 @@ class Assignment:
 
 
 @dataclass(frozen=True)
+class Adjustment:
+    """A one-day change to what a staff member may do, from the Adjustments sheet."""
+
+    date: date
+    staff: str
+    ral: int
+    note: str = ""
+
+
+@dataclass(frozen=True)
 class Offering:
     """A clinic offered on the target date in one or more blocks."""
 
@@ -253,6 +276,8 @@ class Dataset:
     requests: tuple[Request, ...] = ()
     metrics: Mapping[str, Metric] = field(default_factory=dict)
     published: Mapping[date, tuple[Assignment, ...]] = field(default_factory=dict)
+    baseline: tuple[Assignment, ...] | None = None
+    adjustments: tuple[Adjustment, ...] = ()
     warnings: tuple[str, ...] = ()
 
     @property

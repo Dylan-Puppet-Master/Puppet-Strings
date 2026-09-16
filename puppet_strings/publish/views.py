@@ -12,11 +12,13 @@ from puppet_strings.model import (
     Assignment,
     Block,
     Dataset,
+    minute_to_time,
 )
 from puppet_strings.sheets.source import Table
 from puppet_strings.solver.result import Result
 
 AVAILABLE = "Available"
+FREE = "free"
 PLAYSTATION = "playstation"
 ANY_CLINIC = "any_clinic"
 
@@ -173,6 +175,33 @@ def _stack(label: str, per_block: dict[str, list[str]], blocks: list[str]) -> Ta
         cells += [per_block[b][i] if i < len(per_block[b]) else "" for b in blocks]
         rows.append(cells)
     return rows
+
+
+def changes_view(dataset: Dataset, result: Result) -> Table:
+    """One row per staff member and block that a same-day re-solve moved."""
+    rows: Table = [["Staff", "Block", "Was", "Now"]]
+    for change in result.changes:
+        rows.append(
+            [
+                dataset.staff[change.staff].name,
+                _label(change.block),
+                _held(dataset, change.before),
+                _held(dataset, change.after),
+            ]
+        )
+    return rows
+
+
+def _held(dataset: Dataset, assignments: tuple[Assignment, ...]) -> str:
+    return ", ".join(_timed(dataset, a) for a in assignments) or FREE
+
+
+def _timed(dataset: Dataset, a: Assignment) -> str:
+    """The task, with its times when it takes only part of its block."""
+    text = _describe(dataset, a)
+    if a.minutes >= dataset.blocks[a.block].minutes:
+        return text
+    return f"{text} {a.start:%H:%M}-{minute_to_time(a.end_minute):%H:%M}"
 
 
 def report(result: Result) -> Table:

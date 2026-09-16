@@ -3,14 +3,14 @@
 from ortools.sat.python import cp_model
 
 from puppet_strings.config import Config
-from puppet_strings.model import Assignment, Dataset, Request, minute_to_time
+from puppet_strings.model import Assignment, Dataset, Priority, Request, minute_to_time
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.validate import validate_request
-from puppet_strings.solver.compile import Compiled, Compiler
-from puppet_strings.solver.result import RequestOutcome, Result
+from puppet_strings.solver.compile import SCALE, Compiled, Compiler
+from puppet_strings.solver.result import Change, RequestOutcome, Result
 from puppet_strings.solver.structural import add_structural_constraints
 from puppet_strings.solver.tiers import solve_tiers
-from puppet_strings.solver.variables import Variables
+from puppet_strings.solver.variables import Slot, Variables
 
 
 class RequestError(Exception):
@@ -22,8 +22,12 @@ class RequestError(Exception):
         self.error = error
 
 
-def solve(dataset: Dataset, config: Config | None = None) -> Result:
-    """Schedule the dataset's target date."""
+def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False) -> Result:
+    """Schedule the dataset's target date.
+
+    With `same_day`, the schedule already published for that date is held together: keeping
+    it matters more than anything but staffing the clinics, and the result lists what moved.
+    """
     config = config or Config()
     model = cp_model.CpModel()
     variables = Variables(model, dataset)
@@ -41,6 +45,9 @@ def solve(dataset: Dataset, config: Config | None = None) -> Result:
         compiler.compile(request, copy)
     variables.finish()
     add_structural_constraints(model, variables, dataset)
+    baseline = dataset.baseline if same_day else None
+    if baseline is not None:
+        _hold_to(model, compiler, variables, baseline)
 
     unique = {var.Index(): var for var in variables.x.values()}
     minutes = [
@@ -57,14 +64,50 @@ def solve(dataset: Dataset, config: Config | None = None) -> Result:
         )
         return Result(feasible=False, conflicts=conflicts)
     missed = [c for c in compiler.compiled if not outcome.value(c.sat)]
+    assignments = _assignments(outcome, variables, dataset)
     return Result(
         feasible=True,
-        assignments=_assignments(outcome, variables, dataset),
+        assignments=assignments,
         unsatisfied=tuple(_outcome(c) for c in missed if not c.deferrable),
         deferred=tuple(_outcome(c) for c in missed if c.deferrable),
         notes=outcome.notes,
+        changes=_changes(baseline, assignments),
         tier_scores=outcome.scores or {},
     )
+
+
+def _hold_to(model, compiler: Compiler, variables: Variables, baseline) -> None:
+    """Reward every published assignment the day can still keep, and start the solver there."""
+    for a in baseline:
+        var = variables.x.get(Slot(a.staff, a.activity, a.role, a.block))
+        if var is None:
+            continue  # nobody can hold it today, so there is nothing to keep
+        compiler.terms[Priority.STABILITY].append((SCALE, var))
+        model.AddHint(var, 1)
+
+
+def _changes(baseline, assignments: tuple[Assignment, ...]) -> tuple[Change, ...]:
+    """What each staff member's block held before and after, where the two differ."""
+    if baseline is None:
+        return ()
+    before, after = _by_staff_block(baseline), _by_staff_block(assignments)
+    changes = []
+    for key in sorted(set(before) | set(after)):
+        was, now = before.get(key, ()), after.get(key, ())
+        if [_shape(a) for a in was] != [_shape(a) for a in now]:
+            changes.append(Change(key[0], key[1], was, now))
+    return tuple(changes)
+
+
+def _by_staff_block(assignments) -> dict[tuple[str, str], tuple[Assignment, ...]]:
+    grouped: dict[tuple[str, str], list[Assignment]] = {}
+    for a in assignments:
+        grouped.setdefault((a.staff, a.block), []).append(a)
+    return {key: tuple(sorted(rows, key=_shape)) for key, rows in grouped.items()}
+
+
+def _shape(a: Assignment) -> tuple:
+    return (a.start, a.activity, a.role or "", a.minutes)
 
 
 def _assumption_positions(conflicts: tuple[int, ...], compiled: list[Compiled]) -> list[int]:

@@ -19,9 +19,11 @@ DEFAULT_TABS = {
     "calendar": "Calendar",
     "requests": "Requests",
     "metrics": "Metrics",
+    "adjustments": "Adjustments",
     "staff_view": "Staff View",
     "clinic_view": "Clinic View",
     "report": "Report",
+    "changes": "Changes",
 }
 
 

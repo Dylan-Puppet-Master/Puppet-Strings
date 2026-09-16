@@ -2,7 +2,7 @@
 
 from puppet_strings.config import Config
 from puppet_strings.model import Dataset
-from puppet_strings.publish.views import clinic_view, report, staff_view
+from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
 from puppet_strings.sheets.published import assignment_rows
 from puppet_strings.sheets.source import Source
 from puppet_strings.solver.result import Result
@@ -28,6 +28,8 @@ def publish(source: Source, config: Config, dataset: Dataset, result: Result) ->
         clinics.freeze_rows,
     )
     source.write(PUBLISHED, config.tabs["report"], report(result))
+    if dataset.baseline is not None:  # a same-day re-solve, so say what moved
+        source.write(PUBLISHED, config.tabs["changes"], changes_view(dataset, result))
 
 
 def is_published(source: Source, dataset: Dataset) -> bool:
