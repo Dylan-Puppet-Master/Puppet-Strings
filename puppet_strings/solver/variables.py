@@ -1,6 +1,8 @@
 """Assignment variables: one boolean per (staff, activity, role, block) on the target date.
 
-Past dates come from Published Schedules and are looked up as plain booleans.
+Every variable carries a time interval inside its block. A clinic position fills the block;
+an ad hoc task has a movable start and a variable length, so `FOR 30m` can take part of a
+block. Past dates come from Published Schedules and are looked up as plain values.
 """
 
 from dataclasses import dataclass, field
@@ -8,11 +10,9 @@ from datetime import date
 
 from ortools.sat.python import cp_model
 
-from puppet_strings.model import Activity, Dataset
+from puppet_strings.model import Activity, Block, Dataset
 
 Literal = cp_model.IntVar | bool
-
-OFFERING = "offering"
 
 
 @dataclass(frozen=True)
@@ -23,6 +23,22 @@ class Slot:
     activity: str
     role: str | None
     block: str
+
+
+@dataclass(frozen=True)
+class Interval:
+    """When an assignment happens, in minutes after midnight. Constants for whole blocks."""
+
+    start: cp_model.IntVar | int
+    size: cp_model.IntVar | int
+    end: cp_model.IntVar | int
+    interval: cp_model.IntervalVar
+    block: Block
+
+    @property
+    def partial(self) -> bool:
+        """Whether the task may take part of the block."""
+        return not isinstance(self.size, int)
 
 
 @dataclass
@@ -43,15 +59,14 @@ class Variables:
         self.model = model
         self.dataset = dataset
         self.x: dict[Slot, cp_model.IntVar] = {}
+        self.intervals: dict[Slot, Interval] = {}
         self.sources: dict[Slot, str] = {}
         self.instances: dict[tuple[str, str], Instance] = {}
         self.free_literals: dict[tuple[str, str], cp_model.IntVar] = {}
-        self._past: dict[date, set[tuple[str, str, str | None, str]]] = {
-            day: {(a.staff, a.activity, a.role, a.block) for a in rows}
+        self._past: dict[date, dict[tuple[str, str, str | None, str], int]] = {
+            day: {(a.staff, a.activity, a.role, a.block): a.minutes for a in rows}
             for day, rows in dataset.published.items()
         }
-        for offering in dataset.offerings:
-            self.instance(offering.activity, offering.blocks, OFFERING)
 
     # -- creation ---------------------------------------------------------------------
 
@@ -93,8 +108,13 @@ class Variables:
         slot = Slot(staff_id, text, None, block)
         if slot not in self.x:
             var = self.model.NewBoolVar(f"x:{staff_id}:{text}:{block}")
-            self._register(staff_id, text, None, (block,), var, source)
+            self._register(staff_id, text, None, (block,), var, source, partial=True)
         return self.x[slot]
+
+    def adhoc_interval(self, staff_id: str, text: str, block: str, source: str) -> Interval:
+        """The interval of an ad hoc task, creating the variable if needed."""
+        self.adhoc(staff_id, text, block, source)
+        return self.intervals[Slot(staff_id, text, None, block)]
 
     def free(self, staff_id: str, block: str) -> cp_model.IntVar:
         """True iff the staff member has nothing overlapping this block. Linked in finish()."""
@@ -103,11 +123,26 @@ class Variables:
             self.free_literals[key] = self.model.NewBoolVar(f"free:{staff_id}:{block}")
         return self.free_literals[key]
 
-    def _register(self, staff_id, activity_id, role, blocks, var, source) -> None:
+    def _register(self, staff_id, activity_id, role, blocks, var, source, partial=False):
         for block in blocks:
             slot = Slot(staff_id, activity_id, role, block)
             self.x[slot] = var
             self.sources[slot] = source
+            self.intervals[slot] = self._interval(slot, var, partial)
+
+    def _interval(self, slot: Slot, var: cp_model.IntVar, partial: bool) -> Interval:
+        block = self.dataset.blocks[slot.block]
+        name = f"{slot.staff}:{slot.activity}:{slot.block}"
+        if not partial:
+            interval = self.model.NewOptionalIntervalVar(
+                block.start_minute, block.minutes, block.end_minute, var, f"iv:{name}"
+            )
+            return Interval(block.start_minute, block.minutes, block.end_minute, interval, block)
+        start = self.model.NewIntVar(block.start_minute, block.end_minute - 1, f"start:{name}")
+        size = self.model.NewIntVar(1, block.minutes, f"size:{name}")
+        end = self.model.NewIntVar(block.start_minute + 1, block.end_minute, f"end:{name}")
+        interval = self.model.NewOptionalIntervalVar(start, size, end, var, f"iv:{name}")
+        return Interval(start, size, end, interval, block)
 
     # -- lookup, with past dates as constants ---------------------------------------------
 
@@ -115,14 +150,18 @@ class Variables:
         """The assignment literal, or a constant for a past or future date."""
         if day == self.dataset.target:
             return self.x.get(Slot(staff_id, activity_id, role, block), False)
-        return (staff_id, activity_id, role, block) in self._past.get(day, set())
+        return (staff_id, activity_id, role, block) in self._past.get(day, {})
+
+    def past_minutes(self, staff_id: str, activity_id: str, day: date, block: str) -> int:
+        """Minutes a published ad hoc assignment took, or 0."""
+        return self._past.get(day, {}).get((staff_id, activity_id, None, block), 0)
 
     def filled(self, activity_id: str, day: date, block: str) -> Literal:
         """Whether the activity runs fully staffed in this block on this date."""
         if day == self.dataset.target:
             instance = self.instances.get((activity_id, block))
             return False if instance is None else instance.filled
-        past = self._past.get(day, set())
+        past = self._past.get(day, {})
         positions = self.dataset.activities[activity_id].positions
         return all(any(key[1:] == (activity_id, p.role, block) for key in past) for p in positions)
 
@@ -140,7 +179,7 @@ class Variables:
             ]
         return [
             True
-            for key in self._past.get(day, set())
+            for key in self._past.get(day, {})
             if key[1] == activity_id and key[3] == block and key[0] not in pool
         ]
 
@@ -151,12 +190,12 @@ class Variables:
         blocks = self.dataset.blocks
         return not any(
             key[0] == staff_id and blocks[key[3]].overlaps(blocks[block])
-            for key in self._past.get(day, set())
+            for key in self._past.get(day, {})
         )
 
     def past_assignments(self, day: date):
         """Published (staff, activity, role, block) keys on a past date."""
-        return self._past.get(day, set())
+        return self._past.get(day, {}).keys()
 
     # -- finish -----------------------------------------------------------------------------
 

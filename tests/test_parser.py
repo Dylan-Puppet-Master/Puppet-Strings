@@ -69,7 +69,7 @@ def test_quantifiers():
 
 def test_other_clauses():
     lines = parse(EXAMPLES["counselor-hours"]).lines
-    assert lines[1].clauses[2] == ast.Label(ast.Pos(2, 65), "morning")
+    assert lines[1].clauses[3] == ast.Label(ast.Pos(2, 72), "morning")
     assert lines[3].clauses[0] == ast.Gap(ast.Pos(4, 1), "morning", "afternoon", "<=", 300)
     per = parse(EXAMPLES["variety-week"]).lines[3].clauses[1]
     assert per == ast.Per(ast.Pos(4, 27), ("staff", "activity"), 1)

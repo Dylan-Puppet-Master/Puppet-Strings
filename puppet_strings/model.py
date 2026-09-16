@@ -101,12 +101,21 @@ class Block:
     end: time
     day_types: frozenset[str]
     categories: frozenset[str]
-    display_group: str | None = None
 
     @property
     def minutes(self) -> int:
         """Length in minutes."""
         return _minutes(self.end) - _minutes(self.start)
+
+    @property
+    def start_minute(self) -> int:
+        """Start as minutes after midnight."""
+        return _minutes(self.start)
+
+    @property
+    def end_minute(self) -> int:
+        """End as minutes after midnight."""
+        return _minutes(self.end)
 
     def overlaps(self, other: "Block") -> bool:
         """Whether the two blocks share any time."""
@@ -121,6 +130,11 @@ class Block:
 
 def _minutes(t: time) -> int:
     return t.hour * 60 + t.minute
+
+
+def minute_to_time(minute: int) -> time:
+    """Minutes after midnight as a time of day."""
+    return time(minute // 60, minute % 60)
 
 
 @dataclass(frozen=True)
@@ -159,6 +173,7 @@ class Request:
     skedge: str
     priority: Priority
     weight: float = 1.0
+    tags: tuple[str, ...] = ()
     created: date | None = None
 
 
@@ -185,6 +200,8 @@ class Assignment:
 
     `activity` is an activity id for clinics or the quoted text of an ad hoc task.
     `role` is a position role, a trainee role, or None for ad hoc tasks.
+    `start` and `minutes` place the task inside its block; a clinic fills the whole block,
+    an ad hoc task with `FOR` may fill part of it.
     """
 
     staff: str
@@ -192,7 +209,14 @@ class Assignment:
     role: str | None
     date: date
     block: str
+    start: time
+    minutes: int
     source: str = ""
+
+    @property
+    def end_minute(self) -> int:
+        """End as minutes after midnight."""
+        return _minutes(self.start) + self.minutes
 
 
 @dataclass(frozen=True)

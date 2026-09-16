@@ -1,4 +1,7 @@
-"""Blocks: one row per time block."""
+"""Blocks: one row per time block.
+
+Columns: block_id, start, end, day_types (comma-separated), categories (comma-separated).
+"""
 
 from datetime import time
 
@@ -23,7 +26,6 @@ def parse_blocks(table: Table) -> dict[str, Block]:
             end=_time(row["end"], cell),
             day_types=frozenset(normalize(t) for t in split_list(row["day_types"])),
             categories=frozenset(normalize(c) for c in split_list(row["categories"])) | {ANY_BLOCK},
-            display_group=normalize(row.get("display_group", "")) or None,
         )
         if block.minutes <= 0:
             raise LoadError(f"{cell}: end must be after start")

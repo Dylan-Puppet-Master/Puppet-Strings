@@ -39,7 +39,7 @@ own email address. Set it up once; hand the key file to the next Puppet Master.
    | Spreadsheet | Access |
    |---|---|
    | Clinic_Data, Clinic_Schedule, Skills, Staff Categories | Viewer |
-   | Puppet Strings (Blocks, Calendar, Requests, Metrics) | Editor |
+   | The config spreadsheet (Blocks, Calendar, Requests, Metrics) | Editor |
    | Published Schedules | Editor |
 
 ## 4. Config file
@@ -52,7 +52,7 @@ clinic_data      = "1bcCFIBqL77HbPiY1nOM2cqzZ0YC9fhRcdBi4TwZS0-E"
 clinic_schedule  = "1h_iOC7oqe43QFkpgoS-D-oFzP_r8G1EtDmrxvc83-o8"
 skills           = "1SAjIEMtNwdpDWcKkBp8wrEt9BjQJ6kaeHW00zJcBQPs"
 staff_categories = "1Z92mJG-AbXKBX_jq5DKztNLVDXPUyL-licZWGvkVPXs"
-config           = "<id of the Puppet Strings spreadsheet>"
+config           = "<id of the config spreadsheet>"
 published        = "<id of the Published Schedules spreadsheet>"
 
 # Tab names inside each spreadsheet. Change these to match, or rename the tabs.
@@ -69,25 +69,33 @@ credentials = "~/.config/puppet_strings/service_account.json"
 [solver]
 time_limit_seconds = 30   # per priority tier
 workers = 8
+
+[views]
+remainder = "DYOW/WPs"    # label for the unused part of a partly used block
 ```
 
 A spreadsheet's id is the long string in its URL between `/d/` and `/edit`.
 
 ## 5. Create the two new spreadsheets
 
-Follow [The sheets](sheets.md) for the exact columns of Blocks, Calendar, Requests and
-Metrics. The Published Schedules spreadsheet starts empty.
+Create a **config spreadsheet** with four tabs named `Blocks`, `Calendar`, `Requests` and
+`Metrics`, with the exact columns in [The sheets](sheets.md). Each metric you add later gets
+its own extra tab of ratings, as that page explains. Create an empty **Published
+Schedules** spreadsheet. Put both ids in `config.toml`.
 
 ## 6. Check
 
 ```
 puppet-strings names
 puppet-strings validate
+puppet-strings --date 2026-06-15 load-offerings
 puppet-strings --date 2026-06-15 solve
 ```
 
 `names` lists every name you can use in a request. `validate` checks every request.
-`solve` prints the schedule for a date without publishing it. If any command reports a
+`load-offerings` turns the Offerings tab into requests for that date, replacing ones
+loaded before. `solve` prints the
+schedule for a date without publishing it. If any command reports a
 load error, it names the sheet, tab and row to fix.
 
 ## Working offline

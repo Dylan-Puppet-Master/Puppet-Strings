@@ -7,7 +7,7 @@ from PySide6.QtCore import QAbstractTableModel, QSortFilterProxyModel, Qt
 from puppet_strings.app.store import RequestStore
 from puppet_strings.model import Request
 
-COLUMNS = ("id", "priority", "scope", "valid", "description")
+COLUMNS = ("id", "priority", "scope", "tags", "valid", "description")
 
 
 class RequestsModel(QAbstractTableModel):
@@ -50,6 +50,7 @@ class RequestsModel(QAbstractTableModel):
             "id": request.id,
             "priority": request.priority.value,
             "scope": facet.scope if facet else "",
+            "tags": ", ".join(request.tags),
             "description": request.description,
             "valid": "" if facet is None or facet.valid else "error",
         }[COLUMNS[index.column()]]
@@ -60,7 +61,7 @@ class RequestsModel(QAbstractTableModel):
 
 
 class RequestFilter(QSortFilterProxyModel):
-    """Filters by text, priority, scope, staff, activity, and date."""
+    """Filters by text, priority, scope, tag, staff, activity, and date."""
 
     def __init__(self, store: RequestStore) -> None:
         super().__init__()
@@ -68,6 +69,7 @@ class RequestFilter(QSortFilterProxyModel):
         self.text = ""
         self.priority: str | None = None
         self.scope: str | None = None
+        self.tag: str | None = None
         self.staff: str | None = None
         self.activity: str | None = None
         self.date: date | None = None
@@ -86,6 +88,8 @@ class RequestFilter(QSortFilterProxyModel):
         if text and text not in f"{request.id} {request.description} {request.skedge}".lower():
             return False
         if self.priority and request.priority.value != self.priority:
+            return False
+        if self.tag and self.tag not in request.tags:
             return False
         if facet is None:
             return not (self.scope or self.staff or self.activity or self.date)

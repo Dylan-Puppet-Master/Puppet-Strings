@@ -63,7 +63,9 @@ def test_ral_excludes_checked_off_staff_below_the_minimum():
         [staff("Brian", ral=3, riflery=OK)], [RIFLERY], offerings=[("Riflery", ["clinic_1"])]
     )
     result = run(only_brian)
-    assert result.feasible and [u.id for u in result.unsatisfied] == ["offering:riflery:clinic_1"]
+    assert result.feasible and [u.id for u in result.unsatisfied] == [
+        "offering:2026-09-16:riflery:clinic_1"
+    ]
 
 
 def test_unstaffable_clinic_is_reported_and_the_rest_is_scheduled():
@@ -75,7 +77,7 @@ def test_unstaffable_clinic_is_reported_and_the_rest_is_scheduled():
     )
     result = run(ds)
     assert result.feasible
-    assert [u.id for u in result.unsatisfied] == ["offering:muay_thai:clinic_2"]
+    assert [u.id for u in result.unsatisfied] == ["offering:2026-09-16:muay_thai:clinic_2"]
     assert result.unsatisfied[0].priority is Priority.CLINIC
     assert where(result, activity="archery_1_2")[0].staff == "dylan"
 
@@ -119,7 +121,7 @@ def test_day_off_beats_an_offering():
     )
     result = run(ds)
     assert result.feasible and not where(result, staff="dylan")
-    assert [u.id for u in result.unsatisfied] == ["offering:archery_1_2:clinic_1"]
+    assert [u.id for u in result.unsatisfied] == ["offering:2026-09-16:archery_1_2:clinic_1"]
 
 
 def test_pin_and_forbid():
@@ -151,7 +153,7 @@ def test_pin_and_forbid():
         "dylan"
     } or True
     assert not where(result, staff="dylan", activity="gravity_zip_line")
-    assert [u.id for u in result.unsatisfied] == ["offering:gravity_zip_line:clinic_1"]
+    assert [u.id for u in result.unsatisfied] == ["offering:2026-09-16:gravity_zip_line:clinic_1"]
 
 
 def test_double_clinic_keeps_the_same_staff_in_both_blocks():
@@ -179,7 +181,7 @@ def test_lifeguard_is_an_extra_person_at_ral_5():
         offerings=[("Canoe 1 & 2", ["clinic_1"])],
     )
     result = run(low_ral)
-    assert [u.id for u in result.unsatisfied] == ["offering:canoe_1_2:clinic_1"]
+    assert [u.id for u in result.unsatisfied] == ["offering:2026-09-16:canoe_1_2:clinic_1"]
     pinned = dataset(
         members,
         [canoe],
@@ -245,53 +247,86 @@ def test_trainees_are_additional_and_scaffolds_need_a_trainer():
     assert len(rows) == 2
 
 
-def test_counselor_hours_with_gap():
+COUNSELOR_HOURS = (
+    "ACROSS EACH staff.counselor\n"
+    "TASK 'counselor hour' FOR 1h DURING {block.clinic_1 OR block.clinic_2} AS morning\n"
+    "TASK 'counselor hour' FOR 1h DURING {block.clinic_3 OR block.clinic_4} AS afternoon\n"
+    "GAP morning afternoon <= 5h"
+)
+
+
+def test_gap_measures_real_task_times_and_moves_a_task_within_its_block():
+    hours = COUNSELOR_HOURS.replace("<= 5h", ">= 4h")
     ds = dataset(
         [staff("Dylan", archery_1_2=OK)],
         [ARCHERY],
         offerings=[("Archery 1 & 2", ["clinic_2"])],
         categories={"counselor": ["Dylan"]},
         requests=[
+            request("counselor-hours", hours, Priority.MUST_HAPPEN),
             request(
-                "counselor-hours",
-                "ACROSS EACH staff.counselor\n"
-                "TASK 'counselor hour' DURING {block.clinic_1 OR block.clinic_2} AS morning\n"
-                "TASK 'counselor hour' DURING {block.clinic_3 OR block.clinic_4} AS afternoon\n"
-                "GAP morning afternoon <= 5h",
-                Priority.MUST_HAPPEN,
-            ),
-            request(
-                "late",
-                "DURING block.clinic_3\nACROSS staff.dylan\nAVOID 'counselor hour'",
+                "not-late",
+                "DURING block.clinic_4\nACROSS staff.dylan\nAVOID 'counselor hour'",
                 Priority.MEDIUM,
             ),
         ],
     )
     result = run(ds)
-    hours = sorted(a.block for a in where(result, staff="dylan", activity="counselor hour"))
-    assert hours == ["clinic_1", "clinic_3"]  # clinic_4 would be 5h15 after clinic_1
+    hour = {a.block: a for a in where(result, staff="dylan", activity="counselor hour")}
+    # Archery takes clinic_2, so the morning hour is 09:15-10:15 in clinic_1. The afternoon
+    # hour avoids clinic_4, so it is in clinic_3 (14:00-15:15) and must start at 14:15 to
+    # be four hours after 10:15: "DYOW/WPs, then counselor hour".
+    assert set(hour) == {"clinic_1", "clinic_3"}
+    assert (hour["clinic_1"].start.strftime("%H:%M"), hour["clinic_1"].minutes) == ("09:15", 60)
+    assert (hour["clinic_3"].start.strftime("%H:%M"), hour["clinic_3"].minutes) == ("14:15", 60)
     assert where(result, activity="archery_1_2")[0].staff == "dylan"
 
 
-def test_breaks_three_of():
+def test_partial_task_sits_at_block_start_unless_moved():
+    text = "ON date.target\nDURING block.clinic_1\nACROSS staff.dylan\nTASK 'counselor hour' FOR 1h"
+    ds = dataset([staff("Dylan")], [], requests=[request("hour", text)])
+    (hour,) = where(run(ds), activity="counselor hour")
+    assert (hour.start.strftime("%H:%M"), hour.minutes) == ("09:15", 60)
+
+
+def test_two_partial_tasks_share_a_block():
+    text = "ON date.target\nDURING block.clinic_1\nACROSS staff.dylan\nTASK '{task}' FOR {length}"
+    ds = dataset(
+        [staff("Dylan")],
+        [],
+        requests=[
+            request("break", text.format(task="break", length="30m"), Priority.MUST_HAPPEN),
+            request("prep", text.format(task="prep", length="45m"), Priority.MUST_HAPPEN),
+        ],
+    )
+    rows = sorted(where(run(ds), staff="dylan"), key=lambda a: a.start)
+    assert sorted((a.activity, a.minutes) for a in rows) == [("break", 30), ("prep", 45)]
+    assert rows[0].end_minute == rows[1].start.hour * 60 + rows[1].start.minute
+
+
+def test_a_partial_task_blocks_a_clinic_in_the_same_block():
+    text = "ON date.target\nDURING block.clinic_1\nACROSS staff.dylan\nTASK 'break' FOR 30m"
+    ds = dataset(
+        [staff("Dylan", archery_1_2=OK)],
+        [ARCHERY],
+        offerings=[("Archery 1 & 2", ["clinic_1"])],
+        requests=[request("break", text, Priority.MUST_HAPPEN)],
+    )
+    assert [u.id for u in run(ds).unsatisfied] == ["offering:2026-09-16:archery_1_2:clinic_1"]
+
+
+def test_three_breaks_in_three_distinct_blocks():
+    text = "ACROSS EACH {staff.all - staff.director}\nDURING 3 OF block.any\nTASK 'break' FOR 30m"
     ds = dataset(
         [staff("Sarah"), staff("David")],
         [],
         categories={"director": ["David"]},
-        requests=[
-            request(
-                "breaks",
-                "ACROSS EACH {staff.all - staff.director}\nDURING 3 OF block.break_slots\nTASK 'break'",
-                Priority.MUST_HAPPEN,
-            )
-        ],
-        blocks={
-            **{k: v for k, v in __import__("tests.build", fromlist=["BLOCKS"]).BLOCKS.items()},
-            "evening_break": ("18:00", "18:30", ("break_slots",)),
-        },
+        requests=[request("breaks", text, Priority.MUST_HAPPEN)],
     )
     result = run(ds)
-    assert len(where(result, staff="sarah", activity="break")) == 3
+    breaks = where(result, staff="sarah", activity="break")
+    assert len(breaks) == 3 and len({a.block for a in breaks}) == 3
+    assert all(a.minutes == 30 for a in breaks)
     assert not where(result, staff="david")
 
 
@@ -438,50 +473,55 @@ def test_deferrable_task_is_scheduled_early_when_nothing_opposes():
     assert len(where(run(ds), activity="m")) == 1
 
 
-def test_for_hours_sum_across_blocks_and_continuous_needs_adjacency():
-    members = [staff("James")]
-    hours = "ON date.target\nDURING {{block.clinic_1 + block.clinic_2 + block.pm_break + block.work_projects + block.clinic_3}}\nACROSS staff.james\nTASK 'dance practice' FOR 2h{cont}"
-    ds = dataset(
-        members, [], requests=[request("dance", hours.format(cont=""), Priority.MUST_HAPPEN)]
+def test_for_hours_sum_across_blocks_with_a_partial_last_block():
+    text = (
+        "ON date.target\nDURING {block.clinic_1 + block.clinic_2 + block.clinic_3}\n"
+        "ACROSS staff.james\nTASK 'dance practice' FOR 2h"
     )
-    result = run(ds)
-    minutes = sum(ds.blocks[a.block].minutes for a in where(result, activity="dance practice"))
-    assert minutes >= 120
+    ds = dataset([staff("James")], [], requests=[request("dance", text, Priority.MUST_HAPPEN)])
+    rows = where(run(ds), activity="dance practice")
+    assert sum(a.minutes for a in rows) == 120
+    assert sorted(a.minutes for a in rows) == [45, 75]
+
+
+def test_continuous_needs_adjacent_blocks():
+    text = (
+        "ON date.target\nDURING {{block.clinic_2 + block.lunch + block.clinic_3}}\n"
+        "ACROSS staff.james\nTASK 'training' FOR 1.5h{cont}"
+    )
     continuous = dataset(
-        members,
+        [staff("James")],
         [],
-        requests=[request("dance", hours.format(cont=" CONTINUOUS"), Priority.MUST_HAPPEN)],
+        requests=[request("t", text.format(cont=" CONTINUOUS"), Priority.MUST_HAPPEN)],
     )
-    result = run(continuous)
-    blocks = sorted(a.block for a in where(result, activity="dance practice"))
-    assert blocks == ["clinic_3", "pm_break", "work_projects"]
+    rows = sorted(where(run(continuous), activity="training"), key=lambda a: a.start)
+    assert [(a.block, a.minutes) for a in rows] == [("clinic_2", 75), ("lunch", 15)]
+    assert rows[1].start.strftime("%H:%M") == "12:00"
+    apart_text = (
+        "ON date.target\nDURING {block.clinic_1 + block.clinic_3}\n"
+        "ACROSS staff.james\nTASK 'training' FOR 1.5h CONTINUOUS"
+    )
+    apart = dataset([staff("James")], [], requests=[request("t", apart_text)])
+    assert [u.id for u in run(apart).unsatisfied] == ["t"]
 
 
-def test_past_hours_count_toward_for():
+def test_past_minutes_count_toward_for():
     yesterday = TARGET - timedelta(days=1)
+    text = (
+        "ON date.target - 1d .. date.target\nDURING block.any_clinic\n"
+        "ACROSS staff.james\nTASK 'dance practice' FOR 2h"
+    )
     ds = dataset(
         [staff("James")],
         [],
-        published={
-            yesterday: (
-                __import__("puppet_strings.model", fromlist=["Assignment"]).Assignment(
-                    "james", "dance practice", None, yesterday, "clinic_1", "dance"
-                ),
-            )
-        },
+        published=published(yesterday, ("James", "'dance practice'", None, "clinic_1", 75)),
         requests=[
-            request(
-                "dance",
-                "ON date.target - 1d .. date.target\nDURING block.any_clinic\nACROSS staff.james\nTASK 'dance practice' FOR 2h",
-                Priority.MUST_HAPPEN,
-            ),
+            request("dance", text, Priority.MUST_HAPPEN),
             request("free", "DURING block.any\nACROSS staff.james\nPREFER FREE", Priority.HIGH),
         ],
     )
-    result = run(ds)
-    assert (
-        len(where(result, activity="dance practice")) == 1
-    )  # 75 done + one more block reaches 120
+    (today,) = where(run(ds), activity="dance practice")
+    assert today.minutes == 45  # 75 done yesterday; 45 more reaches 2h
 
 
 def test_invalid_request_raises():
@@ -493,11 +533,15 @@ def test_invalid_request_raises():
 def test_fixture_dataset_solves(dataset):
     result = solve(dataset, CONFIG)
     assert result.feasible
+    # breaks now compete with clinics for staff time, so a second offering gives way
     assert [u.id for u in result.unsatisfied] == [
-        "offering:pole_course_explore_level_1_2_dbl:clinic_1"
+        "offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1",
+        "offering:2026-09-16:secret_pool:clinic_4",
     ]
     counselor_hours = [a for a in result.assignments if a.activity == "counselor hour"]
-    assert len(counselor_hours) == 6
+    assert len(counselor_hours) == 6 and all(a.minutes == 60 for a in counselor_hours)
+    breaks = [a for a in result.assignments if a.activity == "break"]
+    assert len(breaks) == 12 * 3 and all(a.minutes == 30 for a in breaks)
     assert not [
         a
         for a in result.assignments

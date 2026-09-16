@@ -1,7 +1,9 @@
 """Small datasets for solver tests, built in Python rather than loaded from fixtures."""
 
+from dataclasses import replace
 from datetime import date, time, timedelta
 
+from puppet_strings.generate import generated_requests
 from puppet_strings.model import (
     Activity,
     Assignment,
@@ -27,9 +29,7 @@ SHADOW = SkillStatus.NEEDS_SHADOW
 BLOCKS = {
     "clinic_1": ("09:15", "10:30", ("any_clinic",)),
     "clinic_2": ("10:45", "12:00", ("any_clinic",)),
-    "lunch_break": ("12:30", "13:00", ("break_slots",)),
-    "pm_break": ("13:00", "13:30", ("break_slots",)),
-    "work_projects": ("13:30", "14:00", ()),
+    "lunch": ("12:00", "13:00", ("meals",)),
     "clinic_3": ("14:00", "15:15", ("any_clinic",)),
     "clinic_4": ("15:45", "17:00", ("any_clinic",)),
     "playstation": ("17:00", "18:00", ()),
@@ -99,7 +99,7 @@ def dataset(
     staff_by_id = {s.id: s for s in members}
     activity_by_id = {a.id: a for a in activities}
     session = [target - timedelta(days=3) + timedelta(days=i) for i in range(7)]
-    return Dataset(
+    built = Dataset(
         target=target,
         staff=staff_by_id,
         staff_categories={
@@ -128,15 +128,26 @@ def dataset(
         metrics=metrics or {},
         published=published or {},
     )
+    return replace(built, requests=built.requests + tuple(generated_requests(built)))
 
 
-def published(day, *rows):
-    """rows: (staff, activity, role, block)."""
-    return {
-        day: tuple(
-            Assignment(normalize(s), normalize(a), r, day, b, "offering") for s, a, r, b in rows
+def published(day, *rows, blocks=None):
+    """rows: (staff, activity, role, block[, minutes]). Whole block unless minutes given.
+
+    An activity in quotes is an ad hoc task.
+    """
+    blocks = blocks or BLOCKS
+    assignments = []
+    for row in rows:
+        s, a, r, b = row[:4]
+        start, end = (time.fromisoformat(t) for t in blocks[b][:2])
+        length = (end.hour * 60 + end.minute) - (start.hour * 60 + start.minute)
+        minutes = row[4] if len(row) > 4 else length
+        activity = a.strip("'") if a.startswith("'") else normalize(a)
+        assignments.append(
+            Assignment(normalize(s), activity, r, day, b, start, minutes, "offering")
         )
-    }
+    return {day: tuple(assignments)}
 
 
 def enjoyment(values: dict[tuple[str, str], float]) -> dict[str, Metric]:

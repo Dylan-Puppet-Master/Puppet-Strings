@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, time
 
 from puppet_strings.config import Config
 from puppet_strings.model import Assignment, Priority
@@ -10,32 +10,40 @@ from puppet_strings.solver.result import RequestOutcome, Result
 
 def rows(dataset):
     d = dataset.target
+
+    def whole(staff, activity, role, block, source="offering"):
+        b = dataset.blocks[block]
+        return Assignment(staff, activity, role, d, block, b.start, b.minutes, source)
+
+    def part(staff, activity, block, start, minutes, source):
+        return Assignment(
+            staff, activity, None, d, block, time.fromisoformat(start), minutes, source
+        )
+
     return (
-        Assignment("rob", "gravity_zip_line", "first", d, "clinic_1", "offering"),
-        Assignment("james", "gravity_zip_line", "second", d, "clinic_1", "offering"),
-        Assignment("paul", "gravity_zip_line", "shadow", d, "clinic_1", "train"),
-        Assignment("alexis", "blacksmithing_dbl", "first", d, "clinic_1", "offering"),
-        Assignment("alexis", "blacksmithing_dbl", "first", d, "clinic_2", "offering"),
-        Assignment("dylan", "counselor hour", None, d, "clinic_2", "counselor-hours[dylan]"),
-        Assignment("sarah", "break", None, d, "pm_break", "breaks[sarah]"),
-        Assignment("sarah", "'x'", None, d, "work_projects", "wp"),
-        Assignment("sarah", "setup", None, d, "playstation", "setup"),
+        whole("rob", "gravity_zip_line", "first", "clinic_1"),
+        whole("james", "gravity_zip_line", "second", "clinic_1"),
+        whole("paul", "gravity_zip_line", "shadow", "clinic_1", "train"),
+        whole("alexis", "blacksmithing_dbl", "first", "clinic_1"),
+        whole("alexis", "blacksmithing_dbl", "first", "clinic_2"),
+        part("dylan", "counselor hour", "clinic_2", "10:45", 60, "counselor-hours[dylan]"),
+        part("sarah", "break", "clinic_1", "09:15", 30, "breaks[sarah]"),
+        part("sarah", "prep", "clinic_1", "10:00", 30, "prep"),
+        part("james", "break", "clinic_3", "14:45", 30, "breaks[james]"),
+        whole("sarah", "setup", None, "playstation", "setup"),
     )
 
 
 def test_staff_view(dataset):
     table = staff_view(dataset, rows(dataset))
-    header = table[0]
-    assert header == [
+    assert table[0] == [
         "Staff",
         "Clinic 1",
         "Clinic 2",
-        "Lunch Break",
-        "Break Then Work Projects",
+        "Lunch",
         "Clinic 3",
         "Clinic 4",
         "Playstation",
-        "Evening Break",
     ]
     by_name = {row[0]: row for row in table[1:]}
     assert by_name["Rob"][1] == "Gravity Zip Line (1st)"
@@ -45,10 +53,13 @@ def test_staff_view(dataset):
         by_name["Alexis"][1] == "Blacksmithing (DBL)"
         and by_name["Alexis"][2] == "Blacksmithing (DBL)"
     )
-    assert by_name["Dylan"][2] == "counselor hour"
-    assert by_name["Sarah"][4] == "break; 'x'"
-    assert by_name["Sarah"][7] == "setup" and by_name["Dylan"][7] == "Available"
+    assert by_name["Dylan"][2] == "counselor hour, then DYOW/WPs"
+    assert by_name["Sarah"][1] == "break, then DYOW/WPs, then prep"
+    assert by_name["James"][4] == "DYOW/WPs, then break"
+    assert by_name["Sarah"][6] == "setup" and by_name["Dylan"][6] == "Available"
     assert len(table) == 18
+    custom = staff_view(dataset, rows(dataset), remainder="own work")
+    assert {row[0]: row for row in custom[1:]}["James"][4] == "own work, then break"
 
 
 def test_clinic_view(dataset):
@@ -84,22 +95,20 @@ def test_report():
 def test_publish_round_trip(dataset, tmp_path):
     source = CsvSource(tmp_path)
     result = Result(feasible=True, assignments=rows(dataset))
-    assert not is_published(source, dataset) if (tmp_path / "published").exists() else True
     publish(source, Config(), dataset, result)
     assert is_published(source, dataset)
     assert set(source.tabs("published")) == {"2026-09-16", "Staff View", "Clinic View", "Report"}
-    assert source.read("published", "2026-09-16")[0] == [
-        "staff",
-        "activity",
-        "role",
-        "block",
-        "source",
-    ]
-    assert ["Alexis", "Blacksmithing (DBL)", "first", "clinic_1", "offering"] in source.read(
-        "published", "2026-09-16"
-    )
-    assert ["Dylan", "'counselor hour'", "", "clinic_2", "counselor-hours[dylan]"] in source.read(
-        "published", "2026-09-16"
-    )
+    tab = source.read("published", "2026-09-16")
+    assert tab[0] == ["staff", "activity", "role", "block", "start", "minutes", "source"]
+    assert ["Alexis", "Blacksmithing (DBL)", "first", "clinic_1", "09:15", "75", "offering"] in tab
+    assert [
+        "Dylan",
+        "'counselor hour'",
+        "",
+        "clinic_2",
+        "10:45",
+        "60",
+        "counselor-hours[dylan]",
+    ] in tab
     assert source.read("published", "Staff View")[0][0] == "Staff"
     assert date.fromisoformat(source.tabs("published")[0])

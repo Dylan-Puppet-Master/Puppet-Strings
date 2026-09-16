@@ -6,8 +6,10 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from PySide6.QtCore import QDate, Qt, QThread, Signal
+from PySide6.QtGui import QColor, QTextCharFormat
 from PySide6.QtWidgets import (
     QApplication,
+    QCalendarWidget,
     QCheckBox,
     QComboBox,
     QDateEdit,
@@ -33,7 +35,6 @@ from puppet_strings.app.store import RequestStore
 from puppet_strings.config import Config
 from puppet_strings.model import Priority
 from puppet_strings.sheets.source import CsvSource, LoadError, SheetsSource
-from puppet_strings.solver.solve import RequestError, solve
 
 
 def run_app(config: Config, fixtures: Path | None) -> int:
@@ -42,12 +43,36 @@ def run_app(config: Config, fixtures: Path | None) -> int:
     source = CsvSource(fixtures) if fixtures else SheetsSource(config.sheets, config.credentials)
     window = MainWindow(RequestStore(source, config))
     window.show()
-    window.reload()
+    window.reload()  # loads in the background; the window paints right away
     return app.exec()
 
 
+class LoadWorker(QThread):
+    """Reads every sheet off the UI thread."""
+
+    done = Signal()
+    failed = Signal(str)
+
+    def __init__(self, store: RequestStore, target: date) -> None:
+        super().__init__()
+        self.store = store
+        self.target = target
+
+    def run(self) -> None:
+        """Load and report success or the error text."""
+        try:
+            self.store.load(self.target)
+        except LoadError as e:
+            self.failed.emit(str(e))
+            return
+        except Exception:  # noqa: BLE001 - shown to the user, never swallowed
+            self.failed.emit(traceback.format_exc())
+            return
+        self.done.emit()
+
+
 class SolveWorker(QThread):
-    """Runs the solver off the UI thread."""
+    """Runs the solver off the UI thread. The solver is imported on first use, not at startup."""
 
     done = Signal(object)
     failed = Signal(str)
@@ -58,8 +83,10 @@ class SolveWorker(QThread):
 
     def run(self) -> None:
         """Solve and emit the result or the error text."""
+        from puppet_strings.solver.solve import RequestError, solve  # already imported by run_solve
+
         try:
-            self.done.emit(solve(self.store.dataset, self.store.config))
+            self.done.emit(solve(self.store.current, self.store.config))
         except (RequestError, LoadError) as e:
             self.failed.emit(str(e))
         except Exception:  # noqa: BLE001 - shown to the user, never swallowed
@@ -73,6 +100,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.store = store
         self.worker: SolveWorker | None = None
+        self.loader: LoadWorker | None = None
+        self.reload_requested = False
         self.setWindowTitle("Puppet Strings")
         self.resize(1300, 800)
 
@@ -90,6 +119,9 @@ class MainWindow(QMainWindow):
         self.editor.deleted.connect(self._deleted)
         self.names = NamesPanel()
         self.names.picked.connect(self.editor.insert_name)
+        self.calendar = QCalendarWidget()
+        self.calendar.setGridVisible(True)
+        self.calendar.clicked.connect(self.insert_date)
 
         self._build_toolbar()
         left = QWidget()
@@ -102,9 +134,12 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 2)
         self.setCentralWidget(splitter)
-        dock = QDockWidget("Names", self)
-        dock.setWidget(self.names)
-        self.addDockWidget(Qt.RightDockWidgetArea, dock)
+        names_dock = QDockWidget("Names", self)
+        names_dock.setWidget(self.names)
+        self.addDockWidget(Qt.RightDockWidgetArea, names_dock)
+        calendar_dock = QDockWidget("Calendar: click a date to insert it", self)
+        calendar_dock.setWidget(self.calendar)
+        self.addDockWidget(Qt.RightDockWidgetArea, calendar_dock)
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Main")
@@ -115,6 +150,7 @@ class MainWindow(QMainWindow):
         self.date_edit.setCalendarPopup(True)
         toolbar.addWidget(self.date_edit)
         toolbar.addAction("Reload", self.reload)
+        toolbar.addAction("Load offerings", self.load_offerings)
         toolbar.addAction("Solve", self.run_solve)
         self.status_label = QLabel("")
         toolbar.addWidget(self.status_label)
@@ -125,29 +161,24 @@ class MainWindow(QMainWindow):
         self.text_filter.setPlaceholderText("search id, description, skedge")
         self.priority_filter = _combo(["any priority"] + [p.value for p in Priority])
         self.scope_filter = _combo(["any scope", *SCOPES])
+        self.tag_filter = _combo(["any tag"])
         self.staff_filter = _combo(["any staff"])
         self.activity_filter = _combo(["any activity"])
         self.date_check = QCheckBox("on date")
         self.date_filter = QDateEdit(QDate(date.today() + timedelta(days=1)))
         self.date_filter.setDisplayFormat("yyyy-MM-dd")
         self.date_filter.setCalendarPopup(True)
-        for widget in (
-            self.text_filter,
+        combos = (
             self.priority_filter,
             self.scope_filter,
+            self.tag_filter,
             self.staff_filter,
             self.activity_filter,
-            self.date_check,
-            self.date_filter,
-        ):
+        )
+        for widget in (self.text_filter, *combos, self.date_check, self.date_filter):
             layout.addWidget(widget)
         self.text_filter.textChanged.connect(self.apply_filters)
-        for combo in (
-            self.priority_filter,
-            self.scope_filter,
-            self.staff_filter,
-            self.activity_filter,
-        ):
+        for combo in combos:
             combo.currentIndexChanged.connect(self.apply_filters)
         self.date_check.toggled.connect(self.apply_filters)
         self.date_filter.dateChanged.connect(self.apply_filters)
@@ -159,6 +190,7 @@ class MainWindow(QMainWindow):
             text=self.text_filter.text(),
             priority=_choice(self.priority_filter),
             scope=_choice(self.scope_filter),
+            tag=_choice(self.tag_filter),
             staff=_choice(self.staff_filter),
             activity=_choice(self.activity_filter),
             date=self.date_filter.date().toPython() if self.date_check.isChecked() else None,
@@ -170,42 +202,104 @@ class MainWindow(QMainWindow):
         return self.date_edit.date().toPython()
 
     def reload(self) -> None:
-        """Read every sheet again for the target date."""
-        try:
-            self.store.load(self.target)
-        except LoadError as e:
-            QMessageBox.critical(self, "Could not load", str(e))
+        """Read every sheet again for the target date, in the background.
+
+        A click while a load is running queues one more load for when it finishes.
+        """
+        if self.loader is not None:
+            self.reload_requested = True
             return
+        self.status_label.setText(f"  Loading {self.target}…")
+        self.loader = LoadWorker(self.store, self.target)
+        self.loader.done.connect(self._loaded)
+        self.loader.failed.connect(self._load_failed)
+        self.loader.finished.connect(self._load_finished)
+        self.loader.start()
+
+    def wait_for_load(self) -> None:
+        """Block until background loads finish (used by tests)."""
+        while self.loader is not None:
+            self.loader.wait()
+            QApplication.processEvents()
+
+    def _load_finished(self) -> None:
+        """The thread has stopped: drop it, and start the queued reload if any."""
+        self.loader = None
+        if self.reload_requested:
+            self.reload_requested = False
+            self.reload()
+
+    def _loaded(self) -> None:
+        dataset = self.store.dataset
+        if self.editor.original_id and self.model.request(self.editor.original_id) is None:
+            self.editor.clear()  # the request shown was deleted on the sheet
         self.model.refresh()
         self.table.resizeColumnsToContents()
-        self.editor.set_dataset(self.store.dataset)
-        self.names.show_dataset(self.store.dataset)
-        self._fill_combo(self.staff_filter, "any staff", sorted(self.store.dataset.staff))
-        self._fill_combo(
-            self.activity_filter, "any activity", sorted(self.store.dataset.activities)
-        )
-        warnings = "; ".join(self.store.dataset.warnings)
+        self.editor.set_dataset(dataset)
+        self.names.show_dataset(dataset)
+        self._fill_combo(self.staff_filter, "any staff", sorted(dataset.staff))
+        self._fill_combo(self.activity_filter, "any activity", sorted(dataset.activities))
+        self._fill_combo(self.tag_filter, "any tag", self.store.tags)
+        self._mark_camp_days(dataset)
+        warnings = "; ".join(dataset.warnings)
         self.status_label.setText(f"  Loaded {len(self.store.requests)} requests. {warnings}")
+
+    def _mark_camp_days(self, dataset) -> None:
+        """Shade the dates on the Calendar sheet; any date can still be picked."""
+        self.calendar.setDateTextFormat(QDate(), QTextCharFormat())  # clear old marks
+        camp_day = QTextCharFormat()
+        camp_day.setBackground(QColor("#d6efe6"))
+        for day in dataset.calendar:
+            self.calendar.setDateTextFormat(QDate(day), camp_day)
+        self.calendar.setSelectedDate(QDate(dataset.target))
+        self.calendar.setCurrentPage(dataset.target.year, dataset.target.month)
+
+    def _load_failed(self, message: str) -> None:
+        self.status_label.setText("")
+        QMessageBox.critical(self, "Could not load", message)
+
+    def load_offerings(self) -> None:
+        """Add the Offerings tab's clinics to the Requests sheet as generated requests."""
+        if self.store.dataset is None:
+            return
+        count = self.store.load_offerings()
+        self.model.refresh()
+        self._fill_combo(self.tag_filter, "any tag", self.store.tags)
+        self.status_label.setText(f"  Loaded {count} offerings for {self.target}")
+
+    def insert_date(self, day: QDate) -> None:
+        """Put a clicked calendar date into the Skedge editor at the cursor."""
+        self.editor.insert_name(day.toString("yyyy-MM-dd"))
 
     def run_solve(self) -> None:
         """Solve the target date in the background, then show the schedule dialog."""
         if self.store.dataset is None or self.worker is not None:
             return
+        if not self.store.offerings_loaded:
+            answer = QMessageBox.question(
+                self, "No offerings loaded", f"No offerings loaded for {self.target}. Solve anyway?"
+            )
+            if answer != QMessageBox.Yes:
+                return
+        import puppet_strings.solver.solve  # noqa: F401 - import on the main thread; a QThread import crashes
+
         self.status_label.setText("  Solving…")
         self.worker = SolveWorker(self.store)
         self.worker.done.connect(self._solved)
         self.worker.failed.connect(self._solve_failed)
+        self.worker.finished.connect(self._solve_finished)
         self.worker.start()
 
-    def _solved(self, result) -> None:
+    def _solve_finished(self) -> None:
         self.worker = None
+
+    def _solved(self, result) -> None:
         self.status_label.setText("")
         ScheduleDialog(
-            self.store.source, self.store.config, self.store.dataset, result, self
+            self.store.source, self.store.config, self.store.current, result, self
         ).exec()
 
     def _solve_failed(self, message: str) -> None:
-        self.worker = None
         self.status_label.setText("")
         QMessageBox.critical(self, "Solve failed", message)
 
@@ -214,9 +308,11 @@ class MainWindow(QMainWindow):
             self.editor.show_request(self.proxy.data(current, Qt.UserRole))
 
     def _saved(self, request, original_id) -> None:
-        self.store.save(request, original_id)
+        saved = self.store.save(request, original_id)
+        self.editor.saved_as(saved)
         self.model.refresh()
-        self.status_label.setText(f"  Saved {request.id}")
+        self._fill_combo(self.tag_filter, "any tag", self.store.tags)
+        self.status_label.setText(f"  Saved {saved.id}")
 
     def _deleted(self, request_id: str) -> None:
         self.store.delete(request_id)

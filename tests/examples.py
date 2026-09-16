@@ -48,13 +48,13 @@ EXAMPLES = {
     ),
     "counselor-hours": (
         "ACROSS EACH staff.counselors\n"
-        "TASK 'counselor hour' DURING {block.clinic_1 OR block.clinic_2} AS morning\n"
-        "TASK 'counselor hour' DURING {block.clinic_3 OR block.clinic_4} AS afternoon\n"
+        "TASK 'counselor hour' FOR 1h DURING {block.clinic_1 OR block.clinic_2} AS morning\n"
+        "TASK 'counselor hour' FOR 1h DURING {block.clinic_3 OR block.clinic_4} AS afternoon\n"
         "GAP morning afternoon <= 5h"
     ),
     "breaks": (
         "ACROSS EACH {staff.all - staff.directors - staff.counselors}\n"
-        "DURING 3 OF block.break_slots\nTASK 'break'"
+        "DURING 3 OF block.any\nTASK 'break' FOR 30m"
     ),
     "playstation": "DURING block.playstation\nACROSS {staff.all - staff.directors}\nPREFER FREE",
     "day-off": "ON 2026-09-16\nDURING ALL block.any\nACROSS staff.dylan\nTASK FREE",

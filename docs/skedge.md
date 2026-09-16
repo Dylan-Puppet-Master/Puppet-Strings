@@ -90,8 +90,21 @@ works the task in every chosen block on every chosen date.
 For a clinic without `ROLE`, the task means "run this clinic": every position is filled
 from the `ACROSS` pool. With `ROLE`, only that position or trainee role is filled.
 
-`FOR` changes `DURING`: the solver picks any set of the blocks whose lengths add up to the
-duration, across the `ON` dates. `CONTINUOUS` requires adjacent blocks on one date.
+Without `FOR`, a task fills its whole block. `FOR <duration>` lets a task take part of a
+block: `TASK 'break' FOR 30m` is a 30-minute break somewhere inside one block, and the
+Staff View labels the rest of the block `DYOW/WPs`. Several partial tasks can share a
+block. The solver places a partial task at the start of its block unless a `GAP` or
+another task moves it.
+
+With `FOR`, `DURING` means:
+
+| `DURING` | Meaning with `FOR d` |
+|---|---|
+| a plain set (default `ANY`) | any blocks whose used time adds up to `d`, the last one used partially |
+| `n OF <set>` | `n` separate blocks, each holding the full duration `d` |
+| with `CONTINUOUS` | adjacent blocks on one date, all filled except the last |
+
+Published past dates count toward the duration.
 
 ### FORBID
 
@@ -115,8 +128,10 @@ window are counted. `~` cannot combine with `PER`.
 ### GAP
 
 `GAP a b <= 5h` requires task `b` to start after task `a` ends with at most five hours
-between. `>=` and `==` work too; `GAP a b >= 0m` is plain ordering. Both labels must be
-tasks that occupy one block.
+between, measured from the tasks' real times: a `FOR 1h` task that ends at 10:30 may sit
+at the end of a 09:15–10:30 block. `>=` and `==` work too; `GAP a b >= 0m` is plain
+ordering. Both labels must be tasks for one staff member (use `ACROSS EACH`) that occupy
+one block each.
 
 ## Time horizon
 
@@ -140,7 +155,7 @@ Each error carries a line and column. The validator rejects:
 - `FOR` with `DURING ALL`, or on a verb other than `TASK`
 - `ACROSS` with `ALL`, `OF` or `AND` on a clinic without `ROLE`
 - a date offset applied to a set of dates
-- a `GAP` label that is undefined, defined twice, or on a multi-block task
+- a `GAP` label that is undefined, defined twice, or on a task with `ALL`, `OF` or `AND`
 - a clause given both on a verb's line and on a shared line
 - `ROLE` on an ad hoc or `FREE` target, or `FORBID FREE`
 
@@ -151,8 +166,8 @@ every example on this page against it.
 
 ### Clinic assignment
 
-Archery during clinic 2, run by a counselor. The Offerings sheet generates a request like
-this for every offered clinic, at `CLINIC` priority.
+Archery during clinic 2, run by a counselor. **Load offerings** creates a request like
+this (without `ACROSS`) for every offered clinic, at `CLINIC` priority, tagged `generated`.
 
 ```skedge
 ON 2026-09-16
@@ -297,13 +312,14 @@ Priority `MEDIUM`, weight `0.25`.
 
 ### Counselor hours with a maximum gap
 
-Each counselor gets a counselor hour during clinic 1 or 2 and another during clinic 3 or
-4, no more than five hours apart. `ON` is omitted, so this applies every day.
+Each counselor gets a one-hour counselor hour during clinic 1 or 2 and another during
+clinic 3 or 4, no more than five hours apart. `ON` is omitted, so this applies every day.
+The hour takes part of a 75-minute clinic block; the rest shows as `DYOW/WPs`.
 
 ```skedge
 ACROSS EACH staff.counselor
-TASK 'counselor hour' DURING {block.clinic_1 OR block.clinic_2} AS morning
-TASK 'counselor hour' DURING {block.clinic_3 OR block.clinic_4} AS afternoon
+TASK 'counselor hour' FOR 1h DURING {block.clinic_1 OR block.clinic_2} AS morning
+TASK 'counselor hour' FOR 1h DURING {block.clinic_3 OR block.clinic_4} AS afternoon
 GAP morning afternoon <= 5h
 ```
 
@@ -311,12 +327,13 @@ Priority `MUST_HAPPEN`.
 
 ### Non-counselor breaks
 
-Each non-director, non-counselor staff member takes three 30-minute breaks per day.
+Each non-director, non-counselor staff member takes three 30-minute breaks per day, in
+three different blocks. A break in a clinic block keeps that person off clinics in it.
 
 ```skedge
 ACROSS EACH {staff.all - staff.director - staff.counselor}
-DURING 3 OF block.break_slots
-TASK 'break'
+DURING 3 OF block.any
+TASK 'break' FOR 30m
 ```
 
 Priority `MUST_HAPPEN`.

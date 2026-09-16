@@ -1,12 +1,16 @@
-"""Published Schedules: one tab per date, one row per assignment."""
+"""Published Schedules: one tab per date, one row per assignment.
+
+`start` (HH:MM) and `minutes` place the assignment inside its block. A clinic fills its
+block; an ad hoc task scheduled with `FOR` may fill part of it.
+"""
 
 from collections.abc import Mapping
-from datetime import date
+from datetime import date, time
 
 from puppet_strings.model import Activity, Assignment, Staff
-from puppet_strings.sheets.source import LoadError, Table, header_rows
+from puppet_strings.sheets.source import LoadError, Table, header_rows, parse_int
 
-COLUMNS = ("staff", "activity", "role", "block", "source")
+COLUMNS = ("staff", "activity", "role", "block", "start", "minutes", "source")
 
 
 def parse_published(
@@ -32,6 +36,10 @@ def parse_published(
             activity = activity_ids[text]
         else:
             raise LoadError(f"{cell}: unknown activity")
+        try:
+            start = time.fromisoformat(row["start"])
+        except ValueError as e:
+            raise LoadError(f"{cell}: start '{row['start']}' must be HH:MM") from e
         assignments.append(
             Assignment(
                 staff=staff_ids[row["staff"]],
@@ -39,6 +47,8 @@ def parse_published(
                 role=row["role"] or None,
                 date=day,
                 block=row["block"],
+                start=start,
+                minutes=parse_int(row["minutes"], cell),
                 source=row["source"],
             )
         )
@@ -52,7 +62,11 @@ def assignment_rows(
 ) -> Table:
     """Assignments as a table with a header row, for writing."""
     rows: Table = [list(COLUMNS)]
-    for a in sorted(assignments, key=lambda a: (a.block, a.activity, a.role or "", a.staff)):
+    order = lambda a: (a.block, a.start, a.activity, a.role or "", a.staff)  # noqa: E731
+    for a in sorted(assignments, key=order):
         activity = activities[a.activity].name if a.activity in activities else f"'{a.activity}'"
-        rows.append([staff[a.staff].name, activity, a.role or "", a.block, a.source])
+        start = a.start.strftime("%H:%M")
+        rows.append(
+            [staff[a.staff].name, activity, a.role or "", a.block, start, str(a.minutes), a.source]
+        )
     return rows

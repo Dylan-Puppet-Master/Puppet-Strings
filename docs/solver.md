@@ -49,9 +49,11 @@ divide by the scale's range (4 on a 1–5 scale), and use that as the variety we
 
 These come from the sheets and never need a request:
 
-1. No one holds two assignments in overlapping blocks.
+1. No one's assignments overlap in time. A clinic fills its block; a `FOR` task takes
+   part of a block, and several such tasks can share one block back to back.
 2. A position is filled only by someone checked off on its skill with a high enough RAL.
-3. Each offered clinic is a `CLINIC` request; a clinic runs fully staffed or not at all.
+3. Each offered clinic is a `CLINIC` request on the Requests sheet, created by **Load
+   offerings**; a clinic runs fully staffed or not at all.
 4. A water clinic's `LG_Required` lifeguards are extra positions beyond its facilitators,
    each needing the `LIFEGUARD` skill at RAL 5.
 5. Trainees never fill a position. A shadow needs the clinic fully staffed; a scaffolded
@@ -59,6 +61,12 @@ These come from the sheets and never need a request:
 6. A `(DBL)` clinic keeps the same staff across both of its blocks.
 
 ## The report
+
+**Tidiness.** After the last tier the solver drops any assignment no request asked for,
+uses no more minutes than a `FOR` task needs, and pushes partial tasks to the start of
+their block unless a `GAP` or another task moves them. The Staff View labels the rest of a
+partly used block `DYOW/WPs` (the wording is `remainder` under `[views]` in
+`config.toml`).
 
 After each solve the report lists every soft request that was not satisfied, every
 deferrable task that was put off, and, if the hard requests conflict, their ids. It also

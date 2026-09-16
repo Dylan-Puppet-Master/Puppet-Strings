@@ -95,10 +95,10 @@ def test_date_windows(dataset):
 
 
 def test_quantifiers_and_groups(dataset):
-    (copy,) = resolve(dataset, "ON date.target\nDURING 3 OF block.break_slots\nTASK 'break'")
+    (copy,) = resolve(dataset, "ON date.target\nDURING 3 OF block.any_clinic\nTASK 'break'")
     during = copy.statements[0].during
     assert during.quantifier == ast.Quantifier("OF", 3)
-    assert during.items == ("evening_break", "lunch_break", "pm_break")
+    assert during.items == ("clinic_1", "clinic_2", "clinic_3", "clinic_4")
     (copy,) = resolve(
         dataset, "ON date.target\nDURING ALL block.any\nACROSS staff.dylan\nTASK FREE"
     )

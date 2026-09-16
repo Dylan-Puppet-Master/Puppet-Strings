@@ -3,14 +3,14 @@
 from ortools.sat.python import cp_model
 
 from puppet_strings.config import Config
-from puppet_strings.model import Assignment, Dataset, Priority, Request
+from puppet_strings.model import Assignment, Dataset, Request, minute_to_time
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.compile import Compiled, Compiler
 from puppet_strings.solver.result import RequestOutcome, Result
 from puppet_strings.solver.structural import add_structural_constraints
 from puppet_strings.solver.tiers import solve_tiers
-from puppet_strings.solver.variables import OFFERING, Variables
+from puppet_strings.solver.variables import Variables
 
 
 class RequestError(Exception):
@@ -29,7 +29,7 @@ def solve(dataset: Dataset, config: Config | None = None) -> Result:
     variables = Variables(model, dataset)
     compiler = Compiler(model, variables, dataset)
     copies = []
-    for request in offering_requests(dataset) + list(dataset.requests):
+    for request in dataset.requests:
         try:
             resolved = validate_request(request, dataset)
         except SkedgeError as e:
@@ -43,7 +43,13 @@ def solve(dataset: Dataset, config: Config | None = None) -> Result:
     add_structural_constraints(model, variables, dataset)
 
     unique = {var.Index(): var for var in variables.x.values()}
-    outcome = solve_tiers(model, compiler.terms, list(unique.values()), config)
+    minutes = [
+        expr
+        for iv in variables.intervals.values()
+        if iv.partial
+        for expr in (iv.size, iv.start - iv.block.start_minute)
+    ]
+    outcome = solve_tiers(model, compiler.terms, list(unique.values()), minutes, config)
     if not outcome.feasible:
         conflicts = tuple(
             compiler.compiled[i].id
@@ -65,46 +71,35 @@ def solve(dataset: Dataset, config: Config | None = None) -> Result:
     )
 
 
-def offering_requests(dataset: Dataset) -> list[Request]:
-    """The CLINIC request each offering generates (structural rule 4)."""
-    requests = []
-    for offering in dataset.offerings:
-        blocks = " + ".join(f"block.{b}" for b in offering.blocks)
-        during = f"ALL {{{blocks}}}" if len(offering.blocks) > 1 else blocks
-        name = dataset.activities[offering.activity].name
-        requests.append(
-            Request(
-                id=f"offering:{offering.activity}:{offering.blocks[0]}",
-                description=f"{name} in {', '.join(offering.blocks)}",
-                skedge=f"ON date.target\nDURING {during}\nTASK activity.{offering.activity}",
-                priority=Priority.CLINIC,
-            )
-        )
-    return requests
-
-
 def _assumption_positions(conflicts: tuple[int, ...], compiled: list[Compiled]) -> list[int]:
     by_index = {c.sat.Index(): i for i, c in enumerate(compiled)}
     return sorted(by_index[index] for index in conflicts if index in by_index)
 
 
 def _assignments(solver, variables: Variables, dataset: Dataset) -> tuple[Assignment, ...]:
-    return tuple(
-        Assignment(
-            staff=slot.staff,
-            activity=slot.activity,
-            role=slot.role,
-            date=dataset.target,
-            block=slot.block,
-            source=variables.sources[slot],
+    assignments = []
+    for slot, var in variables.x.items():
+        if not solver.Value(var):
+            continue
+        interval = variables.intervals[slot]
+        assignments.append(
+            Assignment(
+                staff=slot.staff,
+                activity=slot.activity,
+                role=slot.role,
+                date=dataset.target,
+                block=slot.block,
+                start=minute_to_time(_value(solver, interval.start)),
+                minutes=_value(solver, interval.size),
+                source=variables.sources[slot],
+            )
         )
-        for slot, var in variables.x.items()
-        if solver.Value(var)
-    )
+    return tuple(assignments)
+
+
+def _value(solver, value) -> int:
+    return value if isinstance(value, int) else solver.Value(value)
 
 
 def _outcome(compiled: Compiled) -> RequestOutcome:
     return RequestOutcome(compiled.id, compiled.request.priority, compiled.request.description)
-
-
-__all__ = ["OFFERING", "RequestError", "offering_requests", "solve"]

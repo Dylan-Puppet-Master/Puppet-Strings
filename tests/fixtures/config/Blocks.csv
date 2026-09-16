@@ -1,10 +1,8 @@
-block_id,start,end,day_types,categories,display_group
-clinic_1,09:15,10:30,regular,any_clinic,
-clinic_2,10:45,12:00,regular,any_clinic,
-lunch_break,12:30,13:00,regular,break_slots,
-pm_break,13:00,13:30,regular,break_slots,break_then_work_projects
-work_projects,13:30,14:00,regular,,break_then_work_projects
-clinic_3,14:00,15:15,regular,any_clinic,
-clinic_4,15:45,17:00,regular,any_clinic,
-playstation,17:00,18:00,regular,,
-evening_break,18:00,18:30,regular,break_slots,
+block_id,start,end,day_types,categories
+clinic_1,09:15,10:30,regular,any_clinic
+clinic_2,10:45,12:00,regular,any_clinic
+lunch,12:00,13:00,"regular, changeover",meals
+clinic_3,14:00,15:15,regular,any_clinic
+clinic_4,15:45,17:00,regular,any_clinic
+playstation,17:00,18:00,"regular, changeover",
+pack_out,09:15,11:00,changeover,

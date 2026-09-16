@@ -68,56 +68,128 @@ A `(DBL)` clinic must appear in two adjacent clinic blocks; it becomes one insta
 the same staff in both. The tab has no date: the target date is the `--date` argument or
 the app's date picker. A weekday mismatch is a warning.
 
-## Blocks (Puppet Strings spreadsheet)
+## Blocks (config spreadsheet)
 
-| block_id | start | end | day_types | categories | display_group |
-|---|---|---|---|---|---|
-| clinic_1 | 09:15 | 10:30 | regular | any_clinic | |
-| pm_break | 13:00 | 13:30 | regular | break_slots | break_then_work_projects |
-| work_projects | 13:30 | 14:00 | regular | | break_then_work_projects |
-| playstation | 17:00 | 18:00 | regular | | |
+One row per time block. Blocks are the units the solver assigns staff to.
 
-`block.any` is built in. A block exists on a date only if the date's day type is listed.
-Blocks sharing a `display_group` appear as one column in the staff view. Staff with nothing
-in the `playstation` block are marked `Available`.
+| Column | Meaning |
+|---|---|
+| `block_id` | The block's name, used in requests as `block.<block_id>`. |
+| `start`, `end` | Times as `HH:MM` on a 24-hour clock. Blocks may overlap; the solver never gives one person two assignments that overlap in time. |
+| `day_types` | **Comma-separated.** The kinds of day this block exists on. Each date's kind comes from the Calendar sheet's `day_type` column. A block whose list does not include that day's type does not exist that day, so no request can select it. |
+| `categories` | **Comma-separated.** Groups of blocks a request can name at once: `block.any_clinic`, `block.break_slots`. `block.any` (every block) is built in and need not be listed. |
 
-## Calendar (Puppet Strings spreadsheet)
+Example:
 
-| date | session | day_type |
-|---|---|---|
-| 2026-06-14 | session_1 | regular |
+| block_id | start | end | day_types | categories |
+|---|---|---|---|---|
+| clinic_1 | 09:15 | 10:30 | regular | any_clinic |
+| clinic_2 | 10:45 | 12:00 | regular | any_clinic |
+| lunch | 12:00 | 13:00 | regular, changeover | meals |
+| pack_out | 09:15 | 11:00 | changeover | |
+| playstation | 17:00 | 18:00 | regular, changeover | |
 
-`date.session` is every date sharing the target's session. `date.monday` … `date.sunday`
-are the dates of the target's Sunday-to-Saturday week that fall inside the session.
+On a `regular` day the clinic blocks, lunch and playstation exist; on a `changeover` day
+only pack-out, lunch and playstation do.
 
-## Requests (Puppet Strings spreadsheet)
+Blocks are the real periods of the day, not 30-minute slices. A short task such as a
+break is written with `FOR 30m` and takes part of a block; the Staff View shows the rest
+of that block as `DYOW/WPs` ("do your own work or work projects"). See
+[Skedge reference](skedge.md#task).
 
-| id | description | skedge | priority | weight | created |
-|---|---|---|---|---|---|
+If every day has the same shape, use one day type everywhere: `regular` on every block
+and on every Calendar row.
 
-The request manager edits this tab for you. `priority` is one of `MUST_HAPPEN`, `CLINIC`,
-`HIGH`, `MEDIUM`, `LOW`. `weight` is blank or a positive number, never with `MUST_HAPPEN`.
+Staff with no assignment in the `playstation` block are marked `Available` in the Staff
+View.
 
-## Metrics (Puppet Strings spreadsheet)
+## Calendar (config spreadsheet)
 
-An index tab `Metrics` and one data tab per metric named `metric_<name>`:
+One row per camp day.
+
+| Column | Meaning |
+|---|---|
+| `date` | `YYYY-MM-DD`. |
+| `session` | Which session the day belongs to, such as `session_1`. `date.session` in a request means every date with the same session as the target date. Repetition windows (`AVOID … BEYOND`) never look outside the session. |
+| `day_type` | The kind of day, matched against each block's `day_types`. Any label you like; `regular` for an ordinary day. |
+
+`date.monday` … `date.sunday` are the dates of the target's Sunday-to-Saturday week that
+fall inside the session.
+
+## Requests (config spreadsheet)
+
+One row per request. The request manager edits this tab for you; you can also edit it by
+hand.
+
+| Column | Meaning |
+|---|---|
+| `id` | Unique and stable, in `kebab-case`. Appears in the solver's report. |
+| `description` | Plain language, for people. |
+| `skedge` | The request itself; see the [Skedge reference](skedge.md). Multi-line cells are fine. |
+| `priority` | One of `MUST_HAPPEN`, `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. |
+| `weight` | Blank (meaning 1) or a positive number. Not allowed with `MUST_HAPPEN`. |
+| `tags` | **Comma-separated.** Any labels you like, for filtering in the request manager. Requests made from the Offerings tab carry the tag `generated`. |
+| `created` | `YYYY-MM-DD`, for the record. |
+
+## Metrics (config spreadsheet)
+
+A metric is a table of ratings the solver can score assignments with, such as how much
+each staff member enjoys each clinic. A request uses it with `~`, for example
+`PREFER activity.any_clinic ~ metric.enjoyment`.
+
+Metrics take **two kinds of tab** in the config spreadsheet:
+
+1. **One tab named `Metrics`** that lists every metric you have and the scale its ratings
+   use. Think of it as a table of contents. It has one row per metric.
+2. **One tab per metric holding the ratings themselves**, named `metric_` followed by the
+   metric's name: `metric_enjoyment`.
+
+If you have no metrics yet, create the `Metrics` tab with just its header row and leave it
+empty.
+
+### Step by step: an enjoyment metric
+
+**1. Add a row to the `Metrics` tab.**
 
 | metric | keys | scale_min | scale_max |
 |---|---|---|---|
 | enjoyment | staff, activity | 1 | 5 |
 
-`metric_enjoyment`:
+| Column | What to put there |
+|---|---|
+| `metric` | A short name. It becomes `metric.enjoyment` in requests, and names the ratings tab `metric_enjoyment`. |
+| `keys` | **Comma-separated.** What each rating is about. `staff, activity` means one rating per staff member per clinic. Choose from `staff`, `activity`, `role`, `date`, `block`. |
+| `scale_min`, `scale_max` | The lowest and highest rating you will ever enter. Ratings are converted to 0–1 against this scale, not against whatever ratings happen to exist, so adding a new rating never changes how the old ones weigh. |
+
+**2. Create a tab named `metric_enjoyment`.** Give it one column for each key you listed,
+in any order, plus a `value` column:
 
 | staff | activity | value |
 |---|---|---|
 | Dylan | Archery 1 & 2 | 5 |
+| Dylan | Candle Making | 3 |
+| Mogee | Candle Making | 4 |
 
-Key cells hold sheet names. A missing row scores 0. Values outside the scale are errors.
+Write the names as they appear on the other sheets (`Dylan`, `Archery 1 & 2`), not as
+Skedge identifiers, so you can paste rows from elsewhere. A value outside the scale is a
+load error.
+
+**3. There is no step 3.** Any staff-and-clinic pair with no row scores 0, so you only
+need rows for the ratings you actually have. A second metric, say `variety_need` keyed by
+`staff`, is another row on the `Metrics` tab and another tab named `metric_variety_need`
+with columns `staff` and `value`.
 
 ## Published Schedules
 
-One tab per published date, named by the date, with one row per assignment:
-`staff | activity | role | block | source`. Ad hoc tasks are written in quotes
-(`'counselor hour'`). These tabs are the record the solver reads back for past dates.
+One tab per published date, named by the date, with one row per assignment. Ad hoc tasks
+are written in quotes (`'counselor hour'`). These tabs are the record the solver reads
+back for past dates.
+
+| Column | Meaning |
+|---|---|
+| `staff`, `activity`, `role`, `block` | Who does what, in which role, in which block |
+| `start` | `HH:MM`, where the task starts inside its block |
+| `minutes` | How long it lasts; a clinic fills its block |
+| `source` | `offering`, or the request id that required it |
 
 Three tabs are overwritten on every publish: **Staff View**, **Clinic View**, **Report**.

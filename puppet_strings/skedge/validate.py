@@ -81,8 +81,8 @@ def _check_verb(scoped: ScopedVerb, hard: bool) -> None:
 
 def _check_gap_task(scoped: ScopedVerb, gap: ast.Gap) -> None:
     during = scoped.get(ast.During).selector
-    if scoped.get(ast.For) or _quantifier(during) in ("ALL", "OF") or _has_and(during.expr):
-        raise _error("GAP tasks must occupy a single block (no FOR, ALL, OF, or AND)", gap)
+    if _quantifier(during) in ("ALL", "OF") or _has_and(during.expr):
+        raise _error("GAP tasks must occupy a single block (no ALL, OF, or AND)", gap)
 
 
 def _selectors(scoped: ScopedVerb):

@@ -71,13 +71,16 @@ class RequestEditor(QWidget):
         super().__init__()
         self.dataset: Dataset | None = None
         self.original_id: str | None = None
-        self.id_edit = QLineEdit()
+        self.id_label = QLabel("")
         self.description_edit = QLineEdit()
+        self.description_edit.setPlaceholderText("what this request is for; the id is made from it")
         self.priority_box = QComboBox()
         self.priority_box.addItems([p.value for p in Priority])
         self.weight_box = QDoubleSpinBox()
         self.weight_box.setRange(0.01, 1000)
         self.weight_box.setValue(1)
+        self.tags_edit = QLineEdit()
+        self.tags_edit.setPlaceholderText("comma-separated")
         self.created_label = QLabel("")
         self.skedge_edit = QPlainTextEdit()
         self.skedge_edit.setFont(QFont("monospace"))
@@ -90,10 +93,11 @@ class RequestEditor(QWidget):
         self.new_button = QPushButton("New")
 
         form = QFormLayout()
-        form.addRow("id", self.id_edit)
+        form.addRow("id", self.id_label)
         form.addRow("description", self.description_edit)
         form.addRow("priority", self.priority_box)
         form.addRow("weight", self.weight_box)
+        form.addRow("tags", self.tags_edit)
         form.addRow("created", self.created_label)
         buttons = QHBoxLayout()
         for button in (self.new_button, self.save_button, self.delete_button):
@@ -125,10 +129,11 @@ class RequestEditor(QWidget):
     def show_request(self, request: Request) -> None:
         """Load a request into the fields."""
         self.original_id = request.id
-        self.id_edit.setText(request.id)
+        self.id_label.setText(request.id)
         self.description_edit.setText(request.description)
         self.priority_box.setCurrentText(request.priority.value)
         self.weight_box.setValue(request.weight)
+        self.tags_edit.setText(", ".join(request.tags))
         self.created_label.setText(request.created.isoformat() if request.created else "")
         self.skedge_edit.setPlainText(request.skedge)
         self.delete_button.setEnabled(True)
@@ -137,10 +142,11 @@ class RequestEditor(QWidget):
     def clear(self) -> None:
         """Start a new request."""
         self.original_id = None
-        self.id_edit.clear()
+        self.id_label.setText("(assigned on save)")
         self.description_edit.clear()
         self.priority_box.setCurrentText(Priority.MEDIUM.value)
         self.weight_box.setValue(1)
+        self.tags_edit.clear()
         self.created_label.setText(date.today().isoformat())
         self.skedge_edit.setPlainText("")
         self.delete_button.setEnabled(False)
@@ -151,11 +157,12 @@ class RequestEditor(QWidget):
         priority = Priority(self.priority_box.currentText())
         created = self.created_label.text()
         return Request(
-            id=self.id_edit.text().strip(),
+            id=self.original_id or "",
             description=self.description_edit.text().strip(),
             skedge=self.skedge_edit.toPlainText(),
             priority=priority,
             weight=1.0 if priority.hard else self.weight_box.value(),
+            tags=tuple(t.strip() for t in self.tags_edit.text().split(",") if t.strip()),
             created=date.fromisoformat(created) if created else None,
         )
 
@@ -164,8 +171,6 @@ class RequestEditor(QWidget):
         if self.dataset is None:
             return self._report("No data loaded", ok=False)
         request = self.current()
-        if not request.id:
-            return self._report("id is required", ok=False)
         try:
             copies = validate_request(request, self.dataset)
         except SkedgeError as e:
@@ -188,11 +193,15 @@ class RequestEditor(QWidget):
         self.weight_box.setEnabled(not Priority(text).hard)
         self.timer.start()
 
+    def saved_as(self, request: Request) -> None:
+        """Show the id the store gave the request just saved."""
+        self.original_id = request.id
+        self.id_label.setText(request.id)
+        self.delete_button.setEnabled(True)
+
     def _save(self) -> None:
         if self.validate():
             self.saved.emit(self.current(), self.original_id)
-            self.original_id = self.current().id
-            self.delete_button.setEnabled(True)
 
     def _delete(self) -> None:
         if self.original_id:

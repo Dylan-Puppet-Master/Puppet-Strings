@@ -52,6 +52,7 @@ Requests and Metrics tabs.
 ```
 puppet-strings names                     # every name you can write in a request
 puppet-strings validate                  # check every request on the sheet
+puppet-strings --date 2026-06-15 load-offerings   # Offerings tab -> requests tagged "generated"
 puppet-strings --date 2026-06-15 solve   # print tomorrow's schedule
 puppet-strings solve --publish           # and write it to Published Schedules
 puppet-strings app                       # open the request manager

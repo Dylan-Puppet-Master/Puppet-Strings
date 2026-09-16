@@ -7,6 +7,8 @@ from pathlib import Path
 
 DEFAULT_PATH = Path("~/.config/puppet_strings/config.toml")
 
+DEFAULT_REMAINDER = "DYOW/WPs"  # label for the unassigned part of a partly used block
+
 DEFAULT_TABS = {
     "clinics": "Clinics",
     "offerings": "Offerings",
@@ -30,6 +32,7 @@ class Config:
     sheets: dict[str, str] = field(default_factory=dict)
     tabs: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_TABS))
     credentials: Path = Path("~/.config/puppet_strings/service_account.json")
+    remainder: str = DEFAULT_REMAINDER
     time_limit_seconds: float = 30.0
     workers: int = 8
     random_seed: int = 0
@@ -47,6 +50,7 @@ def load_config(path: Path | None = None) -> Config:
         sheets=data.get("sheets", {}),
         tabs={**DEFAULT_TABS, **data.get("tabs", {})},
         credentials=Path(data.get("auth", {}).get("credentials", Config.credentials)).expanduser(),
+        remainder=data.get("views", {}).get("remainder", DEFAULT_REMAINDER),
         time_limit_seconds=solver.get("time_limit_seconds", Config.time_limit_seconds),
         workers=solver.get("workers", Config.workers),
         random_seed=solver.get("random_seed", Config.random_seed),

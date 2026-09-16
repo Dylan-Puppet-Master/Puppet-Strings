@@ -28,7 +28,8 @@ def test_doc_example_solves(dataset, skedge):
     from puppet_strings.config import Config
     from puppet_strings.solver.solve import solve
 
-    single = replace(dataset, requests=(Request("doc", "", skedge, Priority.HIGH),))
+    offerings = tuple(r for r in dataset.requests if "generated" in r.tags)
+    single = replace(dataset, requests=offerings + (Request("doc", "", skedge, Priority.HIGH),))
     result = solve(single, Config(time_limit_seconds=10, workers=4))
     assert result.feasible
     assert result.assignments

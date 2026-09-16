@@ -1,10 +1,12 @@
 """The two printable views of a schedule, and the report, as tables."""
 
+from puppet_strings.config import DEFAULT_REMAINDER
 from puppet_strings.model import (
     LIFEGUARD_ROLES,
     POSITION_ROLES,
     TRAINEE_ROLES,
     Assignment,
+    Block,
     Dataset,
 )
 from puppet_strings.sheets.source import Table
@@ -15,23 +17,45 @@ PLAYSTATION = "playstation"
 ANY_CLINIC = "any_clinic"
 
 
-def staff_view(dataset: Dataset, assignments: tuple[Assignment, ...]) -> Table:
-    """One row per staff member, one column per block (display groups merge)."""
-    columns = _columns(dataset)
-    header = ["Staff"] + [label for label, _ in columns]
-    rows: Table = [header]
-    by_staff_block: dict[tuple[str, str], list[str]] = {}
+def staff_view(
+    dataset: Dataset, assignments: tuple[Assignment, ...], remainder: str = DEFAULT_REMAINDER
+) -> Table:
+    """One row per staff member, one column per block.
+
+    A block's cell lists the person's tasks in time order, joined by ", then ". Time in the
+    block that no task covers is labeled with `remainder` (DYOW/WPs by default).
+    """
+    blocks = dataset.blocks_on(dataset.target)
+    rows: Table = [["Staff"] + [_label(b.id) for b in blocks]]
+    by_staff_block: dict[tuple[str, str], list[Assignment]] = {}
     for a in assignments:
-        by_staff_block.setdefault((a.staff, a.block), []).append(_describe(dataset, a))
+        by_staff_block.setdefault((a.staff, a.block), []).append(a)
     for staff_id in sorted(dataset.staff, key=lambda s: dataset.staff[s].name):
         row = [dataset.staff[staff_id].name]
-        for _, blocks in columns:
-            cells = [c for b in blocks for c in by_staff_block.get((staff_id, b), [])]
-            if not cells and PLAYSTATION in blocks:
-                cells = [AVAILABLE]
-            row.append("; ".join(cells))
+        for block in blocks:
+            here = sorted(by_staff_block.get((staff_id, block.id), []), key=lambda a: a.start)
+            row.append(_cell(dataset, block, here, remainder))
         rows.append(row)
     return rows
+
+
+def _cell(dataset: Dataset, block: Block, here: list[Assignment], remainder: str) -> str:
+    if not here:
+        return AVAILABLE if block.id == PLAYSTATION else ""
+    segments = []
+    cursor = block.start_minute
+    for a in here:
+        if _minute(a.start) > cursor:
+            segments.append(remainder)
+        segments.append(_describe(dataset, a))
+        cursor = a.end_minute
+    if cursor < block.end_minute:
+        segments.append(remainder)
+    return ", then ".join(segments)
+
+
+def _minute(t) -> int:
+    return t.hour * 60 + t.minute
 
 
 def clinic_view(dataset: Dataset, assignments: tuple[Assignment, ...]) -> Table:
@@ -41,7 +65,7 @@ def clinic_view(dataset: Dataset, assignments: tuple[Assignment, ...]) -> Table:
         for b in dataset.blocks_on(dataset.target)
         if b.id in dataset.block_categories.get("any_clinic", ())
     ]
-    rows: Table = [["Clinic"] + [_label(dataset, b) for b in clinic_blocks]]
+    rows: Table = [["Clinic"] + [_label(b) for b in clinic_blocks]]
     activities = sorted(
         {a.activity for a in assignments if a.activity in dataset.activities},
         key=lambda i: dataset.activities[i].name,
@@ -70,22 +94,8 @@ def report(result: Result) -> Table:
     return rows
 
 
-def _columns(dataset: Dataset) -> list[tuple[str, list[str]]]:
-    columns: list[tuple[str, list[str]]] = []
-    seen_groups: dict[str, int] = {}
-    for block in dataset.blocks_on(dataset.target):
-        if block.display_group and block.display_group in seen_groups:
-            columns[seen_groups[block.display_group]][1].append(block.id)
-            continue
-        if block.display_group:
-            seen_groups[block.display_group] = len(columns)
-        columns.append((_label(dataset, block.id), [block.id]))
-    return columns
-
-
-def _label(dataset: Dataset, block_id: str) -> str:
-    block = dataset.blocks[block_id]
-    return (block.display_group or block.id).replace("_", " ").title()
+def _label(block_id: str) -> str:
+    return block_id.replace("_", " ").title()
 
 
 def _describe(dataset: Dataset, a: Assignment) -> str:

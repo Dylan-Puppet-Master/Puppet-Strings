@@ -40,7 +40,9 @@ class NamesPanel(QTreeWidget):
             self.addTopLevelItem(top)
             for name, note in sorted(names):
                 top.addChild(QTreeWidgetItem([f"{namespace}.{name}", note]))
+        self.expandAll()
         self.resizeColumnToContents(0)
+        self.collapseAll()
 
     def _pick(self, item: QTreeWidgetItem, column: int) -> None:
         if item.parent() is not None:

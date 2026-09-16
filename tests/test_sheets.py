@@ -103,11 +103,12 @@ def test_blocks(source):
     blocks = parse_blocks(source.read("config", "Blocks"))
     assert blocks["clinic_1"].start == time(9, 15)
     assert blocks["clinic_1"].minutes == 75
-    assert blocks["pm_break"].display_group == "break_then_work_projects"
-    assert blocks["pm_break"].categories == {"any", "break_slots"}
+    assert blocks["lunch"].categories == {"any", "meals"}
+    assert blocks["lunch"].day_types == {"regular", "changeover"}
     assert blocks["clinic_1"].gap_to(blocks["clinic_4"]) == 315
     assert not blocks["clinic_1"].overlaps(blocks["clinic_2"])
-    assert blocks["pm_break"].overlaps(blocks["pm_break"])
+    assert blocks["lunch"].overlaps(blocks["lunch"])
+    assert blocks["pack_out"].overlaps(blocks["clinic_1"])
 
 
 def test_requests_round_trip(source):
@@ -117,6 +118,9 @@ def test_requests_round_trip(source):
     assert requests[0].weight == 1.0
     assert requests[3].weight == 0.5
     assert requests[0].created == date(2026, 9, 1)
+    assert requests[0].tags == ("legal", "counselors")
+    assert requests[2].tags == ()
+    assert requests[-1].tags == ("generated",)
     assert parse_requests(request_rows(requests)) == requests
 
 
@@ -143,6 +147,7 @@ def test_published_round_trip(dataset, source):
     assert len(assignments) == 5
     hour = next(a for a in assignments if a.activity == "counselor hour")
     assert hour.staff == "dylan" and hour.role is None and hour.block == "clinic_2"
+    assert (hour.start.strftime("%H:%M"), hour.minutes) == ("10:45", 60)
     rows = assignment_rows(assignments, dataset.staff, dataset.activities)
     assert set(map(tuple, rows[1:])) == set(map(tuple, source.read("published", "2026-09-15")[1:]))
     assert set(parse_published(rows, yesterday, dataset.staff, dataset.activities)) == set(
@@ -173,6 +178,11 @@ def test_dataset(dataset):
     assert [b.id for b in dataset.blocks_on(dataset.target)][:3] == [
         "clinic_1",
         "clinic_2",
-        "lunch_break",
+        "lunch",
+    ]
+    assert [b.id for b in dataset.blocks_on(date(2026, 9, 19))] == [
+        "pack_out",
+        "lunch",
+        "playstation",
     ]
     assert set(dataset.published) == {date(2026, 9, 14), date(2026, 9, 15)}

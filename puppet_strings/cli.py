@@ -6,10 +6,12 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from puppet_strings.config import Config, load_config
+from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
 from puppet_strings.model import Dataset
 from puppet_strings.publish.views import clinic_view, report, staff_view
 from puppet_strings.publish.writer import is_published, publish
 from puppet_strings.sheets.load import load_dataset
+from puppet_strings.sheets.requests import request_rows
 from puppet_strings.sheets.source import CsvSource, LoadError, SheetsSource, Source, Table
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.validate import validate_request
@@ -28,6 +30,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--date", type=date.fromisoformat, help="target date, default tomorrow")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("validate", help="check every request on the Requests sheet")
+    commands.add_parser(
+        "load-offerings", help="add the Offerings tab's clinics to the Requests sheet"
+    )
     commands.add_parser("names", help="list every valid Skedge name")
     solve_parser = commands.add_parser("solve", help="build the schedule for the target date")
     solve_parser.add_argument("--publish", action="store_true", help="write to Published Schedules")
@@ -63,6 +68,10 @@ def _run(args, config: Config, target: date) -> int:
         return _names(dataset)
     if args.command == "validate":
         return _validate(dataset)
+    if args.command == "load-offerings":
+        return _load_offerings(source, config, dataset)
+    if not has_offerings_loaded(dataset.requests, dataset.target):
+        print(f"warning: no offerings loaded for {dataset.target}; run load-offerings first")
     return _solve(source, config, dataset, args.publish, args.force)
 
 
@@ -109,6 +118,14 @@ def _names(dataset: Dataset) -> int:
 
 def _categories(categories) -> dict[str, str]:
     return {name: f"category, {len(members)} members" for name, members in categories.items()}
+
+
+def _load_offerings(source: Source, config: Config, dataset: Dataset) -> int:
+    generated = generated_requests(dataset)
+    merged = merge(list(dataset.requests), generated, dataset.target)
+    source.write("config", config.tabs["requests"], request_rows(tuple(merged)))
+    print(f"loaded {len(generated)} offerings for {dataset.target} into the Requests sheet")
+    return 0
 
 
 def _validate(dataset: Dataset) -> int:

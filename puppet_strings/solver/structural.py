@@ -7,7 +7,7 @@ from puppet_strings.solver.variables import Variables
 
 
 def add_structural_constraints(model: cp_model.CpModel, variables: Variables, dataset: Dataset):
-    """Positions (including lifeguard positions), trainees, and no double booking."""
+    """Positions (including lifeguard positions), trainees, and no overlapping assignments."""
     for instance in variables.unique_instances():
         activity = instance.activity
         for holders in instance.holders.values():
@@ -29,20 +29,10 @@ def add_structural_constraints(model: cp_model.CpModel, variables: Variables, da
 
 
 def _no_double_booking(model, variables: Variables, dataset: Dataset) -> None:
-    by_staff_block: dict[tuple[str, str], dict[int, cp_model.IntVar]] = {}
-    for slot, var in variables.x.items():
-        by_staff_block.setdefault((slot.staff, slot.block), {})[var.Index()] = var
-    blocks = list(dataset.blocks.values())
-    overlapping = [
-        (a.id, b.id) for i, a in enumerate(blocks) for b in blocks[i + 1 :] if a.overlaps(b)
-    ]
-    for vars_here in by_staff_block.values():
-        model.AddAtMostOne(vars_here.values())
-    for staff_id in dataset.staff:
-        for first, second in overlapping:
-            merged = {
-                **by_staff_block.get((staff_id, first), {}),
-                **by_staff_block.get((staff_id, second), {}),
-            }
-            if len(merged) > 1:
-                model.AddAtMostOne(merged.values())
+    """A person's assignments never overlap in time, within a block or across blocks."""
+    by_staff: dict[str, list] = {}
+    for slot, interval in variables.intervals.items():
+        by_staff.setdefault(slot.staff, []).append(interval.interval)
+    for intervals in by_staff.values():
+        if len(intervals) > 1:
+            model.AddNoOverlap(intervals)

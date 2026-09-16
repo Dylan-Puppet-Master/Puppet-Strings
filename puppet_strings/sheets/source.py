@@ -24,6 +24,9 @@ class Source(Protocol):
     def read(self, sheet: str, tab: str) -> Table:
         """All cells of a tab. Missing tab raises LoadError."""
 
+    def read_many(self, sheet: str, tabs: list[str]) -> dict[str, Table]:
+        """Several tabs of one spreadsheet, in as few requests as possible."""
+
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Replace a tab's contents, creating the tab if needed."""
 
@@ -49,6 +52,10 @@ class CsvSource:
         with path.open(newline="", encoding="utf-8") as f:
             return [list(row) for row in csv.reader(f)]
 
+    def read_many(self, sheet: str, tabs: list[str]) -> dict[str, Table]:
+        """Each tab's rows."""
+        return {tab: self.read(sheet, tab) for tab in tabs}
+
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Write one CSV file."""
         path = self.root / sheet / f"{tab}.csv"
@@ -58,7 +65,11 @@ class CsvSource:
 
 
 class SheetsSource:
-    """Tables read from Google Sheets with a service account."""
+    """Tables read from Google Sheets with a service account.
+
+    Every API call takes a noticeable fraction of a second, so tab lists are cached per
+    spreadsheet and `read_many` fetches all the tabs it is asked for in one request.
+    """
 
     def __init__(self, sheet_ids: dict[str, str], credentials: Path) -> None:
         import gspread
@@ -66,6 +77,7 @@ class SheetsSource:
         self.client = gspread.service_account(filename=str(credentials))
         self.sheet_ids = sheet_ids
         self._open: dict[str, object] = {}
+        self._tabs: dict[str, list[str]] = {}
 
     def _spreadsheet(self, sheet: str):
         if sheet not in self.sheet_ids:
@@ -75,17 +87,28 @@ class SheetsSource:
         return self._open[sheet]
 
     def tabs(self, sheet: str) -> list[str]:
-        """Worksheet titles."""
-        return [ws.title for ws in self._spreadsheet(sheet).worksheets()]
+        """Worksheet titles, fetched once per spreadsheet."""
+        if sheet not in self._tabs:
+            self._tabs[sheet] = [ws.title for ws in self._spreadsheet(sheet).worksheets()]
+        return self._tabs[sheet]
 
     def read(self, sheet: str, tab: str) -> Table:
-        """All values of a worksheet."""
-        import gspread
+        """All values of one worksheet."""
+        return self.read_many(sheet, [tab])[tab]
 
-        try:
-            return self._spreadsheet(sheet).worksheet(tab).get_all_values()
-        except gspread.WorksheetNotFound as e:
-            raise LoadError(f"{sheet}: no tab '{tab}'") from e
+    def read_many(self, sheet: str, tabs: list[str]) -> dict[str, Table]:
+        """All values of several worksheets in one request."""
+        if not tabs:
+            return {}
+        missing = [tab for tab in tabs if tab not in self.tabs(sheet)]
+        if missing:
+            raise LoadError(f"{sheet}: no tab {', '.join(repr(t) for t in missing)}")
+        ranges = [f"'{tab}'" for tab in tabs]
+        response = self._spreadsheet(sheet).values_batch_get(ranges)
+        tables = {}
+        for tab, value_range in zip(tabs, response.get("valueRanges", []), strict=True):
+            tables[tab] = [list(row) for row in value_range.get("values", [])]
+        return tables
 
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Clear and refill a worksheet, adding it if missing."""
@@ -97,6 +120,7 @@ class SheetsSource:
             worksheet.clear()
         except gspread.WorksheetNotFound:
             worksheet = spreadsheet.add_worksheet(tab, rows=max(len(table), 1), cols=26)
+            self._tabs.pop(sheet, None)
         if table:
             worksheet.update(table, "A1")
 

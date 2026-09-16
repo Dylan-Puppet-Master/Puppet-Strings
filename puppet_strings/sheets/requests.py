@@ -2,15 +2,16 @@
 
 from puppet_strings.model import Priority, Request
 from puppet_strings.sheets.calendar import parse_date
-from puppet_strings.sheets.source import LoadError, Table, header_rows
+from puppet_strings.sheets.source import LoadError, Table, header_rows, split_list
 
-COLUMNS = ("id", "description", "skedge", "priority", "weight", "created")
+COLUMNS = ("id", "description", "skedge", "priority", "weight", "tags", "created")
+REQUIRED = tuple(c for c in COLUMNS if c != "tags")
 
 
 def parse_requests(table: Table) -> tuple[Request, ...]:
     """Requests in sheet order. Checks fields, not Skedge (see skedge.validate)."""
     where = "Requests"
-    rows = header_rows(table, COLUMNS, where)
+    rows = header_rows(table, REQUIRED, where)
     requests = []
     ids = set()
     for row in rows:
@@ -33,6 +34,7 @@ def parse_requests(table: Table) -> tuple[Request, ...]:
                 skedge=row["skedge"],
                 priority=priority,
                 weight=weight,
+                tags=tuple(split_list(row.get("tags", ""))),
                 created=created,
             )
         )
@@ -45,7 +47,8 @@ def request_rows(requests: tuple[Request, ...]) -> Table:
     for r in requests:
         weight = "" if r.priority.hard else _format_weight(r.weight)
         created = r.created.isoformat() if r.created else ""
-        rows.append([r.id, r.description, r.skedge, r.priority.value, weight, created])
+        tags = ", ".join(r.tags)
+        rows.append([r.id, r.description, r.skedge, r.priority.value, weight, tags, created])
     return rows
 
 

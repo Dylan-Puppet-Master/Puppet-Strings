@@ -524,7 +524,7 @@ Assumptions added by this outline:
 16. **The staff roster** is the Skills main tab. Staff Categories members must appear there.
 17. **Category names** are used as-is: `staff.counselor`, `activity.ropes`. The proposal's `staff.counselors` and `activity.any_ropes` become whatever the sheets say; documentation examples will use the real names.
 18. **Activities are clinics only.** Clinic_Data lists no playstations or evening programs. `block.playstation` is just a block.
-19. **New sheets**: Blocks, Calendar, Requests, Metrics live in one new "Puppet Strings" spreadsheet; Published Schedules is a second new spreadsheet. `Calendar` is an addition beyond the proposal. Request scope is derived, not stored.
+19. **New sheets**: Blocks, Calendar, Requests, Metrics live in one new config spreadsheet; Published Schedules is a second new spreadsheet. `Calendar` is an addition beyond the proposal. Request scope is derived, not stored.
 20. **Metric misses** score 0. Values outside the declared scale are load errors.
 21. **Deferral incentive** is one scaled unit (0.001 of a weight-1 request) per satisfied deferrable task, or per minute for `FOR` tasks.
 22. **`GAP` labels** must be single-block `TASK`s on the same date.
@@ -587,3 +587,20 @@ Recorded so the outline matches the code.
   `config.py`.
 - **Lifeguards are positions**, not a count over facilitators: `LG_Required` adds
   `role.lifeguard` (and `role.lifeguard_2`) positions requiring `LIFEGUARD` at RAL 5.
+- **Requests have tags** (comma-separated column). Offerings are no longer generated
+  inside the solver: **Load offerings** (app button or `load-offerings` command) writes
+  one `CLINIC` request per offering to the Requests sheet, tagged `generated`, with ids
+  `offering:<date>:<activity>:<block>`. Loading first removes the date's generated rows. The solver
+  warns when no generated requests exist for the target date. Clinic instances come only
+  from `TASK` statements; a `(DBL)` clinic asked for with `DURING ALL` of two blocks is
+  one instance.
+- **Partial blocks replace display groups** (Puppet Master, 2026-09-16). Blocks are the
+  real periods of the day. Every assignment is a CP-SAT interval; a clinic fills its
+  block, an ad hoc `FOR` task has a movable start and a variable length inside its
+  block, and one `AddNoOverlap` per person replaces the per-block double-booking
+  constraints. Several partial tasks may share a block. `n OF` with `FOR` means `n`
+  blocks each holding the full duration. `GAP` constrains real start and end times.
+  The tidiness pass also minimizes task minutes and offsets from block starts. The Staff
+  View joins a block's tasks with ", then " and labels unused time `DYOW/WPs`
+  (configurable). The published tab gained `start` and `minutes` columns; the Blocks
+  sheet lost `display_group`.

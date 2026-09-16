@@ -16,7 +16,8 @@ def publish(source: Source, config: Config, dataset: Dataset, result: Result) ->
     source.write(
         PUBLISHED, tab, assignment_rows(result.assignments, dataset.staff, dataset.activities)
     )
-    source.write(PUBLISHED, config.tabs["staff_view"], staff_view(dataset, result.assignments))
+    view = staff_view(dataset, result.assignments, config.remainder)
+    source.write(PUBLISHED, config.tabs["staff_view"], view)
     source.write(PUBLISHED, config.tabs["clinic_view"], clinic_view(dataset, result.assignments))
     source.write(PUBLISHED, config.tabs["report"], report(result))
 
