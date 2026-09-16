@@ -52,7 +52,8 @@ These come from the sheets and never need a request:
 1. No one holds two assignments in overlapping blocks.
 2. A position is filled only by someone checked off on its skill with a high enough RAL.
 3. Each offered clinic is a `CLINIC` request; a clinic runs fully staffed or not at all.
-4. Water clinics have at least `LG_Required` lifeguards among their position holders.
+4. A water clinic's `LG_Required` lifeguards are extra positions beyond its facilitators,
+   each needing the `LIFEGUARD` skill at RAL 5.
 5. Trainees never fill a position. A shadow needs the clinic fully staffed; a scaffolded
    trainee needs a position holder who is a trainer on that skill. One trainee per clinic.
 6. A `(DBL)` clinic keeps the same staff across both of its blocks.

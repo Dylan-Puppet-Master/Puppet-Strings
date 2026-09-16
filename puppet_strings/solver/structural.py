@@ -3,23 +3,15 @@
 from ortools.sat.python import cp_model
 
 from puppet_strings.model import SHADOW, Dataset
-from puppet_strings.solver.variables import LIFEGUARD, Variables
+from puppet_strings.solver.variables import Variables
 
 
 def add_structural_constraints(model: cp_model.CpModel, variables: Variables, dataset: Dataset):
-    """Positions, lifeguards, trainees, and no double booking."""
+    """Positions (including lifeguard positions), trainees, and no double booking."""
     for instance in variables.unique_instances():
         activity = instance.activity
         for holders in instance.holders.values():
             model.Add(sum(holders.values()) == instance.filled)
-        if activity.lifeguards:
-            lifeguards = [
-                var
-                for holders in instance.holders.values()
-                for staff_id, var in holders.items()
-                if dataset.staff[staff_id].status(LIFEGUARD).eligible
-            ]
-            model.Add(sum(lifeguards) >= activity.lifeguards * instance.filled)
         for role, var in instance.trainees.values():
             if role == SHADOW:
                 model.AddImplication(var, instance.filled)

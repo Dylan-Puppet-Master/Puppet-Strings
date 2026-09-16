@@ -111,10 +111,10 @@ The spreadsheet has one tab per category (Arts, Outdoor, Rolling, …) and one c
 | `Slots` | int | Camper slots. Displayed only; not used by the solver. |
 | `Staff_Required` or `Staff_Requested` | int | Number of positions. Both header spellings exist and are accepted. |
 | `RAL_Required` | digit string | **One digit per position**, in position order: `53` means 1st needs RAL 5, 2nd needs RAL 3; `543` covers three positions. Exactly `Staff_Required` digits; any other length is a load error naming the row (the current sheet has four such rows to fix). |
-| `LG_Required` | int, optional | Minimum number of position holders who hold the `LIFEGUARD` skill. Blank means 0. |
+| `LG_Required` | int, optional | Lifeguards in addition to `Staff_Required`, each a position needing the `LIFEGUARD` skill at RAL 5. Blank means 0. |
 | `Category` | text, optional | Present on the combined tab; otherwise the tab name is used. Becomes `activity.<category>` (`activity.ropes`, `activity.arts`). |
 
-Built-in: `activity.any_clinic` = every row. Positions are `role.first`, `role.second`, `role.third` for `Staff_Required` = 1, 2, 3.
+Built-in: `activity.any_clinic` = every row. Positions are `role.first`, `role.second`, `role.third` for `Staff_Required` = 1, 2, 3, followed by `role.lifeguard`, `role.lifeguard_2` for `LG_Required` = 1, 2.
 
 ### 2.2 Skills (existing, read)
 
@@ -350,7 +350,7 @@ Dependencies: `ortools`, `lark`, `gspread`, `PySide6`. Development: `pytest`, `r
 - **No double booking**: for each staff and block, `sum(x[s, *, *, d, b]) <= 1`; for each pair of overlapping blocks, `sum over both <= 1`.
 - **One holder per position, one instance per block**: `sum_s x[s, a, p, d, b] <= 1` for every position `p`. (Implied by the proposal, stated here.)
 - **Offered clinics are staffed**: for each offering `(a, d, b)`, a generated `CLINIC` request `TASK activity.a DURING block.b ON d` with id `offering:<a>:<b>`.
-- **Lifeguards**: for water clinics, `sum(x[s, a, p, d, b] for lifeguards s, positions p) >= LG_Required` enforced when the instance is staffed.
+- **Lifeguards** are ordinary positions with skill `LIFEGUARD` and RAL 5, so eligibility (rule 2) covers them.
 - **Trainees**: `x[s, a, shadow, d, b] → filled[a, d, b]`, where `filled` is the AND of the position-filled literals. `x[s, a, scaffolded, d, b] → OR(x[t, a, p, d, b] for trainers t of p's skill)`. At most one trainee per instance.
 - **Past dates**: no variables. Lookups return Python `True`/`False`; compile functions fold constants.
 
@@ -517,7 +517,7 @@ Assumptions added by this outline:
 9. **Trainers are per skill**: a scaffold requires a position holder whose status for that position's skill can scaffold (`Trainer` today). `staff.clinic_trainers` is derived from the Skills tab. Confirmed.
 10. **`role.trainee` resolution** uses the staff member's status for the clinic's **first position** skill.
 11. **A blank or `Any` position skill** means no checkoff required.
-12. **`LG_Required`** is a structural constraint on water clinics (at least that many position holders hold `LIFEGUARD`).
+12. **`LG_Required`** counts extra lifeguard positions beyond `Staff_Required`, each requiring `LIFEGUARD` at RAL 5. Confirmed by the Puppet Master on 2026-09-16.
 13. **Trainee capacity** is one per instance; Clinic_Data has no override column, so none is read.
 14. **`(DBL)` clinics** span two adjacent clinic blocks: one instance, same staff in both blocks. Confirmed.
 15. **Offerings date** is the `--date` argument; the tab's weekday header is only checked, not parsed into a date.
@@ -545,7 +545,7 @@ Answered 2026-09-15. Kept for the record.
 2. **Skills vocabulary**: `WCF` = "with competent facilitator", treated as a checkoff for now; `Brief scaf` = `w/ scaf`. A "competent facilitator" status that can also scaffold is planned.
 3. **Trainers**: scaffolding requires a `Trainer` mark on the specific skill. Confirmed.
 4. **RAL digit strings**: `53` means 1st needs 5 and 2nd needs 3. A single digit on a two-position clinic is a data error.
-5. **Lifeguards**: unanswered; default kept (at least N of the assigned staff are lifeguards).
+5. **Lifeguards**: answered 2026-09-16. A lifeguard is an additional person: one facilitator plus one lifeguard is `Staff_Required` 1, `LG_Required` 1. All lifeguards need RAL 5.
 6. **Zero-slot rows** (`Craft Fairy`, `Lvl. 2 on Ground`, `Battle Royale Setup/Breakdown`) are staffed like any clinic. Confirmed.
 7. **Hand-written `CLINIC` priority**: unanswered; default kept (reserved for generated offerings).
 8. **Scope**: derived from the `ON` clause. Confirmed.
@@ -585,3 +585,5 @@ Recorded so the outline matches the code.
   is stored.
 - **Tab names are configurable** under `[tabs]` in `config.toml`, with defaults in
   `config.py`.
+- **Lifeguards are positions**, not a count over facilitators: `LG_Required` adds
+  `role.lifeguard` (and `role.lifeguard_2`) positions requiring `LIFEGUARD` at RAL 5.

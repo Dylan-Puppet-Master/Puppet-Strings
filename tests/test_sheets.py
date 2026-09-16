@@ -52,8 +52,12 @@ def test_clinics(source):
     assert [p.ral for p in zip_line.positions] == [5, 3]
     assert zip_line.positions[1].skill == "Gravity Zip Line 2nd"
     assert activities["blacksmithing_dbl"].double
-    assert activities["canoe_1_2"].lifeguards == 1
-    assert activities["canoe_1_2"].positions[1].skill is None
+    canoe = activities["canoe_1_2"]
+    assert [(p.role, p.skill, p.ral) for p in canoe.positions] == [
+        ("first", "Canoe", 5),
+        ("lifeguard", "LIFEGUARD", 5),
+    ]
+    assert [p.role for p in activities["secret_pool"].positions] == ["first", "lifeguard"]
     assert activities["craft_fairy"].positions[0].skill is None
     assert activities["craft_fairy"].slots == 0
     assert activities["salsa"].positions[0].skill is None

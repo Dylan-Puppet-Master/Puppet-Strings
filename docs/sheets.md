@@ -17,10 +17,12 @@ tabs are for people.
 | `Slots` | Camper slots. Shown, not used by the solver. |
 | `Staff_Required` | Number of positions (1st, 2nd, 3rd). `Staff_Requested` is accepted too. |
 | `RAL_Required` | One digit per position, in order: `53` means the 1st needs RAL 5 and the 2nd RAL 3. The digit count must equal `Staff_Required`. |
-| `LG_Required` | Optional. How many of the position holders must hold the `LIFEGUARD` skill. |
+| `LG_Required` | Optional. Lifeguards **in addition to** `Staff_Required`. A water clinic with one facilitator and one lifeguard has `Staff_Required` 1 and `LG_Required` 1. Every lifeguard position needs the `LIFEGUARD` skill at RAL 5. |
 | `Category` | Becomes `activity.<category>`, for example `activity.ropes`. |
 
-Built in: `activity.any_clinic` is every clinic.
+Built in: `activity.any_clinic` is every clinic. Positions are `role.first`, `role.second`,
+`role.third` for the facilitators, then `role.lifeguard`, `role.lifeguard_2` for the
+lifeguards.
 
 ## Skills
 

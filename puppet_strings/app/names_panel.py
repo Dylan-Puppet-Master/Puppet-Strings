@@ -3,7 +3,7 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem
 
-from puppet_strings.model import POSITION_ROLES, TRAINEE_ROLES, Dataset
+from puppet_strings.model import LIFEGUARD_ROLES, POSITION_ROLES, TRAINEE_ROLES, Dataset
 from puppet_strings.skedge.resolve import TRAINEE, WEEKDAYS
 
 
@@ -31,6 +31,7 @@ class NamesPanel(QTreeWidget):
             + [(c, f"category ({len(m)})") for c, m in dataset.block_categories.items()],
             "date": [("target", ""), ("session", "")] + [(d, "") for d in WEEKDAYS],
             "role": [(r, "position") for r in POSITION_ROLES[:3]]
+            + [(r, "lifeguard") for r in LIFEGUARD_ROLES]
             + [(r, "trainee") for r in TRAINEE_ROLES + (TRAINEE,)],
             "metric": [(m, f"{v.scale_min}..{v.scale_max}") for m, v in dataset.metrics.items()],
         }

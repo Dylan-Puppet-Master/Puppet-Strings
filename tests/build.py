@@ -55,15 +55,16 @@ def staff(name: str, ral: int = 5, **skills: SkillStatus) -> Staff:
 
 
 def clinic(name, *positions, category="arts", lifeguards=0):
-    """positions: (skill or None, ral) per position."""
+    """positions: (skill or None, ral) per facilitator position; lifeguards are added."""
     roles = ("first", "second", "third")
+    facilitators = [Position(roles[i], s, r) for i, (s, r) in enumerate(positions)]
+    extra = [Position(role, "LIFEGUARD", 5) for role in ("lifeguard", "lifeguard_2")[:lifeguards]]
     return Activity(
         name=name,
         id=normalize(name),
         category=category,
         slots=6,
-        positions=tuple(Position(roles[i], s, r) for i, (s, r) in enumerate(positions)),
-        lifeguards=lifeguards,
+        positions=tuple(facilitators + extra),
         double=name.endswith("(DBL)"),
     )
 

@@ -37,7 +37,7 @@ selects some assignments and states one thing about them:
 | `activity` | Clinics and their categories (`activity.ropes`), plus `activity.any_clinic` |
 | `block` | Blocks and block categories, plus `block.any` |
 | `date` | `date.target`, `date.session`, `date.monday` … `date.sunday` |
-| `role` | `role.first`, `role.second`, `role.third`, `role.shadow`, `role.scaffolded`, `role.trainee` |
+| `role` | `role.first`, `role.second`, `role.third`; `role.lifeguard`, `role.lifeguard_2`; `role.shadow`, `role.scaffolded`, `role.trainee` |
 | `metric` | Metric tables, such as `metric.enjoyment` |
 
 `role.trainee` resolves per staff member: checked off or needing a scaffold becomes

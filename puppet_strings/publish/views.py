@@ -1,6 +1,12 @@
 """The two printable views of a schedule, and the report, as tables."""
 
-from puppet_strings.model import POSITION_ROLES, TRAINEE_ROLES, Assignment, Dataset
+from puppet_strings.model import (
+    LIFEGUARD_ROLES,
+    POSITION_ROLES,
+    TRAINEE_ROLES,
+    Assignment,
+    Dataset,
+)
 from puppet_strings.sheets.source import Table
 from puppet_strings.solver.result import Result
 
@@ -86,7 +92,7 @@ def _describe(dataset: Dataset, a: Assignment) -> str:
     if a.activity not in dataset.activities:
         return a.activity
     name = dataset.activities[a.activity].name
-    if a.role in TRAINEE_ROLES:
+    if a.role in TRAINEE_ROLES or a.role in LIFEGUARD_ROLES:
         return f"{name} ({a.role})"
     if len(dataset.activities[a.activity].positions) > 1:
         return f"{name} ({_ordinal(a.role)})"
@@ -95,13 +101,14 @@ def _describe(dataset: Dataset, a: Assignment) -> str:
 
 def _holder(dataset: Dataset, a: Assignment) -> str:
     name = dataset.staff[a.staff].name
-    return f"{name} ({a.role})" if a.role in TRAINEE_ROLES else name
+    if a.role in TRAINEE_ROLES or a.role in LIFEGUARD_ROLES:
+        return f"{name} ({a.role})"
+    return name
 
 
 def _role_order(role: str | None) -> int:
-    if role in POSITION_ROLES:
-        return POSITION_ROLES.index(role)
-    return len(POSITION_ROLES) + (TRAINEE_ROLES.index(role) if role in TRAINEE_ROLES else 0)
+    ordered = POSITION_ROLES + LIFEGUARD_ROLES + TRAINEE_ROLES
+    return ordered.index(role) if role in ordered else len(ordered)
 
 
 def _ordinal(role: str | None) -> str:

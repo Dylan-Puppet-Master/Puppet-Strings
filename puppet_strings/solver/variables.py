@@ -12,7 +12,6 @@ from puppet_strings.model import Activity, Dataset
 
 Literal = cp_model.IntVar | bool
 
-LIFEGUARD = "LIFEGUARD"
 OFFERING = "offering"
 
 

@@ -38,6 +38,12 @@ SCAFFOLDED = "scaffolded"
 TRAINEE_ROLES = (SHADOW, SCAFFOLDED)
 POSITION_ROLES = ("first", "second", "third", "fourth", "fifth", "sixth")
 
+# A lifeguard is an extra person on a water clinic, beyond its facilitator positions.
+# Every lifeguard position requires the LIFEGUARD skill at RAL 5.
+LIFEGUARD_ROLES = ("lifeguard", "lifeguard_2", "lifeguard_3")
+LIFEGUARD_SKILL = "LIFEGUARD"
+LIFEGUARD_RAL = 5
+
 ANY_SKILL = "Any"
 
 
@@ -68,14 +74,17 @@ class Position:
 
 @dataclass(frozen=True)
 class Activity:
-    """A clinic from Clinic_Data."""
+    """A clinic from Clinic_Data.
+
+    `positions` holds the facilitator positions (first, second, ...) followed by any
+    lifeguard positions (lifeguard, lifeguard_2, ...).
+    """
 
     name: str
     id: str
     category: str
     slots: int
     positions: tuple[Position, ...]
-    lifeguards: int = 0
     double: bool = False
 
     def position(self, role: str) -> Position | None:

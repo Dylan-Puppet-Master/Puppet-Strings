@@ -167,16 +167,33 @@ def test_double_clinic_keeps_the_same_staff_in_both_blocks():
     assert len({a.staff for a in rows}) == 1
 
 
-def test_lifeguard_minimum():
-    canoe = clinic("Canoe 1 & 2", ("Canoe", 5), (None, 5), category="water", lifeguards=1)
-    ds = dataset(
-        [staff("Alesa", canoe=OK), staff("Mogee"), staff("Vic", lifeguard=OK)],
+def test_lifeguard_is_an_extra_person_at_ral_5():
+    canoe = clinic("Canoe 1 & 2", ("Canoe", 5), category="water", lifeguards=1)
+    members = [staff("Alesa", canoe=OK), staff("Mogee"), staff("Vic", lifeguard=OK)]
+    ds = dataset(members, [canoe], offerings=[("Canoe 1 & 2", ["clinic_1"])])
+    rows = where(run(ds), activity="canoe_1_2")
+    assert {(a.role, a.staff) for a in rows} == {("first", "alesa"), ("lifeguard", "vic")}
+    low_ral = dataset(
+        [staff("Alesa", canoe=OK), staff("Vic", ral=4, lifeguard=OK)],
         [canoe],
         offerings=[("Canoe 1 & 2", ["clinic_1"])],
     )
-    result = run(ds)
-    rows = where(result, activity="canoe_1_2")
-    assert {(a.role, a.staff) for a in rows} == {("first", "alesa"), ("second", "vic")}
+    result = run(low_ral)
+    assert [u.id for u in result.unsatisfied] == ["offering:canoe_1_2:clinic_1"]
+    pinned = dataset(
+        members,
+        [canoe],
+        offerings=[("Canoe 1 & 2", ["clinic_1"])],
+        requests=[
+            request(
+                "pin",
+                "ON date.target\nDURING block.clinic_1\nACROSS staff.vic\n"
+                "TASK activity.canoe_1_2 ROLE role.lifeguard",
+                Priority.MUST_HAPPEN,
+            )
+        ],
+    )
+    assert where(run(pinned), role="lifeguard")[0].staff == "vic"
 
 
 def test_trainees_are_additional_and_scaffolds_need_a_trainer():

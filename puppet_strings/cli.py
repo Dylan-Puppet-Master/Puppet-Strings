@@ -93,7 +93,11 @@ def _names(dataset: Dataset) -> int:
         },
         "block": {**{i: "" for i in dataset.blocks}, **_categories(dataset.block_categories)},
         "date": {"target": "", "session": "", "sunday .. saturday": ""},
-        "role": {"first, second, third": "positions", "shadow, scaffolded, trainee": ""},
+        "role": {
+            "first, second, third": "positions",
+            "lifeguard, lifeguard_2": "extra lifeguards on water clinics",
+            "shadow, scaffolded, trainee": "",
+        },
         "metric": {m: "" for m in dataset.metrics},
     }
     for namespace, names in spaces.items():

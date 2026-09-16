@@ -9,7 +9,7 @@ from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from itertools import product
 
-from puppet_strings.model import POSITION_ROLES, TRAINEE_ROLES, Dataset
+from puppet_strings.model import LIFEGUARD_ROLES, POSITION_ROLES, TRAINEE_ROLES, Dataset
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.scope import ScopedDeclaration, ScopedVerb
 
@@ -94,7 +94,10 @@ class _Names:
             "staff": _ids_and_categories(dataset.staff, dataset.staff_categories),
             "activity": _ids_and_categories(dataset.activities, dataset.activity_categories),
             "block": _ids_and_categories(dataset.blocks, dataset.block_categories),
-            "role": {r: frozenset({r}) for r in POSITION_ROLES + TRAINEE_ROLES + (TRAINEE,)},
+            "role": {
+                r: frozenset({r})
+                for r in POSITION_ROLES + LIFEGUARD_ROLES + TRAINEE_ROLES + (TRAINEE,)
+            },
             "date": {
                 "target": frozenset({dataset.target}),
                 "session": self.session,

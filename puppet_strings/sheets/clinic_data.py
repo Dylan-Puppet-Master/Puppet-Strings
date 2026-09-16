@@ -2,11 +2,23 @@
 
 Columns: Clinic_Name, Slots, Staff_Required (or Staff_Requested), RAL_Required, Category,
 and optionally LG_Required. RAL_Required has one digit per position, in position order.
+
+LG_Required counts lifeguards in addition to Staff_Required: a water clinic with one
+facilitator and one lifeguard has Staff_Required 1 and LG_Required 1. Lifeguard positions
+need the LIFEGUARD skill at RAL 5.
 """
 
 from collections.abc import Mapping
 
-from puppet_strings.model import ANY_SKILL, POSITION_ROLES, Activity, Position
+from puppet_strings.model import (
+    ANY_SKILL,
+    LIFEGUARD_RAL,
+    LIFEGUARD_ROLES,
+    LIFEGUARD_SKILL,
+    POSITION_ROLES,
+    Activity,
+    Position,
+)
 from puppet_strings.names import check_unique, normalize
 from puppet_strings.sheets.source import LoadError, Table, header_rows, parse_int
 
@@ -32,17 +44,23 @@ def parse_clinics(
         if staff_count > len(POSITION_ROLES):
             raise LoadError(f"{cell}: at most {len(POSITION_ROLES)} positions are supported")
         skills = position_skills.get(name, ())
-        positions = tuple(
+        positions = [
             Position(role=POSITION_ROLES[i], skill=_skill(skills, i), ral=int(rals[i]))
             for i in range(staff_count)
-        )
+        ]
+        lifeguards = parse_int(row.get("LG_Required") or "0", cell)
+        if lifeguards > len(LIFEGUARD_ROLES):
+            raise LoadError(f"{cell}: at most {len(LIFEGUARD_ROLES)} lifeguards are supported")
+        positions += [
+            Position(role=LIFEGUARD_ROLES[i], skill=LIFEGUARD_SKILL, ral=LIFEGUARD_RAL)
+            for i in range(lifeguards)
+        ]
         activity = Activity(
             name=name,
             id=normalize(name),
             category=normalize(row["Category"]),
             slots=parse_int(row.get("Slots") or "0", cell),
-            positions=positions,
-            lifeguards=parse_int(row.get("LG_Required") or "0", cell),
+            positions=tuple(positions),
             double=name.endswith(DOUBLE_SUFFIX),
         )
         activities[activity.id] = activity
