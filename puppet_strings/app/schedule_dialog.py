@@ -30,8 +30,11 @@ class ScheduleDialog(QDialog):
         self.resize(1100, 700)
         tabs = QTabWidget()
         if result.feasible:
-            tabs.addTab(_table(staff_view(dataset, result.assignments)), "Staff View")
-            tabs.addTab(_table(clinic_view(dataset, result.assignments)), "Clinic View")
+            tabs.addTab(
+                _table(staff_view(dataset, result.assignments, config.remainder)), "Staff View"
+            )
+            clinics = clinic_view(dataset, result.assignments, config.remainder)
+            tabs.addTab(_table(clinics.rows), "Clinic View")
         tabs.addTab(_table(report(result)), "Report")
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
         self.publish_button = buttons.addButton("Publish", QDialogButtonBox.ActionRole)
@@ -55,9 +58,10 @@ class ScheduleDialog(QDialog):
 
 
 def _table(rows: Table) -> QTableWidget:
-    header, body = rows[0], rows[1:]
-    table = QTableWidget(len(body), len(header))
-    table.setHorizontalHeaderLabels(header)
+    width = max(len(r) for r in rows)
+    body = [r + [""] * (width - len(r)) for r in rows]
+    table = QTableWidget(len(body), width)
+    table.horizontalHeader().hide()
     for r, row in enumerate(body):
         for c, cell in enumerate(row):
             table.setItem(r, c, QTableWidgetItem(str(cell)))

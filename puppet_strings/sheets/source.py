@@ -30,6 +30,9 @@ class Source(Protocol):
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Replace a tab's contents, creating the tab if needed."""
 
+    def style(self, sheet: str, tab: str, title_span: int, bold_rows, freeze_rows: int):
+        """Merge the title, bold rows, freeze rows. Where formatting is not possible, no-op."""
+
 
 class CsvSource:
     """Tables stored as `<root>/<sheet>/<tab>.csv`."""
@@ -62,6 +65,9 @@ class CsvSource:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerows(table)
+
+    def style(self, sheet: str, tab: str, title_span: int, bold_rows, freeze_rows: int):
+        """CSV files carry no formatting."""
 
 
 class SheetsSource:
@@ -123,6 +129,19 @@ class SheetsSource:
             self._tabs.pop(sheet, None)
         if table:
             worksheet.update(table, "A1")
+
+    def style(self, sheet: str, tab: str, title_span: int, bold_rows, freeze_rows: int):
+        """Merge the title across `title_span` columns, bold the rows, freeze the top rows."""
+        from gspread.utils import rowcol_to_a1
+
+        worksheet = self._spreadsheet(sheet).worksheet(tab)
+        worksheet.unmerge_cells(f"A1:{rowcol_to_a1(max(worksheet.row_count, 1), 26)}")
+        worksheet.format("A1:Z1000", {"textFormat": {"bold": False}})
+        if title_span > 1:
+            worksheet.merge_cells(f"A1:{rowcol_to_a1(1, title_span)}")
+        for row in bold_rows:
+            worksheet.format(f"A{row + 1}:Z{row + 1}", {"textFormat": {"bold": True}})
+        worksheet.freeze(rows=freeze_rows)
 
 
 def header_rows(table: Table, required: tuple[str, ...], where: str) -> list[dict[str, str]]:

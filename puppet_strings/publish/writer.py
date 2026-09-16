@@ -18,7 +18,15 @@ def publish(source: Source, config: Config, dataset: Dataset, result: Result) ->
     )
     view = staff_view(dataset, result.assignments, config.remainder)
     source.write(PUBLISHED, config.tabs["staff_view"], view)
-    source.write(PUBLISHED, config.tabs["clinic_view"], clinic_view(dataset, result.assignments))
+    clinics = clinic_view(dataset, result.assignments, config.remainder)
+    source.write(PUBLISHED, config.tabs["clinic_view"], clinics.rows)
+    source.style(
+        PUBLISHED,
+        config.tabs["clinic_view"],
+        clinics.title_span,
+        clinics.bold_rows,
+        clinics.freeze_rows,
+    )
     source.write(PUBLISHED, config.tabs["report"], report(result))
 
 

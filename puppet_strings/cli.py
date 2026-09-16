@@ -147,9 +147,9 @@ def _solve(source: Source, config: Config, dataset: Dataset, do_publish: bool, f
         for request_id in result.conflicts:
             print(f"  {request_id}")
         return 1
-    _print_table(staff_view(dataset, result.assignments))
+    _print_table(staff_view(dataset, result.assignments, config.remainder))
     print()
-    _print_table(clinic_view(dataset, result.assignments))
+    _print_table(clinic_view(dataset, result.assignments, config.remainder).rows)
     print()
     _print_table(report(result))
     if not do_publish:
@@ -165,11 +165,10 @@ def _solve(source: Source, config: Config, dataset: Dataset, do_publish: bool, f
 def _print_table(table: Table) -> None:
     if not table:
         return
-    widths = [
-        max(len(str(row[i]).split("\n")[0]) for row in table if i < len(row))
-        for i in range(len(table[0]))
+    width = max(len(row) for row in table)
+    cells = [
+        [str(c).replace("\n", " / ") for c in row] + [""] * (width - len(row)) for row in table
     ]
-    for row in table:
-        print(
-            "  ".join(str(cell).replace("\n", " / ").ljust(widths[i]) for i, cell in enumerate(row))
-        )
+    widths = [max(len(row[i]) for row in cells) for i in range(width)]
+    for row in cells:
+        print("  ".join(cell.ljust(widths[i]) for i, cell in enumerate(row)).rstrip())

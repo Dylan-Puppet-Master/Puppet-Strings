@@ -63,12 +63,30 @@ def test_staff_view(dataset):
 
 
 def test_clinic_view(dataset):
-    table = clinic_view(dataset, rows(dataset))
-    assert table[0] == ["Clinic", "Clinic 1", "Clinic 2", "Clinic 3", "Clinic 4"]
-    by_name = {row[0]: row for row in table[1:]}
-    assert by_name["Gravity Zip Line"][1] == "Rob\nJames\nPaul (shadow)"
-    assert by_name["Blacksmithing (DBL)"][1:3] == ["Alexis", "Alexis"]
-    assert "counselor hour" not in by_name
+    view = clinic_view(dataset, rows(dataset))
+    table = view.rows
+    assert table[0] == ["Day 4, Session 1 - Wednesday"]
+    assert table[1] == ["Clinic", "Clinic 1", "Clinic 2", "Clinic 3", "Clinic 4"]
+    assert view.title_span == 5 and view.freeze_rows == 2
+    labels = [row[0] if row else "" for row in table]
+    zip_line = labels.index("Gravity Zip Line")
+    assert table[zip_line] == ["Gravity Zip Line", "Rob", "", "", ""]
+    assert table[zip_line + 1] == ["", "James", "", "", ""]  # 2nd below 1st
+    assert table[zip_line + 2] == ["Shadow", "Paul", "", "", ""]
+    smith = labels.index("Blacksmithing (DBL)")
+    assert table[smith] == ["Blacksmithing (DBL)", "Alexis", "Alexis", "", ""]
+    assert "Pole Course Explore Level 1 & 2 (DBL)" in labels  # offered, nobody assigned
+    assert table[labels.index("Pole Course Explore Level 1 & 2 (DBL)")][1:] == ["", "", "", ""]
+    assert "Muay Thai" not in labels  # not offered
+    assert [] in table  # blank rows between categories
+    hour = labels.index("counselor hour")
+    assert table[hour] == ["counselor hour", "", "Dylan", "", ""]
+    breaks = labels.index("break")
+    assert table[breaks] == ["break", "Sarah", "", "James", ""]
+    free = labels.index("DYOW/WPs")
+    assert "Rob" not in [r[1] for r in table[free:]] and "Vic" in [r[1] for r in table[free:]]
+    assert set(view.bold_rows) >= {0, 1, zip_line, smith, hour, breaks, free}
+    assert labels.index("Archery 1 & 2") < zip_line < labels.index("Canoe 1 & 2")
 
 
 def test_report():
