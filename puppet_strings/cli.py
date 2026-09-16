@@ -82,9 +82,8 @@ def _run(args, config: Config, target: date) -> int:
         return 1
     if not has_offerings_loaded(dataset.requests, dataset.target):
         print(f"warning: no offerings loaded for {dataset.target}; run load-offerings first")
-    for adjustment in dataset.adjustments:
-        note = f" ({adjustment.note})" if adjustment.note else ""
-        print(f"today: {dataset.staff[adjustment.staff].name} is RAL {adjustment.ral}{note}")
+    for adjustment in dataset.today_adjustments:
+        print(f"today: {adjustment.describe(dataset.staff[adjustment.staff].name)}")
     return _solve(source, config, dataset, args)
 
 

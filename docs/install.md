@@ -79,8 +79,8 @@ A spreadsheet's id is the long string in its URL between `/d/` and `/edit`.
 
 ## 5. Create the two new spreadsheets
 
-Create a **config spreadsheet** with four tabs named `Blocks`, `Calendar`, `Requests` and
-`Metrics`, with the exact columns in [The sheets](sheets.md). Each metric you add later gets
+Create a **config spreadsheet** with tabs named `Blocks`, `Calendar`, `Requests`,
+`Metrics` and, when you want it, `Adjustments`, with the exact columns in [The sheets](sheets.md). Each metric you add later gets
 its own extra tab of ratings, as that page explains. Create an empty **Published
 Schedules** spreadsheet. Put both ids in `config.toml`.
 

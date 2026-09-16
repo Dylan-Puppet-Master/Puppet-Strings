@@ -131,6 +131,17 @@ hand.
 | `tags` | **Comma-separated.** Any labels you like, for filtering in the request manager. Requests made from the Offerings tab carry the tag `generated`. |
 | `created` | `YYYY-MM-DD`, for the record. |
 
+## Adjustments (config spreadsheet)
+
+One row per staff member per date, for the day only: who is off, and whose RAL has
+dropped. See [Same-day changes](same-day.md) for what each column does and why absence
+lives here rather than in a request. The tab is optional; without it nobody is adjusted.
+
+| date | staff | available | ral | note |
+|---|---|---|---|---|
+| 2026-06-15 | Alesa | no | | sick |
+| 2026-06-15 | Vic | | 4 | short sleep |
+
 ## Metrics (config spreadsheet)
 
 A metric is a table of ratings the solver can score assignments with, such as how much
@@ -198,7 +209,7 @@ back for past dates.
 | `minutes` | How long it lasts; a clinic fills its block |
 | `source` | `offering`, or the request id that required it |
 
-Three tabs are overwritten on every publish:
+These tabs are overwritten on every publish:
 
 - **Staff View**: one row per staff member, one column per block, with each block's tasks
   in time order and `DYOW/WPs` for unused time.
@@ -210,3 +221,5 @@ Three tabs are overwritten on every publish:
   (counselor hours, breaks) one name per row, and a final `DYOW/WPs` group listing everyone
   with nothing in that block. Title and clinic names are bold and the top rows are frozen.
 - **Report**: unsatisfied and deferred requests, conflicts, and solver notes.
+- **Changes**: what a same-day re-solve moved, written only when the day was already
+  published. See [Same-day changes](same-day.md).

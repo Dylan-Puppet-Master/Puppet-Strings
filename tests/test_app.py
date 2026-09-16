@@ -287,3 +287,59 @@ def test_solve_worker_produces_a_result(window, app):
     window.worker.wait(60000)
     app.processEvents()
     assert results and results[0].feasible
+
+
+def test_same_day_is_offered_only_for_a_published_day(window, tmp_path):
+    assert not window.same_day_action.isEnabled()
+    assert not window.today_action.isEnabled()
+    assert "not published" in window.status_label.text()
+
+    from puppet_strings.publish.writer import publish
+    from puppet_strings.solver.solve import solve
+
+    publish(
+        window.store.source,
+        window.store.config,
+        window.store.dataset,
+        solve(window.store.current, window.store.config),
+    )
+    window.reload()
+    window.wait_for_load()
+    assert window.same_day_action.isEnabled() and "is published" in window.status_label.text()
+    window.same_day_action.setChecked(True)
+    assert window.same_day and window.today_action.isEnabled()
+
+
+def test_the_today_dialog_writes_an_adjustment(window, monkeypatch):
+    from puppet_strings.app.same_day import LOWER_RAL, NOT_WORKING, SameDayDialog
+
+    dialog = SameDayDialog(window.store, window)
+    dialog.staff_box.setCurrentText("Vic")
+    dialog.change_box.setCurrentText(LOWER_RAL)
+    dialog.ral_box.setValue(4)
+    dialog.note_edit.setText("short sleep")
+    dialog.apply_button.click()
+    assert dialog.changed
+    assert dialog.table.rowCount() == 1
+    assert [dialog.table.item(0, c).text() for c in range(3)] == ["Vic", "RAL 4", "short sleep"]
+
+    dialog.staff_box.setCurrentText("Alesa")
+    dialog.change_box.setCurrentText(NOT_WORKING)
+    dialog.apply_button.click()
+    assert dialog.table.rowCount() == 2
+
+    written = window.store.source.read("config", "Adjustments")
+    assert written[0] == ["date", "staff", "available", "ral", "note"]
+    assert ["2026-09-16", "Alesa", "no", "", ""] in written
+    assert ["2026-09-16", "Vic", "", "4", "short sleep"] in written
+
+    # reloading applies it: Vic is RAL 4 and no category offers Alesa
+    window.reload()
+    window.wait_for_load()
+    assert window.store.dataset.staff["vic"].ral == 4
+    assert "alesa" not in window.store.dataset.staff_categories["all"]
+
+    dialog = SameDayDialog(window.store, window)
+    dialog.staff_box.setCurrentText("Vic")
+    dialog.remove_button.click()
+    assert [row[1] for row in window.store.source.read("config", "Adjustments")[1:]] == ["Alesa"]

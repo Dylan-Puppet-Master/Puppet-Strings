@@ -52,3 +52,43 @@ def test_load_offerings_and_missing_warning(tmp_path, capsys):
 def test_missing_calendar_date_is_an_error(capsys):
     assert main(["--fixtures", str(FIXTURES), "--date", "2026-12-25", "validate"]) == 1
     assert "not a camp day" in capsys.readouterr().err
+
+
+def published_copy(tmp_path):
+    """A copy of the fixtures with 2026-09-16 solved and published."""
+    import shutil
+
+    copy = tmp_path / "fixtures"
+    shutil.copytree(FIXTURES, copy)
+    assert main(["--fixtures", str(copy), "--date", "2026-09-16", "solve", "--publish"]) == 0
+    return copy
+
+
+def test_same_day_needs_a_published_schedule(tmp_path, capsys):
+    import shutil
+
+    copy = tmp_path / "fixtures"
+    shutil.copytree(FIXTURES, copy)
+    args = ["--fixtures", str(copy), "--date", "2026-09-16", "solve", "--same-day"]
+    assert main(args) == 1
+    assert "has no published schedule to change" in capsys.readouterr().err
+
+
+def test_same_day_reports_what_moved(tmp_path, capsys):
+    copy = published_copy(tmp_path)
+    capsys.readouterr()
+    adjustments = copy / "config" / "Adjustments.csv"
+    adjustments.write_text("date,staff,available,ral,note\n2026-09-16,Alesa,no,,sick\n")
+    args = ["--fixtures", str(copy), "--date", "2026-09-16", "solve", "--same-day"]
+    assert main(args) == 0
+    out = capsys.readouterr().out
+    assert "today: Alesa is not working today (sick)" in out
+    assert "Staff  Block" in out and "Alesa" in out.split("Staff  Block")[1]
+
+
+def test_same_day_publishes_over_the_day_without_force(tmp_path, capsys):
+    copy = published_copy(tmp_path)
+    args = ["--fixtures", str(copy), "--date", "2026-09-16", "solve", "--same-day", "--publish"]
+    assert main(args) == 0
+    assert (copy / "published" / "Changes.csv").exists()
+    assert "published 2026-09-16" in capsys.readouterr().out

@@ -30,6 +30,7 @@ from puppet_strings.app.editor import RequestEditor
 from puppet_strings.app.facets import SCOPES
 from puppet_strings.app.names_panel import NamesPanel
 from puppet_strings.app.requests_model import RequestFilter, RequestsModel
+from puppet_strings.app.same_day import SameDayDialog
 from puppet_strings.app.schedule_dialog import ScheduleDialog
 from puppet_strings.app.store import RequestStore
 from puppet_strings.config import Config
@@ -77,16 +78,17 @@ class SolveWorker(QThread):
     done = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, store: RequestStore) -> None:
+    def __init__(self, store: RequestStore, same_day: bool) -> None:
         super().__init__()
         self.store = store
+        self.same_day = same_day
 
     def run(self) -> None:
         """Solve and emit the result or the error text."""
         from puppet_strings.solver.solve import RequestError, solve  # already imported by run_solve
 
         try:
-            self.done.emit(solve(self.store.current, self.store.config))
+            self.done.emit(solve(self.store.current, self.store.config, self.same_day))
         except (RequestError, LoadError) as e:
             self.failed.emit(str(e))
         except Exception:  # noqa: BLE001 - shown to the user, never swallowed
@@ -152,6 +154,13 @@ class MainWindow(QMainWindow):
         toolbar.addAction("Reload", self.reload)
         toolbar.addAction("Load offerings", self.load_offerings)
         toolbar.addAction("Solve", self.run_solve)
+        toolbar.addSeparator()
+        self.same_day_action = toolbar.addAction("Same-day changes")
+        self.same_day_action.setCheckable(True)
+        self.same_day_action.setToolTip("Re-solve a published day, moving as few people as it can")
+        self.same_day_action.toggled.connect(self._same_day_toggled)
+        self.today_action = toolbar.addAction("Who is off today…", self.open_same_day)
+        self.today_action.setEnabled(False)
         self.status_label = QLabel("")
         toolbar.addWidget(self.status_label)
 
@@ -241,8 +250,11 @@ class MainWindow(QMainWindow):
         self._fill_combo(self.activity_filter, "any activity", sorted(dataset.activities))
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
         self._mark_camp_days(dataset)
-        warnings = "; ".join(dataset.warnings)
-        self.status_label.setText(f"  Loaded {len(self.store.requests)} requests. {warnings}")
+        self._refresh_same_day()
+        today = [a.describe(dataset.staff[a.staff].name) for a in dataset.today_adjustments]
+        state = "published" if dataset.baseline is not None else "not published"
+        parts = [f"Loaded {len(self.store.requests)} requests", f"{dataset.target} is {state}"]
+        self.status_label.setText("  " + ". ".join(parts + today + list(dataset.warnings)))
 
     def _mark_camp_days(self, dataset) -> None:
         """Shade the dates on the Calendar sheet; any date can still be picked."""
@@ -257,6 +269,41 @@ class MainWindow(QMainWindow):
     def _load_failed(self, message: str) -> None:
         self.status_label.setText("")
         QMessageBox.critical(self, "Could not load", message)
+
+    @property
+    def same_day(self) -> bool:
+        """Whether the next solve should hold the published schedule together."""
+        dataset = self.store.dataset
+        checked = self.same_day_action.isChecked()
+        return checked and dataset is not None and dataset.baseline is not None
+
+    def _same_day_toggled(self, on: bool) -> None:
+        """Turning it on moves to today, since that is the day people are changing."""
+        dataset = self.store.dataset
+        if on and dataset is not None and dataset.baseline is None:
+            self.date_edit.setDate(QDate(date.today()))
+            self.reload()
+        self._refresh_same_day()
+
+    def _refresh_same_day(self) -> None:
+        """Same-day changes only make sense for a day that has been published."""
+        dataset = self.store.dataset
+        published = dataset is not None and dataset.baseline is not None
+        self.same_day_action.setEnabled(published)
+        if not published and self.same_day_action.isChecked():
+            self.same_day_action.blockSignals(True)
+            self.same_day_action.setChecked(False)
+            self.same_day_action.blockSignals(False)
+        self.today_action.setEnabled(self.same_day)
+
+    def open_same_day(self) -> None:
+        """Record who is off today, or whose RAL has dropped."""
+        if self.store.dataset is None:
+            return
+        dialog = SameDayDialog(self.store, self)
+        dialog.exec()
+        if dialog.changed:
+            self.reload()  # standing feeds eligibility, so read everything again
 
     def load_offerings(self) -> None:
         """Add the Offerings tab's clinics to the Requests sheet as generated requests."""
@@ -284,7 +331,7 @@ class MainWindow(QMainWindow):
         import puppet_strings.solver.solve  # noqa: F401 - import on the main thread; a QThread import crashes
 
         self.status_label.setText("  Solving…")
-        self.worker = SolveWorker(self.store)
+        self.worker = SolveWorker(self.store, self.same_day)
         self.worker.done.connect(self._solved)
         self.worker.failed.connect(self._solve_failed)
         self.worker.finished.connect(self._solve_finished)

@@ -80,7 +80,9 @@ class Variables:
         for position in activity.positions:
             holders = instance.holders[position.role] = {}
             for member in self.dataset.staff.values():
-                if not member.status(position.skill).eligible or member.ral < position.ral:
+                if not member.available or member.ral < position.ral:
+                    continue
+                if not member.status(position.skill).eligible:
                     continue
                 var = self.model.NewBoolVar(f"x:{member.id}:{activity_id}:{position.role}")
                 holders[member.id] = var

@@ -18,10 +18,16 @@ from puppet_strings.sheets.requests import parse_requests
 from puppet_strings.sheets.skills import parse_position_skills, parse_skills, trainers
 from puppet_strings.sheets.source import LoadError, Source
 
-ADJUSTMENT_HEADER = ("date", "staff", "ral", "note")
+ADJUSTMENT_HEADER = ("date", "staff", "available", "ral", "note")
 ALL_STAFF = "all"
 CLINIC_TRAINERS = "clinic_trainers"
 ANY_CLINIC = "any_clinic"
+
+
+def _adjusted(member, adjustment):
+    """A staff member as they stand today."""
+    ral = member.ral if adjustment.ral is None else adjustment.ral
+    return replace(member, ral=ral, available=adjustment.available)
 
 
 def load_dataset(source: Source, config: Config, target: date) -> Dataset:
@@ -38,14 +44,6 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
     warnings += skill_warnings
     position_skills = parse_position_skills(skills_tables[tabs["position_skills"]])
     activities = parse_clinics(source.read("clinic_data", tabs["clinics"]), position_skills)
-    staff_categories = parse_staff_categories(
-        source.read("staff_categories", tabs["staff_categories"]), staff
-    )
-    staff_categories = {
-        **staff_categories,
-        ALL_STAFF: frozenset(staff),
-        CLINIC_TRAINERS: staff_categories.get(CLINIC_TRAINERS, trainers(staff)),
-    }
     wanted = [tabs["blocks"], tabs["calendar"], tabs["requests"], tabs["metrics"]]
     if tabs["adjustments"] in source.tabs("config"):
         wanted.append(tabs["adjustments"])  # the tab is optional
@@ -54,7 +52,19 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
         config_tables.get(tabs["adjustments"], [[*ADJUSTMENT_HEADER]]), staff
     )
     today = on_date(adjustments, target)
-    staff = {**staff, **{a.staff: replace(staff[a.staff], ral=a.ral) for a in today}}
+    staff = {**staff, **{a.staff: _adjusted(staff[a.staff], a) for a in today}}
+    working = frozenset(i for i, member in staff.items() if member.available)
+
+    categories = parse_staff_categories(
+        source.read("staff_categories", tabs["staff_categories"]), staff
+    )
+    categories = {
+        **categories,
+        ALL_STAFF: frozenset(staff),
+        CLINIC_TRAINERS: categories.get(CLINIC_TRAINERS, trainers(staff)),
+    }
+    # a category never offers someone who is not working today
+    staff_categories = {c: members & working for c, members in categories.items()}
     blocks = parse_blocks(config_tables[tabs["blocks"]])
     calendar = parse_calendar(config_tables[tabs["calendar"]])
     if target not in calendar:
@@ -116,6 +126,6 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
         metrics=metrics,
         published=schedules,
         baseline=baseline,
-        adjustments=today,
+        adjustments=adjustments,
         warnings=tuple(warnings),
     )

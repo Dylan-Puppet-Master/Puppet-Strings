@@ -27,6 +27,7 @@ nav:
   - Install and set up: install.md
   - The sheets: sheets.md
   - The request manager: app.md
+  - Same-day changes: same-day.md
   - Skedge reference: skedge.md
   - How the solver decides: solver.md
   - Design: technical-outline.md

@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 
 from puppet_strings.config import Config
 from puppet_strings.model import Dataset
-from puppet_strings.publish.views import clinic_view, report, staff_view
+from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
 from puppet_strings.publish.writer import is_published, publish
 from puppet_strings.sheets.source import Source, Table
 from puppet_strings.solver.result import Result
@@ -35,6 +35,8 @@ class ScheduleDialog(QDialog):
             )
             clinics = clinic_view(dataset, result.assignments, config.remainder)
             tabs.addTab(_table(clinics.rows), "Clinic View")
+        if result.changes:
+            tabs.addTab(_table(changes_view(dataset, result)), "Changes")
         tabs.addTab(_table(report(result)), "Report")
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
         self.publish_button = buttons.addButton("Publish", QDialogButtonBox.ActionRole)

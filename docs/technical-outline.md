@@ -598,6 +598,14 @@ Recorded so the outline matches the code.
   match per instance, whose literal is the AND of each member's presence there, reified
   with `AddMinEquality`. `AND` elsewhere on those verbs is a validation error, and a
   staff-keyed metric cannot score a group. `POSITION_ROLES` is now an alias of `ORDINALS`.
+- **Same-day changes** (Puppet Master, 2026-09-16). Absence and a lowered RAL are per-date
+  data on a new optional `Adjustments` tab, applied to `Staff` at load time; absence also
+  drops the person from every staff category, so mandatory requests over `staff.all` stop
+  demanding anything of them, and `add_structural_constraints` pins their variables to
+  zero in case a request names them directly. `load_dataset` reads the target's own
+  published tab as `Dataset.baseline`. `solve(..., same_day=True)` rewards each kept
+  baseline assignment in a new `STABILITY` tier between `CLINIC` and `HIGH`, hints those
+  variables, and returns a `Change` per staff member and block that differs.
 - **One name listing** (`resolve.name_listing`) feeds the `names` command, the app's names
   panel and the editor's completer, built from the same table the resolver validates
   against so the three cannot drift apart. The completer is a `QCompleter` on the Skedge

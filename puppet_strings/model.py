@@ -57,6 +57,7 @@ class Staff:
     id: str
     ral: int
     skills: Mapping[str, SkillStatus]
+    available: bool = True
 
     def status(self, skill: str | None) -> SkillStatus:
         """Status on a skill; a position without a skill counts as checked off."""
@@ -244,12 +245,26 @@ class Assignment:
 
 @dataclass(frozen=True)
 class Adjustment:
-    """A one-day change to what a staff member may do, from the Adjustments sheet."""
+    """A one-day change to what a staff member may do, from the Adjustments sheet.
+
+    `available` false takes them off the day altogether, which is how someone who is sick
+    is left out of the mandatory breaks as well as the clinics. `ral` lowers their risk
+    assessment level for the day, which is how a short night narrows what they may run.
+    """
 
     date: date
     staff: str
-    ral: int
+    available: bool = True
+    ral: int | None = None
     note: str = ""
+
+    def describe(self, name: str) -> str:
+        """A sentence for the report and the toolbar."""
+        if not self.available:
+            text = f"{name} is not working today"
+        else:
+            text = f"{name} is RAL {self.ral} today"
+        return f"{text} ({self.note})" if self.note else text
 
 
 @dataclass(frozen=True)
@@ -279,6 +294,12 @@ class Dataset:
     baseline: tuple[Assignment, ...] | None = None
     adjustments: tuple[Adjustment, ...] = ()
     warnings: tuple[str, ...] = ()
+
+    @property
+    def today_adjustments(self) -> tuple[Adjustment, ...]:
+        """The adjustments in effect on the target date, one per staff member."""
+        latest = {a.staff: a for a in self.adjustments if a.date == self.target}
+        return tuple(latest.values())
 
     @property
     def session_dates(self) -> tuple[date, ...]:

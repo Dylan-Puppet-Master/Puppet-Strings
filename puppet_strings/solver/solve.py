@@ -78,12 +78,15 @@ def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False
 
 def _hold_to(model, compiler: Compiler, variables: Variables, baseline) -> None:
     """Reward every published assignment the day can still keep, and start the solver there."""
+    hinted = set()
     for a in baseline:
         var = variables.x.get(Slot(a.staff, a.activity, a.role, a.block))
         if var is None:
             continue  # nobody can hold it today, so there is nothing to keep
         compiler.terms[Priority.STABILITY].append((SCALE, var))
-        model.AddHint(var, 1)
+        if var.Index() not in hinted:  # one hint per variable, not per block of a (DBL)
+            hinted.add(var.Index())
+            model.AddHint(var, 1)
 
 
 def _changes(baseline, assignments: tuple[Assignment, ...]) -> tuple[Change, ...]:

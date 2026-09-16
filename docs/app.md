@@ -17,6 +17,9 @@ clinic view and the report; it asks first if no offerings are loaded for the dat
 **Publish** in that window writes the schedule to Published Schedules, asking first if the
 date is already published.
 
+**Same-day changes.** Once the day on screen is published, the toolbar offers
+**Same-day changes** and **Who is off today…**. See [Same-day changes](same-day.md).
+
 **The table.** One row per request. Click a column heading to sort by it. Filters above
 it: free text over id, description and Skedge; priority; scope; tag; staff; activity; and
 a date. The scope is derived from the

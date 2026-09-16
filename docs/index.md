@@ -17,6 +17,9 @@ printable views back to Google Sheets.
    could not be satisfied.
 4. Press **Publish**. The schedule lands in the Published Schedules spreadsheet.
 
+If the day is already published and someone turns up ill or short of sleep, see
+[Same-day changes](same-day.md).
+
 ## Where things live
 
 | Thing | Where |
@@ -25,7 +28,7 @@ printable views back to Google Sheets.
 | Who is checked off on what | Skills spreadsheet |
 | Staff categories | Staff Categories spreadsheet |
 | Tomorrow's clinics | Offerings tab of Clinic_Schedule |
-| Blocks, calendar, requests, metrics | The config spreadsheet |
+| Blocks, calendar, requests, metrics, adjustments | The config spreadsheet |
 | Published schedules | The Published Schedules spreadsheet |
 | The code | This repository, one Python package |
 
