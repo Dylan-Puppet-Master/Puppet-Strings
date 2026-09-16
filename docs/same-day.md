@@ -41,6 +41,8 @@ TASK FREE
 
 ## Re-solving
 
+![Recording who is off today](img/same-day.png)
+
 In the app, **Same-day changes** in the toolbar becomes available once the day on screen is
 published. Switch it on, use **Who is off today…** to record what changed, and press
 **Solve**. The schedule window opens with a **Changes** tab listing what moved. **Publish**
