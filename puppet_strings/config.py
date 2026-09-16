@@ -34,6 +34,7 @@ class Config:
     credentials: Path = Path("~/.config/puppet_strings/service_account.json")
     remainder: str = DEFAULT_REMAINDER
     time_limit_seconds: float = 30.0
+    tidy_seconds: float = 2.0
     workers: int = 8
     random_seed: int = 0
 
@@ -52,6 +53,7 @@ def load_config(path: Path | None = None) -> Config:
         credentials=Path(data.get("auth", {}).get("credentials", Config.credentials)).expanduser(),
         remainder=data.get("views", {}).get("remainder", DEFAULT_REMAINDER),
         time_limit_seconds=solver.get("time_limit_seconds", Config.time_limit_seconds),
+        tidy_seconds=solver.get("tidy_seconds", Config.tidy_seconds),
         workers=solver.get("workers", Config.workers),
         random_seed=solver.get("random_seed", Config.random_seed),
     )

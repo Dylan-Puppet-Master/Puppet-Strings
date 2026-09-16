@@ -56,16 +56,12 @@ def solve(dataset: Dataset, config: Config | None = None) -> Result:
             for i in _assumption_positions(outcome.conflicts, compiler.compiled)
         )
         return Result(feasible=False, conflicts=conflicts)
-    solver = outcome.solver
+    missed = [c for c in compiler.compiled if not outcome.value(c.sat)]
     return Result(
         feasible=True,
-        assignments=_assignments(solver, variables, dataset),
-        unsatisfied=tuple(
-            _outcome(c) for c in compiler.compiled if not c.deferrable and not solver.Value(c.sat)
-        ),
-        deferred=tuple(
-            _outcome(c) for c in compiler.compiled if c.deferrable and not solver.Value(c.sat)
-        ),
+        assignments=_assignments(outcome, variables, dataset),
+        unsatisfied=tuple(_outcome(c) for c in missed if not c.deferrable),
+        deferred=tuple(_outcome(c) for c in missed if c.deferrable),
         notes=outcome.notes,
         tier_scores=outcome.scores or {},
     )
@@ -76,10 +72,10 @@ def _assumption_positions(conflicts: tuple[int, ...], compiled: list[Compiled]) 
     return sorted(by_index[index] for index in conflicts if index in by_index)
 
 
-def _assignments(solver, variables: Variables, dataset: Dataset) -> tuple[Assignment, ...]:
+def _assignments(outcome, variables: Variables, dataset: Dataset) -> tuple[Assignment, ...]:
     assignments = []
     for slot, var in variables.x.items():
-        if not solver.Value(var):
+        if not outcome.value(var):
             continue
         interval = variables.intervals[slot]
         assignments.append(
@@ -89,16 +85,17 @@ def _assignments(solver, variables: Variables, dataset: Dataset) -> tuple[Assign
                 role=slot.role,
                 date=dataset.target,
                 block=slot.block,
-                start=minute_to_time(_value(solver, interval.start)),
-                minutes=_value(solver, interval.size),
+                start=minute_to_time(_value(outcome, interval.start)),
+                minutes=_value(outcome, interval.size),
                 source=variables.sources[slot],
             )
         )
     return tuple(assignments)
 
 
-def _value(solver, value) -> int:
-    return value if isinstance(value, int) else solver.Value(value)
+def _value(outcome, value) -> int:
+    """A start or size: a constant for a whole block, a variable for part of one."""
+    return value if isinstance(value, int) else outcome.value(value)
 
 
 def _outcome(compiled: Compiled) -> RequestOutcome:

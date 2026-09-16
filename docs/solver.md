@@ -69,6 +69,20 @@ partly used block `DYOW/WPs` (the wording is `remainder` under `[views]` in
 `config.toml`).
 
 After each solve the report lists every soft request that was not satisfied, every
-deferrable task that was put off, and, if the hard requests conflict, their ids. It also
-notes if a tier hit its time limit, in which case that tier's score may not be optimal.
-Raise `time_limit_seconds` in `config.toml` if that happens often.
+deferrable task that was put off, and, if the hard requests conflict, their ids.
+
+It also carries notes about the time limit. Each pass after the first starts from a
+schedule that already works, so a pass that runs out of time keeps that schedule and says
+so rather than failing the solve:
+
+| Note | Means |
+|---|---|
+| tier X hit the time limit | That tier's score may not be the best possible. |
+| tier X ran out of time | That tier found nothing new; the schedule so far stands. |
+| tidying pass ran out of time | The schedule may hold an assignment no request asked for. |
+| placement pass ran out of time | A partial task may sit later in its block than it needs to. |
+
+Raise `time_limit_seconds` in `config.toml` if the tier notes appear often, or
+`tidy_seconds` for the last two. If even the first pass
+finds nothing in that time, the solve stops and says so, since there is no schedule to
+fall back on.
