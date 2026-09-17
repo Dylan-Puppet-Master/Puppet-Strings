@@ -32,10 +32,23 @@ def add_structural_constraints(model: cp_model.CpModel, variables: Variables, da
 
 
 def _no_double_booking(model, variables: Variables, dataset: Dataset) -> None:
-    """A person's assignments never overlap in time, within a block or across blocks."""
-    by_staff: dict[str, list] = {}
-    for slot, interval in variables.intervals.items():
-        by_staff.setdefault(slot.staff, []).append(interval.interval)
-    for intervals in by_staff.values():
-        if len(intervals) > 1:
-            model.AddNoOverlap(intervals)
+    """A person's assignments never overlap in time, within a block or across blocks.
+
+    Assignments in blocks that never overlap cannot clash, so each person gets one
+    constraint per group of overlapping blocks: at most one assignment when every one
+    fills its block, and a no-overlap over the intervals when a task can move within it.
+    """
+    blocks = dataset.blocks
+    groups = {frozenset(c.id for c in blocks.values() if c.overlaps(b)) for b in blocks.values()}
+    for slots in variables.by_staff.values():
+        for group in groups:
+            here = [slot for slot in slots if slot.block in group]
+            if len(here) < 2:
+                continue
+            intervals = [variables.intervals[slot] for slot in here]
+            if any(interval.partial for interval in intervals):
+                model.AddNoOverlap([interval.interval for interval in intervals])
+            else:
+                model.AddAtMostOne(
+                    {variables.x[slot].Index(): variables.x[slot] for slot in here}.values()
+                )

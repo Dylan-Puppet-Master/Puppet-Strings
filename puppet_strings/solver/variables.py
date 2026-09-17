@@ -64,6 +64,8 @@ class Variables:
         self.sources: dict[Slot, str] = {}
         self.instances: dict[tuple[str, str], Instance] = {}
         self.free_literals: dict[tuple[str, str], cp_model.IntVar] = {}
+        self.by_staff: dict[str, list[Slot]] = {}  # every slot, by staff member
+        self.slots: dict[tuple[str, str], list[Slot]] = {}  # every slot, by staff and activity
 
     # -- creation ---------------------------------------------------------------------
 
@@ -130,6 +132,8 @@ class Variables:
             self.x[slot] = var
             self.sources[slot] = source
             self.intervals[slot] = self._interval(slot, var, partial)
+            self.by_staff.setdefault(staff_id, []).append(slot)
+            self.slots.setdefault((staff_id, activity_id), []).append(slot)
 
     def _interval(self, slot: Slot, var: cp_model.IntVar, partial: bool) -> Interval:
         block = self.dataset.blocks[slot.block]
@@ -200,9 +204,9 @@ class Variables:
         blocks = self.dataset.blocks
         for (staff_id, block), free in self.free_literals.items():
             busy = {
-                var.Index(): var
-                for slot, var in self.x.items()
-                if slot.staff == staff_id and blocks[slot.block].overlaps(blocks[block])
+                self.x[slot].Index(): self.x[slot]
+                for slot in self.by_staff.get(staff_id, ())
+                if blocks[slot.block].overlaps(blocks[block])
             }
             if not busy:
                 self.model.Add(free == 1)

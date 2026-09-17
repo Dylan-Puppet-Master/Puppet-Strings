@@ -103,6 +103,7 @@ class Compiler:
         self.asked_for: dict[Slot, list[Literal]] = {}  # what asks for each quoted-task assignment
         self.shortened: dict[Slot, list[Literal]] = {}  # what gives it a FOR length
         self._same_starts: dict[tuple[int, int], cp_model.IntVar] = {}
+        self._published: dict[date, dict[tuple[str, str], list[Row]]] = {}
         self._name = ""
         self._bindings: dict[str, Choice] = {}
         self._shared: dict[str, dict] = {}
@@ -421,15 +422,9 @@ class Compiler:
                     matches.append(Match(s, "", None, d, block.id, literal, block.minutes))
                 continue
             ids = {b.id for b in on_day}
-            for row in self._rows(d):
-                if row.staff not in who or row.block not in ids:
-                    continue
-                if isinstance(pattern.what, ast.Task):
-                    if row.activity != pattern.what.text:
-                        continue
-                elif row.activity not in whats:
-                    continue
-                if roles is not None and row.role not in roles:
+            activities = [pattern.what.text] if whats is None else list(whats)
+            for row in self._rows(d, who, activities):
+                if row.block not in ids or (roles is not None and row.role not in roles):
                     continue
                 parts = [row.literal, who[row.staff], whats[row.activity] if whats else True]
                 parts.append(self._length_is(row, pattern.minutes))
@@ -446,22 +441,34 @@ class Compiler:
         free = self.variables.was_free(s, d, b)
         return not free if busy else free
 
-    def _rows(self, d: date) -> Iterator[Row]:
-        if d == self.dataset.target:
-            for slot, var in self.variables.x.items():
+    def _rows(self, d: date, staff_ids, activities) -> Iterator[Row]:
+        """The assignments of these people to these activities on a date, from the indexes."""
+        if d != self.dataset.target:
+            index = self._published_rows(d)
+            for key in product(staff_ids, activities):
+                yield from index.get(key, ())
+            return
+        for key in product(staff_ids, activities):
+            for slot in self.variables.slots.get(key, ()):
                 interval = self.variables.intervals[slot]
                 yield Row(
                     slot.staff,
                     slot.activity,
                     slot.role,
                     slot.block,
-                    var,
+                    self.variables.x[slot],
                     interval.size,
                     interval.start,
                 )
-            return
-        for a in self.variables.published(d):
-            yield Row(a.staff, a.activity, a.role, a.block, True, a.minutes, _minute(a))
+
+    def _published_rows(self, d: date) -> dict[tuple[str, str], list[Row]]:
+        if d not in self._published:
+            index: dict[tuple[str, str], list[Row]] = {}
+            for a in self.variables.published(d):
+                row = Row(a.staff, a.activity, a.role, a.block, True, a.minutes, _minute(a))
+                index.setdefault((a.staff, a.activity), []).append(row)
+            self._published[d] = index
+        return self._published[d]
 
     def _length_is(self, row: Row, minutes: int | None) -> Literal:
         if minutes is None:
