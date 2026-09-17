@@ -63,6 +63,7 @@ class Compiler:
         self.dataset = dataset
         self.terms: dict[Priority, list[tuple[int, cp_model.IntVar]]] = {t: [] for t in SOFT_TIERS}
         self.compiled: list[Compiled] = []
+        self.asked_for: dict[Slot, list[Literal]] = {}  # what selects each ad hoc assignment
 
     def prepare(self, copies: list[tuple[Request, Resolved]]) -> None:
         """Create instances for every activity a TASK may run on the target date.
@@ -161,6 +162,9 @@ class Compiler:
                 return
             interval = self.variables.adhoc_interval(staff_id, target.text, block, name)
             self._imply(conds, self.variables.adhoc(staff_id, target.text, block, name))
+            slot = Slot(staff_id, target.text, None, block)
+            selector = self._all_of(list(conds), f"asks:{name}:{staff_id}:{block}")
+            self.asked_for.setdefault(slot, []).append(selector)
             if st.minutes is None:  # without FOR, the task fills the block
                 self.model.Add(interval.size == interval.block.minutes).OnlyEnforceIf(conds)
         elif st.role is None:
@@ -297,6 +301,25 @@ class Compiler:
         if consequence is not False:
             clause.append(consequence)
         self.model.AddBoolOr(clause)
+
+    def close_adhoc_tasks(self) -> None:
+        """A quoted task happens only where a TASK asked for it. Call once, after compiling.
+
+        Without this the task's count is a floor rather than a total, so a PREFER could pay
+        for occurrences nobody asked for and preferring a set of blocks would not mean the
+        same as avoiding the rest of them.
+        """
+        for slot, var in self.variables.x.items():
+            if slot.activity in self.dataset.activities:
+                continue  # a clinic runs where it is offered, which already bounds it
+            asked = self.asked_for.get(slot, [])
+            if any(selector is True for selector in asked):
+                continue
+            literals = [selector for selector in asked if selector is not False]
+            if literals:
+                self.model.AddBoolOr([var.Not(), *literals])
+            else:
+                self.model.Add(var == 0)
 
     # -- FORBID, PREFER, AVOID -------------------------------------------------------------------
 

@@ -598,6 +598,15 @@ Recorded so the outline matches the code.
   match per instance, whose literal is the AND of each member's presence there, reified
   with `AddMinEquality`. `AND` elsewhere on those verbs is a validation error, and a
   staff-keyed metric cannot score a group. `POSITION_ROLES` is now an alias of `ORDINALS`.
+- **A quoted task happens only where a TASK selected it** (Puppet Master, 2026-09-16).
+  `Compiler` records, per ad hoc slot, the conjunction of clause literals that selects it,
+  and `close_adhoc_tasks` then adds `x -> OR(selectors)`, or pins `x` to zero when nothing
+  selects it. Without it `DURING` on a `TASK` was a floor rather than a total, so a
+  `PREFER` covering more blocks than the task needed bought extra occurrences and
+  `PREFER` over a set stopped matching `AVOID` over its complement. Clinics keep the old
+  rule, because two offerings of one clinic in different blocks must coexist. A filter
+  verb naming a quoted task that no `TASK` asks for is now a `RequestError`, since it
+  would otherwise be a silent no-op.
 - **Same-day changes** (Puppet Master, 2026-09-16). Rests and RAL penalties are per-date
   data on a new optional `Adjustments` tab, applied to `Staff` at load time as
   `resting_blocks` and a reduced `ral`; `resting` is `all day`, `morning` or `afternoon`,

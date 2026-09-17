@@ -612,3 +612,62 @@ def test_fixture_dataset_solves(dataset):
         for a in result.assignments
         if a.staff == "dylan" and a.activity in dataset.activity_categories["ropes"]
     ]
+
+
+MEAL_TIMES = [("08:00", "09:00"), ("12:00", "13:00"), ("17:30", "18:30"), ("10:30", "10:45")]
+
+
+def blocks_with_meals(count):
+    """Three clinic blocks plus `count` meal blocks."""
+    blocks = {
+        "clinic_1": ("09:15", "10:30", ("any_clinic",)),
+        "clinic_2": ("10:45", "12:00", ("any_clinic",)),
+        "clinic_3": ("14:00", "15:15", ("any_clinic",)),
+    }
+    for i, (start, end) in enumerate(MEAL_TIMES[:count]):
+        blocks[f"meal_{i}"] = (start, end, ("meals",))
+    return blocks
+
+
+THREE_BREAKS = request(
+    "breaks",
+    "ACROSS EACH staff.all\nDURING 3 OF block.any\nTASK 'break' FOR 30m",
+    Priority.MUST_HAPPEN,
+)
+
+
+@pytest.mark.parametrize("meals", [3, 4])
+def test_preferring_a_window_matches_avoiding_the_rest_of_the_day(meals):
+    """The two readings of the same wish must agree however many meal blocks there are."""
+    wishes = {
+        "prefer": request("w", "DURING block.meals\nPREFER 'break'", Priority.HIGH, 2),
+        "avoid": request("w", "DURING {block.any - block.meals}\nAVOID 'break'", Priority.HIGH, 2),
+    }
+    placed = {}
+    for name, wish in wishes.items():
+        ds = dataset(
+            [staff("Sarah")], [], requests=[THREE_BREAKS, wish], blocks=blocks_with_meals(meals)
+        )
+        placed[name] = sorted(a.block for a in run(ds).assignments)
+    assert placed["prefer"] == placed["avoid"]
+    assert len(placed["prefer"]) == 3 and all(b.startswith("meal") for b in placed["prefer"])
+
+
+def test_a_quoted_task_happens_only_where_a_request_asks_for_it():
+    wish = request("w", "DURING block.meals\nPREFER 'break'", Priority.HIGH, 5)
+    ds = dataset([staff("Sarah")], [], requests=[THREE_BREAKS, wish], blocks=blocks_with_meals(4))
+    breaks = [a for a in run(ds).assignments if a.activity == "break"]
+    assert len(breaks) == 3  # the fourth meal block cannot buy a fourth break
+
+
+def test_a_wish_about_a_task_nobody_asks_for_is_rejected():
+    ds = dataset(
+        [staff("Sarah")],
+        [],
+        requests=[request("w", "DURING block.any\nPREFER 'teatime'", Priority.HIGH)],
+    )
+    with pytest.raises(RequestError, match="no request asks for 'teatime'"):
+        run(ds)
+    typo = request("w", "DURING block.any\nAVOID 'breaks'", Priority.HIGH)  # the task is 'break'
+    with pytest.raises(RequestError, match="no request asks for 'breaks'"):
+        run(dataset([staff("Sarah")], [], requests=[THREE_BREAKS, typo]))

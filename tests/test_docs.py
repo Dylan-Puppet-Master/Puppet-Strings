@@ -18,7 +18,21 @@ def test_doc_example_validates(dataset, skedge):
 
 
 def test_docs_have_every_proposal_example():
-    assert len(EXAMPLES) == 20
+    assert len(EXAMPLES) == 21
+
+
+def _prerequisites(dataset, skedge):
+    """Sample requests that ask for a quoted task the example only scores.
+
+    An example such as `AVOID 'break'` says where breaks go, not that they happen, so it
+    needs whatever asks for them before it means anything.
+    """
+    quoted = set(re.findall(r"'([^']*)'", skedge))
+    return tuple(
+        request
+        for request in dataset.requests
+        if any(f"TASK '{text}'" in request.skedge for text in quoted)
+    )
 
 
 @pytest.mark.parametrize("skedge", EXAMPLES, ids=[e.splitlines()[-1][:30] for e in EXAMPLES])
@@ -29,7 +43,8 @@ def test_doc_example_solves(dataset, skedge):
     from puppet_strings.solver.solve import solve
 
     offerings = tuple(r for r in dataset.requests if "generated" in r.tags)
-    single = replace(dataset, requests=offerings + (Request("doc", "", skedge, Priority.HIGH),))
+    example = Request("doc", "", skedge, Priority.HIGH)
+    single = replace(dataset, requests=offerings + _prerequisites(dataset, skedge) + (example,))
     result = solve(single, Config(time_limit_seconds=10, workers=4))
     assert result.feasible
     assert result.assignments

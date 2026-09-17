@@ -4,7 +4,9 @@ from ortools.sat.python import cp_model
 
 from puppet_strings.config import Config
 from puppet_strings.model import Assignment, Dataset, Priority, Request, minute_to_time
+from puppet_strings.skedge import ast
 from puppet_strings.skedge.ast import SkedgeError
+from puppet_strings.skedge.resolve import Resolved
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.compile import SCALE, Compiled, Compiler
 from puppet_strings.solver.result import Change, RequestOutcome, Result
@@ -39,10 +41,12 @@ def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False
         except SkedgeError as e:
             raise RequestError(request, e) from e
         copies += [(request, copy) for copy in resolved]
+    _check_adhoc_tasks(copies)
     compiler.prepare(copies)
     copies.sort(key=lambda pair: not any(s.verb == "TASK" for s in pair[1].statements))
     for request, copy in copies:
         compiler.compile(request, copy)
+    compiler.close_adhoc_tasks()
     variables.finish()
     add_structural_constraints(model, variables, dataset)
     baseline = dataset.baseline if same_day else None
@@ -74,6 +78,31 @@ def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False
         changes=_changes(baseline, assignments),
         tier_scores=outcome.scores or {},
     )
+
+
+def _check_adhoc_tasks(copies: list[tuple[Request, Resolved]]) -> None:
+    """A verb about a quoted task means nothing unless some TASK asks for that task."""
+    asked = {
+        statement.target.text
+        for _, copy in copies
+        for statement in copy.statements
+        if statement.verb == "TASK" and isinstance(statement.target, ast.AdHoc)
+    }
+    for request, copy in copies:
+        for statement in copy.statements:
+            target = statement.target
+            if statement.verb == "TASK" or not isinstance(target, ast.AdHoc):
+                continue
+            if target.text in asked:
+                continue
+            raise RequestError(
+                request,
+                SkedgeError(
+                    f"no request asks for '{target.text}', so {statement.verb} does nothing",
+                    statement.pos.line,
+                    statement.pos.column,
+                ),
+            )
 
 
 def _hold_to(model, compiler: Compiler, variables: Variables, baseline) -> None:

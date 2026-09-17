@@ -16,6 +16,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 from puppet_strings.app.main import MainWindow  # noqa: E402
 from puppet_strings.app.store import RequestStore  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
+from puppet_strings.model import Rest  # noqa: E402
 from puppet_strings.sheets.source import CsvSource  # noqa: E402
 from tests.conftest import FIXTURES  # noqa: E402
 
@@ -123,6 +124,13 @@ def test_selecting_a_row_fills_the_editor(window):
     index = window.proxy.index(0, 0)
     window.table.selectionModel().setCurrentIndex(index, QItemSelectionModel.SelectCurrent)
     assert window.editor.id_label.text() == window.proxy.data(index)
+
+
+def resting_label(rest):
+    """The dialog's own wording for a rest, so renaming a label cannot break these tests."""
+    from puppet_strings.app.same_day import RESTING_CHOICES
+
+    return next(text for text, choice in RESTING_CHOICES.items() if choice is rest)
 
 
 def completions(editor):
@@ -324,7 +332,7 @@ def test_the_sleep_and_sickness_dialogs_write_one_row_each(window):
 
     sickness = SameDayDialog(window.store, SICKNESS, window)
     sickness.staff_box.setCurrentText("Alesa")
-    sickness.resting_box.setCurrentText("Resting this morning")
+    sickness.resting_box.setCurrentText(resting_label(Rest.MORNING))
     sickness.apply_button.click()
     assert sickness.table.rowCount() == 2
 
@@ -355,7 +363,7 @@ def test_one_person_can_be_both_short_of_sleep_and_resting(window):
     sleep.apply_button.click()
     sickness = SameDayDialog(window.store, SICKNESS, window)
     sickness.staff_box.setCurrentText("Vic")
-    sickness.resting_box.setCurrentText("Resting this afternoon")
+    sickness.resting_box.setCurrentText(resting_label(Rest.AFTERNOON))
     sickness.apply_button.click()
     (row,) = window.store.dataset.today_adjustments
     assert row.ral_penalty == 1 and row.summary == "resting this afternoon and down 1 RAL"

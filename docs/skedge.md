@@ -136,6 +136,16 @@ uses the metric's value for the assignment, normalized to 0–1 against the metr
 declared scale; an assignment the metric has no row for is worth that metric's `default`.
 Neither verb can be `MUST_HAPPEN`.
 
+Preferring a set of blocks and avoiding everything outside it say the same thing, so
+`PREFER 'break' DURING block.meals` and `AVOID 'break' DURING {block.any - block.meals}`
+give the same schedule. Write whichever reads better.
+
+A quoted task happens only where a `TASK` asks for it, which is what keeps those two
+readings in step: a preference cannot buy extra occurrences of a task beyond the ones
+requested. It follows that a `PREFER`, `AVOID` or `FORBID` naming a quoted task that no
+`TASK` asks for is an error rather than a line that quietly does nothing, which also
+catches a misspelled task name.
+
 ### Staff working together
 
 `AND` means "together" everywhere in Skedge, and on `FORBID`, `PREFER` and `AVOID` that
@@ -187,6 +197,7 @@ Each error carries a line and column. The validator rejects:
 - `~` with `PER`, or `~` on a verb other than `PREFER` or `AVOID`
 - `~` with a staff-keyed metric on a verb whose `ACROSS` selects a group
 - `AND` outside `ACROSS` on `FORBID`, `PREFER` or `AVOID`
+- `FORBID`, `PREFER` or `AVOID` on a quoted task that no `TASK` asks for
 - `FOR` with `DURING ALL`, or on a verb other than `TASK`
 - `ACROSS` with `ALL`, `OF` or `AND` on a clinic without `ROLE`
 - a date offset applied to a set of dates
@@ -372,6 +383,21 @@ TASK 'break' FOR 30m
 ```
 
 Priority `MUST_HAPPEN`.
+
+### Breaks at meal times
+
+Where those breaks land. There are still three of them, wherever the meal blocks are.
+
+```skedge
+ACROSS {staff.all - staff.director - staff.counselor}
+DURING {block.any - block.meals}
+AVOID 'break'
+```
+
+`EACH` belongs on the `TASK`, which asks something of each person separately. This one
+only scores what the `TASK` placed, so it takes the pool as it is.
+
+Priority `HIGH`. Weight: `2`.
 
 ### Playstation availability
 

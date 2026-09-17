@@ -63,6 +63,12 @@ These come from the sheets and never need a request:
 
 ## The report
 
+**A quoted task happens only where a request asks for it.** A clinic is already bounded,
+since it runs where it is offered and has a fixed number of positions, but a task such as
+`'break'` could otherwise appear wherever something paid for it. Closing that keeps a
+preference from inflating the amount of work, and keeps `PREFER` over a set of blocks
+meaning the same as `AVOID` over the rest of them.
+
 **Tidiness.** After the last tier the solver drops any assignment no request asked for,
 uses no more minutes than a `FOR` task needs, and pushes partial tasks to the start of
 their block unless a `GAP` or another task moves them. The Staff View labels the rest of a
