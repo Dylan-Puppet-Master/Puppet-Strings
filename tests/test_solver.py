@@ -680,6 +680,36 @@ def test_at_most_consecutive_breaks_up_a_run():
     assert ids(result.unsatisfied) == ["dylan"]
 
 
+def test_at_most_consecutive_caps_a_run_of_three_adjacent_blocks():
+    """The run bound counts what a person can really hold, one assignment per block."""
+    members = [staff("Dylan", archery_1_2=OK), staff("Randy", archery_1_2=OK)]
+    clinics = [clinic(f"C{i}", ("Archery 1 & 2", 1)) for i in range(3)]
+    offerings = [(f"C{i}", [f"clinic_{i + 1}"]) for i in range(3)]
+    cap = request(
+        "row",
+        "REQUEST AT_MOST 2 EACH_OF staff.all DOING activity.all CONSECUTIVE",
+        Priority.MUST_HAPPEN,
+    )
+    blocks = blocks_with_meals(0)
+    # nothing but the cap keeps Dylan off all three
+    greedy = request("dylan", "REQUEST AT_LEAST 3 staff.dylan DOING activity.all", Priority.MEDIUM)
+    ds = dataset(members, clinics, offerings=offerings, requests=[cap, greedy], blocks=blocks)
+    result = run(ds)
+    assert result.feasible and ids(result.unsatisfied) == ["dylan"]
+    assert len(where(result, staff="dylan")) <= 2  # the run is capped, so three is refused
+    without_cap = dataset(members, clinics, offerings=offerings, requests=[greedy], blocks=blocks)
+    assert len(where(run(without_cap), staff="dylan")) == 3
+    loose = request(
+        "row",
+        "REQUEST AT_MOST 3 EACH_OF staff.all DOING activity.all CONSECUTIVE",
+        Priority.MUST_HAPPEN,
+    )
+    only_dylan = [staff("Dylan", archery_1_2=OK)]
+    ds = dataset(only_dylan, clinics, offerings=offerings, requests=[loose], blocks=blocks)
+    result = run(ds)
+    assert result.feasible and len(result.assignments) == 3  # a run of three is allowed
+
+
 def test_prefer_at_most_pays_per_assignment_over_the_amount():
     members = [staff("Dylan", archery_1_2=OK), staff("Randy", archery_1_2=OK)]
     ds = dataset(

@@ -62,8 +62,10 @@ def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False
             for i in _assumption_positions(outcome.conflicts, compiler.compiled)
         )
         return Result(feasible=False, conflicts=conflicts)
-    missed = [c for c in compiler.compiled if not outcome.value(c.sat)]
-    deferred = [c for c in compiler.compiled if outcome.value(c.sat) and _true(outcome, c.deferred)]
+    missed = [c for c in compiler.compiled if not _true(outcome, c.sat)]
+    deferred = [
+        c for c in compiler.compiled if _true(outcome, c.sat) and _true(outcome, c.deferred)
+    ]
     assignments = _assignments(outcome, variables, dataset)
     return Result(
         feasible=True,
@@ -151,7 +153,7 @@ def _shape(a: Assignment) -> tuple:
 
 
 def _assumption_positions(conflicts: tuple[int, ...], compiled: list[Compiled]) -> list[int]:
-    by_index = {c.sat.Index(): i for i, c in enumerate(compiled)}
+    by_index = {c.sat.Index(): i for i, c in enumerate(compiled) if c.request.priority.hard}
     return sorted(by_index[index] for index in conflicts if index in by_index)
 
 

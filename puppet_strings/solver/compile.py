@@ -52,7 +52,7 @@ class Compiled:
 
     id: str
     request: Request
-    sat: cp_model.IntVar
+    sat: Literal
     deferred: Literal  # true when the copy is met only by what later dates can still hold
 
 
@@ -104,6 +104,7 @@ class Compiler:
         self.shortened: dict[Slot, list[Literal]] = {}  # what gives it a FOR length
         self._same_starts: dict[tuple[int, int], cp_model.IntVar] = {}
         self._published: dict[date, dict[tuple[str, str], list[Row]]] = {}
+        self._implied: list[tuple[list, Literal]] = []  # what the copy being compiled implies
         self._name = ""
         self._bindings: dict[str, Choice] = {}
         self._shared: dict[str, dict] = {}
@@ -163,14 +164,14 @@ class Compiler:
         if isinstance(statement, Score) or (isinstance(statement, Count) and statement.prefer):
             self._prefer(statement, applies, request.weight, tier, name)
             return True
-        sat = self.model.NewBoolVar(f"sat:{name}")
+        sat: Literal = self.model.NewBoolVar(f"sat:{name}")
         if request.priority.hard:
             self.model.AddAssumption(sat)
-        else:
-            self.terms[tier].append((round(SCALE * request.weight), sat))
         active = self._all_of([sat, applies], f"active:{name}")
         for var, binding in copy.bindings.items():
             self._shared[var] = self._choose(replace(binding, var=None), sat, f"{name}:{var}")
+        self._implied = []
+        posted = len(self.model.Proto().constraints)
         deferred: list[Literal] = []
         made: dict[str, list[Made]] = {}
         for st in copy.statements:
@@ -185,10 +186,34 @@ class Compiler:
                 deferred.append(self._count(st, active, name))
         for gap in copy.gaps:
             self._gap(gap, active, made[gap.first], made[gap.second], name)
+        if not request.priority.hard:
+            sat = self._collapse(sat, applies, posted)
+            self.terms[tier].append((round(SCALE * request.weight), sat))
         self.compiled.append(
             Compiled(name, request, sat, self._any_of(deferred, f"deferred:{name}"))
         )
         return True
+
+    def _collapse(self, sat: Literal, applies: Literal, posted: int) -> Literal:
+        """The literal a copy's satisfaction already is, when the model holds one.
+
+        A copy that does nothing but imply a single literal is met exactly when that
+        literal is true, which is most of what `EACH_OF` splits a declaration into. Scoring
+        that literal rather than a fresh boolean standing behind an implication lets the
+        solver weigh the request against the assignments it is really about; the boolean is
+        then unused and presolve drops it, along with the implication.
+        """
+        if applies is not True or len(self._implied) != 1:
+            return sat
+        conds, consequence = self._implied[0]
+        if isinstance(consequence, bool):
+            return sat
+        gating = _distinct([c for c in conds if c is not True])
+        if len(gating) != 1 or gating[0] is not sat:
+            return sat
+        if len(self.model.Proto().constraints) != posted + 1:
+            return sat  # the copy posted more than that one implication
+        return consequence
 
     def _active(self, copy: Resolved) -> bool:
         target = self.dataset.target
@@ -539,6 +564,27 @@ class Compiler:
         self.model.Add(used == 0).OnlyEnforceIf(_negate(m.literal))
         return used
 
+    def _block_most(self, here: list[Match], duration: bool) -> int:
+        """The most one block can hold: a person's assignments in it never overlap in time.
+
+        So whole-block assignments rule each other out, and the tasks sharing a block can
+        add up to no more than its length. Without this the bound would count every
+        candidate assignment, and a window would carry a large constraint that the
+        no-overlap rule already makes vacuous.
+        """
+        live = [m for m in here if m.literal is not False]
+        if not live:
+            return 0
+        minutes = self.dataset.blocks[live[0].block].minutes
+        if duration:
+            lengths = [m.minutes if isinstance(m.minutes, int) else minutes for m in live]
+            return min(minutes, sum(lengths))
+        published = [m for m in live if m.literal is True]
+        if published:
+            return len(published)  # a past date is a fact, however many it holds
+        partial = [m for m in live if not isinstance(m.minutes, int) or m.minutes < minutes]
+        return max(len(partial), 1)
+
     def _most(self, matches: list[Match], duration: bool) -> int:
         """The largest amount the matches could reach."""
         live = [m for m in matches if m.literal is not False]
@@ -580,41 +626,55 @@ class Compiler:
         terms, constant = self._amount(matches, amount.duration)
         return self._compare(terms, constant, amount, name)
 
-    def _windows(self, matches: list[Match]) -> Iterator[list[list[Match]]]:
-        """Each run of adjacent blocks one person's matches could fill on one date.
+    def _windows(
+        self, matches: list[Match], duration: bool, needed: int, name: str
+    ) -> Iterator[tuple]:
+        """Every window of adjacent blocks one person's matches could fill, on one date.
 
-        Blocks are adjacent when they are next to each other on the Blocks sheet; a block
-        nothing matches in breaks the run.
+        A window is (block literals, amount terms, constant, largest possible amount). Each
+        block's literal and contribution are worked out once and shared by every window
+        covering it; a block nothing matches breaks the run, since blocks are adjacent only
+        when they are next to each other in the Blocks sheet. A person and date whose
+        longest run could never reach `needed` is skipped before anything is built for it.
         """
         grouped: dict[tuple[str, date], dict[str, list[Match]]] = {}
         for m in matches:
             grouped.setdefault((m.staff, m.date), {}).setdefault(m.block, []).append(m)
-        for (_, d), per_block in grouped.items():
-            order = [b.id for b in self.dataset.blocks_on(d)]
-            for i in range(len(order)):
-                for j in range(i, len(order)):
-                    if order[j] not in per_block:
-                        break
-                    yield [per_block[b] for b in order[i : j + 1]]
-
-    def _window(self, window: list[list[Match]], duration: bool, name: str) -> tuple:
-        """(present, terms, constant, most): the run is fully matched, and its amount."""
-        flat = [m for block in window for m in block]
-        blocks = [self._any_of([m.literal for m in block], f"{name}:block") for block in window]
-        present = self._all_of(blocks, f"{name}:present")
-        terms, constant = self._amount(flat, duration)
-        return present, terms, constant, self._most(flat, duration)
+        for (staff_id, day), per_block in grouped.items():
+            order = [b.id for b in self.dataset.blocks_on(day)]
+            most = [
+                self._block_most(per_block[b], duration) if b in per_block else None for b in order
+            ]
+            if _longest(most) < needed:
+                continue
+            cells = []
+            for block_id, amount in zip(order, most, strict=True):
+                if amount is None:
+                    cells.append(None)  # a gap: no run crosses it
+                    continue
+                here = per_block[block_id]
+                filled = self._any_of(
+                    [m.literal for m in here], f"{name}:filled:{staff_id}:{day}:{block_id}"
+                )
+                terms, constant = self._amount(here, duration)
+                cells.append((filled, terms, constant, amount))
+            yield from _runs_from(cells)
 
     def _runs_hold(self, amount: ast.Amount, matches: list[Match], name: str) -> Literal:
-        """AT_LEAST: some run reaches the amount. AT_MOST: no run exceeds it. EXACTLY: both."""
+        """A literal: AT_LEAST some run reaches the amount, AT_MOST no run exceeds it."""
         n = amount.value
         reaching, exceeding = [], []
-        for i, window in enumerate(self._windows(matches)):
-            present, terms, constant, most = self._window(window, amount.duration, f"{name}:run{i}")
-            if amount.bound != ast.AT_MOST and most >= n:
+        windows = self._windows(matches, amount.duration, _needed(amount), name)
+        for i, (blocks, terms, constant, most) in enumerate(windows):
+            wants_least = amount.bound != ast.AT_MOST and most >= n
+            wants_most = amount.bound != ast.AT_LEAST and most > n
+            if not (wants_least or wants_most):
+                continue
+            present = self._all_of(blocks, f"{name}:run{i}:present")
+            if wants_least:
                 reaches = self._at_least(terms, constant, n, f"{name}:run{i}:ge")
                 reaching.append(self._all_of([present, reaches], f"{name}:run{i}:reaching"))
-            if amount.bound != ast.AT_LEAST and most > n:
+            if wants_most:
                 exceeds = self._at_least(terms, constant, n + 1, f"{name}:run{i}:gt")
                 exceeding.append(self._all_of([present, exceeds], f"{name}:run{i}:exceeding"))
         at_least = self._any_of(reaching, f"{name}:reached")
@@ -624,6 +684,33 @@ class Compiler:
         if amount.bound == ast.AT_MOST:
             return at_most
         return self._all_of([at_least, at_most], f"{name}:exact")
+
+    def _enforce(self, amount, matches: list[Match], consecutive: bool, conds: list, name) -> None:
+        """Post the amount's comparison as constraints, for a caller that only enforces it.
+
+        A reified literal says both when the comparison holds and when it does not, which
+        the solver propagates poorly. Where the answer is only ever "this must hold", the
+        comparison goes in directly, with the conditions as enforcement literals.
+        """
+        n = amount.value
+        if not consecutive:
+            terms, constant = self._amount(matches, amount.duration)
+            if amount.bound != ast.AT_MOST:
+                self._add(sum(terms) + constant >= n, conds)
+            if amount.bound != ast.AT_LEAST:
+                self._add(sum(terms) + constant <= n, conds)
+            return
+        reaching = []
+        windows = self._windows(matches, amount.duration, _needed(amount), name)
+        for i, (blocks, terms, constant, most) in enumerate(windows):
+            if amount.bound != ast.AT_LEAST and most > n:
+                self._add(sum(terms) + constant <= n, [*conds, *blocks])
+            if amount.bound != ast.AT_MOST and most >= n:
+                present = self._all_of(blocks, f"{name}:run{i}:present")
+                reaches = self._at_least(terms, constant, n, f"{name}:run{i}:ge")
+                reaching.append(self._all_of([present, reaches], f"{name}:run{i}:reaching"))
+        if amount.bound != ast.AT_MOST:
+            self._imply(conds, self._any_of(reaching, f"{name}:reached"))
 
     def _miss(self, amount: ast.Amount, pattern: Pattern, consecutive: bool, name: str) -> tuple:
         """How far the matches are from the amount, as (variable, bound); (0, 0) when fixed."""
@@ -675,25 +762,23 @@ class Compiler:
         matches = self._matches(p, past=True)
         if amount.bound != ast.AT_MOST:
             self._ask_for(matches, p, active)
+        # a run must fit inside one date, so it defers only to a date that can hold all of it
+        due = n if st.consecutive else 1
+        if capacity < due:  # later dates cannot hold the remainder, so it is all due today
+            self._enforce(amount, matches, st.consecutive, [active], name)
+            return False
+        # deferrable: today it must only stay reachable, and progress earns the early bonus
         if st.consecutive:
             now = self._runs_hold(amount, matches, name)
-            if capacity < n:
-                self._imply([active], now)
-                return False
             if amount.bound == ast.EXACTLY:
                 upper = replace(amount, bound=ast.AT_MOST)
-                self._imply([active], self._runs_hold(upper, matches, f"{name}:upper"))
+                self._enforce(upper, matches, True, [active], f"{name}:upper")
             self._bonus(now)
             return _negate(now)
         terms, constant = self._amount(matches, amount.duration)
-        if amount.bound != ast.AT_MOST:
-            self._imply(
-                [active], self._at_least(terms, constant, n - capacity, f"{name}:reachable")
-            )
-        if amount.bound != ast.AT_LEAST:
-            self._imply([active], _negate(self._at_least(terms, constant, n + 1, f"{name}:gt")))
-        if not capacity:
-            return False
+        self._add(sum(terms) + constant >= n - capacity, [active])
+        if amount.bound == ast.EXACTLY:
+            self._add(sum(terms) + constant <= n, [active])
         reached = self._at_least(terms, constant, n, f"{name}:reached")
         progress = self.model.NewIntVar(0, n, f"{name}:progress")
         self.model.Add(progress <= sum(terms) + constant)
@@ -792,13 +877,14 @@ class Compiler:
             added.OnlyEnforceIf(literals)
 
     def _imply(self, conds: list, consequence: Literal) -> None:
-        """Conditions all true -> consequence, with constants folded."""
+        """Conditions all true -> consequence, with constants folded and repeats dropped."""
         if consequence is True or any(c is False for c in conds):
             return
-        clause = [c.Not() for c in conds if c is not True]
+        clause = [c.Not() for c in _distinct([c for c in conds if c is not True])]
         if consequence is not False:
             clause.append(consequence)
         self.model.AddBoolOr(clause)
+        self._implied.append((conds, consequence))
 
     def _any_of(self, literals: list, name: str) -> Literal:
         """A literal true when any of these are, with constants folded."""
@@ -823,6 +909,34 @@ class Compiler:
         self.model.AddBoolAnd(real).OnlyEnforceIf(var)
         self.model.AddBoolOr([v.Not() for v in real]).OnlyEnforceIf(var.Not())
         return var
+
+
+def _needed(amount: ast.Amount) -> int:
+    """The smallest amount a window must be able to reach before it is worth building."""
+    return amount.value + (1 if amount.bound == ast.AT_MOST else 0)
+
+
+def _longest(most: list[int | None]) -> int:
+    """The largest total over one stretch of adjacent blocks that hold matches."""
+    best = run = 0
+    for amount in most:
+        run = 0 if amount is None else run + amount
+        best = max(best, run)
+    return best
+
+
+def _runs_from(cells: list) -> Iterator[tuple]:
+    """Every contiguous window of the filled cells, each accumulating the ones before it."""
+    for i in range(len(cells)):
+        literals, terms, constant, most = [], [], 0, 0
+        for cell in cells[i:]:
+            if cell is None:
+                break
+            literals.append(cell[0])
+            terms = terms + cell[1]
+            constant += cell[2]
+            most += cell[3]
+            yield list(literals), terms, constant, most
 
 
 def _distinct(literals: list) -> list:
