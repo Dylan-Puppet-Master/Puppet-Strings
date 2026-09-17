@@ -23,9 +23,9 @@ SICKNESS = "Sickness"
 SLEEP_PENALTY = 1  # the agreement: too little sleep costs one RAL for the day
 
 RESTING_CHOICES = {
-    "Resting all day": Rest.ALL_DAY,
-    "Resting this morning": Rest.MORNING,
-    "Resting this afternoon": Rest.AFTERNOON,
+    "All day": Rest.ALL_DAY,
+    "This morning": Rest.MORNING,
+    "This afternoon": Rest.AFTERNOON,
 }
 
 
@@ -63,12 +63,12 @@ class SameDayDialog(QDialog):
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
 
         form = QFormLayout()
-        form.addRow("staff", self.staff_box)
+        form.addRow("Staff", self.staff_box)
         if kind == SLEEP:
-            form.addRow("short of sleep", self.penalty_box)
+            form.addRow("RAL penalty", self.penalty_box)
         else:
-            form.addRow("resting", self.resting_box)
-        form.addRow("note", self.note_edit)
+            form.addRow("Resting", self.resting_box)
+        form.addRow("Note", self.note_edit)
         buttons = QHBoxLayout()
         buttons.addWidget(self.apply_button)
         buttons.addWidget(self.remove_button)
