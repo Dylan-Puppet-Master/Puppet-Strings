@@ -103,7 +103,7 @@ def test_blocks(source):
     blocks = parse_blocks(source.read("config", "Blocks"))
     assert blocks["clinic_1"].start == time(9, 15)
     assert blocks["clinic_1"].minutes == 75
-    assert blocks["lunch"].categories == {"any", "meals"}
+    assert blocks["lunch"].categories == {"all", "meals"}
     assert blocks["lunch"].day_types == {"regular", "changeover"}
     assert blocks["clinic_1"].gap_to(blocks["clinic_4"]) == 315
     assert not blocks["clinic_1"].overlaps(blocks["clinic_2"])
@@ -127,19 +127,19 @@ def test_requests_round_trip(source):
 def test_requests_reject_weight_on_hard():
     table = [
         ["id", "description", "skedge", "priority", "weight", "created"],
-        ["x", "", "TASK FREE", "MUST_HAPPEN", "2", ""],
+        ["x", "", "REQUEST staff.dylan FREE DURING block.clinic_1", "MUST_HAPPEN", "2", ""],
     ]
     with pytest.raises(LoadError, match="not allowed with MUST_HAPPEN"):
         parse_requests(table)
 
 
 def test_metrics(dataset):
-    enjoyment = dataset.metrics["enjoyment"]
-    assert enjoyment.keys == ("staff", "activity")
-    assert enjoyment.normalized(("dylan", "archery_1_2")) == 1.0
-    assert enjoyment.normalized(("dylan", "candle_making")) == 0.5
-    assert enjoyment.default == 3 and enjoyment.missing == 3
-    assert enjoyment.normalized(("dylan", "riflery")) == 0.5  # no row, so the default
+    preference = dataset.metrics["preference"]
+    assert preference.keys == ("staff", "activity")
+    assert preference.normalized(("dylan", "archery_1_2")) == 1.0
+    assert preference.normalized(("dylan", "candle_making")) == 0.5
+    assert preference.default == 3 and preference.missing == 3
+    assert preference.normalized(("dylan", "riflery")) == 0.5  # no row, so the default
 
 
 def test_metric_default_column(source):
@@ -177,7 +177,7 @@ def test_dataset(dataset):
     assert dataset.staff_categories["village_hero"] == {"audrey", "mogee"}
     assert dataset.staff_categories["clinic_trainers"] == {"audrey", "alexis"}
     assert "etc" not in dataset.staff_categories
-    assert len(dataset.staff_categories["all"]) == 17
+    assert len(dataset.staff_categories["all"]) == 21
     assert dataset.activity_categories["ropes"] == {
         "gravity_zip_line",
         "pole_course_explore_level_1_2_dbl",
@@ -193,14 +193,15 @@ def test_dataset(dataset):
     assert dataset.session_dates[0] == date(2026, 9, 13)
     assert len(dataset.session_dates) == 14  # a two-week session
     assert [b.id for b in dataset.blocks_on(dataset.target)][:3] == [
+        "breakfast",
         "clinic_1",
         "clinic_2",
-        "lunch",
     ]
     assert [b.id for b in dataset.blocks_on(date(2026, 9, 19))] == [
-        "pack_out",
+        "breakfast",
         "lunch",
         "playstation",
+        "pack_out",
     ]
     assert set(dataset.published) == {date(2026, 9, 14), date(2026, 9, 15)}
 
@@ -239,7 +240,7 @@ def test_blocks_accept_a_missing_leading_zero(source):
 
 def test_the_solvers_own_priority_cannot_be_written_on_the_sheet():
     header = ["id", "description", "skedge", "priority", "weight", "tags", "created"]
-    row = ["x", "", "DURING block.clinic_1\nTASK 'a'", "STABILITY", "", "", ""]
+    row = ["x", "", "REQUEST staff.dylan DO 'a' DURING block.clinic_1", "STABILITY", "", "", ""]
     with pytest.raises(LoadError, match="STABILITY is the solver's own"):
         parse_requests([header, row])
     assert parse_requests([header, [*row[:3], "HIGH", *row[4:]]])[0].priority.value == "HIGH"

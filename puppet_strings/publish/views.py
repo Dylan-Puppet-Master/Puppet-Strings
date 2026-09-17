@@ -205,12 +205,16 @@ def _timed(dataset: Dataset, a: Assignment) -> str:
 
 
 def report(result: Result) -> Table:
-    """Unsatisfied requests, deferred requests, and conflicts."""
+    """Unsatisfied, deferred and inactive requests, conflicts, and the solver's notes."""
     rows: Table = [["status", "request", "priority", "description"]]
-    for outcome in result.unsatisfied:
-        rows.append(["unsatisfied", outcome.id, outcome.priority.value, outcome.description])
-    for outcome in result.deferred:
-        rows.append(["deferred", outcome.id, outcome.priority.value, outcome.description])
+    listed = (
+        ("unsatisfied", result.unsatisfied),
+        ("deferred", result.deferred),
+        ("inactive", result.inactive),
+    )
+    for status, outcomes in listed:
+        for outcome in outcomes:
+            rows.append([status, outcome.id, outcome.priority.value, outcome.description])
     for request_id in result.conflicts:
         rows.append(["conflict", request_id, "MUST_HAPPEN", "infeasible together"])
     for note in result.notes:

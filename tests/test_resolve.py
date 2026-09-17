@@ -5,6 +5,7 @@ import pytest
 from puppet_strings.model import Priority, Request
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.ast import SkedgeError
+from puppet_strings.skedge.resolve import ALL, ANY, POOL, Forbid, Requirement, name_listing
 from puppet_strings.skedge.validate import validate_request
 
 
@@ -12,155 +13,179 @@ def resolve(dataset, skedge, priority=Priority.HIGH):
     return validate_request(Request("t", "", skedge, priority), dataset)
 
 
+def on(dataset, name, item=False):
+    quantifier = "" if item else "ALL_OF "
+    (copy,) = resolve(
+        dataset, f"REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON {quantifier}{name}"
+    )
+    return copy.statements[0].on.items
+
+
 def test_defaults(dataset):
-    (copy,) = resolve(dataset, "DURING block.clinic_1\nTASK 'a'")[2:3]  # the target-date copy
-    (statement,) = copy.statements
-    assert statement.on.items == (date(2026, 9, 15),) or statement.on.items[0] in dataset.calendar
-    assert statement.across.items == tuple(sorted(dataset.staff))
-    assert statement.across.quantifier.kind == "ANY"
-    copies = resolve(dataset, "DURING block.clinic_1\nTASK 'a'")
-    assert [c.statements[0].on.items[0] for c in copies] == list(dataset.session_dates)
-    assert all(c.key == "" for c in copies)
+    (copy,) = resolve(dataset, "REQUEST staff.dylan DO 'x' DURING block.clinic_1")
+    (st,) = copy.statements
+    assert isinstance(st, Requirement) and copy.key == "" and copy.condition is None
+    assert st.on.items == (dataset.target,) and st.on.kind == ALL
+    assert st.who.items == ("dylan",) and st.who.kind == ALL
+    assert st.during.items == ("clinic_1",) and st.role is None and st.minutes is None
 
 
-def test_each_expansion_and_keys(dataset):
-    copies = resolve(
-        dataset, "ON date.target\nACROSS EACH staff.counselor\nDURING block.clinic_1\nTASK 'a'"
-    )
-    assert [c.key for c in copies] == ["dylan", "james", "paul"]
-    assert copies[0].statements[0].across.items == ("dylan",)
-    product = resolve(
-        dataset,
-        "ON date.target\nACROSS EACH staff.director\nDURING EACH {block.clinic_1 + block.clinic_2}\nTASK 'a'",
-    )
-    assert [c.key for c in product] == [
-        "david,clinic_1",
-        "david,clinic_2",
-        "lisa,clinic_1",
-        "lisa,clinic_2",
-    ]
-
-
-def test_shared_each_applies_to_every_verb(dataset):
-    copies = resolve(
-        dataset,
-        "ON date.target\nACROSS EACH staff.counselor\n"
-        "TASK 'a' DURING {block.clinic_1 OR block.clinic_2} AS m\n"
-        "TASK 'a' DURING {block.clinic_3 OR block.clinic_4} AS n\nGAP m n <= 5h",
-    )
-    dylan = copies[0]
-    assert all(s.across.items == ("dylan",) for s in dylan.statements)
-    assert dylan.statements[0].during.alternatives == (
-        frozenset({"clinic_1"}),
-        frozenset({"clinic_2"}),
-    )
-    assert dylan.gaps[0].minutes == 300
-
-
-def test_or_and_alternatives(dataset):
+def test_quantifiers(dataset):
     (copy,) = resolve(
         dataset,
-        "ON date.target\nDURING block.any\nACROSS {staff.james OR (staff.dylan AND staff.paul)}\nTASK 'x'",
+        "REQUEST ANY_2_OF staff.counselor DO 'x' DURING ALL_OF block.all ON ANY_1_OF date.session.all",
     )
-    across = copy.statements[0].across
-    assert across.alternatives == (frozenset({"james"}), frozenset({"dylan", "paul"}))
-    assert across.items == ("dylan", "james", "paul")
-    assert not across.single
+    (st,) = copy.statements
+    assert (st.who.kind, st.who.n, st.who.items) == (ANY, 2, ("dylan", "james", "paul"))
+    assert st.during.kind == ALL and set(st.during.items) == set(dataset.blocks)
+    assert st.on.kind == ANY and st.on.items == dataset.session_dates
+
+
+def test_each_of_expands_into_keyed_copies(dataset):
+    copies = resolve(dataset, "REQUEST EACH_OF staff.counselor DO 'x' DURING block.clinic_1")
+    assert [c.key for c in copies] == ["dylan", "james", "paul"]
+    assert copies[0].statements[0].who.items == ("dylan",)
+    product = resolve(
+        dataset,
+        "REQUEST EACH_OF staff.director DO 'x' DURING EACH_OF {block.clinic_1 + block.clinic_2}",
+    )
+    assert [c.key for c in product] == [
+        "david, clinic_1",
+        "david, clinic_2",
+        "lisa, clinic_1",
+        "lisa, clinic_2",
+    ]
+    dated = resolve(
+        dataset, "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON EACH_OF date.session.mondays"
+    )
+    assert [c.key for c in dated] == ["2026-09-14", "2026-09-21"]
+    assert (
+        resolve(
+            dataset,
+            "REQUEST EACH_OF {staff.counselor & staff.director} DO 'x' DURING block.clinic_1",
+        )
+        == ()
+    )
+
+
+def test_a_binding_line_is_visible_on_every_line(dataset):
+    copies = resolve(
+        dataset,
+        "EACH_OF c IN staff.counselor\n"
+        "m: REQUEST c DO 'a' DURING ANY_1_OF {block.clinic_1 + block.clinic_2}\n"
+        "n: REQUEST c DO 'a' DURING ANY_1_OF {block.clinic_3 + block.clinic_4}\n"
+        "GAP m TO n AT_MOST 5h",
+    )
+    assert [c.key for c in copies] == ["dylan", "james", "paul"]
+    dylan = copies[0]
+    assert all(s.who.items == ("dylan",) for s in dylan.statements)
+    assert dylan.statements[0].during.kind == ANY and dylan.statements[0].label == "m"
+    assert dylan.gaps[0].amount.value == 300
+
+
+def test_an_any_binding_is_one_choice_shared_by_the_declaration(dataset):
+    (copy,) = resolve(
+        dataset,
+        "ANY_1_OF p IN staff.counselor\n"
+        "first: REQUEST p DO 'setup' DURING block.clinic_4\n"
+        "last:  REQUEST p DO 'teardown' DURING block.evening",
+    )
+    assert copy.bindings["p"].items == ("dylan", "james", "paul") and copy.bindings["p"].n == 1
+    assert all(s.who.var == "p" and s.who.kind == ANY for s in copy.statements)
+
+
+def test_negation_makes_a_pattern_of_pools(dataset):
+    (copy,) = resolve(
+        dataset, "REQUEST ALL_OF staff.counselor NOT DO activity.ropes WITHOUT staff.vic"
+    )
+    (st,) = copy.statements
+    assert isinstance(st, Forbid) and st.who.kind == ALL
+    assert st.pattern.who.kind == POOL and st.pattern.who.items == st.who.items
+    assert st.pattern.what.kind == POOL and st.pattern.during is None
+    assert st.pattern.on.items == (dataset.target,) and st.pattern.without == frozenset({"vic"})
+    copies = resolve(dataset, "REQUEST EACH_OF staff.counselor NOT FREE DURING block.clinic_1")
+    assert copies[0].statements[0].pattern.what is None and copies[0].statements[0].pattern.busy
+
+
+def test_patterns_conditions_and_metrics(dataset):
+    (copy,) = resolve(
+        dataset,
+        "EACH_OF s IN staff.director\n"
+        "IF AT_LEAST 3 s DOING activity.all CONSECUTIVE\n"
+        "REQUEST s FREE DURING ANY_1_OF block.all",
+    )[:1]
+    assert copy.condition.amount.value == 3 and copy.condition.consecutive
+    assert copy.condition.pattern.who.items == ("david",)
+    copies = resolve(
+        dataset,
+        "PREFER EACH_OF s IN staff.counselor DOING EACH_OF c IN activity.weapons "
+        "MAXIMIZE metric.preference(s, c)",
+    )
+    assert copies[0].statements[0].key == ("dylan", "archery_1_2")
+    assert copies[0].statements[0].metric == "preference" and copies[0].statements[0].maximize
 
 
 def test_set_operators(dataset):
+    text = "REQUEST EACH_OF {staff.all - staff.director - staff.counselor} DO 'x' DURING ALL_OF block.all"
+    keys = {c.key for c in resolve(dataset, text)}
+    assert keys and not keys & {"david", "lisa", "dylan", "james", "paul"}
     (copy,) = resolve(
         dataset,
-        "ON date.target\nDURING block.any\nACROSS {staff.all - staff.director - staff.counselor}\nTASK 'x'",
+        "REQUEST ALL_OF {staff.counselor & staff.ropes_level_2} DO 'x' DURING ALL_OF block.all",
     )
-    pool = set(copy.statements[0].across.items)
-    assert pool == set(dataset.staff) - {"david", "lisa", "dylan", "james", "paul"}
-    (copy,) = resolve(
-        dataset,
-        "ON date.target\nDURING block.any\nACROSS {staff.counselor & staff.ropes_level_2}\nTASK 'x'",
-    )
-    assert copy.statements[0].across.items == ()
+    assert copy.statements[0].who.items == ()
 
 
 def test_date_windows(dataset):
-    (copy,) = resolve(dataset, "ON date.target - 6d .. date.target\nDURING block.any\nTASK 'x'")
-    assert copy.statements[0].on.items == tuple(dataset.session_dates[:4])
-    (copy,) = resolve(
-        dataset, "ON date.target + 1d .. date.target + 10d\nDURING block.any\nTASK 'x'"
-    )
-    assert copy.statements[0].on.items == tuple(dataset.session_dates[4:])
-    (copy,) = resolve(dataset, "ON date.session\nDURING block.any\nTASK 'x'")
-    assert copy.statements[0].on.items == tuple(dataset.session_dates)
-    (copy,) = resolve(dataset, "ON date.friday\nDURING block.any\nTASK 'x'")
-    assert copy.statements[0].on.items == (date(2026, 9, 18), date(2026, 9, 25))
-    (copy,) = resolve(dataset, "ON 2026-10-01\nDURING block.any\nTASK 'x'")
-    assert copy.statements[0].on.items == ()
+    assert on(dataset, "{(date.target - 6d) .. date.target}") == dataset.session_dates[:4]
+    assert on(dataset, "{(date.target + 1d) .. (date.target + 10d)}") == dataset.session_dates[4:]
+    assert on(dataset, "{2026-10-20 .. 2026-10-21}") == ()  # no such camp days
+    assert on(dataset, "date.session.fridays") == (date(2026, 9, 18), date(2026, 9, 25))
 
 
-def test_weekday_names_hold_every_such_day_of_the_session(dataset):
-    (one_monday,) = resolve(dataset, "ON date.monday\nDURING block.any\nTASK 'x'")
-    assert one_monday.statements[0].on.items == (date(2026, 9, 14), date(2026, 9, 21))
-    every = resolve(dataset, "ON EACH date.monday\nDURING block.any\nTASK 'x'")
-    assert [c.statements[0].on.items for c in every] == [(date(2026, 9, 14),), (date(2026, 9, 21),)]
-    assert [c.key for c in every] == ["", ""]  # dates are left out of the copy key
+def test_date_scopes(dataset):
+    assert on(dataset, "date.session.all") == dataset.session_dates
+    assert on(dataset, "date.session_2.all") == dataset.sessions["session_2"]
+    assert len(on(dataset, "date.season.all")) == 21
+    assert on(dataset, "date.session.first", item=True) == (date(2026, 9, 13),)
+    assert on(dataset, "date.season.last", item=True) == (date(2026, 10, 3),)
+    assert on(dataset, "date.session.first_thursday", item=True) == (date(2026, 9, 17),)
+    assert on(dataset, "date.session.second_thursday", item=True) == (date(2026, 9, 24),)
+    assert on(dataset, "date.session.last_thursday", item=True) == (date(2026, 9, 24),)
+    assert on(dataset, "date.season.first_mondays") == (date(2026, 9, 14), date(2026, 9, 28))
+    assert on(dataset, "date.season.last_fridays") == (date(2026, 9, 25), date(2026, 10, 2))
+    with pytest.raises(SkedgeError, match="unknown date name 'session.third_thursday'"):
+        on(dataset, "date.session.third_thursday", item=True)
+    with pytest.raises(SkedgeError, match="needs a quantifier"):
+        resolve(dataset, "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON date.session.mondays")
 
 
-def test_ordinal_and_last_date_names(dataset):
-    def on(name):
-        (copy,) = resolve(dataset, f"ON date.{name}\nDURING block.any\nTASK 'x'")
-        return copy.statements[0].on.items
-
-    assert on("first_thursday") == (date(2026, 9, 17),)
-    assert on("second_thursday") == (date(2026, 9, 24),)
-    assert on("last_thursday") == (date(2026, 9, 24),)
-    assert on("first_sunday") == (date(2026, 9, 13),)
-    with pytest.raises(SkedgeError, match="unknown date name 'third_thursday'"):
-        resolve(dataset, "ON date.third_thursday\nDURING block.any\nTASK 'x'")
-
-
-def test_each_splits_a_filter_verb_too(dataset):
-    copies = resolve(
-        dataset,
-        "ON date.target\nACROSS EACH staff.counselor\nDURING block.any_clinic\n"
-        "PREFER activity.any_clinic",
-    )
-    assert [c.key for c in copies] == ["dylan", "james", "paul"]
-    assert copies[0].statements[0].across.items == ("dylan",)
-
-
-def test_across_groups_keep_their_alternatives_for_filter_verbs(dataset):
+def test_roles(dataset):
     (copy,) = resolve(
         dataset,
-        "ON date.target\nDURING block.any_clinic\n"
-        "ACROSS {staff.james AND staff.paul}\nAVOID activity.any_clinic",
+        "REQUEST staff.dylan DO activity.candle_making AS_ROLE role.trainee DURING ANY_1_OF block.any_clinic",
     )
-    across = copy.statements[0].across
-    assert across.alternatives == (frozenset({"james", "paul"}),)
-    assert across.items == ("james", "paul")
-
-
-def test_quantifiers_and_groups(dataset):
-    (copy,) = resolve(dataset, "ON date.target\nDURING 3 OF block.any_clinic\nTASK 'break'")
-    during = copy.statements[0].during
-    assert during.quantifier == ast.Quantifier("OF", 3)
-    assert during.items == ("clinic_1", "clinic_2", "clinic_3", "clinic_4")
-    (copy,) = resolve(
-        dataset, "ON date.target\nDURING ALL block.any\nACROSS staff.dylan\nTASK FREE"
-    )
-    assert copy.statements[0].during.quantifier.kind == "ALL"
-    assert set(copy.statements[0].during.items) == set(dataset.blocks)
-
-
-def test_roles_and_metrics(dataset):
+    assert copy.statements[0].role.items == ("trainee",)
     (copy,) = resolve(
         dataset,
-        "ON date.target\nDURING block.any_clinic\nACROSS staff.dylan\n"
-        "TASK activity.candle_making ROLE role.trainee FOR 2h CONTINUOUS",
-    )
-    s = copy.statements[0]
-    assert s.role.items == ("trainee",) and s.minutes == 120 and s.continuous
-    (copy,) = resolve(
-        dataset, "DURING block.any_clinic\nPREFER activity.any_clinic ~ metric.enjoyment"
+        "PREFER AT_MOST 3 staff.rob DOING activity.ropes AS_ROLE EACH_OF {role.first + role.second}",
     )[:1]
-    assert copy.statements[0].metric == "enjoyment"
-    assert set(copy.statements[0].target.items) == set(dataset.activities)
+    assert copy.key == "first" and copy.statements[0].pattern.role.kind == POOL
+
+
+def test_name_listing_matches_the_namespaces(dataset):
+    listing = name_listing(dataset)
+    assert list(listing) == ["staff", "activity", "block", "date", "role", "metric"]
+    assert ("all", "category, 21 members") in listing["staff"]
+    assert ("all", "category, 16 members") in listing["activity"]
+    assert ("session.second_thursday", "2026-09-24") in listing["date"]
+    assert ("season.first_mondays", "2 dates") in listing["date"]
+    assert ("trainee", "trainee") in listing["role"]
+    assert ("preference", "scale 1-5") in listing["metric"]
+
+
+def test_ast_positions_survive_into_errors(dataset):
+    with pytest.raises(SkedgeError) as info:
+        resolve(dataset, "REQUEST staff.dylan DO activity.nope DURING block.clinic_1")
+    assert (info.value.line, info.value.column) == (1, 24)
+    assert isinstance(ast.Pos(1, 24), ast.Pos)

@@ -94,7 +94,9 @@ def dataset(
     metrics=None,
     target=TARGET,
     blocks=None,
+    rests=None,
 ):
+    """A one-week session around `target`. `rests` maps a date to {staff id: resting block ids}."""
     blocks = blocks or BLOCKS
     block_objects = {
         name: Block(
@@ -102,7 +104,7 @@ def dataset(
             time.fromisoformat(s),
             time.fromisoformat(e),
             frozenset({"regular"}),
-            frozenset(c) | {"any"},
+            frozenset(c) | {"all"},
         )
         for name, (s, e, c) in blocks.items()
     }
@@ -110,19 +112,30 @@ def dataset(
     staff_by_id = {s.id: s for s in members}
     activity_by_id = {a.id: a for a in activities}
     session = [target - timedelta(days=3) + timedelta(days=i) for i in range(7)]
+    rests = rests or {}
+    if target in rests:
+        staff_by_id = {
+            i: replace(s, resting_blocks=rests[target].get(i, frozenset()))
+            for i, s in staff_by_id.items()
+        }
+    working = frozenset(i for i, s in staff_by_id.items() if s.resting_blocks != set(block_objects))
     built = Dataset(
         target=target,
         staff=staff_by_id,
         staff_categories={
-            "all": frozenset(staff_by_id),
+            "all": working,
             "clinic_trainers": frozenset(
                 s.id for s in members if any(v.can_scaffold for v in s.skills.values())
-            ),
-            **{k: frozenset(normalize(n) for n in v) for k, v in (categories or {}).items()},
+            )
+            & working,
+            **{
+                k: frozenset(normalize(n) for n in v) & working
+                for k, v in (categories or {}).items()
+            },
         },
         activities=activity_by_id,
         activity_categories={
-            "any_clinic": frozenset(activity_by_id),
+            "all": frozenset(activity_by_id),
             **{
                 c: frozenset(a.id for a in activities if a.category == c)
                 for c in {a.category for a in activities}
@@ -138,6 +151,7 @@ def dataset(
         requests=tuple(requests),
         metrics=metrics or {},
         published=published or {},
+        resting=rests,
     )
     return replace(built, requests=built.requests + tuple(generated_requests(built)))
 
@@ -145,7 +159,7 @@ def dataset(
 def published(day, *rows, blocks=None):
     """rows: (staff, activity, role, block[, minutes]). Whole block unless minutes given.
 
-    An activity in quotes is an ad hoc task.
+    An activity in quotes is a quoted task.
     """
     blocks = blocks or BLOCKS
     assignments = []
@@ -161,7 +175,7 @@ def published(day, *rows, blocks=None):
     return {day: tuple(assignments)}
 
 
-def enjoyment(values: dict[tuple[str, str], float], default: float | None = None):
-    """A 1-5 enjoyment metric keyed by staff and activity."""
+def preference(values: dict[tuple[str, str], float], default: float | None = None):
+    """A 1-5 preference metric keyed by staff and activity."""
     table = {(normalize(s), normalize(a)): v for (s, a), v in values.items()}
-    return {"enjoyment": Metric("enjoyment", ("staff", "activity"), 1, 5, table, default)}
+    return {"preference": Metric("preference", ("staff", "activity"), 1, 5, table, default)}

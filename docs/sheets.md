@@ -20,7 +20,7 @@ tabs are for people.
 | `LG_Required` | Optional. Lifeguards **in addition to** `Staff_Required`. A water clinic with one facilitator and one lifeguard has `Staff_Required` 1 and `LG_Required` 1. Every lifeguard position needs the `LIFEGUARD` skill at RAL 5. |
 | `Category` | Becomes `activity.<category>`, for example `activity.ropes`. |
 
-Built in: `activity.any_clinic` is every clinic. Positions are `role.first`, `role.second`,
+Built in: `activity.all` is every clinic. Positions are `role.first`, `role.second`,
 `role.third` for the facilitators, then `role.lifeguard`, `role.lifeguard_2` for the
 lifeguards.
 
@@ -77,7 +77,7 @@ One row per time block. Blocks are the units the solver assigns staff to.
 | `block_id` | The block's name, used in requests as `block.<block_id>`. |
 | `start`, `end` | The block's times, written any ordinary way: `8:30`, `08:30` and `8:30 AM` all mean the same thing. Blocks may overlap; the solver never gives one person two assignments that overlap in time. |
 | `day_types` | **Comma-separated.** The kinds of day this block exists on. Each date's kind comes from the Calendar sheet's `day_type` column. A block whose list does not include that day's type does not exist that day, so no request can select it. |
-| `categories` | **Comma-separated.** Groups of blocks a request can name at once: `block.any_clinic`, `block.break_slots`. `block.any` (every block) is built in and need not be listed. |
+| `categories` | **Comma-separated.** Groups of blocks a request can name at once: `block.any_clinic`, `block.meals`. `block.all` (every block) is built in and may not be used as a category name. |
 
 Example:
 
@@ -94,8 +94,8 @@ only pack-out, lunch and playstation do.
 
 Blocks are the real periods of the day, not 30-minute slices. A short task such as a
 break is written with `FOR 30m` and takes part of a block; the Staff View shows the rest
-of that block as `DYOW/WPs` ("do your own work or work projects"). See
-[Skedge reference](skedge.md#task).
+of that block as `DYOW/WPs` ("do your own work or work projects"). See the
+[Skedge reference](skedge.md).
 
 If every day has the same shape, use one day type everywhere: `regular` on every block
 and on every Calendar row.
@@ -110,11 +110,12 @@ One row per camp day.
 | Column | Meaning |
 |---|---|
 | `date` | `YYYY-MM-DD`. |
-| `session` | Which session the day belongs to, such as `session_1`. `date.session` in a request means every date with the same session as the target date. Repetition windows (`AVOID … BEYOND`) never look outside the session. |
+| `session` | Which session the day belongs to, such as `session_1`. `date.session.all` in a request means every date with the same session as the target date, and `date.session_1.all` names this session wherever the target falls. `session`, `season` and `target` are not allowed as session names. |
 | `day_type` | The kind of day, matched against each block's `day_types`. Any label you like; `regular` for an ordinary day. |
 
-`date.monday` … `date.sunday` are the dates of the target's Sunday-to-Saturday week that
-fall inside the session.
+`date.session.mondays` … `date.session.sundays` are the dates of the target's session that
+fall on that weekday; `date.season.all` is every date on the sheet. See
+[Dates](skedge.md#dates) for the full list of date names.
 
 ## Requests (config spreadsheet)
 
@@ -145,8 +146,9 @@ lives here rather than in a request. The tab is optional; without it nobody is a
 ## Metrics (config spreadsheet)
 
 A metric is a table of ratings the solver can score assignments with, such as how much
-each staff member enjoys each clinic. A request uses it with `~`, for example
-`PREFER activity.any_clinic ~ metric.enjoyment`.
+each staff member prefers each clinic. A request uses it with `MAXIMIZE` or `MINIMIZE`,
+for example `PREFER EACH_OF s IN staff.all DOING EACH_OF c IN activity.all MAXIMIZE
+metric.preference(s, c)`.
 
 Metrics take **two kinds of tab** in the config spreadsheet:
 

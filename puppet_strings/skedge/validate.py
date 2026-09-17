@@ -1,11 +1,23 @@
-"""Every check a request must pass before the solver sees it."""
+"""Every check a request must pass before the solver sees it.
+
+The parser rejects what the grammar cannot say. This module checks the rest of the
+declaration's shape: statements, clauses, labels and variables. Names are checked by the
+resolver, which needs the dataset.
+"""
 
 from puppet_strings.model import Dataset, Request
-from puppet_strings.sheets.metrics import KEY_FIELDS
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.parser import parse
 from puppet_strings.skedge.resolve import Resolved, resolve
-from puppet_strings.skedge.scope import ScopedDeclaration, ScopedVerb, scope
+
+CLAUSE_NAMES = {
+    ast.During: "DURING",
+    ast.On: "ON",
+    ast.AsRole: "AS_ROLE",
+    ast.For: "FOR",
+    ast.With: "WITH",
+    ast.Without: "WITHOUT",
+}
 
 
 def validate_request(request: Request, dataset: Dataset) -> tuple[Resolved, ...]:
@@ -14,110 +26,129 @@ def validate_request(request: Request, dataset: Dataset) -> tuple[Resolved, ...]
         raise ast.SkedgeError("weight must be positive", 1, 1)
     if request.priority.hard and request.weight != 1:
         raise ast.SkedgeError("weight is not allowed with MUST_HAPPEN", 1, 1)
-    scoped = scope(parse(request.skedge))
-    check(scoped, hard=request.priority.hard)
-    return resolve(scoped, dataset)
+    declaration = parse(request.skedge)
+    check(declaration, hard=request.priority.hard)
+    return resolve(declaration, dataset)
 
 
-def check(scoped: ScopedDeclaration, hard: bool) -> None:
-    """Rules about which clauses go with which verbs, and GAP labels."""
-    labels: dict[str, ScopedVerb] = {}
-    for verb in scoped.verbs:
-        _check_verb(verb, hard)
-        label = verb.get(ast.Label)
+def check(declaration: ast.Declaration, hard: bool) -> None:
+    """The rules about a declaration's shape that need no dataset."""
+    statements = declaration.statements
+    if not statements:
+        raise ast.SkedgeError("a declaration needs at least one statement", 1, 1)
+    conditions = declaration.conditions
+    if len(conditions) > 1:
+        raise _error("only one IF or UNLESS per declaration", conditions[1].pos)
+    prefers = [s for s in statements if _is_prefer(s)]
+    if prefers and len(statements) > 1:
+        raise _error("PREFER stands alone", prefers[0].pos)
+    if prefers and hard:
+        raise _error("PREFER cannot be MUST_HAPPEN", prefers[0].pos)
+    for line in declaration.lines:
+        _check_line(line)
+    _check_labels(declaration)
+    _check_variables(declaration)
+
+
+def _is_prefer(statement: ast.Statement) -> bool:
+    return isinstance(statement, ast.Score) or (
+        isinstance(statement, ast.Count) and statement.prefer
+    )
+
+
+def _check_line(line: ast.Line) -> None:
+    if isinstance(line, ast.Requirement):
+        _check_clauses(line.clauses, line.what)
+        if line.negated:
+            return
+        if ast.clause(line.clauses, ast.During) is None:
+            raise _error("needs DURING", line.pos)
+        _one_at_a_time(line.what)
+        role = ast.clause(line.clauses, ast.AsRole)
+        _one_at_a_time(role.selector if role else None)
+        return
+    if isinstance(line, ast.Gap):
+        if not line.amount.duration:
+            raise _error("GAP needs a duration", line.amount.pos)
+        return
+    amount = getattr(line, "amount", None)
+    if amount is not None:
+        _check_amount(amount)
+    for pattern in ast.patterns(line):
+        _check_clauses(pattern.clauses, pattern.what)
+
+
+def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target) -> None:
+    seen: set[type] = set()
+    for clause in clauses:
+        if type(clause) in seen:
+            raise _error(f"{CLAUSE_NAMES[type(clause)]} given twice", clause.pos)
+        seen.add(type(clause))
+        if isinstance(clause, ast.AsRole) and not isinstance(what, ast.Selector):
+            raise _error("AS_ROLE needs an activity", clause.pos)
+        if isinstance(clause, ast.For) and not isinstance(what, ast.Task):
+            raise _error("FOR needs a quoted task", clause.pos)
+        if isinstance(clause, ast.With | ast.Without) and what is None:
+            raise _error("FREE has no instance", clause.pos)
+
+
+def _one_at_a_time(selector: ast.Selector | ast.Task | None) -> None:
+    """The activity and role of a requirement take an item, ANY_1_OF or EACH_OF."""
+    if not isinstance(selector, ast.Selector):
+        return
+    if selector.quantifier == ast.ALL_OF or (selector.quantifier == ast.ANY_OF and selector.n > 1):
+        raise _error("one activity at a time", selector.pos)
+
+
+def _check_amount(amount: ast.Amount) -> None:
+    if amount.value >= 1:
+        return
+    if amount.bound == ast.AT_LEAST:
+        raise _error("amount must be at least 1", amount.pos)
+    raise _error("write NOT DO", amount.pos)
+
+
+def _check_labels(declaration: ast.Declaration) -> None:
+    labels: set[str] = set()
+    for statement in declaration.statements:
+        label = getattr(statement, "label", None)
         if label is None:
             continue
-        if label.name in labels:
-            raise _error(f"label '{label.name}' defined twice", label)
-        labels[label.name] = verb
-    for gap in scoped.gaps:
+        positive = isinstance(statement, ast.Requirement) and not statement.negated
+        if not positive or statement.what is None:
+            raise _error("only REQUEST … DO can be labeled", statement.pos)
+        if label in labels:
+            raise _error(f"label '{label}' defined twice", statement.pos)
+        labels.add(label)
+    for gap in declaration.gaps:
         for name in (gap.first, gap.second):
             if name not in labels:
-                raise _error(f"undefined label '{name}'", gap)
-            _check_gap_task(labels[name], gap)
+                raise _error(f"undefined label '{name}'", gap.pos)
 
 
-def _check_verb(scoped: ScopedVerb, hard: bool) -> None:
-    verb = scoped.verb
-    kind = verb.kind
-    if scoped.get(ast.During) is None:
-        raise _error(f"{kind} needs DURING", verb)
-    if kind in ("PREFER", "AVOID") and hard:
-        raise _error(f"{kind} cannot be MUST_HAPPEN", verb)
-    if isinstance(verb.target, ast.Free) and kind == "FORBID":
-        raise _error("FORBID FREE is not allowed; use TASK", verb)
-    if scoped.get(ast.Role) and not isinstance(verb.target, ast.Selector):
-        raise _error("ROLE needs an activity target", scoped.get(ast.Role))
-    if (label := scoped.get(ast.Label)) and kind != "TASK":
-        raise _error("AS is only for TASK", label)
-    if (for_ := scoped.get(ast.For)) is not None:
-        if kind != "TASK":
-            raise _error("FOR is only for TASK", for_)
-        if _quantifier(scoped.get(ast.During).selector) == "ALL":
-            raise _error("FOR cannot combine with DURING ALL", for_)
-    metric = scoped.get(ast.MetricClause)
-    per = scoped.get(ast.Per)
-    if metric and kind not in ("PREFER", "AVOID"):
-        raise _error("~ is only for PREFER and AVOID", metric)
-    if metric and per:
-        raise _error("~ cannot combine with PER", metric)
-    if per:
-        if kind != "AVOID":
-            raise _error("PER ... BEYOND is only for AVOID", per)
-        if per.beyond < 1:
-            raise _error("BEYOND must be at least 1", per)
-        bad = [f for f in per.fields if f not in KEY_FIELDS]
-        if bad:
-            raise _error(f"PER fields must be some of {', '.join(KEY_FIELDS)}", per)
-    if kind != "TASK":
-        for clause, selector in _selectors(scoped):
-            # EACH still splits the declaration, which changes what PER counts together
-            if _quantifier(selector) not in (None, "ANY", "EACH"):
-                raise ast.SkedgeError(
-                    f"{kind} takes no ALL or OF; it filters assignments rather than choosing",
-                    selector.pos.line,
-                    selector.pos.column,
-                )
-            if clause != "ACROSS" and _has_and(selector.expr):
-                raise ast.SkedgeError(
-                    f"{kind}: AND belongs in ACROSS, where it means staff working together",
-                    selector.pos.line,
-                    selector.pos.column,
-                )
+def _check_variables(declaration: ast.Declaration) -> None:
+    """A binding line is visible everywhere; an inline `EACH_OF x IN s` in its statement."""
+    shared: dict[str, ast.Pos] = {}
+    for binding in declaration.bindings:
+        _bind(shared, binding.selector)
+    for line in declaration.lines:
+        if isinstance(line, ast.Binding | ast.Gap):
+            continue
+        local = dict(shared)
+        for _, selector in ast.selectors(line):
+            if selector.var is not None:
+                _bind(local, selector)
+        for expr in ast.set_exprs(line):
+            for var in ast.vars_in(expr):
+                if var.name not in local:
+                    raise _error(f"unknown variable '{var.name}'", var.pos)
 
 
-def _check_gap_task(scoped: ScopedVerb, gap: ast.Gap) -> None:
-    during = scoped.get(ast.During).selector
-    if _quantifier(during) in ("ALL", "OF") or _has_and(during.expr):
-        raise _error("GAP tasks must occupy a single block (no ALL, OF, or AND)", gap)
+def _bind(bound: dict[str, ast.Pos], selector: ast.Selector) -> None:
+    if selector.var in bound:
+        raise _error(f"variable bound twice: '{selector.var}'", selector.pos)
+    bound[selector.var] = selector.pos
 
 
-def _selectors(scoped: ScopedVerb):
-    """(clause name, selector) for every selector the verb uses."""
-    if isinstance(scoped.verb.target, ast.Selector):
-        yield scoped.verb.kind, scoped.verb.target
-    for name, kind in (
-        ("ON", ast.On),
-        ("DURING", ast.During),
-        ("ACROSS", ast.Across),
-        ("ROLE", ast.Role),
-    ):
-        clause = scoped.get(kind)
-        if clause is not None:
-            yield name, clause.selector
-
-
-def _quantifier(selector: ast.Selector) -> str | None:
-    return selector.quantifier.kind if selector.quantifier else None
-
-
-def _has_and(expr: ast.Expr) -> bool:
-    if isinstance(expr, ast.And):
-        return True
-    if isinstance(expr, ast.Or):
-        return any(_has_and(item) for item in expr.items)
-    return False
-
-
-def _error(message: str, clause: ast.Clause) -> ast.SkedgeError:
-    return ast.SkedgeError(message, clause.pos.line, clause.pos.column)
+def _error(message: str, pos: ast.Pos) -> ast.SkedgeError:
+    return ast.SkedgeError(message, pos.line, pos.column)

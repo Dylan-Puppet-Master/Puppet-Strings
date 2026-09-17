@@ -11,8 +11,9 @@ puppet-strings app
 tagged `generated`, and saves them to the Requests sheet. Loading first removes every
 generated request for the target date, so the sheet mirrors the Offerings tab: a clinic
 you removed there disappears here. Hand-written requests are never touched. Between loads
-you can delete a generated request to drop that clinic, or edit it, for example to add
-`ACROSS` to limit who runs it; loading again undoes such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
+you can delete a generated request to drop that clinic, or edit it, for example to
+replace `ANY_1_OF staff.all` with a category to limit who runs it; loading again undoes
+such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
 clinic view and the report; it asks first if no offerings are loaded for the date.
 **Publish** in that window writes the schedule to Published Schedules, asking first if the
 date is already published.
@@ -27,11 +28,11 @@ request's `ON` clause:
 
 | Scope | The `ON` clause |
 |---|---|
-| season | none: the request applies every day |
-| session | `ON date.session` |
-| week | a range, an offset such as `date.target - 6d`, or a weekday name |
+| season | none (the request applies every day), or `ON date.season.all` |
+| session | `ON date.session.all` |
+| week | a range, an offset such as `date.target - 6d`, or any other date name |
 | day | one date |
-| pin | one date, one staff member or category, `MUST_HAPPEN` |
+| pin | one date, one staff member, `MUST_HAPPEN` |
 
 The staff and activity filters use the names a request resolves to, so filtering by
 `dylan` finds requests written for `staff.counselor` as well.

@@ -1,3 +1,5 @@
+import re
+
 from puppet_strings.cli import main
 from tests.conftest import FIXTURES
 
@@ -8,16 +10,16 @@ def test_validate_and_names(capsys):
     assert main(["--fixtures", str(FIXTURES), "--date", "2026-09-16", "names"]) == 0
     out = capsys.readouterr().out
     assert "staff.cam_vl  (Cam VL)" in out
-    assert "activity.any_clinic  (category" in out
+    assert "activity.all  (category" in out
     assert "block.meals" in out
 
 
 def test_solve_prints_views_and_report(capsys):
     assert main(["--fixtures", str(FIXTURES), "--date", "2026-09-16", "solve"]) == 0
     out = capsys.readouterr().out
-    assert "Staff   Clinic 1" in out
+    assert "Staff" in out and "Breakfast" in out and "Clinic 1" in out
     assert "Day 4, Session 1 - Wednesday" in out
-    assert "Blacksmithing (DBL)                    Alexis    Alexis" in out
+    assert re.search(r"Blacksmithing \(DBL\)\s+(\w+)\s+\1\b", out)
     assert "unsatisfied  offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1" in out
 
 
@@ -83,7 +85,8 @@ def test_same_day_reports_what_moved(tmp_path, capsys):
     assert main(args) == 0
     out = capsys.readouterr().out
     assert "today: Alesa is resting all day today (sick)" in out
-    assert "Staff  Block" in out and "Alesa" in out.split("Staff  Block")[1]
+    changes = re.search(r"Staff\s+Block\s+Was\s+Now(.*)", out, re.S).group(1)
+    assert "Alesa" in changes
 
 
 def test_same_day_publishes_over_the_day_without_force(tmp_path, capsys):

@@ -6,7 +6,7 @@
 puppet_strings/
   names.py, model.py, config.py     identifiers, domain objects, config.toml
   sheets/                           one parser per sheet, CSV and Google Sheets sources, load_dataset
-  skedge/                           grammar.lark, ast, parser, scope, resolve, validate
+  skedge/                           grammar.lark, ast, parser, resolve, validate
   solver/                           variables, structural constraints, compile, tiers, solve
   publish/                          staff view, clinic view, report, writer
   app/                              PySide6 request manager

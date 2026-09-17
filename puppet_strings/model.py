@@ -315,6 +315,7 @@ class Dataset:
     published: Mapping[date, tuple[Assignment, ...]] = field(default_factory=dict)
     baseline: tuple[Assignment, ...] | None = None
     adjustments: tuple[Adjustment, ...] = ()
+    resting: Mapping[date, Mapping[str, frozenset[str]]] = field(default_factory=dict)
     warnings: tuple[str, ...] = ()
 
     @property
@@ -326,15 +327,31 @@ class Dataset:
     @property
     def session_dates(self) -> tuple[date, ...]:
         """Dates of the session containing the target, in order."""
-        session = self.calendar[self.target].session
-        return tuple(sorted(d for d, day in self.calendar.items() if day.session == session))
+        return self.sessions[self.calendar[self.target].session]
+
+    @property
+    def season_dates(self) -> tuple[date, ...]:
+        """Every date on the calendar, in order."""
+        return tuple(sorted(self.calendar))
+
+    @property
+    def sessions(self) -> dict[str, tuple[date, ...]]:
+        """Each session's dates in order, sessions in calendar order."""
+        grouped: dict[str, list[date]] = {}
+        for day in self.season_dates:
+            grouped.setdefault(self.calendar[day].session, []).append(day)
+        return {session: tuple(days) for session, days in grouped.items()}
 
     def blocks_on(self, day: date) -> tuple[Block, ...]:
-        """Blocks that exist on a date, by start time."""
+        """Blocks that exist on a date, in Blocks sheet order."""
         day_type = self.calendar[day].day_type
-        return tuple(
-            sorted(
-                (b for b in self.blocks.values() if day_type in b.day_types),
-                key=lambda b: (b.start, b.end),
-            )
-        )
+        return tuple(b for b in self.blocks.values() if day_type in b.day_types)
+
+    def holds(self, staff_id: str, day: date, block_id: str) -> bool:
+        """Whether a date can hold an assignment: the block exists and the person is not resting."""
+        if (
+            day not in self.calendar
+            or self.calendar[day].day_type not in self.blocks[block_id].day_types
+        ):
+            return False
+        return block_id not in self.resting.get(day, {}).get(staff_id, frozenset())

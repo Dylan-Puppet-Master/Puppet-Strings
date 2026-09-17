@@ -1,16 +1,17 @@
 """Assignment variables: one boolean per (staff, activity, role, block) on the target date.
 
 Every variable carries a time interval inside its block. A clinic position fills the block;
-an ad hoc task has a movable start and a variable length, so `FOR 30m` can take part of a
+a quoted task has a movable start and a variable length, so `FOR 30m` can take part of a
 block. Past dates come from Published Schedules and are looked up as plain values.
 """
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import date
 
 from ortools.sat.python import cp_model
 
-from puppet_strings.model import Activity, Block, Dataset
+from puppet_strings.model import Activity, Assignment, Block, Dataset
 
 Literal = cp_model.IntVar | bool
 
@@ -63,10 +64,6 @@ class Variables:
         self.sources: dict[Slot, str] = {}
         self.instances: dict[tuple[str, str], Instance] = {}
         self.free_literals: dict[tuple[str, str], cp_model.IntVar] = {}
-        self._past: dict[date, dict[tuple[str, str, str | None, str], int]] = {
-            day: {(a.staff, a.activity, a.role, a.block): a.minutes for a in rows}
-            for day, rows in dataset.published.items()
-        }
 
     # -- creation ---------------------------------------------------------------------
 
@@ -91,39 +88,41 @@ class Variables:
             self.instances[activity_id, block] = instance
         return instance
 
-    def trainee(self, staff_id: str, activity_id: str, block: str, source: str) -> Literal:
-        """The trainee variable for a staff member on an instance; False if no instance."""
+    def trainee(self, staff_id: str, activity_id: str, block: str, source: str) -> tuple:
+        """(role, variable) for a staff member training on an instance; (None, False) if none."""
         instance = self.instances.get((activity_id, block))
-        if instance is None:
-            return False
+        if instance is None or block in self.dataset.staff[staff_id].resting_blocks:
+            return None, False
         if staff_id in instance.trainees:
-            return instance.trainees[staff_id][1]
+            return instance.trainees[staff_id]
         skill = instance.activity.positions[0].skill if instance.activity.positions else None
         role = self.dataset.staff[staff_id].status(skill).trainee_role
         var = self.model.NewBoolVar(f"x:{staff_id}:{activity_id}:{role}")
         instance.trainees[staff_id] = (role, var)
         self._register(staff_id, activity_id, role, instance.blocks, var, source)
-        return var
+        return role, var
 
     def adhoc(self, staff_id: str, text: str, block: str, source: str) -> cp_model.IntVar:
-        """The variable for a staff member doing an ad hoc task in a block."""
+        """The variable for a staff member doing a quoted task in a block."""
         slot = Slot(staff_id, text, None, block)
         if slot not in self.x:
             var = self.model.NewBoolVar(f"x:{staff_id}:{text}:{block}")
             self._register(staff_id, text, None, (block,), var, source, partial=True)
         return self.x[slot]
 
-    def adhoc_interval(self, staff_id: str, text: str, block: str, source: str) -> Interval:
-        """The interval of an ad hoc task, creating the variable if needed."""
-        self.adhoc(staff_id, text, block, source)
-        return self.intervals[Slot(staff_id, text, None, block)]
-
-    def free(self, staff_id: str, block: str) -> cp_model.IntVar:
-        """True iff the staff member has nothing overlapping this block. Linked in finish()."""
+    def free(self, staff_id: str, block: str) -> Literal:
+        """True iff the person has nothing overlapping this block; False when resting through it."""
+        if block in self.dataset.staff[staff_id].resting_blocks:
+            return False
         key = (staff_id, block)
         if key not in self.free_literals:
             self.free_literals[key] = self.model.NewBoolVar(f"free:{staff_id}:{block}")
         return self.free_literals[key]
+
+    def busy(self, staff_id: str, block: str) -> Literal:
+        """True iff the person holds something overlapping this block; False when resting."""
+        free = self.free(staff_id, block)
+        return False if free is False else free.Not()
 
     def _register(self, staff_id, activity_id, role, blocks, var, source, partial=False):
         for block in blocks:
@@ -146,58 +145,53 @@ class Variables:
         interval = self.model.NewOptionalIntervalVar(start, size, end, var, f"iv:{name}")
         return Interval(start, size, end, interval, block)
 
-    # -- lookup, with past dates as constants ---------------------------------------------
+    # -- lookup on the target date --------------------------------------------------------
 
-    def lookup(self, staff_id: str, activity_id: str, role: str | None, day: date, block: str):
-        """The assignment literal, or a constant for a past or future date."""
-        if day == self.dataset.target:
-            return self.x.get(Slot(staff_id, activity_id, role, block), False)
-        return (staff_id, activity_id, role, block) in self._past.get(day, {})
+    def lookup(self, staff_id: str, activity_id: str, role: str | None, block: str) -> Literal:
+        """The assignment variable, or False if nothing can put them there."""
+        return self.x.get(Slot(staff_id, activity_id, role, block), False)
 
-    def past_minutes(self, staff_id: str, activity_id: str, day: date, block: str) -> int:
-        """Minutes a published ad hoc assignment took, or 0."""
-        return self._past.get(day, {}).get((staff_id, activity_id, None, block), 0)
-
-    def filled(self, activity_id: str, day: date, block: str) -> Literal:
-        """Whether the activity runs fully staffed in this block on this date."""
-        if day == self.dataset.target:
-            instance = self.instances.get((activity_id, block))
-            return False if instance is None else instance.filled
-        past = self._past.get(day, {})
-        positions = self.dataset.activities[activity_id].positions
-        return all(any(key[1:] == (activity_id, p.role, block) for key in past) for p in positions)
-
-    def holders_outside(self, activity_id: str, day: date, block: str, pool) -> list[Literal]:
-        """Literals for position holders not in the pool (True constants for past dates)."""
-        if day == self.dataset.target:
-            instance = self.instances.get((activity_id, block))
-            if instance is None:
-                return []
-            return [
-                v
-                for holders in instance.holders.values()
-                for s, v in holders.items()
-                if s not in pool
-            ]
+    def holders(self, staff_id: str, activity_id: str, block: str) -> list[cp_model.IntVar]:
+        """The variables for a staff member holding any position of an activity in a block."""
+        instance = self.instances.get((activity_id, block))
+        if instance is None:
+            return []
         return [
-            True
-            for key in self._past.get(day, {})
-            if key[1] == activity_id and key[3] == block and key[0] not in pool
+            v for holders in instance.holders.values() for s, v in holders.items() if s == staff_id
         ]
 
-    def is_free(self, staff_id: str, day: date, block: str) -> Literal:
-        """Free literal for the target date, or a constant for a past date."""
-        if day == self.dataset.target:
-            return self.free(staff_id, block)
+    def members(self, staff_id: str, activity_id: str, block: str) -> list[cp_model.IntVar]:
+        """The variables for a staff member being on an instance in any role, trainee included."""
+        if activity_id not in self.dataset.activities:
+            var = self.lookup(staff_id, activity_id, None, block)
+            return [] if var is False else [var]
+        found = self.holders(staff_id, activity_id, block)
+        instance = self.instances.get((activity_id, block))
+        if instance is not None and staff_id in instance.trainees:
+            found.append(instance.trainees[staff_id][1])
+        return found
+
+    # -- published dates, as facts ---------------------------------------------------------
+
+    def published(self, day: date) -> tuple[Assignment, ...]:
+        """What was published for a past date."""
+        return self.dataset.published.get(day, ())
+
+    def was_free(self, staff_id: str, day: date, block: str) -> bool:
+        """Whether nothing published overlaps this block for the person on a past date."""
         blocks = self.dataset.blocks
         return not any(
-            key[0] == staff_id and blocks[key[3]].overlaps(blocks[block])
-            for key in self._past.get(day, {})
+            a.staff == staff_id and blocks[a.block].overlaps(blocks[block])
+            for a in self.published(day)
         )
 
-    def past_assignments(self, day: date):
-        """Published (staff, activity, role, block) keys on a past date."""
-        return self._past.get(day, {}).keys()
+    def was_member(
+        self, staff_id: str, activity_id: str, day: date, block: str
+    ) -> Iterator[Assignment]:
+        """The published assignments putting a person on an instance on a past date."""
+        for a in self.published(day):
+            if a.staff == staff_id and a.activity == activity_id and a.block == block:
+                yield a
 
     # -- finish -----------------------------------------------------------------------------
 

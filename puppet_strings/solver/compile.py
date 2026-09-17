@@ -1,50 +1,64 @@
-"""Compile resolved Skedge statements into CP-SAT constraints and objective terms.
+"""Compile resolved Skedge declarations into CP-SAT constraints and objective terms.
 
-Each expanded copy of a request gets a satisfaction literal `sat`. TASK, FORBID and GAP add
-constraints enforced by `sat`; PREFER and AVOID add objective terms. Hard requests make
-`sat` an assumption; soft ones put `weight * sat` in their tier.
+Each active copy of a REQUEST gets a satisfaction literal `sat`: an assumption when the
+request is hard, `weight * sat` in its tier when soft. A copy's constraints are enforced
+by `active`, which is `sat` and, when the declaration has a condition, that it applies.
+A PREFER adds objective terms only.
 """
 
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from itertools import product
 
 from ortools.sat.python import cp_model
 
-from puppet_strings.model import SCAFFOLDED, SHADOW, SOFT_TIERS, Dataset, Priority, Request
+from puppet_strings.model import (
+    SCAFFOLDED,
+    SHADOW,
+    SOFT_TIERS,
+    TRAINEE_ROLES,
+    Assignment,
+    Dataset,
+    Priority,
+    Request,
+)
 from puppet_strings.skedge import ast
-from puppet_strings.skedge.resolve import TRAINEE, Choice, Resolved, Statement
+from puppet_strings.skedge.resolve import (
+    ALL,
+    ANY,
+    DEFAULT_POS,
+    TRAINEE,
+    Choice,
+    Condition,
+    Count,
+    Forbid,
+    Pattern,
+    Requirement,
+    Resolved,
+    Score,
+)
 from puppet_strings.solver.variables import Literal, Slot, Variables
 
 SCALE = 1000
-DEFER_BONUS = 1
+DEFER_BONUS = 1  # for acting early on a deferrable request; sits in the last tier
+MINUTES_PER_HOUR = 60
+ONE_MATCH = ast.Amount(ast.AT_LEAST, 1, False, DEFAULT_POS)
 
 
 @dataclass(frozen=True)
 class Compiled:
-    """One expanded copy of a request in the model."""
+    """One active copy of a REQUEST in the model."""
 
     id: str
     request: Request
     sat: cp_model.IntVar
-    deferrable: bool
-    constrained: bool
-
-    @property
-    def enforced(self) -> bool:
-        """Whether `sat` must be true: hard and not deferrable."""
-        return self.request.priority.hard and not self.deferrable
-
-    @property
-    def tier(self) -> Priority:
-        """The tier whose objective this copy's terms join."""
-        return Priority.CLINIC if self.request.priority.hard else self.request.priority
+    deferred: Literal  # true when the copy is met only by what later dates can still hold
 
 
 @dataclass(frozen=True)
-class Matched:
-    """One assignment a filter verb matched: its fields and its literal."""
+class Match:
+    """One assignment a pattern matches: its fields, its literal and its length."""
 
     staff: str
     activity: str
@@ -52,6 +66,29 @@ class Matched:
     date: date
     block: str
     literal: Literal
+    minutes: int | cp_model.IntVar
+
+
+@dataclass(frozen=True)
+class Made:
+    """One assignment a requirement makes on the target date, with its times, for GAP."""
+
+    literal: Literal
+    start: int | cp_model.IntVar
+    end: int | cp_model.IntVar
+
+
+@dataclass(frozen=True)
+class Row:
+    """An assignment the target date may hold, or a past date did."""
+
+    staff: str
+    activity: str
+    role: str | None
+    block: str
+    literal: Literal
+    minutes: int | cp_model.IntVar
+    start: int | cp_model.IntVar
 
 
 class Compiler:
@@ -63,466 +100,733 @@ class Compiler:
         self.dataset = dataset
         self.terms: dict[Priority, list[tuple[int, cp_model.IntVar]]] = {t: [] for t in SOFT_TIERS}
         self.compiled: list[Compiled] = []
-        self.asked_for: dict[Slot, list[Literal]] = {}  # what selects each ad hoc assignment
+        self.asked_for: dict[Slot, list[Literal]] = {}  # what asks for each quoted-task assignment
+        self.shortened: dict[Slot, list[Literal]] = {}  # what gives it a FOR length
+        self._same_starts: dict[tuple[int, int], cp_model.IntVar] = {}
+        self._name = ""
+        self._bindings: dict[str, Choice] = {}
+        self._shared: dict[str, dict] = {}
+
+    # -- preparation ---------------------------------------------------------------------------
 
     def prepare(self, copies: list[tuple[Request, Resolved]]) -> None:
-        """Create instances for every activity a TASK may run on the target date.
+        """Create what a positive REQUEST may put on the target date.
 
-        A (DBL) clinic asked for with `DURING ALL` of two blocks is one instance spanning
-        both, so the same staff hold it throughout.
+        A clinic instance exists only where a `REQUEST … DO` names it. A quoted-task or
+        trainee assignment exists where one asks for it, or where a `REQUEST AT_LEAST` or
+        `EXACTLY` pattern could match it, partners named by `WITH` included.
         """
+        target = self.dataset.target
         for request, copy in copies:
-            for statement in copy.statements:
-                if statement.verb != "TASK" or not isinstance(statement.target, Choice):
+            for st in copy.statements:
+                if isinstance(st, Requirement) and st.what is not None and target in st.on.items:
+                    self._create(st.who.items, st.what, st.during, st.role, st.with_, request.id)
+                if not isinstance(st, Count) or st.prefer or st.amount.bound == ast.AT_MOST:
                     continue
-                if statement.role or self.dataset.target not in statement.on.items:
-                    continue
-                blocks = sorted(statement.during.items, key=lambda b: self.dataset.blocks[b].start)
-                spans = statement.during.quantifier.kind == "ALL" and len(blocks) == 2
-                for activity_id in statement.target.items:
-                    if spans and self.dataset.activities[activity_id].double:
-                        self.variables.instance(activity_id, tuple(blocks), request.id)
-                        continue
-                    for block in blocks:
-                        self.variables.instance(activity_id, (block,), request.id)
+                p = st.pattern
+                if p.what is not None and target in p.on.items:
+                    self._create(p.who.items, p.what, p.during, p.role, p.with_, request.id)
 
-    def compile(self, request: Request, copy: Resolved) -> Compiled | None:
-        """Add one expanded copy of a request. Returns None when it has nothing to decide."""
-        target = self.dataset.target
-        task_dates = [d for s in copy.statements if s.verb == "TASK" for d in s.on.items]
-        if task_dates and target not in task_dates:
-            return None
-        if not task_dates and not any(target in s.on.items for s in copy.statements):
-            return None
-        deferrable = bool(task_dates) and max(task_dates) > target
-        constrained = any(s.verb in ("TASK", "FORBID") for s in copy.statements)
-        name = f"{request.id}[{copy.key}]" if copy.key else request.id
+    def _create(self, staff_ids, what, during, role, partners, source: str) -> None:
+        today = [b.id for b in self.dataset.blocks_on(self.dataset.target)]
+        blocks = [b for b in (during.items if during else today) if b in today]
+        people = set(staff_ids) | (partners or frozenset())
+        if isinstance(what, ast.Task):
+            for s, b in product(people, blocks):
+                self.variables.adhoc(s, what.text, b, source)
+            return
+        spans = during is not None and during.kind == ALL and len(blocks) == 2
+        trainees = role is not None and set(role.items) & {TRAINEE, *TRAINEE_ROLES}
+        for activity_id in what.items:
+            if spans and self.dataset.activities[activity_id].double:
+                ordered = sorted(blocks, key=lambda b: self.dataset.blocks[b].start)
+                self.variables.instance(activity_id, tuple(ordered), source)
+            else:
+                for b in blocks:
+                    self.variables.instance(activity_id, (b,), source)
+            if trainees:
+                for s, b in product(staff_ids, blocks):
+                    self.variables.trainee(s, activity_id, b, source)
+
+    # -- one copy ------------------------------------------------------------------------------
+
+    def compile(self, request: Request, copy: Resolved) -> bool:
+        """Add one copy. Returns False when it is inactive: its dates all past or all future."""
+        if not self._active(copy):
+            return False
+        self._name = name = f"{request.id}[{copy.key}]" if copy.key else request.id
+        self._bindings, self._shared = copy.bindings, {}
+        tier = Priority.CLINIC if request.priority.hard else request.priority
+        applies = self._applies(copy.condition, name)
+        statement = copy.statements[0]
+        if isinstance(statement, Score) or (isinstance(statement, Count) and statement.prefer):
+            self._prefer(statement, applies, request.weight, tier, name)
+            return True
         sat = self.model.NewBoolVar(f"sat:{name}")
-        compiled = Compiled(name, request, sat, deferrable, constrained)
-        if not constrained:
-            self.model.Add(sat == 1)  # PREFER and AVOID score their matches, not `sat`
-        elif compiled.enforced:
+        if request.priority.hard:
             self.model.AddAssumption(sat)
-        elif deferrable:
-            self.terms[compiled.tier].append((DEFER_BONUS, sat))
         else:
-            self.terms[compiled.tier].append((round(SCALE * request.weight), sat))
-        labels: dict[str, tuple[Statement, dict, dict]] = {}
-        for statement in copy.statements:
-            if statement.verb == "TASK":
-                across, chosen_blocks = self._task(statement, sat, name, deferrable, compiled.tier)
-                if statement.label:
-                    labels[statement.label] = (statement, across, chosen_blocks)
-            elif statement.verb == "FORBID":
-                self._forbid(statement, sat)
+            self.terms[tier].append((round(SCALE * request.weight), sat))
+        active = self._all_of([sat, applies], f"active:{name}")
+        for var, binding in copy.bindings.items():
+            self._shared[var] = self._choose(replace(binding, var=None), sat, f"{name}:{var}")
+        deferred: list[Literal] = []
+        made: dict[str, list[Made]] = {}
+        for st in copy.statements:
+            if isinstance(st, Requirement):
+                assignments, later = self._require(st, active, name)
+                deferred.append(later)
+                if st.label:
+                    made[st.label] = assignments
+            elif isinstance(st, Forbid):
+                self._forbid(st, active, name)
             else:
-                self._score(statement, request.weight, compiled.tier)
+                deferred.append(self._count(st, active, name))
         for gap in copy.gaps:
-            self._gap(gap, sat, name, labels[gap.first], labels[gap.second])
-        self.compiled.append(compiled)
-        return compiled
-
-    # -- TASK --------------------------------------------------------------------------------
-
-    def _task(self, st: Statement, sat, name: str, deferrable: bool, tier: Priority):
-        """Returns the staff choice literals and the target-date block literals."""
-        across = self._choose(st.across, sat, f"{name}:staff")
-        roles = self._choose(st.role, sat, f"{name}:role") if st.role else {None: sat}
-        targets = (
-            self._choose(st.target, sat, f"{name}:activity")
-            if isinstance(st.target, Choice)
-            else {st.target: sat}
+            self._gap(gap, active, made[gap.first], made[gap.second], name)
+        self.compiled.append(
+            Compiled(name, request, sat, self._any_of(deferred, f"deferred:{name}"))
         )
-        target = self.dataset.target
-        if st.minutes is None:
-            on = self._choose(st.on, sat, f"{name}:date")
-            chosen_blocks = self._choose(st.during, sat, f"{name}:block")
-            slots = {(d, b): [on[d], chosen_blocks[b]] for d in on for b in chosen_blocks}
-        else:
-            slots = self._for_slots(st, sat, name, deferrable, tier, across)
-            chosen_blocks = {b: lits[0] for (d, b), lits in slots.items() if d == target}
-        for (day, block), conditions in slots.items():
-            for target, target_lit in targets.items():
-                for staff_id, staff_lit in across.items():
-                    for role, role_lit in roles.items():
-                        conds = conditions + [target_lit, staff_lit, role_lit]
-                        self._require(st, target, staff_id, role, day, block, conds, name)
-                if isinstance(target, str) and st.role is None:
-                    pool = set(across)
-                    for outside in self.variables.holders_outside(target, day, block, pool):
-                        self._imply(conditions + [target_lit], _negate(outside))
-        return across, chosen_blocks
+        return True
 
-    def _require(self, st: Statement, target, staff_id, role, day, block, conds, name) -> None:
-        if isinstance(target, ast.Free):
-            self._imply(conds, self.variables.is_free(staff_id, day, block))
-        elif isinstance(target, ast.AdHoc):
-            if day != self.dataset.target:
-                self._imply(conds, self.variables.lookup(staff_id, target.text, None, day, block))
+    def _active(self, copy: Resolved) -> bool:
+        target = self.dataset.target
+        dates = {d for st in copy.statements for d in _dates_of(st)}
+        if target in dates:
+            return True
+        return any(d < target for d in dates) and any(d > target for d in dates)
+
+    def _applies(self, condition: Condition | None, name: str) -> Literal:
+        if condition is None:
+            return True
+        amount = condition.amount or ONE_MATCH
+        holds = self._holds(amount, condition.pattern, condition.consecutive, f"if:{name}")
+        return _negate(holds) if condition.unless else holds
+
+    # -- PREFER --------------------------------------------------------------------------------
+
+    def _prefer(self, st: Score | Count, applies: Literal, weight: float, tier, name: str) -> None:
+        if applies is False:
+            return
+        if isinstance(st, Score):
+            metric = self.dataset.metrics[st.metric]
+            sign = 1 if st.maximize else -1
+            coefficient = sign * round(SCALE * weight * metric.normalized(st.key))
+            if not coefficient:
                 return
-            interval = self.variables.adhoc_interval(staff_id, target.text, block, name)
-            self._imply(conds, self.variables.adhoc(staff_id, target.text, block, name))
-            slot = Slot(staff_id, target.text, None, block)
-            selector = self._all_of(list(conds), f"asks:{name}:{staff_id}:{block}")
+            for m in self._matches(st.pattern, past=False):
+                literal = self._all_of([m.literal, applies], f"score:{name}:{m.staff}:{m.block}")
+                if not isinstance(literal, bool):
+                    self.terms[tier].append((coefficient, literal))
+            return
+        miss, bound = self._miss(st.amount, st.pattern, st.consecutive, name)
+        if isinstance(miss, int):
+            return
+        if applies is not True:
+            gated = self.model.NewIntVar(0, bound, f"miss:{name}:applies")
+            self.model.Add(gated >= miss).OnlyEnforceIf(applies)
+            miss = gated
+        unit = MINUTES_PER_HOUR if st.amount.duration else 1
+        self.terms[tier].append((-round(SCALE * weight / unit), miss))
+
+    # -- requirements --------------------------------------------------------------------------
+
+    def _require(self, st: Requirement, active, name: str) -> tuple[list[Made], Literal]:
+        """Every chosen staff member does the thing in every chosen block on every chosen date."""
+        target = self.dataset.target
+        who = self._choose(st.who, active, f"{name}:staff")
+        whats = (
+            self._choose(st.what, active, f"{name}:activity")
+            if isinstance(st.what, Choice)
+            else {st.what: True}
+        )
+        blocks = self._choose(st.during, active, f"{name}:block")
+        roles = self._choose(st.role, active, f"{name}:role") if st.role else {None: True}
+        dates = self._choose(st.on, active, f"{name}:date")
+        made = []
+        for (d, on), (b, on_b), (s, on_s), (w, on_w), (r, on_r) in product(
+            dates.items(), blocks.items(), who.items(), whats.items(), roles.items()
+        ):
+            conds = [active, on, on_b, on_s, on_w, on_r]
+            if d < target:
+                self._imply(conds, self._was_held(s, w, r, d, b, st))
+                continue
+            if not self.dataset.holds(s, d, b):
+                self._imply(conds, False)
+                continue
+            if d > target:
+                continue  # a later date can hold it, and holds nothing yet
+            held, start, end = self._hold(s, w, r, b, st, conds, name)
+            self._imply(conds, held)
+            self._partners(s, w, b, st, conds, name)
+            made.append(Made(self._all_of(conds, f"made:{name}:{s}:{b}"), start, end))
+        later = [on for d, on in dates.items() if d > target]
+        if not later or st.on.kind != ANY:
+            return made, False
+        if target in dates:
+            self._bonus(dates[target])
+        return made, self._any_of(later, f"later:{name}")
+
+    def _hold(self, s: str, w, r, b: str, st: Requirement, conds: list, name: str) -> tuple:
+        """The literal for one assignment on the target date, and its start and end."""
+        block = self.dataset.blocks[b]
+        if w is None:
+            return self.variables.free(s, b), block.start_minute, block.end_minute
+        if isinstance(w, ast.Task):
+            var = self.variables.adhoc(s, w.text, b, name)
+            slot = Slot(s, w.text, None, b)
+            interval = self.variables.intervals[slot]
+            selector = self._all_of(conds, f"asks:{name}:{s}:{b}")
             self.asked_for.setdefault(slot, []).append(selector)
-            if st.minutes is None:  # without FOR, the task fills the block
-                self.model.Add(interval.size == interval.block.minutes).OnlyEnforceIf(conds)
-        elif st.role is None:
-            self._imply(conds, self.variables.filled(target, day, block))
-        elif role == TRAINEE:
-            if day == self.dataset.target:
-                self._imply(conds, self.variables.trainee(staff_id, target, block, name))
-            else:
-                done = any(
-                    self.variables.lookup(staff_id, target, r, day, block)
-                    for r in (SHADOW, SCAFFOLDED)
-                )
-                self._imply(conds, done)
+            if st.minutes is not None:
+                self._add(interval.size == st.minutes, conds)
+                self.shortened.setdefault(slot, []).append(selector)
+            return var, interval.start, interval.end
+        if r is None:
+            held = self._any_of(self.variables.holders(s, w, b), f"holds:{name}:{s}:{w}:{b}")
+        elif r == TRAINEE or r in TRAINEE_ROLES:
+            role, var = self.variables.trainee(s, w, b, name)
+            held = var if r in (TRAINEE, role) else False
         else:
-            self._imply(conds, self.variables.lookup(staff_id, target, role, day, block))
+            held = self.variables.lookup(s, w, r, b)
+        return held, block.start_minute, block.end_minute
 
-    def _for_slots(self, st: Statement, sat, name: str, deferrable, tier, across) -> dict:
-        """`FOR`: a literal per (date, block) plus the minutes the task takes in each.
+    def _partners(self, s: str, w, b: str, st: Requirement, conds: list, name: str) -> None:
+        """WITH: someone else from the set is on the same instance. WITHOUT: nobody is."""
+        if st.with_ is not None:
+            others = [p for p in st.with_ if p != s]
+            if isinstance(w, ast.Task):
+                selector = self._all_of(conds, f"asks:{name}:{s}:{b}:with")
+                for p in others:
+                    self.asked_for.setdefault(Slot(p, w.text, None, b), []).append(selector)
+            together = [self._together(s, p, w, self.dataset.target, b) for p in others]
+            self._imply(conds, self._any_of(together, f"with:{name}:{s}:{b}"))
+        if st.without is not None:
+            for p in st.without:
+                if p != s:
+                    self._imply(conds, _negate(self._together(s, p, w, self.dataset.target, b)))
 
-        Without a quantifier the minutes add up to the duration across any blocks, with
-        blocks used partially. `n OF` means `n` blocks each holding the full duration. A
-        labeled task (used in a GAP) takes exactly one block. `CONTINUOUS` uses adjacent
-        blocks, filling all but the last.
+    def _together(self, s: str, p: str, what, d: date, b: str) -> Literal:
+        """Whether `p` holds an assignment on the same instance as `s`, in any role.
+
+        For a quoted task the same instance also means the same start time.
         """
-        target = self.dataset.target
-        partial = isinstance(st.target, ast.AdHoc)
-        y = {
-            (d, b): self.model.NewBoolVar(f"{name}:y:{d}:{b}")
-            for d in st.on.items
-            for b in st.during.items
-            if b in {blk.id for blk in self.dataset.blocks_on(d)}
-        }
-        contributions = []
-        for (day, block), chosen in y.items():
-            length = self.dataset.blocks[block].minutes
-            minutes = self.model.NewIntVar(0, length, f"{name}:minutes:{day}:{block}")
-            self.model.Add(minutes <= length * chosen)
-            contributions.append(minutes)
-            if not partial:
-                continue  # a clinic fills its block; the block's length counts when chosen
-            text = st.target.text
-            for staff_id, staff_lit in across.items():
-                if day == target:
-                    interval = self.variables.adhoc_interval(staff_id, text, block, name)
-                    self.model.Add(minutes <= interval.size).OnlyEnforceIf([chosen, staff_lit])
-                    if st.during.quantifier.kind == "OF":
-                        size_needed = interval.size >= st.minutes
-                        self.model.Add(size_needed).OnlyEnforceIf([chosen, staff_lit])
-                else:
-                    done = self.variables.past_minutes(staff_id, text, day, block)
-                    self.model.Add(minutes <= done).OnlyEnforceIf([chosen, staff_lit])
-        if st.during.quantifier.kind == "OF":
-            self.model.Add(sum(y.values()) == st.during.quantifier.n * sat)
-        self.model.Add(sum(contributions) >= st.minutes).OnlyEnforceIf(sat)
-        if st.label and not st.continuous:
-            self.model.Add(sum(y.values()) == sat)
-        if st.continuous:
-            self._continuous_runs(st, y, sat, name, across)
-        elif deferrable:
-            for (day, _), chosen in y.items():
-                if day == target:
-                    self.terms[tier].append((DEFER_BONUS, chosen))
-        return {key: [chosen] for key, chosen in y.items()}
+        activity = what.text if isinstance(what, ast.Task) else what
+        if d < self.dataset.target:
+            mine = list(self.variables.was_member(s, activity, d, b))
+            theirs = list(self.variables.was_member(p, activity, d, b))
+            if not isinstance(what, ast.Task):
+                return bool(theirs)
+            return any(a.start == a2.start for a in mine for a2 in theirs)
+        if not isinstance(what, ast.Task):
+            return self._any_of(
+                self.variables.members(p, activity, b), f"member:{p}:{activity}:{b}"
+            )
+        var = self.variables.lookup(p, activity, None, b)
+        if var is False:
+            return False
+        mine = self.variables.intervals[Slot(s, activity, None, b)]
+        theirs = self.variables.intervals[Slot(p, activity, None, b)]
+        return self._all_of(
+            [var, self._same_start(mine, theirs)], f"together:{s}:{p}:{activity}:{b}"
+        )
 
-    def _continuous_runs(self, st: Statement, y: dict, sat, name: str, across) -> None:
-        """Adjacent blocks whose lengths reach the duration; the last may be partial."""
-        blocks = self.dataset.blocks
-        target = self.dataset.target
-        runs: list[tuple[cp_model.IntVar, dict[tuple[date, str], int]]] = []
-        for day in st.on.items:
-            ordered = [b.id for b in self.dataset.blocks_on(day) if (day, b.id) in y]
-            for i in range(len(ordered)):
-                members: dict[tuple[date, str], int] = {}
-                remaining = st.minutes
-                for j in range(i, len(ordered)):
-                    if j > i and blocks[ordered[j - 1]].gap_to(blocks[ordered[j]]) != 0:
-                        break
-                    used = min(remaining, blocks[ordered[j]].minutes)
-                    members[day, ordered[j]] = used
-                    remaining -= used
-                    if remaining == 0:
-                        runs.append(
-                            (self.model.NewBoolVar(f"{name}:run:{day}:{ordered[i]}"), members)
-                        )
-                        break
-        self.model.Add(sum(run for run, _ in runs) == sat)
-        for key, chosen in y.items():
-            self.model.Add(chosen == sum(run for run, members in runs if key in members))
-        if not isinstance(st.target, ast.AdHoc):
-            return  # a clinic fills every block of its run
-        for run, members in runs:
-            for (day, block), used in members.items():
-                for staff_id, staff_lit in across.items():
-                    if day != target:
-                        if self.variables.past_minutes(staff_id, st.target.text, day, block) < used:
-                            self.model.AddBoolOr([run.Not(), staff_lit.Not()])
-                        continue
-                    interval = self.variables.adhoc_interval(staff_id, st.target.text, block, name)
-                    self.model.Add(interval.size >= used).OnlyEnforceIf([run, staff_lit])
-                    self.model.Add(interval.start == interval.block.start_minute).OnlyEnforceIf(
-                        [run, staff_lit]
-                    )
+    def _same_start(self, a, b) -> cp_model.IntVar:
+        key = tuple(sorted((a.start.Index(), b.start.Index())))
+        if key not in self._same_starts:
+            same = self.model.NewBoolVar(f"same_start:{key[0]}:{key[1]}")
+            self.model.Add(a.start == b.start).OnlyEnforceIf(same)
+            self.model.Add(a.start != b.start).OnlyEnforceIf(same.Not())
+            self._same_starts[key] = same
+        return self._same_starts[key]
 
-    def _choose(self, choice: Choice, sat, name: str) -> dict:
-        """One literal per item, tied to `sat` by the choice's alternatives or quantifier."""
-        chosen = {item: self.model.NewBoolVar(f"{name}:{item}") for item in choice.items}
-        if choice.alternatives is not None:
-            alts = [
-                self.model.NewBoolVar(f"{name}:alt{i}") for i in range(len(choice.alternatives))
-            ]
-            self.model.Add(sum(alts) == sat)
-            for item, lit in chosen.items():
-                self.model.Add(
-                    lit
-                    == sum(
-                        a for a, alt in zip(alts, choice.alternatives, strict=True) if item in alt
-                    )
-                )
-            return chosen
-        kind = choice.quantifier.kind
-        if kind == "ALL":
-            for lit in chosen.values():
-                self.model.Add(lit == sat)
+    def _was_held(self, s: str, w, r, d: date, b: str, st: Requirement) -> bool:
+        """Whether a published date holds what the requirement asks for."""
+        if w is None:
+            return self.variables.was_free(s, d, b)
+        activity = w.text if isinstance(w, ast.Task) else w
+        rows = list(self.variables.was_member(s, activity, d, b))
+        if isinstance(w, ast.Task):
+            held = any(st.minutes in (None, a.minutes) for a in rows)
+        elif r is None:
+            held = any(a.role not in TRAINEE_ROLES for a in rows)
+        elif r == TRAINEE:
+            held = any(a.role in TRAINEE_ROLES for a in rows)
         else:
-            n = choice.quantifier.n if kind == "OF" else 1
-            self.model.Add(sum(chosen.values()) == n * sat)
+            held = any(a.role == r for a in rows)
+        if not held:
+            return False
+        return self._partners_were(s, w, d, b, st.with_, st.without)
+
+    def _partners_were(self, s, what, d, b, with_, without) -> bool:
+        if with_ is not None and not any(self._together(s, p, what, d, b) for p in with_ if p != s):
+            return False
+        return without is None or not any(
+            self._together(s, p, what, d, b) for p in without if p != s
+        )
+
+    def _forbid(self, st: Forbid, active, name: str) -> None:
+        """NOT DO: no assignment of a chosen staff member matches. NOT FREE: they are busy."""
+        who = self._choose(st.who, active, f"{name}:staff")
+        for m in self._matches(st.pattern, past=False):
+            self._imply(
+                [active, who[m.staff]], m.literal if st.pattern.busy else _negate(m.literal)
+            )
+
+    # -- choices -------------------------------------------------------------------------------
+
+    def _choose(self, choice: Choice, active: Literal, name: str) -> dict:
+        """One literal per item: `active` itself for ALL, else `n` of them chosen together."""
+        if choice.var is not None:
+            if choice.var not in self._shared:  # a PREFER, which has no sat
+                binding = replace(self._bindings[choice.var], var=None)
+                self._shared[choice.var] = self._choose(binding, True, f"{self._name}:{choice.var}")
+            return self._shared[choice.var]
+        if choice.kind == ALL:
+            return dict.fromkeys(choice.items, active)
+        chosen = {item: self.model.NewBoolVar(f"{name}:{item}") for item in choice.items}
+        total = sum(chosen.values())
+        if isinstance(active, bool):
+            self.model.Add(total == (choice.n if active else 0))
+        else:
+            self.model.Add(total == choice.n * active)
         return chosen
 
-    def _imply(self, conditions: list, consequence: Literal) -> None:
-        """Conditions all true -> consequence, with constants folded."""
-        if consequence is True:
+    def _pool(self, choice: Choice | None) -> dict:
+        """Each item of a pool with the condition for its membership: True, or a shared choice."""
+        if choice is None:
+            return {}
+        if choice.var is None:
+            return dict.fromkeys(choice.items, True)
+        return self._choose(choice, True, "")
+
+    # -- patterns ------------------------------------------------------------------------------
+
+    def _matches(self, pattern: Pattern, past: bool) -> list[Match]:
+        """Every assignment the pattern matches on the target date and, with `past`, before it."""
+        target = self.dataset.target
+        who = self._pool(pattern.who)
+        whats = self._pool(pattern.what) if isinstance(pattern.what, Choice) else None
+        blocks = set(pattern.during.items) if pattern.during else None
+        roles = self._roles(pattern.role)
+        matches = []
+        for d in pattern.on.items:
+            if d > target or (d < target and not past):
+                continue
+            on_day = [b for b in self.dataset.blocks_on(d) if blocks is None or b.id in blocks]
+            if pattern.what is None:
+                for (s, on_s), block in product(who.items(), on_day):
+                    state = self._state(s, d, block.id, pattern.busy)
+                    literal = self._all_of([state, on_s], f"state:{s}:{d}:{block.id}")
+                    matches.append(Match(s, "", None, d, block.id, literal, block.minutes))
+                continue
+            ids = {b.id for b in on_day}
+            for row in self._rows(d):
+                if row.staff not in who or row.block not in ids:
+                    continue
+                if isinstance(pattern.what, ast.Task):
+                    if row.activity != pattern.what.text:
+                        continue
+                elif row.activity not in whats:
+                    continue
+                if roles is not None and row.role not in roles:
+                    continue
+                parts = [row.literal, who[row.staff], whats[row.activity] if whats else True]
+                parts.append(self._length_is(row, pattern.minutes))
+                parts.append(self._partner_matches(row, pattern, d))
+                literal = self._all_of(parts, f"match:{row.staff}:{row.activity}:{d}:{row.block}")
+                matches.append(
+                    Match(row.staff, row.activity, row.role, d, row.block, literal, row.minutes)
+                )
+        return matches
+
+    def _state(self, s: str, d: date, b: str, busy: bool) -> Literal:
+        if d == self.dataset.target:
+            return self.variables.busy(s, b) if busy else self.variables.free(s, b)
+        free = self.variables.was_free(s, d, b)
+        return not free if busy else free
+
+    def _rows(self, d: date) -> Iterator[Row]:
+        if d == self.dataset.target:
+            for slot, var in self.variables.x.items():
+                interval = self.variables.intervals[slot]
+                yield Row(
+                    slot.staff,
+                    slot.activity,
+                    slot.role,
+                    slot.block,
+                    var,
+                    interval.size,
+                    interval.start,
+                )
             return
-        clause = [c.Not() for c in conditions]
-        if consequence is not False:
-            clause.append(consequence)
-        self.model.AddBoolOr(clause)
+        for a in self.variables.published(d):
+            yield Row(a.staff, a.activity, a.role, a.block, True, a.minutes, _minute(a))
+
+    def _length_is(self, row: Row, minutes: int | None) -> Literal:
+        if minutes is None:
+            return True
+        if isinstance(row.minutes, int):
+            return row.minutes == minutes
+        same = self.model.NewBoolVar(f"length:{row.staff}:{row.activity}:{row.block}:{minutes}")
+        self.model.Add(row.minutes == minutes).OnlyEnforceIf(same)
+        self.model.Add(row.minutes != minutes).OnlyEnforceIf(same.Not())
+        return same
+
+    def _partner_matches(self, row: Row, pattern: Pattern, d: date) -> Literal:
+        what = pattern.what if isinstance(pattern.what, ast.Task) else row.activity
+        if pattern.with_ is not None:
+            others = [
+                self._together(row.staff, p, what, d, row.block)
+                for p in pattern.with_
+                if p != row.staff
+            ]
+            return self._any_of(others, f"with:{row.staff}:{row.activity}:{d}:{row.block}")
+        if pattern.without is not None:
+            others = [
+                self._together(row.staff, p, what, d, row.block)
+                for p in pattern.without
+                if p != row.staff
+            ]
+            return _negate(
+                self._any_of(others, f"without:{row.staff}:{row.activity}:{d}:{row.block}")
+            )
+        return True
+
+    @staticmethod
+    def _roles(choice: Choice | None) -> set[str] | None:
+        if choice is None:
+            return None
+        roles = set(choice.items)
+        if TRAINEE in roles:
+            roles |= {SHADOW, SCAFFOLDED}
+        return roles
+
+    # -- amounts -------------------------------------------------------------------------------
+
+    def _amount(self, matches: list[Match], duration: bool) -> tuple[list, int]:
+        """The matched amount as variable terms and a constant part."""
+        terms, constant = [], 0
+        for m in matches:
+            if m.literal is False:
+                continue
+            if not duration:
+                if m.literal is True:
+                    constant += 1
+                else:
+                    terms.append(m.literal)
+            elif isinstance(m.minutes, int):
+                if m.literal is True:
+                    constant += m.minutes
+                else:
+                    terms.append(m.minutes * m.literal)
+            else:
+                terms.append(self._used(m))
+        return terms, constant
+
+    def _used(self, m: Match) -> cp_model.IntVar:
+        """The minutes a quoted-task assignment takes: its length when made, else 0."""
+        bound = self.dataset.blocks[m.block].minutes
+        used = self.model.NewIntVar(0, bound, f"used:{m.staff}:{m.activity}:{m.block}")
+        self.model.Add(used == m.minutes).OnlyEnforceIf(m.literal)
+        self.model.Add(used == 0).OnlyEnforceIf(_negate(m.literal))
+        return used
+
+    def _most(self, matches: list[Match], duration: bool) -> int:
+        """The largest amount the matches could reach."""
+        live = [m for m in matches if m.literal is not False]
+        if not duration:
+            return len(live)
+        return sum(
+            m.minutes if isinstance(m.minutes, int) else self.dataset.blocks[m.block].minutes
+            for m in live
+        )
+
+    def _at_least(self, terms: list, constant: int, n: int, name: str) -> Literal:
+        """A literal equivalent to `terms + constant >= n`."""
+        if n - constant <= 0:
+            return True
+        if not terms:
+            return False
+        literal = self.model.NewBoolVar(name)
+        self.model.Add(sum(terms) >= n - constant).OnlyEnforceIf(literal)
+        self.model.Add(sum(terms) <= n - constant - 1).OnlyEnforceIf(literal.Not())
+        return literal
+
+    def _compare(self, terms: list, constant: int, amount: ast.Amount, name: str) -> Literal:
+        """A literal equivalent to the amount's comparison holding."""
+        n = amount.value
+        if amount.bound == ast.AT_LEAST:
+            return self._at_least(terms, constant, n, f"{name}:ge")
+        at_most = _negate(self._at_least(terms, constant, n + 1, f"{name}:gt"))
+        if amount.bound == ast.AT_MOST:
+            return at_most
+        return self._all_of(
+            [self._at_least(terms, constant, n, f"{name}:ge"), at_most], f"{name}:eq"
+        )
+
+    def _holds(self, amount: ast.Amount, pattern: Pattern, consecutive: bool, name: str) -> Literal:
+        """A literal equivalent to the condition holding over past dates and today."""
+        matches = self._matches(pattern, past=True)
+        if consecutive:
+            return self._runs_hold(amount, matches, name)
+        terms, constant = self._amount(matches, amount.duration)
+        return self._compare(terms, constant, amount, name)
+
+    def _windows(self, matches: list[Match]) -> Iterator[list[list[Match]]]:
+        """Each run of adjacent blocks one person's matches could fill on one date.
+
+        Blocks are adjacent when they are next to each other on the Blocks sheet; a block
+        nothing matches in breaks the run.
+        """
+        grouped: dict[tuple[str, date], dict[str, list[Match]]] = {}
+        for m in matches:
+            grouped.setdefault((m.staff, m.date), {}).setdefault(m.block, []).append(m)
+        for (_, d), per_block in grouped.items():
+            order = [b.id for b in self.dataset.blocks_on(d)]
+            for i in range(len(order)):
+                for j in range(i, len(order)):
+                    if order[j] not in per_block:
+                        break
+                    yield [per_block[b] for b in order[i : j + 1]]
+
+    def _window(self, window: list[list[Match]], duration: bool, name: str) -> tuple:
+        """(present, terms, constant, most): the run is fully matched, and its amount."""
+        flat = [m for block in window for m in block]
+        blocks = [self._any_of([m.literal for m in block], f"{name}:block") for block in window]
+        present = self._all_of(blocks, f"{name}:present")
+        terms, constant = self._amount(flat, duration)
+        return present, terms, constant, self._most(flat, duration)
+
+    def _runs_hold(self, amount: ast.Amount, matches: list[Match], name: str) -> Literal:
+        """AT_LEAST: some run reaches the amount. AT_MOST: no run exceeds it. EXACTLY: both."""
+        n = amount.value
+        reaching, exceeding = [], []
+        for i, window in enumerate(self._windows(matches)):
+            present, terms, constant, most = self._window(window, amount.duration, f"{name}:run{i}")
+            if amount.bound != ast.AT_MOST and most >= n:
+                reaches = self._at_least(terms, constant, n, f"{name}:run{i}:ge")
+                reaching.append(self._all_of([present, reaches], f"{name}:run{i}:reaching"))
+            if amount.bound != ast.AT_LEAST and most > n:
+                exceeds = self._at_least(terms, constant, n + 1, f"{name}:run{i}:gt")
+                exceeding.append(self._all_of([present, exceeds], f"{name}:run{i}:exceeding"))
+        at_least = self._any_of(reaching, f"{name}:reached")
+        at_most = _negate(self._any_of(exceeding, f"{name}:exceeded"))
+        if amount.bound == ast.AT_LEAST:
+            return at_least
+        if amount.bound == ast.AT_MOST:
+            return at_most
+        return self._all_of([at_least, at_most], f"{name}:exact")
+
+    def _miss(self, amount: ast.Amount, pattern: Pattern, consecutive: bool, name: str) -> tuple:
+        """How far the matches are from the amount, as (variable, bound); (0, 0) when fixed."""
+        matches = self._matches(pattern, past=True)
+        n = amount.value
+        if not consecutive:
+            terms, constant = self._amount(matches, amount.duration)
+            if not terms:
+                return 0, 0
+            bound = max(n, self._most(matches, amount.duration))
+            miss = self.model.NewIntVar(0, bound, f"miss:{name}")
+            total = sum(terms) + constant
+            if amount.bound != ast.AT_MOST:
+                self.model.Add(miss >= n - total)
+            if amount.bound != ast.AT_LEAST:
+                self.model.Add(miss >= total - n)
+            return miss, bound
+        gated, bound = [], 0
+        for i, window in enumerate(self._windows(matches)):
+            present, terms, constant, most = self._window(window, amount.duration, f"{name}:run{i}")
+            if present is False:
+                continue
+            reach = self.model.NewIntVar(0, most, f"{name}:run{i}:amount")
+            self._add(reach == sum(terms) + constant, [present])
+            self._add(reach == 0, [_negate(present)])
+            gated.append(reach)
+            bound = max(bound, most)
+        if not gated:
+            return 0, 0
+        bound = max(n, bound)
+        miss = self.model.NewIntVar(0, bound, f"miss:{name}")
+        if amount.bound != ast.AT_LEAST:
+            for reach in gated:
+                self.model.Add(miss >= reach - n)
+        if amount.bound != ast.AT_MOST:
+            best = self.model.NewIntVar(0, bound, f"{name}:best_run")
+            self.model.AddMaxEquality(best, gated)
+            self.model.Add(miss >= n - best)
+        return miss, bound
+
+    def _count(self, st: Count, active: Literal, name: str) -> Literal:
+        """A REQUEST with an amount. Returns the literal for its being deferred."""
+        p, amount, n = st.pattern, st.amount, st.amount.value
+        target = self.dataset.target
+        later = [d for d in p.on.items if d > target]
+        capacity = 0
+        if later and amount.bound != ast.AT_MOST:
+            capacity = self._capacity(p, later, amount.duration, st.consecutive)
+        matches = self._matches(p, past=True)
+        if amount.bound != ast.AT_MOST:
+            self._ask_for(matches, p, active)
+        if st.consecutive:
+            now = self._runs_hold(amount, matches, name)
+            if capacity < n:
+                self._imply([active], now)
+                return False
+            if amount.bound == ast.EXACTLY:
+                upper = replace(amount, bound=ast.AT_MOST)
+                self._imply([active], self._runs_hold(upper, matches, f"{name}:upper"))
+            self._bonus(now)
+            return _negate(now)
+        terms, constant = self._amount(matches, amount.duration)
+        if amount.bound != ast.AT_MOST:
+            self._imply(
+                [active], self._at_least(terms, constant, n - capacity, f"{name}:reachable")
+            )
+        if amount.bound != ast.AT_LEAST:
+            self._imply([active], _negate(self._at_least(terms, constant, n + 1, f"{name}:gt")))
+        if not capacity:
+            return False
+        reached = self._at_least(terms, constant, n, f"{name}:reached")
+        progress = self.model.NewIntVar(0, n, f"{name}:progress")
+        self.model.Add(progress <= sum(terms) + constant)
+        self._bonus(progress)
+        return _negate(reached)
+
+    def _ask_for(self, matches: list[Match], p: Pattern, active: Literal) -> None:
+        """A quoted-task assignment an AT_LEAST or EXACTLY pattern matches may exist for it."""
+        if not isinstance(p.what, ast.Task):
+            return
+        for m in matches:
+            if m.date != self.dataset.target:
+                continue
+            people = {m.staff, *(p.with_ or ())}
+            for s in people:
+                self.asked_for.setdefault(Slot(s, m.activity, None, m.block), []).append(active)
+
+    def _bonus(self, term) -> None:
+        """The incentive to act early on a deferrable request, below every tier's requests."""
+        if not isinstance(term, bool):
+            self.terms[Priority.LOW].append((DEFER_BONUS, term))
+
+    def _capacity(self, p: Pattern, later: list[date], duration: bool, consecutive: bool) -> int:
+        """What later dates can still hold: every block, or the longest run of adjacent blocks."""
+        best, total = 0, 0
+        for d, s in product(later, p.who.items):
+            run = 0
+            for block in self.dataset.blocks_on(d):
+                in_pool = p.during is None or block.id in p.during.items
+                if not in_pool or not self.dataset.holds(s, d, block.id):
+                    run = 0
+                    continue
+                amount = block.minutes if duration else 1
+                total += amount
+                run += amount
+                best = max(best, run)
+        return best if consecutive else total
+
+    # -- GAP -----------------------------------------------------------------------------------
+
+    def _gap(self, gap: ast.Gap, active, first: list[Made], second: list[Made], name: str) -> None:
+        """Every `first` ends before any `second` starts, and the gap between meets the bound."""
+        bound, minutes = gap.amount.bound, gap.amount.value
+        close = []
+        for i, (a, b) in enumerate(product(first, second)):
+            conds = [active, a.literal, b.literal]
+            between = b.start - a.end
+            self._add(between >= 0, conds)
+            if bound != ast.AT_MOST:
+                self._add(between >= minutes, conds)
+            if bound != ast.AT_LEAST:
+                near = self.model.NewBoolVar(f"gap:{name}:{gap.first}:{gap.second}:{i}")
+                self._add(between <= minutes, [near])
+                self._imply([near], a.literal)
+                self._imply([near], b.literal)
+                close.append(near)
+        if bound == ast.AT_LEAST:
+            return
+        any_first = self._any_of([m.literal for m in first], f"gap:{name}:{gap.first}:any")
+        any_second = self._any_of([m.literal for m in second], f"gap:{name}:{gap.second}:any")
+        self._imply([active, any_first, any_second], self._any_of(close, f"gap:{name}:close"))
+
+    # -- closing -------------------------------------------------------------------------------
 
     def close_adhoc_tasks(self) -> None:
-        """A quoted task happens only where a TASK asked for it. Call once, after compiling.
+        """A quoted-task assignment exists only where something asks for it. Call once.
 
-        Without this the task's count is a floor rather than a total, so a PREFER could pay
-        for occurrences nobody asked for and preferring a set of blocks would not mean the
-        same as avoiding the rest of them.
+        It is as long as its block unless a request with `FOR` selects it.
         """
         for slot, var in self.variables.x.items():
             if slot.activity in self.dataset.activities:
-                continue  # a clinic runs where it is offered, which already bounds it
-            asked = self.asked_for.get(slot, [])
-            if any(selector is True for selector in asked):
                 continue
-            literals = [selector for selector in asked if selector is not False]
-            if literals:
-                self.model.AddBoolOr([var.Not(), *literals])
-            else:
-                self.model.Add(var == 0)
-
-    # -- FORBID, PREFER, AVOID -------------------------------------------------------------------
-
-    def _forbid(self, st: Statement, sat) -> None:
-        for match in self._matched(st, past=False):
-            self._imply([sat], _negate(match.literal))
-
-    def _score(self, st: Statement, weight: float, priority: Priority) -> None:
-        sign = 1 if st.verb == "PREFER" else -1
-        tier = self.terms[priority]
-        if st.per is None:
-            metric = self.dataset.metrics[st.metric] if st.metric else None
-            self._check_metric(st, metric)
-            for match in self._matched(st, past=False):
-                score = metric.normalized(_fields(match, metric.keys)) if metric else 1.0
-                coefficient = round(SCALE * weight * score)
-                if coefficient:
-                    tier.append((sign * coefficient, match.literal))
-            return
-        groups: dict[tuple, list[Matched]] = {}
-        for match in self._matched(st, past=True):
-            groups.setdefault(_fields(match, st.per), []).append(match)
-        for key, members in groups.items():
-            fixed = sum(1 for m in members if m.literal is True)
-            variables = [m.literal for m in members if m.literal is not True]
-            if fixed + len(variables) <= st.beyond:
+            asked = [s for s in self.asked_for.get(slot, []) if s is not False]
+            if not any(s is True for s in asked):
+                self.model.AddBoolOr([var.Not(), *asked])
+            shortened = [s for s in self.shortened.get(slot, []) if s is not False]
+            if any(s is True for s in shortened):
                 continue
-            excess = self.model.NewIntVar(0, len(members), f"excess:{':'.join(map(str, key))}")
-            self.model.Add(excess >= fixed + sum(variables) - st.beyond)
-            tier.append((-round(SCALE * weight), excess))
+            interval = self.variables.intervals[slot]
+            unless = [var, *(s.Not() for s in shortened)]
+            self.model.Add(interval.size == interval.block.minutes).OnlyEnforceIf(unless)
 
-    def _matched(self, st: Statement, past: bool) -> Iterator[Matched]:
-        """What a filter verb selects: assignments, or groups of staff sharing an instance.
+    # -- literals ------------------------------------------------------------------------------
 
-        `ACROSS {staff.james AND staff.paul}` makes an alternative of several staff, which
-        matches the two of them together rather than each on their own.
-        """
-        groups = [alt for alt in (st.across.alternatives or ()) if len(alt) > 1]
-        if groups:
-            yield from self._matched_together(st, past, groups)
+    def _add(self, constraint, conds: list) -> None:
+        """Add a constraint enforced when every condition holds, with constants folded."""
+        if any(c is False for c in conds):
             return
-        seen: set = set()
-        for day in self._dates(st, past):
-            for staff_id, activity, role, block, literal in self._entries(st, day):
-                key = (day, staff_id, activity, role, "" if self._double(activity) else block)
-                if key in seen:
-                    continue
-                seen.add(key)
-                yield Matched(staff_id, activity, role, day, block, literal)
-
-    def _matched_together(self, st: Statement, past: bool, groups: list) -> Iterator[Matched]:
-        """One match per group of staff holding assignments in the same instance."""
-        for group in groups:
-            members = sorted(group)
-            for (day, activity, block), literals in self._per_member(st, past, members).items():
-                if len(literals) < len(members):
-                    continue  # someone in the group cannot be there at all
-                name = f"together:{'+'.join(members)}:{activity}:{day}:{block}"
-                together = self._all_of([literals[m] for m in members], name)
-                if together is False:
-                    continue
-                yield Matched(", ".join(members), activity, None, day, block, together)
-
-    def _per_member(self, st: Statement, past: bool, members: list[str]) -> dict:
-        """(date, activity, block) -> {member: literal for being in that instance}."""
-        found: dict[tuple, dict[str, list]] = {}
-        for day in self._dates(st, past):
-            if isinstance(st.target, ast.Free):
-                for block in st.during.items:
-                    free = {m: [self.variables.is_free(m, day, block)] for m in members}
-                    found[day, "", block] = free
-                continue
-            for staff_id, activity, _, block, literal in self._entries(st, day):
-                if staff_id not in members:
-                    continue
-                key = (day, activity, "" if self._double(activity) else block)
-                found.setdefault(key, {}).setdefault(staff_id, []).append(literal)
-        return {
-            key: {
-                member: self._any_of(literals, f"in:{member}:{key[1]}:{key[0]}")
-                for member, literals in per_member.items()
-            }
-            for key, per_member in found.items()
-        }
-
-    def _dates(self, st: Statement, past: bool) -> list[date]:
-        target = self.dataset.target
-        return [d for d in st.on.items if d == target or (past and d < target)]
-
-    def _entries(self, st: Statement, day: date) -> Iterator[tuple]:
-        """(staff, activity, role, block, literal) for assignments passing every filter."""
-        roles = self._role_filter(st)
-        if isinstance(st.target, ast.Free):
-            for staff_id, block in product(st.across.items, st.during.items):
-                yield staff_id, "", None, block, self.variables.is_free(staff_id, day, block)
+        literals = [c for c in conds if c is not True]
+        if isinstance(constraint, bool):
+            if not constraint:
+                self._imply(literals, False)
             return
-        if day == self.dataset.target:
-            rows = [
-                (slot.staff, slot.activity, slot.role, slot.block, var)
-                for slot, var in self.variables.x.items()
-            ]
-        else:
-            rows = [(*key, True) for key in self.variables.past_assignments(day)]
-        for staff_id, activity, role, block, literal in rows:
-            if self._accepts(st, roles, staff_id, activity, role, block):
-                yield staff_id, activity, role, block, literal
+        added = self.model.Add(constraint)
+        if literals:
+            added.OnlyEnforceIf(literals)
+
+    def _imply(self, conds: list, consequence: Literal) -> None:
+        """Conditions all true -> consequence, with constants folded."""
+        if consequence is True or any(c is False for c in conds):
+            return
+        clause = [c.Not() for c in conds if c is not True]
+        if consequence is not False:
+            clause.append(consequence)
+        self.model.AddBoolOr(clause)
 
     def _any_of(self, literals: list, name: str) -> Literal:
         """A literal true when any of these are, with constants folded."""
         if any(v is True for v in literals):
             return True
-        real = [v for v in literals if v is not False]
+        real = _distinct([v for v in literals if v is not False])
         if len(real) < 2:
             return real[0] if real else False
         var = self.model.NewBoolVar(name)
-        self.model.AddMaxEquality(var, real)
+        self.model.AddBoolOr(real).OnlyEnforceIf(var)
+        self.model.AddBoolAnd([v.Not() for v in real]).OnlyEnforceIf(var.Not())
         return var
 
     def _all_of(self, literals: list, name: str) -> Literal:
         """A literal true when all of these are, with constants folded."""
         if any(v is False for v in literals):
             return False
-        real = [v for v in literals if v is not True]
+        real = _distinct([v for v in literals if v is not True])
         if len(real) < 2:
             return real[0] if real else True
         var = self.model.NewBoolVar(name)
-        self.model.AddMinEquality(var, real)
+        self.model.AddBoolAnd(real).OnlyEnforceIf(var)
+        self.model.AddBoolOr([v.Not() for v in real]).OnlyEnforceIf(var.Not())
         return var
 
-    def _check_metric(self, st: Statement, metric) -> None:
-        """A staff-keyed metric cannot score a group, which has no single staff member."""
-        grouped = any(len(alt) > 1 for alt in (st.across.alternatives or ()))
-        if metric and grouped and "staff" in metric.keys:
-            raise ast.SkedgeError(
-                f"metric.{metric.name} is keyed by staff, so it cannot score an ACROSS group",
-                st.pos.line,
-                st.pos.column,
-            )
 
-    def _accepts(self, st, roles, staff_id, activity, role, block) -> bool:
-        if isinstance(st.target, ast.AdHoc):
-            if activity != st.target.text:
-                return False
-        elif activity not in st.target.items:
-            return False
-        if roles is not None and role not in roles:
-            return False
-        return staff_id in st.across.items and block in st.during.items
-
-    def _double(self, activity_id: str) -> bool:
-        activity = self.dataset.activities.get(activity_id)
-        return activity is not None and activity.double
-
-    @staticmethod
-    def _role_filter(st: Statement) -> set[str] | None:
-        if st.role is None:
-            return None
-        roles = set(st.role.items)
-        if TRAINEE in roles:
-            roles |= {SHADOW, SCAFFOLDED}
-        return roles
-
-    # -- GAP -----------------------------------------------------------------------------------
-
-    def _gap(self, gap: ast.Gap, sat, name: str, first: tuple, second: tuple) -> None:
-        """Second task starts after the first ends, with the gap satisfying the comparison."""
-        end_first = self.model.NewIntVar(0, 24 * 60, f"{name}:gap:{gap.first}:end")
-        start_second = self.model.NewIntVar(0, 24 * 60, f"{name}:gap:{gap.second}:start")
-        for literal, (_, end) in self._task_intervals(gap, first):
-            self.model.Add(end_first == end).OnlyEnforceIf(literal)
-        for literal, (start, _) in self._task_intervals(gap, second):
-            self.model.Add(start_second == start).OnlyEnforceIf(literal)
-        between = start_second - end_first
-        self.model.Add(between >= 0).OnlyEnforceIf(sat)
-        if gap.comparison in ("<=", "=="):
-            self.model.Add(between <= gap.minutes).OnlyEnforceIf(sat)
-        if gap.comparison in (">=", "=="):
-            self.model.Add(between >= gap.minutes).OnlyEnforceIf(sat)
-
-    def _task_intervals(self, gap: ast.Gap, labeled: tuple):
-        """(chosen literal, (start, end)) for each block a labeled task may use."""
-        st, across, chosen_blocks = labeled
-        if len(across) != 1:
-            raise ast.SkedgeError(
-                "GAP tasks must be for one staff member (use ACROSS EACH)",
-                gap.pos.line,
-                gap.pos.column,
-            )
-        staff_id = next(iter(across))
-        for block, literal in chosen_blocks.items():
-            times: tuple = (
-                self.dataset.blocks[block].start_minute,
-                self.dataset.blocks[block].end_minute,
-            )
-            if isinstance(st.target, ast.AdHoc):
-                interval = self.variables.intervals.get(Slot(staff_id, st.target.text, None, block))
-                if interval is not None:
-                    times = (interval.start, interval.end)
-            yield literal, times
+def _distinct(literals: list) -> list:
+    seen: dict[tuple[int, bool], object] = {}
+    for literal in literals:
+        seen.setdefault((literal.Index(), _is_negated(literal)), literal)
+    return list(seen.values())
 
 
-def _compare(value: int, comparison: str, bound: int) -> bool:
-    return {"<=": value <= bound, ">=": value >= bound, "==": value == bound}[comparison]
+def _is_negated(literal) -> bool:
+    return not isinstance(literal, cp_model.IntVar)
 
 
 def _negate(literal: Literal) -> Literal:
@@ -531,12 +835,11 @@ def _negate(literal: Literal) -> Literal:
     return literal.Not()
 
 
-def _fields(match: Matched, fields: tuple[str, ...]) -> tuple[str, ...]:
-    values = {
-        "staff": match.staff,
-        "activity": match.activity,
-        "role": match.role or "",
-        "date": match.date.isoformat(),
-        "block": match.block,
-    }
-    return tuple(values[f] for f in fields)
+def _minute(a: Assignment) -> int:
+    return a.start.hour * 60 + a.start.minute
+
+
+def _dates_of(statement) -> tuple[date, ...]:
+    if isinstance(statement, Requirement):
+        return statement.on.items
+    return statement.pattern.on.items

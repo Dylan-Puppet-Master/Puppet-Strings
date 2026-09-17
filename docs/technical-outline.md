@@ -2,6 +2,11 @@
 
 Status: **approved 2026-09-15**, with the Puppet Master's answers folded in (see §10).
 
+The Skedge language was redesigned on 2026-09-17. Where this outline shows request
+syntax (`TASK`, `FORBID`, `AVOID`, `ACROSS`, `PER … BEYOND`), the
+[Skedge specification](spec.md) is now the definition and the [reference](skedge.md)
+the readable version; the pipeline, sheets and solver structure below still hold.
+
 This outline was written after reading the four existing sheets (Clinic_Data, Clinic_Schedule, Skills, Staff Categories). Where the sheets differ from the proposal, this document follows the sheets and says so. Every assumption is collected in §9; open questions are in §10.
 
 ---

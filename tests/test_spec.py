@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from puppet_strings.model import Priority
-from puppet_strings.sheets.metrics import KEY_FIELDS
 from puppet_strings.skedge.resolve import name_listing
 
 ROOT = Path(__file__).parent.parent
@@ -46,11 +45,12 @@ def test_the_spec_carries_the_grammar_the_parser_uses():
 
 def test_every_keyword_the_spec_lists_is_in_the_grammar():
     keywords = re.search(r"\| Keyword \| Upper case: (.*?) \|", SPEC).group(1)
-    listed = re.findall(r"`([A-Z]+)`", keywords)
-    assert len(listed) > 15
+    listed = re.findall(r"`([A-Za-z_]+)`", keywords)
+    assert len(listed) > 20
     grammar = GRAMMAR.read_text()
     for keyword in listed:
-        assert f'"{keyword}"' in grammar, f"{keyword} is not a keyword of the grammar"
+        terminal = "ANY_N_OF" if keyword == "ANY_n_OF" else f'"{keyword}"'
+        assert terminal in grammar, f"{keyword} is not a keyword of the grammar"
 
 
 def test_every_namespace_the_spec_lists_exists(dataset):
@@ -61,22 +61,19 @@ def test_every_priority_the_spec_lists_exists():
     assert first_column(section("Priorities and scoring")) == [p.value for p in Priority]
 
 
-def test_the_spec_lists_the_fields_per_can_group_by():
-    fields = re.search(r"which are\nsome of (.*?)\.", section("Verbs"), re.S).group(1)
-    assert re.findall(r"`(\w+)`", fields) == list(KEY_FIELDS)
-
-
 def messages():
-    return [m for m in first_column(section("Errors")) if PLACEHOLDER not in m]
+    return first_column(section("Errors"))
 
 
 @pytest.mark.parametrize("message", messages())
 def test_every_error_the_spec_quotes_exists_in_the_code(message):
-    assert message in SOURCE, f"the spec quotes an error the code does not raise: {message}"
+    if message in SOURCE:
+        return
+    assert PLACEHOLDER in message, f"the spec quotes an error the code does not raise: {message}"
 
 
 def test_almost_every_error_is_quoted_exactly():
     """A row may use … where the message interpolates, but only where it has to."""
-    rows = first_column(section("Errors"))
-    assert len(rows) - len(messages()) <= 2
+    rows = messages()
+    assert len([m for m in rows if m not in SOURCE]) <= 2
     assert len(rows) > 30

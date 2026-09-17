@@ -1,8 +1,11 @@
 block_id,start,end,day_types,categories
+breakfast,08:00,09:00,"regular, changeover",meals
 clinic_1,09:15,10:30,regular,any_clinic
 clinic_2,10:45,12:00,regular,any_clinic
 lunch,12:00,13:00,"regular, changeover",meals
 clinic_3,14:00,15:15,regular,any_clinic
 clinic_4,15:45,17:00,regular,any_clinic
 playstation,17:00,18:00,"regular, changeover",
+evening,18:30,20:00,regular,
+night,20:00,21:00,regular,
 pack_out,09:15,11:00,changeover,

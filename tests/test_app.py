@@ -75,7 +75,7 @@ def test_table_and_filters(window):
     window.staff_filter.setCurrentIndex(0)
     window.activity_filter.setCurrentText("riflery")
     assert visible_ids(window) == {
-        "clinic-enjoyment",
+        "clinic-preference",
         "clinic-variety",
         "offering:2026-09-16:riflery:clinic_3",
     }
@@ -90,12 +90,12 @@ def test_editor_validation_and_save(window):
     editor = window.editor
     editor.clear()
     editor.description_edit.setText("Dylan's day off")
-    editor.skedge_edit.setPlainText("DURING block.nope\nTASK 'x'")
+    editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING block.nope")
     assert not editor.validate()
     assert "unknown block name 'nope'" in editor.status.text()
-    editor.skedge_edit.setPlainText("DURING block.clinic_1\nACROSS EACH staff.counselor\nTASK 'x'")
+    editor.skedge_edit.setPlainText("REQUEST EACH_OF staff.counselor DO 'x' DURING block.clinic_1")
     assert editor.validate()
-    assert "3 EACH copies" in editor.status.text()
+    assert "3 EACH_OF copies" in editor.status.text()
     editor.tags_edit.setText("training, week 2")
     editor.save_button.click()
     assert window.model.rowCount() == 31
@@ -110,7 +110,7 @@ def test_editor_validation_and_save(window):
     assert window.model.rowCount() == 31
     editor.clear()
     editor.description_edit.setText("Dylan's day off")
-    editor.skedge_edit.setPlainText("DURING block.clinic_1\nTASK 'x'")
+    editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING block.clinic_1")
     editor.validate()  # the editor validates 300 ms after typing; tests cannot wait
     editor.save_button.click()
     assert editor.id_label.text() == "dylan-s-day-off-2"
@@ -141,7 +141,7 @@ def completions(editor):
 def test_completer_opens_after_a_namespace_and_a_dot(window):
     editor = window.editor
     editor.clear()
-    QTest.keyClicks(editor.skedge_edit, "ACROSS staff")
+    QTest.keyClicks(editor.skedge_edit, "REQUEST staff")
     assert not editor.skedge_edit.completer.popup().isVisible()
     QTest.keyClicks(editor.skedge_edit, ".")
     assert editor.skedge_edit.completer.completionPrefix() == "staff."
@@ -169,16 +169,16 @@ def test_completer_narrows_as_the_name_is_typed(window):
 def test_choosing_a_completion_replaces_what_was_typed(window):
     editor = window.editor
     editor.clear()
-    QTest.keyClicks(editor.skedge_edit, "ON date.sec")
-    assert "date.second_thursday" in completions(editor)
-    editor.skedge_edit.completer.activated.emit("date.second_thursday")
-    assert editor.skedge_edit.toPlainText() == "ON date.second_thursday"
+    QTest.keyClicks(editor.skedge_edit, "ON date.session.sec")
+    assert "date.session.second_thursday" in completions(editor)
+    editor.skedge_edit.completer.activated.emit("date.session.second_thursday")
+    assert editor.skedge_edit.toPlainText() == "ON date.session.second_thursday"
 
 
 def test_completer_stays_shut_for_plain_words_and_dates(window):
     editor = window.editor
     editor.clear()
-    for text in ("TASK ", "ON 2026-09-16", "AVOID 'break'"):
+    for text in ("REQUEST ", "ON 2026-09-16", "NOT DO 'break'"):
         editor.skedge_edit.setPlainText("")
         QTest.keyClicks(editor.skedge_edit, text)
         assert not editor.skedge_edit.completer.popup().isVisible(), text
@@ -191,7 +191,7 @@ def test_completer_follows_the_loaded_dataset(app, tmp_path):
     assert window.editor.skedge_edit.completer.completionModel().rowCount() == 0
     window.reload()
     window.wait_for_load()
-    QTest.keyClicks(window.editor.skedge_edit, "ACROSS staff.cam")
+    QTest.keyClicks(window.editor.skedge_edit, "REQUEST staff.cam")
     assert completions(window.editor) == ["staff.cam_vl"]
 
 
@@ -222,7 +222,7 @@ def test_calendar_click_inserts_a_date(window):
     assert (
         window.calendar.dateTextFormat(QDate(2026, 9, 13)).background().color().name() == "#d6efe6"
     )
-    assert window.calendar.dateTextFormat(QDate(2026, 9, 30)).background().style() == Qt.NoBrush
+    assert window.calendar.dateTextFormat(QDate(2026, 10, 30)).background().style() == Qt.NoBrush
     window.calendar.clicked.emit(QDate(2026, 10, 2))
     assert window.editor.skedge_edit.toPlainText().endswith("2026-10-02")
 
@@ -346,7 +346,11 @@ def test_the_sleep_and_sickness_dialogs_write_one_row_each(window):
     window.wait_for_load()
     assert window.store.dataset.staff["vic"].ral == 4
     alesa = window.store.dataset.staff["alesa"]
-    assert alesa.resting_blocks == {"clinic_1", "clinic_2"}  # the morning, by block start
+    assert alesa.resting_blocks == {
+        "breakfast",
+        "clinic_1",
+        "clinic_2",
+    }  # the morning, by block start
     assert "alesa" in window.store.dataset.staff_categories["all"]  # she works the afternoon
 
     sickness = SameDayDialog(window.store, SICKNESS, window)

@@ -6,7 +6,7 @@ from puppet_strings.config import Config
 from puppet_strings.model import Assignment, Dataset, Priority, Request, minute_to_time
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.ast import SkedgeError
-from puppet_strings.skedge.resolve import Resolved
+from puppet_strings.skedge.resolve import Count, Requirement, Resolved
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.compile import SCALE, Compiled, Compiler
 from puppet_strings.solver.result import Change, RequestOutcome, Result
@@ -43,9 +43,7 @@ def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False
         copies += [(request, copy) for copy in resolved]
     _check_adhoc_tasks(copies)
     compiler.prepare(copies)
-    copies.sort(key=lambda pair: not any(s.verb == "TASK" for s in pair[1].statements))
-    for request, copy in copies:
-        compiler.compile(request, copy)
+    active = {request.id for request, copy in copies if compiler.compile(request, copy)}
     compiler.close_adhoc_tasks()
     variables.finish()
     add_structural_constraints(model, variables, dataset)
@@ -54,13 +52,10 @@ def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False
         _hold_to(model, compiler, variables, baseline)
 
     unique = {var.Index(): var for var in variables.x.values()}
-    minutes = [
-        expr
-        for iv in variables.intervals.values()
-        if iv.partial
-        for expr in (iv.size, iv.start - iv.block.start_minute)
+    placement = [
+        iv.start - iv.block.start_minute for iv in variables.intervals.values() if iv.partial
     ]
-    outcome = solve_tiers(model, compiler.terms, list(unique.values()), minutes, config)
+    outcome = solve_tiers(model, compiler.terms, list(unique.values()), placement, config)
     if not outcome.feasible:
         conflicts = tuple(
             compiler.compiled[i].id
@@ -68,12 +63,18 @@ def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False
         )
         return Result(feasible=False, conflicts=conflicts)
     missed = [c for c in compiler.compiled if not outcome.value(c.sat)]
+    deferred = [c for c in compiler.compiled if outcome.value(c.sat) and _true(outcome, c.deferred)]
     assignments = _assignments(outcome, variables, dataset)
     return Result(
         feasible=True,
         assignments=assignments,
-        unsatisfied=tuple(_outcome(c) for c in missed if not c.deferrable),
-        deferred=tuple(_outcome(c) for c in missed if c.deferrable),
+        unsatisfied=tuple(_outcome(c) for c in missed),
+        deferred=tuple(_outcome(c) for c in deferred),
+        inactive=tuple(
+            RequestOutcome(r.id, r.priority, r.description)
+            for r in dataset.requests
+            if r.id not in active
+        ),
         notes=outcome.notes,
         changes=_changes(baseline, assignments),
         tier_scores=outcome.scores or {},
@@ -81,28 +82,35 @@ def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False
 
 
 def _check_adhoc_tasks(copies: list[tuple[Request, Resolved]]) -> None:
-    """A verb about a quoted task means nothing unless some TASK asks for that task."""
-    asked = {
-        statement.target.text
-        for _, copy in copies
-        for statement in copy.statements
-        if statement.verb == "TASK" and isinstance(statement.target, ast.AdHoc)
-    }
+    """A quoted task means nothing unless some positive REQUEST asks for it.
+
+    A `REQUEST … DO` asks for it, and so does a `REQUEST AT_LEAST` or `EXACTLY` pattern.
+    """
+    asked = {_task(st) for _, copy in copies for st in copy.statements if _asks(st)}
     for request, copy in copies:
-        for statement in copy.statements:
-            target = statement.target
-            if statement.verb == "TASK" or not isinstance(target, ast.AdHoc):
-                continue
-            if target.text in asked:
+        for st in copy.statements:
+            text = _task(st)
+            if text is None or text in asked or _asks(st):
                 continue
             raise RequestError(
                 request,
-                SkedgeError(
-                    f"no request asks for '{target.text}', so {statement.verb} does nothing",
-                    statement.pos.line,
-                    statement.pos.column,
-                ),
+                SkedgeError(f"no request asks for '{text}'", st.pos.line, st.pos.column),
             )
+
+
+def _task(statement) -> str | None:
+    what = statement.what if isinstance(statement, Requirement) else statement.pattern.what
+    return what.text if isinstance(what, ast.Task) else None
+
+
+def _asks(statement) -> bool:
+    if isinstance(statement, Requirement):
+        return True
+    return (
+        isinstance(statement, Count)
+        and not statement.prefer
+        and statement.amount.bound != ast.AT_MOST
+    )
 
 
 def _hold_to(model, compiler: Compiler, variables: Variables, baseline) -> None:
@@ -171,6 +179,14 @@ def _assignments(outcome, variables: Variables, dataset: Dataset) -> tuple[Assig
 def _value(outcome, value) -> int:
     """A start or size: a constant for a whole block, a variable for part of one."""
     return value if isinstance(value, int) else outcome.value(value)
+
+
+def _true(outcome, literal) -> bool:
+    if isinstance(literal, bool):
+        return literal
+    if isinstance(literal, cp_model.IntVar):
+        return bool(outcome.value(literal))
+    return not outcome.value(literal.Not())
 
 
 def _outcome(compiled: Compiled) -> RequestOutcome:

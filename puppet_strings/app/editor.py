@@ -25,8 +25,8 @@ from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
 
 KEYWORDS = (
-    "ON|DURING|ACROSS|ROLE|TASK|FORBID|PREFER|AVOID|FOR|CONTINUOUS|AS|PER|BEYOND|GAP|"
-    "ANY|ALL|EACH|OF|OR|AND|FREE"
+    "REQUEST|PREFER|IF|UNLESS|GAP|TO|DO|DOING|NOT|FREE|DURING|ON|AS_ROLE|FOR|WITH|WITHOUT|IN|"
+    "ALL_OF|ANY_[0-9]+_OF|EACH_OF|AT_LEAST|AT_MOST|EXACTLY|CONSECUTIVE|MAXIMIZE|MINIMIZE"
 )
 
 
@@ -37,7 +37,7 @@ class SkedgeHighlighter(QSyntaxHighlighter):
         super().__init__(document)
         self.rules = [
             (
-                QRegularExpression(r"\b(" + "|".join(KEYWORDS) + r")\b"),
+                QRegularExpression(r"\b(" + KEYWORDS + r")\b"),
                 _format("#1f4e9c", bold=True),
             ),
             (QRegularExpression(r"\b[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+"), _format("#1b6f3b")),
@@ -67,7 +67,7 @@ def _format(color: str, bold: bool = False, italic: bool = False) -> QTextCharFo
 class SkedgeEdit(QPlainTextEdit):
     """The Skedge text box, which suggests names once a namespace and a dot are typed."""
 
-    PARTIAL_NAME = re.compile(r"[a-z_][a-z0-9_]*\.[a-z0-9_]*$")
+    PARTIAL_NAME = re.compile(r"[a-z_][a-z0-9_]*(\.[a-z0-9_]*)+$")
 
     def __init__(self) -> None:
         super().__init__()
@@ -243,7 +243,7 @@ class RequestEditor(QWidget):
         except SkedgeError as e:
             return self._report(str(e), ok=False)
         keys = {c.key for c in copies if c.key}
-        return self._report(f"Valid ({len(keys)} EACH copies)" if keys else "Valid", ok=True)
+        return self._report(f"Valid ({len(keys)} EACH_OF copies)" if keys else "Valid", ok=True)
 
     def insert_name(self, text: str) -> None:
         """Insert a name at the cursor (from the names panel)."""

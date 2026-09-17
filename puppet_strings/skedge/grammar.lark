@@ -1,48 +1,78 @@
 // Skedge grammar. See docs/skedge.md for the language reference.
 
 start       : _NL* line (_NL+ line)* _NL*
-line        : clause+
-?clause     : on | during | across | role | verb | for_ | label | metric | per | gap
+?line       : binding | if_ | unless | labeled | request | prefer | gap
 
-on          : "ON" selector
-during      : "DURING" selector
-across      : "ACROSS" selector
-role        : "ROLE" selector
-verb        : VERB target
-?target     : selector | STRING | FREE
-for_        : "FOR" DURATION CONTINUOUS?
-label       : "AS" NAME
-metric      : "~" ref
-per         : "PER" NAME+ "BEYOND" INT
-gap         : "GAP" NAME NAME COMPARISON DURATION
+binding     : (EACH_OF | ANY_N_OF) NAME "IN" set_
+if_         : "IF" condition
+unless      : "UNLESS" condition
+labeled     : NAME ":" request
+gap         : "GAP" NAME "TO" NAME amount
 
-selector    : quantifier? atom
-            | quantifier? "{" expr "}"
-quantifier  : ANY | ALL | EACH | INT "OF"
-?expr       : term ("OR" term)*        -> or_
-?term       : factor ("AND" factor)*   -> and_
-?factor     : setexpr | "(" expr ")"
-?setexpr    : atom (SETOP atom)*       -> setop
-?atom       : date_expr ".." date_expr -> date_range
-            | date_expr
-?date_expr  : date_atom OFFSET         -> date_offset
+request     : "REQUEST" chooser "DO" do_target do_clause*         -> request_do
+            | "REQUEST" chooser FREE do_clause*                   -> request_free
+            | "REQUEST" chooser "NOT" "DO" target clause*         -> request_not_do
+            | "REQUEST" chooser "NOT" FREE clause*                -> request_not_free
+            | "REQUEST" amount pattern CONSECUTIVE?               -> request_count
+prefer      : "PREFER" amount pattern CONSECUTIVE?                -> prefer_count
+            | "PREFER" pattern goal                               -> prefer_score
+condition   : amount? pattern CONSECUTIVE?
+
+pattern     : pool "DOING" target clause*                        -> pattern_doing
+            | pool FREE clause*                                  -> pattern_free
+            | pool "NOT" FREE clause*                            -> pattern_busy
+goal        : (MAXIMIZE | MINIMIZE) REF "(" arg ("," arg)* ")"
+?arg        : NAME | REF
+
+amount      : BOUND (INT | DURATION)
+
+// Left of NOT, and in a positive REQUEST, quantifiers choose.
+?do_target  : chooser | STRING
+?do_clause  : during_c | on_c | as_role_c | for_ | with_ | without
+during_c    : "DURING" chooser
+on_c        : "ON" chooser
+as_role_c   : "AS_ROLE" chooser
+chooser     : (ALL_OF | ANY_N_OF)? set_
+            | EACH_OF set_
+            | EACH_OF NAME "IN" set_
+
+// In a pattern, a set is a pool; only EACH_OF may precede it.
+?target     : pool | STRING
+?clause     : during | on | as_role | for_ | with_ | without
+during      : "DURING" pool
+on          : "ON" pool
+as_role     : "AS_ROLE" pool
+pool        : set_
+            | EACH_OF set_
+            | EACH_OF NAME "IN" set_
+
+for_        : "FOR" DURATION
+with_       : "WITH" set_
+without     : "WITHOUT" set_
+
+?set_       : REF | NAME | DATE | "{" setexpr "}"
+?setexpr    : range (SETOP range)*     -> setop
+?range      : primary ".." primary     -> date_range
+            | primary
+?primary    : date_atom OFFSET         -> date_offset
             | date_atom
-?date_atom  : DATE                     -> date_literal
-            | ref
-ref         : NAME ("." NAME)+
+            | "(" setexpr ")"
+?date_atom  : DATE | REF | NAME
 
-VERB        : "TASK" | "FORBID" | "PREFER" | "AVOID"
+BOUND       : "AT_LEAST" | "AT_MOST" | "EXACTLY"
+ALL_OF      : "ALL_OF"
+EACH_OF     : "EACH_OF"
+ANY_N_OF    : /ANY_[1-9][0-9]*_OF/
 FREE        : "FREE"
-ANY         : "ANY"
-ALL         : "ALL"
-EACH        : "EACH"
-CONTINUOUS  : "CONTINUOUS"
+MAXIMIZE    : "MAXIMIZE"
+MINIMIZE    : "MINIMIZE"
+CONSECUTIVE : "CONSECUTIVE"
 SETOP       : "+" | "-" | "&"
 OFFSET.2    : /[+-][ \t]*\d+d/
-COMPARISON  : "<=" | ">=" | "=="
 DATE.3      : /\d{4}-\d{2}-\d{2}/
 DURATION.2  : /\d+(\.\d+)?[mh]/
 STRING      : /'[^']*'/
+REF.2       : /[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+/
 NAME        : /[a-z_][a-z0-9_]*/
 
 COMMENT     : /#[^\n]*/

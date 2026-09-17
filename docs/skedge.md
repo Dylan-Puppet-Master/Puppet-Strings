@@ -1,217 +1,281 @@
 # Skedge reference
 
-Skedge is the language requests are written in. A request is one declaration: a few lines
-of clauses that select assignments and say what must, must not, should or should not
-happen to them.
+Skedge is the language requests are written in. A request reads as a sentence with a
+subject, a verb and an object:
+
+```skedge
+REQUEST staff.dylan DO 'archery maintenance' DURING ANY_1_OF block.all ON ANY_1_OF {2026-09-14 .. 2026-09-18}
+```
 
 This page is the readable version, with worked examples. For the exact rules, including
 the grammar and every error the validator reports, see the
 [Skedge specification](spec.md).
 
-## The model
+## Skedge in one minute
 
 An **assignment** is one staff member doing one activity in one role in one block on one
-date. The solver decides, for every possible assignment, whether it happens. A declaration
-selects some assignments and states one thing about them:
+date. There are two statements:
 
-| Verb | Meaning |
+| Statement | Meaning |
 |---|---|
-| `TASK` | Some selected assignment(s) must exist |
-| `FORBID` | No selected assignment may exist |
-| `PREFER` | Selected assignments earn points |
-| `AVOID` | Selected assignments, or repeats of them, cost points |
-| `GAP` | Two labeled tasks must be separated by a bounded amount of time |
+| `REQUEST` | A constraint that is either met or not met. Its priority says how much it matters; `MUST_HAPPEN` makes it hard. |
+| `PREFER` | A soft constraint that can be partly met: closer is better. |
 
-## Lexical rules
+And two ways to talk about assignments:
 
-- Dates are `2026-06-14`. Durations are `30m`, `2h`, `1.5h`. Day offsets are `6d`.
-- Names are `namespace.identifier` in lowercase `snake_case`. Sheet values become
-  identifiers by the rule in [The sheets](sheets.md). `puppet-strings names` lists them all.
-- Ad hoc tasks are single-quoted: `'archery maintenance'`.
-- `#` starts a comment.
-- Keywords are uppercase.
-- Braces `{}` go around any expression with an operator (`OR`, `AND`, `+`, `-`, `&`).
-  Parentheses group inside braces.
+| Form | Meaning |
+|---|---|
+| `<who> DO <what> DURING <blocks> ON <dates>` | A **requirement**: these people do this, then. |
+| `<who> DOING <what> …` | A **pattern**: all the assignments where these people are doing this. Used for counting, scoring and conditions. |
 
-## Namespaces
+In a requirement, every set of names says out loud how it is meant:
+
+| Quantifier | Meaning |
+|---|---|
+| `ALL_OF {staff.lucy + staff.tom}` | Both of them, together, all or nothing. |
+| `ANY_1_OF {staff.lucy + staff.tom}` | One of them, the solver's choice. `ANY_2_OF`, `ANY_3_OF`, … work the same way. |
+| `EACH_OF {staff.lucy + staff.tom}` | A separate request for each of them, each met or not on its own. |
+
+A single thing (`staff.rob`, `block.clinic_1`, `2026-09-21`) needs no quantifier. A missing
+`ON` means the day being scheduled.
+
+`NOT DO` forbids, `FREE` means nothing to do (and `NOT FREE` something), `WITH` / `WITHOUT` say who is alongside,
+`IF` / `UNLESS` make a request conditional, and `GAP` puts time between two requirements.
+That is the whole language.
+
+## Names
+
+Names are dotted, lowercase `snake_case`. Sheet values become identifiers by the rule in
+[The sheets](sheets.md). `puppet-strings names` lists them all.
 
 | Namespace | Contents |
 |---|---|
-| `staff` | Staff members, staff categories, `staff.all`, `staff.clinic_trainers` |
-| `activity` | Clinics and their categories (`activity.ropes`), plus `activity.any_clinic` |
-| `block` | Blocks and block categories, plus `block.any` |
-| `date` | `date.target`, `date.session`, weekdays and their ordinals (see below) |
-| `role` | `role.first`, `role.second`, `role.third`; `role.lifeguard`, `role.lifeguard_2`; `role.shadow`, `role.scaffolded`, `role.trainee` |
-| `metric` | Metric tables, such as `metric.enjoyment` |
+| `staff` | Staff members and staff categories, plus `staff.all`, `staff.clinic_trainers` |
+| `activity` | Clinics and their categories (`activity.ropes`), plus `activity.all` |
+| `block` | Blocks and block categories (`block.meals`), plus `block.all` |
+| `date` | `date.target`, and the nested scopes below |
+| `role` | `role.first`, `role.second`, …; `role.lifeguard`, `role.lifeguard_2`; `role.shadow`, `role.scaffolded`, `role.trainee` |
+| `metric` | Metric tables, such as `metric.preference` |
 
-`role.trainee` resolves per staff member: checked off or needing a scaffold becomes
-`scaffolded`; needing a shadow or no checkoff becomes `shadow`.
+A name is either one thing or a set, and sets are always plural or collective
+(`block.all`, `date.session.mondays`). There is no `block.any`: "any one block" is
+`ANY_1_OF block.all`, so the choosing is always visible.
+
+A staff category holds only the people working on the day being scheduled. Someone resting
+all day is in no category, though their own name still works.
 
 ### Dates
+
+Date names are nested by scope. `date.session` is the session being scheduled,
+`date.season` is the whole season, and a named session such as `date.session_2` is that
+session.
 
 | Name | Holds |
 |---|---|
 | `date.target` | The date being scheduled. |
-| `date.session` | Every date of the target's session. |
-| `date.monday` … `date.sunday` | Every date of the session falling on that weekday. |
-| `date.first_monday` … `date.sixth_sunday` | That one occurrence within the session. |
-| `date.last_monday` … `date.last_sunday` | The final occurrence within the session. |
+| `date.session.all`, `date.season.all` | Every date of the scope. |
+| `date.session.mondays`, `date.season.mondays` | Every Monday of the scope. |
+| `date.session.first`, `date.session.last` | The scope's first and last date. |
+| `date.session.first_monday`, `date.session.last_friday` | That one occurrence in the scope. |
+| `date.season.first_mondays` | The first Monday of every session in the season. |
 
-A weekday name holds every matching date of the session, so the quantifier says which you
-mean: `ON date.monday` is "one Monday", `ON EACH date.monday` is "every Monday". That is
-how a recurring weekly request is written.
+A name for an occurrence the scope never reaches does not exist, and using it is a
+validation error, not a request that silently never fires.
 
-An ordinal name exists only if the session reaches it. A one-week session has a
-`date.first_thursday` but no `date.second_thursday`, and naming one that does not exist is
-a validation error rather than a request that silently never fires.
+### Combining sets
 
-## Selectors
+Any expression goes in braces. `+` is union, `-` is difference, `&` is intersection, `..`
+is an inclusive date range, and a single date can be offset by days. Parentheses group, and
+mixing different operators requires them, so there is no precedence to remember:
 
-A selector is the argument of `ON`, `DURING`, `ACROSS`, `ROLE`, or a verb.
+```
+{staff.all - staff.director - staff.counselor}
+{staff.all - (staff.counselor & staff.lifeguard)}
+{(date.target - 6d) .. date.target}
+```
 
-**Sets.** Names produce sets. `+` is union, `-` difference, `&` intersection, `..` an
-inclusive date range. A single date may be offset by days: `date.target - 6d`.
+## Requirements: `<who> DO <what>`
 
-**Quantifiers** go before a plain set:
+```skedge
+REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_1_OF block.all ON EACH_OF date.session.mondays
+```
 
-| Quantifier | Meaning |
+Read it in three steps, always in this order:
+
+1. **`EACH_OF` splits.** There is one separate request per Monday.
+2. **`ANY_n_OF` chooses, once.** Within each Monday's request, the solver picks one block.
+3. **Everyone chosen does it in every chosen block on every chosen date.** Lucy and Tom
+   both take out the garbage in that one block, so they do it together.
+
+A requirement never forbids anything. `DURING ANY_1_OF {block.clinic_1 + block.clinic_2}`
+is met when the thing happens in one of them, and does not mind if it happens in both.
+
+The difference between the three quantifiers, on one example:
+
+| Request | Meaning |
 |---|---|
-| `ANY` (default) | one of them |
-| `ALL` | all of them together |
-| `n OF` | exactly `n` distinct items |
-| `EACH` | a separate copy of the declaration per item |
+| `REQUEST staff.rob DO activity.ropes_course AS_ROLE role.first DURING ALL_OF {block.clinic_1 + block.clinic_2} ON 2026-09-28` | Rob is first on ropes in both clinics. One request: both or it is not met. |
+| `… DURING ANY_1_OF {block.clinic_1 + block.clinic_2} …` | Rob is first on ropes in clinic 1 or clinic 2. One request. |
+| `… DURING EACH_OF {block.clinic_1 + block.clinic_2} …` | Two requests, one per clinic. Rob may end up with neither, one or both, and each counts on its own. |
 
-**`OR` and `AND`** build alternatives: `{staff.james OR (staff.sarah AND staff.paul)}` means
-James alone, or Sarah and Paul together. A quantifier cannot be applied to an expression
-containing `OR` or `AND`.
+At `MUST_HAPPEN`, `ALL_OF` and `EACH_OF` come to the same schedule. They differ when the
+request is soft: `ALL_OF` earns nothing for half, `EACH_OF` earns half.
 
-## Clauses
-
-| Clause | Required | Default |
-|---|---|---|
-| `ON <dates>` | no | every date of the session, one copy per date |
-| `DURING <blocks>` | yes | |
-| `ACROSS <staff>` | no | `staff.all` |
-| `ROLE <roles>` | no | all positions (run the whole clinic) |
-| `FOR <duration> [CONTINUOUS]` | no | the chosen blocks' full length |
-| `AS <label>` | no | |
-| `~ <metric>` | no | every assignment scores 1 |
-| `PER <fields> BEYOND <n>` | no | (`AVOID` only) |
-
-A clause on the same line as a verb applies to that verb only. A clause on a line with no
-verb applies to every verb. A verb cannot get the same clause from both places.
-
-## Verbs
-
-### TASK
-
-The target is an activity, an ad hoc `'string'`, or `FREE`. The solver chooses one
-alternative for each of `ON`, `DURING`, `ACROSS` and `ROLE`; every chosen staff member
-works the task in every chosen block on every chosen date.
-
-For a clinic without `ROLE`, the task means "run this clinic": every position is filled
-from the `ACROSS` pool. With `ROLE`, only that position or trainee role is filled.
-
-Without `FOR`, a task fills its whole block. `FOR <duration>` lets a task take part of a
-block: `TASK 'break' FOR 30m` is a 30-minute break somewhere inside one block, and the
-Staff View labels the rest of the block `DYOW/WPs`. Several partial tasks can share a
-block. The solver places a partial task at the start of its block unless a `GAP` or
-another task moves it.
-
-With `FOR`, `DURING` means:
-
-| `DURING` | Meaning with `FOR d` |
+| Clause | Meaning |
 |---|---|
-| a plain set (default `ANY`) | any blocks whose used time adds up to `d`, the last one used partially |
-| `n OF <set>` | `n` separate blocks, each holding the full duration `d` |
-| with `CONTINUOUS` | adjacent blocks on one date, all filled except the last |
+| `DURING <blocks>` | When in the day. Required. |
+| `ON <dates>` | Which dates. Left out: the day being scheduled. |
+| `AS_ROLE <role>` | In that position or trainee role. Left out: any position. |
+| `FOR <duration>` | How long each one is. Ad hoc tasks only; left out, a task fills its block. |
+| `WITH <staff>` | Someone from that set is working the same clinic or task alongside. |
+| `WITHOUT <staff>` | Nobody from that set is. |
 
-Published past dates count toward the duration.
+An ad hoc task such as `'break'` has no positions, skills or camper slots; it occupies
+staff time only. `'break' FOR 30m` is a 30-minute break somewhere inside one block, the
+Staff View labels the rest of the block `DYOW/WPs`, and several short tasks can share a
+block.
 
-### FORBID
+### NOT DO and FREE
 
-No assignment matching every clause may exist. Selectors filter, so `ALL` and `n OF` have
-nothing to choose and are errors. `EACH` still works, and still splits the declaration.
+| Request | Meaning |
+|---|---|
+| `REQUEST staff.dylan NOT DO activity.ropes` | Dylan does no ropes clinic today. |
+| `REQUEST staff.dylan FREE DURING ALL_OF block.all ON 2026-09-16` | A day off. |
+| `REQUEST EACH_OF {staff.all - staff.director} FREE DURING block.playstation` | Each non-director should have nothing on during playstation. |
+| `REQUEST EACH_OF staff.counselor NOT FREE DURING block.clinic_1` | Every counselor has something to do in clinic 1. |
 
-### PREFER and AVOID
+`FREE` means working that day with nothing assigned in the block; `NOT FREE` means having
+something assigned. Someone resting is neither. There is no word for "anything": nothing to
+do is `FREE`, something to do is `NOT FREE`.
 
-Each matching assignment adds (`PREFER`) or subtracts (`AVOID`) its score. `~ metric.x`
-uses the metric's value for the assignment, normalized to 0–1 against the metric's
-declared scale; an assignment the metric has no row for is worth that metric's `default`.
-Neither verb can be `MUST_HAPPEN`.
+The subject of a `NOT` still chooses: `ALL_OF {…} NOT DO` is "none of them does",
+`ANY_1_OF {…} NOT DO` is "one of them doesn't". Everything to the right of `NOT` is a plain
+description of what must not happen: sets there mean "any of these", `DURING` can be left
+out to mean all day, and the only quantifier allowed is `EACH_OF`. `NOT DO ANY_1_OF …` is
+rejected, because it reads two ways in English.
 
-Selectors filter here, so `ALL` and `n OF` are errors. `EACH` is allowed and still splits
-the declaration, which matters with `PER`: `ACROSS EACH staff.facilitators` gives each
-person their own allowance, while `ACROSS staff.facilitators` makes the pool share one.
+**This is how "avoid" is written.** A `REQUEST` is all or nothing, so split it small and
+give it a soft priority:
 
-Preferring a set of blocks and avoiding everything outside it say the same thing, so
-`PREFER 'break' DURING block.meals` and `AVOID 'break' DURING {block.any - block.meals}`
-give the same schedule. Write whichever reads better.
+```skedge
+REQUEST EACH_OF staff.office NOT DO 'break' DURING EACH_OF {block.breakfast + block.lunch} ON EACH_OF date.season.fridays
+```
 
-A quoted task happens only where a `TASK` asks for it, which is what keeps those two
-readings in step: a preference cannot buy extra occurrences of a task beyond the ones
-requested. It follows that a `PREFER`, `AVOID` or `FORBID` naming a quoted task that no
-`TASK` asks for is an error rather than a line that quietly does nothing, which also
-catches a misspelled task name.
+That is one small request per person, per meal, per Friday. Each break at a meal fails
+exactly one of them, so three such breaks are three times as bad as one.
 
-### Staff working together
+### WITH and WITHOUT
 
-`AND` means "together" everywhere in Skedge, and on `FORBID`, `PREFER` and `AVOID` that
-gives pairing. `ACROSS {staff.james AND staff.paul}` matches the two of them **as a
-group**: one match per clinic instance (same activity, block and date) where both hold an
-assignment, whatever positions they hold. So `AVOID` keeps two people off the same clinic,
-`PREFER` puts them on it, and `FORBID` rules the pairing out. More than two names work the
-same way, and `ACROSS {staff.james + staff.paul}` (union, not `AND`) still matches each of
-them separately.
+| Request | Meaning |
+|---|---|
+| `REQUEST staff.rob NOT DO activity.ropes WITHOUT staff.vic` | If Rob is on ropes, Vic must be on it too. |
+| `REQUEST EACH_OF staff.junior NOT DO activity.waterfront WITHOUT staff.senior` | No junior at the waterfront unless a senior is there. |
+| `REQUEST staff.jack NOT DO activity.all WITH staff.lucy` | Jack and Lucy never share a clinic. |
 
-Because `AND` selects a group of staff, it is only meaningful in `ACROSS` on these verbs;
-using it in `ON`, `DURING`, `ROLE` or the target is a validation error. A metric keyed by
-`staff` cannot score a group, since the group has no single staff member.
+"X only if Y is there too" is always "X `NOT DO` it `WITHOUT` Y". At `MUST_HAPPEN` these
+are hard rules; at a soft priority they are wishes.
 
-### AVOID … PER … BEYOND
+## Patterns: `<who> DOING <what>`
 
-`PER <fields>` groups matching assignments (fields: `staff`, `activity`, `role`, `date`,
-`block`). `BEYOND n` lets the first `n` in each group go free; each further one costs 1.
-`ON` sets the window: no `ON` counts within a day, `ON date.session` across the session,
-`ON date.target - 6d .. date.target` across a rolling week. Published assignments in the
-window are counted. `~` cannot combine with `PER`.
+A pattern describes assignments without asking for them. Sets in a pattern are pools
+("any of these"), and the only quantifier is `EACH_OF`. Put an amount in front and it
+becomes something you can request or prefer:
 
-### GAP
+| Request | Meaning |
+|---|---|
+| `REQUEST AT_MOST 2 staff.all DOING 'break' DURING EACH_OF block.all` | Never more than two people on break at once. Met or not. |
+| `PREFER AT_MOST 8 EACH_OF staff.all DOING activity.all ON date.session.all` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
+| `REQUEST AT_LEAST 2h staff.james DOING 'dance practice' ON {2026-09-16 .. 2026-09-17}` | James's dance practice adds up to two hours. |
 
-`GAP a b <= 5h` requires task `b` to start after task `a` ends with at most five hours
-between, measured from the tasks' real times: a `FOR 1h` task that ends at 10:30 may sit
-at the end of a 09:15–10:30 block. `>=` and `==` work too; `GAP a b >= 0m` is plain
-ordering. Both labels must be tasks for one staff member (use `ACROSS EACH`) that occupy
-one block each.
+An amount is `AT_LEAST`, `AT_MOST` or `EXACTLY`, then a number of assignments or a length
+of time. Add `CONSECUTIVE` at the end and it is measured over back-to-back blocks on one
+day: `AT_LEAST 2h … CONSECUTIVE` is one unbroken two-hour stretch, `AT_MOST 3 … CONSECUTIVE`
+is never more than three in a row.
+
+`REQUEST` and `PREFER` take the same amount and pattern. `REQUEST` is met or not, and can
+be `MUST_HAPPEN`. `PREFER` is never hard and is scored by how far off it is.
+
+### Metrics
+
+`EACH_OF x IN <set>` gives each copy's item a name, so a metric can be told what to look
+up:
+
+```skedge
+PREFER EACH_OF s IN staff.all DOING EACH_OF c IN activity.all MAXIMIZE metric.preference(s, c)
+```
+
+For each staff member `s` and clinic `c`, every assignment of `s` to `c` earns
+`metric.preference(s, c)`, normalized to 0–1. `MINIMIZE` makes it a cost instead. A pair
+the metric has no row for is worth that metric's `default`.
+
+## Several lines: variables, IF, UNLESS, GAP
+
+A line `EACH_OF x IN <set>` on its own names the item for the whole request. It is how two
+lines come to be about the same person:
+
+```skedge
+# Nobody who worked the night block yesterday works clinic 1 today.
+EACH_OF s IN staff.all
+IF s NOT FREE DURING block.night ON {date.target - 1d}
+REQUEST s FREE DURING block.clinic_1
+```
+
+`IF <pattern>` makes the request apply only when the pattern has a match (or meets an
+amount: `IF AT_LEAST 3 s DOING …`). `UNLESS` is the opposite. Published past days are
+facts, so an `IF` about yesterday is simply true or false.
+
+```skedge
+# Someone from the office covers the front desk in clinic 1, unless a director is free then.
+UNLESS staff.director FREE DURING block.clinic_1
+REQUEST ANY_1_OF staff.office DO 'front desk' DURING block.clinic_1
+```
+
+`ANY_1_OF x IN <set>` on its own line picks one item for the whole request: "the same
+person sets up and tears down".
+
+Label two requirements and put a `GAP` between them:
+
+```skedge
+EACH_OF c IN staff.counselor
+morning:   REQUEST c DO 'counselor hour' FOR 1h DURING ANY_1_OF {block.clinic_1 + block.clinic_2}
+afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING ANY_1_OF {block.playstation + block.clinic_3}
+GAP morning TO afternoon AT_MOST 5h
+```
+
+`GAP a TO b` means `b` starts after `a` ends, and the time between meets the amount.
+`GAP a TO b AT_LEAST 0m` is plain ordering. Real start and end times are compared, so a
+one-hour task may slide around inside its 75-minute block to make a gap work.
+
+A request with several `REQUEST` lines is met when all of them are. A `PREFER` always
+stands alone, with at most a binding and a condition.
+
+## What makes things happen
+
+**Only a positive `REQUEST` makes things happen.** A clinic runs, a trainee shadows, or an
+ad hoc task exists only because some `REQUEST` asks for it. `NOT`, `AT_MOST`, `PREFER`,
+`IF` and `UNLESS` steer where those things land; they never create more of them. So a
+request that people `NOT DO 'break'` outside meals moves the breaks they already have and
+cannot buy or cost anyone a break. It also means that naming an ad hoc task no `REQUEST`
+asks for is an error, which catches misspelled task names.
+
+## Priorities
+
+`MUST_HAPPEN` is hard. `CLINIC`, `HIGH`, `MEDIUM` and `LOW` are soft tiers, and no amount
+of a lower tier outweighs a higher one; within a tier, weights set the exchange rate. See
+[How the solver decides](solver.md). A `PREFER` cannot be `MUST_HAPPEN`; a cap that must
+hold is `REQUEST AT_MOST`.
 
 ## Time horizon
 
-The solver schedules the target date. Past dates with a published schedule are fixed and
-count toward `BEYOND` allowances and `FOR` hours. Future dates select nothing. A `TASK`
-whose window includes future dates is **deferrable**: optional today with a small nudge to
-do it early, enforced on the window's last date. A window entirely in the past is dropped.
+The solver schedules the target date. Published past dates are facts: they cannot change,
+and they count in every requirement, amount and condition. Future dates hold nothing yet.
 
-## Validation errors
-
-Each error carries a line and column. The validator rejects:
-
-- a name that does not exist in its namespace
-- a verb with no `DURING`
-- a quantifier applied to an expression containing `OR` or `AND`
-- `FORBID`, `PREFER` or `AVOID` with `ALL` or `n OF`, which choose rather than filter
-- `PREFER` or `AVOID` at `MUST_HAPPEN`, or a weight on a `MUST_HAPPEN` request
-- a zero or negative weight
-- `PER` on a verb other than `AVOID`, or `BEYOND` below 1
-- `~` with `PER`, or `~` on a verb other than `PREFER` or `AVOID`
-- `~` with a staff-keyed metric on a verb whose `ACROSS` selects a group
-- `AND` outside `ACROSS` on `FORBID`, `PREFER` or `AVOID`
-- `FORBID`, `PREFER` or `AVOID` on a quoted task that no `TASK` asks for
-- `FOR` with `DURING ALL`, or on a verb other than `TASK`
-- `ACROSS` with `ALL`, `OF` or `AND` on a clinic without `ROLE`
-- a date offset applied to a set of dates
-- a `GAP` label that is undefined, defined twice, or on a task with `ALL`, `OF` or `AND`
-- a clause given both on a verb's line and on a shared line
-- `ROLE` on an ad hoc or `FREE` target, or `FORBID FREE`
+A request that could still be met later, such as one `ON ANY_1_OF` a week of dates, is
+**deferrable**. It does not have to happen today as long as it can still happen later,
+with a small nudge to do it early. The solver knows from the sheets when "later" runs out,
+for example because the person rests for the remainder of the week, and enforces it on the
+last day that can still hold it. `NOT`, `AT_MOST` and `ALL_OF` dates are enforced every
+day.
 
 ## Examples
 
@@ -220,27 +284,12 @@ every example on this page against it.
 
 ### Clinic assignment
 
-Archery during clinic 2, run by a counselor. **Load offerings** creates a request like
-this (without `ACROSS`) for every offered clinic, at `CLINIC` priority, tagged `generated`.
+Archery runs during clinic 2. **Load offerings** creates a request like this for every
+offered clinic, at `CLINIC` priority, tagged `generated`. One person is asked for; the rest
+of the positions fill because a clinic runs fully staffed or not at all.
 
 ```skedge
-ON 2026-09-16
-DURING block.clinic_2
-ACROSS staff.counselor
-TASK activity.archery_1_2
-```
-
-Priority `CLINIC`.
-
-### Multi-position clinic
-
-Gravity zip line needs a 1st and a 2nd. No `ACROSS` or `ROLE`: both positions are filled
-from eligible staff.
-
-```skedge
-ON 2026-09-16
-DURING block.clinic_2
-TASK activity.gravity_zip_line
+REQUEST ANY_1_OF staff.all DO activity.archery_1_2 DURING block.clinic_2 ON 2026-09-16
 ```
 
 Priority `CLINIC`.
@@ -248,53 +297,66 @@ Priority `CLINIC`.
 ### Pinning a staff member to a position
 
 ```skedge
-ON 2026-09-16
-DURING block.clinic_2
-ACROSS staff.rob
-TASK activity.gravity_zip_line ROLE role.first
+REQUEST staff.rob DO activity.gravity_zip_line AS_ROLE role.first DURING block.clinic_2 ON 2026-09-16
 ```
 
 Priority `MUST_HAPPEN`.
 
-### Ad hoc task in a date window
-
-Dylan does archery maintenance during any block sometime this week. Deferrable until the
-last date.
+### Lucy and Tom take out the garbage together every Monday
 
 ```skedge
-ON 2026-09-14 .. 2026-09-18
-DURING block.any
-ACROSS staff.dylan
-TASK 'archery maintenance'
+REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_1_OF block.all ON EACH_OF date.session.mondays
 ```
 
-Priority `LOW`.
+Priority `HIGH`.
 
-### Alternative groups with non-continuous hours
-
-James alone, or Sarah and Paul together, practice the campfire dance for two total hours
-over two days.
+### Lucy or Tom takes out the garbage on the first Monday of every session
 
 ```skedge
-ON 2026-09-16 .. 2026-09-17
-DURING block.any
-ACROSS {staff.james OR (staff.sarah AND staff.paul)}
-TASK 'dance practice' FOR 2h
+REQUEST ANY_1_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_1_OF block.all ON EACH_OF date.season.first_mondays
+```
+
+Priority `HIGH`.
+
+### Two of three people, twice in a day
+
+The same two people, in the same two blocks.
+
+```skedge
+REQUEST ANY_2_OF {staff.lucy + staff.tom + staff.charles} DO 'take out garbage' DURING ANY_2_OF block.all ON 2026-09-21
 ```
 
 Priority `MEDIUM`.
 
-### Training
+### Each of three people, some day this week, during playstation
 
-Cam VL is trained on candle making for two continuous hours this week. `role.trainee`
-resolves to shadow or scaffolded from the Skills sheet, and the trainee is additional to
-the clinic's positions.
+Three separate requests, and each person may get a different day.
 
 ```skedge
-ON 2026-09-14 .. 2026-09-18
-DURING block.any
-ACROSS staff.cam_vl
-TASK activity.candle_making ROLE role.trainee FOR 2h CONTINUOUS
+REQUEST EACH_OF {staff.lucy + staff.tom + staff.charles} DO 'take out garbage' DURING block.playstation ON ANY_1_OF {2026-09-21 .. 2026-09-25}
+```
+
+Priority `MEDIUM`.
+
+### Both clinics if possible, some day in session two
+
+One day is chosen; clinic 1 and clinic 2 on it are separate requests.
+
+```skedge
+ANY_1_OF d IN date.session_2.all
+REQUEST staff.dylan DO 'archery maintenance' DURING EACH_OF {block.clinic_1 + block.clinic_2} ON d
+```
+
+Priority `LOW`.
+
+### Training
+
+Cam VL is trained on candle making for two unbroken hours some day this week.
+`role.trainee` resolves to shadow or scaffolded from the Skills sheet, and the trainee is
+additional to the clinic's positions.
+
+```skedge
+REQUEST AT_LEAST 2h staff.cam_vl DOING activity.candle_making AS_ROLE role.trainee ON {2026-09-14 .. 2026-09-18} CONSECUTIVE
 ```
 
 Priority `HIGH`.
@@ -302,79 +364,65 @@ Priority `HIGH`.
 ### Keeping someone off an activity
 
 ```skedge
-ON 2026-09-14 .. 2026-09-16
-DURING block.any_clinic
-ACROSS staff.dylan
-FORBID activity.ropes
+REQUEST staff.dylan NOT DO activity.ropes ON {2026-09-14 .. 2026-09-16}
 ```
 
 Priority `MUST_HAPPEN`.
 
-### Facilitators run clinics they enjoy
+### Staff run clinics they prefer
 
 ```skedge
-DURING block.any_clinic
-PREFER activity.any_clinic ~ metric.enjoyment
+PREFER EACH_OF s IN staff.all DOING EACH_OF c IN activity.all MAXIMIZE metric.preference(s, c)
 ```
 
 Priority `MEDIUM`, weight `1`.
 
 ### Clinic variety over a rolling week
 
-Shares a tier with the enjoyment request so the two trade off; see
-[How the solver decides](solver.md).
+Each person should run each clinic at most once in any seven days; every repeat costs a
+point. Shares a tier with the preference request so the two trade off.
 
 ```skedge
-ON date.target - 6d .. date.target
-DURING block.any_clinic
-AVOID activity.any_clinic PER staff activity BEYOND 1
+PREFER AT_MOST 1 EACH_OF staff.all DOING EACH_OF activity.all ON {(date.target - 6d) .. date.target}
 ```
 
 Priority `MEDIUM`, weight `0.5`.
 
-### No repeated clinic within a day
-
-`ON` is omitted, so groups are counted per day.
-
-```skedge
-DURING block.any_clinic
-AVOID activity.any_clinic PER staff activity BEYOND 1
-```
-
-Priority `HIGH`.
-
 ### Rotate ropes positions
 
 ```skedge
-ON date.session
-DURING block.any_clinic
-ACROSS staff.ropes_level_2
-AVOID activity.ropes ROLE {role.first + role.second} PER staff role BEYOND 3
+PREFER AT_MOST 3 EACH_OF staff.ropes_level_2 DOING activity.ropes AS_ROLE EACH_OF {role.first + role.second} ON date.session.all
 ```
 
-Priority `LOW`, weight `1`.
+Priority `LOW`.
 
 ### Balance clinic workload
 
 ```skedge
-ON date.session
-DURING block.any_clinic
-AVOID activity.any_clinic PER staff BEYOND 8
+PREFER AT_MOST 8 EACH_OF staff.all DOING activity.all ON date.session.all
 ```
 
 Priority `MEDIUM`, weight `0.25`.
 
+### Never more than three clinics in a row
+
+```skedge
+REQUEST AT_MOST 3 EACH_OF staff.all DOING activity.all CONSECUTIVE
+```
+
+Priority `MUST_HAPPEN`.
+
 ### Counselor hours with a maximum gap
 
 Each counselor gets a one-hour counselor hour during clinic 1 or 2 and another during
-clinic 3 or 4, no more than five hours apart. `ON` is omitted, so this applies every day.
-The hour takes part of a 75-minute clinic block; the rest shows as `DYOW/WPs`.
+playstation or clinic 3, no more than five hours apart. `ON` is left out, so this applies
+every day.
 
 ```skedge
-ACROSS EACH staff.counselor
-TASK 'counselor hour' FOR 1h DURING {block.clinic_1 OR block.clinic_2} AS morning
-TASK 'counselor hour' FOR 1h DURING {block.clinic_3 OR block.clinic_4} AS afternoon
-GAP morning afternoon <= 5h
+EACH_OF c IN staff.counselor
+morning:   REQUEST c DO 'counselor hour' FOR 1h DURING ANY_1_OF {block.clinic_1 + block.clinic_2}
+afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING ANY_1_OF {block.playstation + block.clinic_3}
+GAP morning TO afternoon AT_MOST 5h
 ```
 
 Priority `MUST_HAPPEN`.
@@ -385,37 +433,36 @@ Each non-director, non-counselor staff member takes three 30-minute breaks per d
 three different blocks. A break in a clinic block keeps that person off clinics in it.
 
 ```skedge
-ACROSS EACH {staff.all - staff.director - staff.counselor}
-DURING 3 OF block.any
-TASK 'break' FOR 30m
+REQUEST EACH_OF {staff.all - staff.director - staff.counselor} DO 'break' FOR 30m DURING ANY_3_OF block.all
 ```
 
 Priority `MUST_HAPPEN`.
 
 ### Breaks at meal times
 
-Where those breaks land. There are still three of them, wherever the meal blocks are.
+Where those breaks land: one small request per person per non-meal block.
 
 ```skedge
-ACROSS EACH {staff.all - staff.director - staff.counselor}
-DURING {block.any - block.meals}
-AVOID 'break'
+REQUEST EACH_OF {staff.all - staff.director - staff.counselor} NOT DO 'break' DURING EACH_OF {block.all - block.meals}
 ```
 
-Writing it with `EACH`, like the request it steers, gives each person their own reading of
-the rule. That is the same thing here, and different as soon as `PER` is involved.
+Priority `HIGH`, weight `2`.
 
-Priority `HIGH`. Weight: `2`.
+### Never more than two people on break at once
+
+```skedge
+REQUEST AT_MOST 2 staff.all DOING 'break' DURING EACH_OF block.all
+```
+
+Priority `MUST_HAPPEN`.
 
 ### Playstation availability
 
-As many non-directors as possible are free during the playstation block. Each free staff
-member adds to the score; the staff view marks them `Available`.
+As many non-directors as possible are free during the playstation block. Each free person
+is one met request; the staff view marks them `Available`.
 
 ```skedge
-DURING block.playstation
-ACROSS {staff.all - staff.director}
-PREFER FREE
+REQUEST EACH_OF {staff.all - staff.director} FREE DURING block.playstation
 ```
 
 Priority `HIGH`.
@@ -423,62 +470,59 @@ Priority `HIGH`.
 ### Day off
 
 ```skedge
-ON 2026-09-16
-DURING ALL block.any
-ACROSS staff.dylan
-TASK FREE
+REQUEST staff.dylan FREE DURING ALL_OF block.all ON 2026-09-16
 ```
 
 Priority `MUST_HAPPEN`.
 
-### Something every Monday
-
-`EACH` makes a separate copy per Monday of the session, so this happens on all of them.
-Written with `ON date.monday` instead, it would happen on one Monday.
+### A review with every director, on the second Thursday
 
 ```skedge
-ON EACH date.monday
-DURING block.clinic_1
-ACROSS staff.audrey
-TASK 'staff meeting' FOR 30m
-```
-
-Priority `HIGH`.
-
-### Something on the second Thursday of the session
-
-```skedge
-ON date.second_thursday
-DURING block.clinic_4
-ACROSS ALL staff.director
-TASK 'mid-session review'
+REQUEST ALL_OF staff.director DO 'mid-session review' DURING ANY_1_OF block.all ON date.session.second_thursday
 ```
 
 Priority `MEDIUM`.
 
 ### Keeping two staff off the same clinic
 
-James and Paul are matched as a group, so this costs a point only when both are on one
-clinic. `FORBID` in place of `AVOID` would rule it out outright, at the price of leaving a
-clinic unstaffed when they are the only two available.
+One request per block, so each shared clinic costs a point. At `MUST_HAPPEN` it would rule
+the pairing out, at the price of leaving a clinic unstaffed when they are the only two
+available.
 
 ```skedge
-DURING block.any_clinic
-ACROSS {staff.james AND staff.paul}
-AVOID activity.any_clinic
+REQUEST staff.jack NOT DO activity.all WITH staff.lucy DURING EACH_OF block.all
 ```
 
-Priority `HIGH`. Weight: `2`.
+Priority `HIGH`, weight `2`.
 
-### Putting two staff on the same clinic
+### If Rob is on ropes, Vic must be too
 
 ```skedge
-DURING block.any_clinic
-ACROSS {staff.rob AND staff.vic}
-PREFER activity.ropes
+REQUEST staff.rob NOT DO activity.ropes WITHOUT staff.vic
 ```
 
-Priority `LOW`.
+Priority `MUST_HAPPEN`.
+
+### After three clinics in a row, a free block
+
+```skedge
+EACH_OF s IN staff.all
+IF AT_LEAST 3 s DOING activity.all CONSECUTIVE
+REQUEST s FREE DURING ANY_1_OF block.all
+```
+
+Priority `HIGH`.
+
+### The same person sets up and tears down
+
+```skedge
+ANY_1_OF p IN staff.counselor
+first: REQUEST p DO 'campfire setup' DURING block.clinic_4
+last:  REQUEST p DO 'campfire teardown' DURING block.evening
+GAP first TO last AT_LEAST 0m
+```
+
+Priority `MEDIUM`.
 
 ## Grammar
 

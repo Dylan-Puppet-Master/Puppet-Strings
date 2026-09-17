@@ -38,28 +38,34 @@ def test_staff_view(dataset):
     table = staff_view(dataset, rows(dataset))
     assert table[0] == [
         "Staff",
+        "Breakfast",
         "Clinic 1",
         "Clinic 2",
         "Lunch",
         "Clinic 3",
         "Clinic 4",
         "Playstation",
+        "Evening",
+        "Night",
     ]
-    by_name = {row[0]: row for row in table[1:]}
-    assert by_name["Rob"][1] == "Gravity Zip Line (1st)"
-    assert by_name["James"][1] == "Gravity Zip Line (2nd)"
-    assert by_name["Paul"][1] == "Gravity Zip Line (shadow)"
+    by_name = {row[0]: dict(zip(table[0], row, strict=True)) for row in table[1:]}
+    assert by_name["Rob"]["Clinic 1"] == "Gravity Zip Line (1st)"
+    assert by_name["James"]["Clinic 1"] == "Gravity Zip Line (2nd)"
+    assert by_name["Paul"]["Clinic 1"] == "Gravity Zip Line (shadow)"
     assert (
-        by_name["Alexis"][1] == "Blacksmithing (DBL)"
-        and by_name["Alexis"][2] == "Blacksmithing (DBL)"
+        by_name["Alexis"]["Clinic 1"] == "Blacksmithing (DBL)"
+        and by_name["Alexis"]["Clinic 2"] == "Blacksmithing (DBL)"
     )
-    assert by_name["Dylan"][2] == "counselor hour, then DYOW/WPs"
-    assert by_name["Sarah"][1] == "break, then DYOW/WPs, then prep"
-    assert by_name["James"][4] == "DYOW/WPs, then break"
-    assert by_name["Sarah"][6] == "setup" and by_name["Dylan"][6] == "Available"
-    assert len(table) == 18
+    assert by_name["Dylan"]["Clinic 2"] == "counselor hour, then DYOW/WPs"
+    assert by_name["Sarah"]["Clinic 1"] == "break, then DYOW/WPs, then prep"
+    assert by_name["James"]["Clinic 3"] == "DYOW/WPs, then break"
+    assert (
+        by_name["Sarah"]["Playstation"] == "setup"
+        and by_name["Dylan"]["Playstation"] == "Available"
+    )
+    assert len(table) == 22
     custom = staff_view(dataset, rows(dataset), remainder="own work")
-    assert {row[0]: row for row in custom[1:]}["James"][4] == "own work, then break"
+    assert {row[0]: row for row in custom[1:]}["James"][5] == "own work, then break"
 
 
 def test_clinic_view(dataset):
@@ -96,12 +102,14 @@ def test_report():
             RequestOutcome("offering:salsa:clinic_4", Priority.CLINIC, "Salsa in clinic_4"),
         ),
         deferred=(RequestOutcome("maintenance", Priority.LOW, "archery maintenance"),),
+        inactive=(RequestOutcome("old", Priority.HIGH, "last week"),),
         notes=("tier LOW hit the time limit; its score may not be optimal",),
     )
     assert report(result) == [
         ["status", "request", "priority", "description"],
         ["unsatisfied", "offering:salsa:clinic_4", "CLINIC", "Salsa in clinic_4"],
         ["deferred", "maintenance", "LOW", "archery maintenance"],
+        ["inactive", "old", "HIGH", "last week"],
         ["note", "", "", "tier LOW hit the time limit; its score may not be optimal"],
     ]
     assert report(Result(feasible=False, conflicts=("a", "b")))[1:] == [

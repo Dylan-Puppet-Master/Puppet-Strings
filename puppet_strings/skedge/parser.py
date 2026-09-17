@@ -1,5 +1,6 @@
 """Text to syntax tree, using the Lark grammar in grammar.lark."""
 
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -43,7 +44,8 @@ def _describe(error: UnexpectedInput) -> str:
 
 
 _TERMINAL_NAMES = {
-    "NAME": "a name",
+    "NAME": "a variable or label",
+    "REF": "a name",
     "DATE": "a date",
     "DURATION": "a duration",
     "STRING": "'a quoted task'",
@@ -52,13 +54,14 @@ _TERMINAL_NAMES = {
     "RBRACE": "}",
     "LPAR": "(",
     "RPAR": ")",
+    "COMMA": ",",
+    "COLON": ":",
     "_NL": "a new line",
     "$END": "end of text",
-    "TILDE": "~",
-    "VERB": "TASK, FORBID, PREFER or AVOID",
+    "BOUND": "AT_LEAST, AT_MOST or EXACTLY",
+    "ANY_N_OF": "ANY_n_OF",
     "SETOP": "+, - or &",
     "OFFSET": "a day offset such as - 6d",
-    "COMPARISON": "<=, >= or ==",
 }
 
 
@@ -79,6 +82,42 @@ def _token_pos(token: Token) -> ast.Pos:
     return ast.Pos(token.line, token.column)
 
 
+def _error(message: str, pos: ast.Pos) -> ast.SkedgeError:
+    return ast.SkedgeError(message, pos.line, pos.column)
+
+
+def _atom(item) -> ast.SetExpr:
+    """A set expression: tokens become nodes, nodes pass through."""
+    if not isinstance(item, Token):
+        return item
+    if item.type == "REF":
+        namespace, name = str(item).split(".", 1)
+        return ast.Ref(namespace, name, _token_pos(item))
+    if item.type == "DATE":
+        try:
+            return ast.DateLiteral(date.fromisoformat(str(item)), _token_pos(item))
+        except ValueError as e:
+            raise ast.SkedgeError(f"invalid date '{item}'", item.line, item.column) from e
+    return ast.Var(str(item), _token_pos(item))
+
+
+def _quantifier(token: Token) -> tuple[str, int | None]:
+    if token.type == "ANY_N_OF":
+        return ast.ANY_OF, int(str(token)[len("ANY_") : -len("_OF")])
+    return str(token), None
+
+
+def _duration(token: Token) -> int:
+    try:
+        return parse_duration(str(token))
+    except ValueError as e:
+        raise ast.SkedgeError(str(e), token.line, token.column) from e
+
+
+def _is(item, kind: str) -> bool:
+    return isinstance(item, Token) and item.type == kind
+
+
 @v_args(meta=True)
 class _Builder(Transformer):
     """Turns the Lark tree into ast nodes."""
@@ -86,91 +125,150 @@ class _Builder(Transformer):
     def start(self, meta, lines):
         return ast.Declaration(tuple(lines))
 
-    def line(self, meta, clauses):
-        return ast.Line(tuple(clauses), _pos(meta))
+    # -- lines ------------------------------------------------------------------------------
 
-    def on(self, meta, items):
-        return ast.On(_pos(meta), items[0])
+    def binding(self, meta, items):
+        quantifier, name, expr = items
+        kind, n = _quantifier(quantifier)
+        selector = ast.Selector(_atom(expr), kind, n, str(name), _pos(meta))
+        return ast.Binding(selector, _pos(meta))
 
-    def during(self, meta, items):
-        return ast.During(_pos(meta), items[0])
+    def if_(self, meta, items):
+        return replace(items[0], pos=_pos(meta))
 
-    def across(self, meta, items):
-        return ast.Across(_pos(meta), items[0])
+    def unless(self, meta, items):
+        return replace(items[0], unless=True, pos=_pos(meta))
 
-    def role(self, meta, items):
-        return ast.Role(_pos(meta), items[0])
+    def condition(self, meta, items):
+        amount = items[0] if isinstance(items[0], ast.Amount) else None
+        pattern = next(x for x in items if isinstance(x, ast.Pattern))
+        return ast.Condition(False, amount, pattern, _is(items[-1], "CONSECUTIVE"), _pos(meta))
 
-    def verb(self, meta, items):
-        kind, target = items
-        if isinstance(target, Token):
-            target = ast.FREE if target.type == "FREE" else ast.AdHoc(str(target)[1:-1])
-        return ast.Verb(_pos(meta), str(kind), target)
-
-    def for_(self, meta, items):
-        try:
-            minutes = parse_duration(str(items[0]))
-        except ValueError as e:
-            raise ast.SkedgeError(str(e), meta.line, meta.column) from e
-        return ast.For(_pos(meta), minutes, len(items) > 1)
-
-    def label(self, meta, items):
-        return ast.Label(_pos(meta), str(items[0]))
-
-    def metric(self, meta, items):
-        return ast.MetricClause(_pos(meta), items[0])
-
-    def per(self, meta, items):
-        *fields, beyond = items
-        return ast.Per(_pos(meta), tuple(str(f) for f in fields), int(beyond))
+    def labeled(self, meta, items):
+        name, statement = items
+        return replace(statement, label=str(name))
 
     def gap(self, meta, items):
-        first, second, comparison, duration = items
-        try:
-            minutes = parse_duration(str(duration))
-        except ValueError as e:
-            raise ast.SkedgeError(str(e), meta.line, meta.column) from e
-        return ast.Gap(_pos(meta), str(first), str(second), str(comparison), minutes)
+        first, second, amount = items
+        return ast.Gap(str(first), str(second), amount, _pos(meta))
 
-    def selector(self, meta, items):
-        quantifier = items[0] if isinstance(items[0], ast.Quantifier) else None
-        return ast.Selector(quantifier, items[-1], _pos(meta))
+    # -- statements -------------------------------------------------------------------------
 
-    def quantifier(self, meta, items):
-        if items[0].type == "INT":
-            return ast.Quantifier("OF", int(items[0]))
-        return ast.Quantifier(str(items[0]))
+    def request_do(self, meta, items):
+        who, what, *clauses = items
+        return ast.Requirement(who, _target(what), False, tuple(clauses), _pos(meta))
 
-    def or_(self, meta, items):
-        return items[0] if len(items) == 1 else ast.Or(tuple(items), _pos(meta))
+    def request_free(self, meta, items):
+        who, _, *clauses = items
+        return ast.Requirement(who, None, False, tuple(clauses), _pos(meta))
 
-    def and_(self, meta, items):
-        return items[0] if len(items) == 1 else ast.And(tuple(items), _pos(meta))
+    def request_not_do(self, meta, items):
+        who, what, *clauses = items
+        return ast.Requirement(who, _target(what), True, tuple(clauses), _pos(meta))
+
+    def request_not_free(self, meta, items):
+        who, _, *clauses = items
+        return ast.Requirement(who, None, True, tuple(clauses), _pos(meta))
+
+    def request_count(self, meta, items):
+        return self._count(meta, items, prefer=False)
+
+    def prefer_count(self, meta, items):
+        return self._count(meta, items, prefer=True)
+
+    def _count(self, meta, items, prefer: bool):
+        amount, pattern = items[0], items[1]
+        return ast.Count(prefer, amount, pattern, _is(items[-1], "CONSECUTIVE"), _pos(meta))
+
+    def prefer_score(self, meta, items):
+        pattern, (maximize, metric, args) = items
+        return ast.Score(pattern, maximize, metric, args, _pos(meta))
+
+    def goal(self, meta, items):
+        direction, metric, *args = items
+        return direction.type == "MAXIMIZE", _atom(metric), tuple(_atom(a) for a in args)
+
+    def amount(self, meta, items):
+        bound, value = items
+        if value.type == "DURATION":
+            return ast.Amount(str(bound), _duration(value), True, _pos(meta))
+        return ast.Amount(str(bound), int(value), False, _pos(meta))
+
+    # -- patterns ---------------------------------------------------------------------------
+
+    def pattern_doing(self, meta, items):
+        who, what, *clauses = items
+        return ast.Pattern(who, _target(what), False, tuple(clauses), _pos(meta))
+
+    def pattern_free(self, meta, items):
+        who, _, *clauses = items
+        return ast.Pattern(who, None, False, tuple(clauses), _pos(meta))
+
+    def pattern_busy(self, meta, items):
+        who, _, *clauses = items
+        return ast.Pattern(who, None, True, tuple(clauses), _pos(meta))
+
+    # -- selectors and clauses --------------------------------------------------------------
+
+    def chooser(self, meta, items):
+        return self._selector(meta, items)
+
+    def pool(self, meta, items):
+        return self._selector(meta, items)
+
+    def _selector(self, meta, items):
+        kind, n, var = None, None, None
+        if _is(items[0], "ALL_OF") or _is(items[0], "ANY_N_OF") or _is(items[0], "EACH_OF"):
+            kind, n = _quantifier(items[0])
+            items = items[1:]
+        if len(items) == 2:
+            var = str(items[0])
+            items = items[1:]
+        return ast.Selector(_atom(items[0]), kind, n, var, _pos(meta))
+
+    def during_c(self, meta, items):
+        return ast.During(_pos(meta), items[0])
+
+    def on_c(self, meta, items):
+        return ast.On(_pos(meta), items[0])
+
+    def as_role_c(self, meta, items):
+        return ast.AsRole(_pos(meta), items[0])
+
+    during = during_c
+    on = on_c
+    as_role = as_role_c
+
+    def for_(self, meta, items):
+        return ast.For(_pos(meta), _duration(items[0]))
+
+    def with_(self, meta, items):
+        return ast.With(_pos(meta), _atom(items[0]))
+
+    def without(self, meta, items):
+        return ast.Without(_pos(meta), _atom(items[0]))
+
+    # -- set expressions --------------------------------------------------------------------
 
     def setop(self, meta, items):
-        result = items[0]
-        for op, right in zip(items[1::2], items[2::2], strict=True):
-            result = ast.SetOp(str(op), result, right, _pos(meta))
+        result = _atom(items[0])
+        ops = items[1::2]
+        for op, right in zip(ops, items[2::2], strict=True):
+            if str(op) != str(ops[0]):
+                raise ast.SkedgeError("mixed set operators need parentheses", op.line, op.column)
+            result = ast.SetOp(str(op), result, _atom(right), _pos(meta))
         return result
 
     def date_range(self, meta, items):
-        return ast.DateRange(items[0], items[1], _pos(meta))
+        return ast.DateRange(_atom(items[0]), _atom(items[1]), _pos(meta))
 
     def date_offset(self, meta, items):
         offset = str(items[1]).replace(" ", "").replace("\t", "")
         days = int(offset[1:-1])
-        return ast.DateOffset(items[0], days if offset[0] == "+" else -days, _pos(meta))
-
-    def date_literal(self, meta, items):
-        return _date(items[0])
-
-    def ref(self, meta, items):
-        namespace, *rest = (str(t) for t in items)
-        return ast.Ref(namespace, ".".join(rest), _pos(meta))
+        return ast.DateOffset(_atom(items[0]), days if offset[0] == "+" else -days, _pos(meta))
 
 
-def _date(token: Token) -> ast.DateLiteral:
-    try:
-        return ast.DateLiteral(date.fromisoformat(str(token)), _token_pos(token))
-    except ValueError as e:
-        raise ast.SkedgeError(f"invalid date '{token}'", token.line, token.column) from e
+def _target(item) -> ast.Selector | ast.Task:
+    if isinstance(item, Token):
+        return ast.Task(str(item)[1:-1])
+    return item

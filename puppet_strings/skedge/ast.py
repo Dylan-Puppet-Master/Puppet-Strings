@@ -1,9 +1,16 @@
 """Syntax tree for a Skedge declaration, as produced by the parser."""
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date
 
-VERBS = ("TASK", "FORBID", "PREFER", "AVOID")
+ALL_OF = "ALL_OF"
+ANY_OF = "ANY_OF"
+EACH_OF = "EACH_OF"
+
+AT_LEAST = "AT_LEAST"
+AT_MOST = "AT_MOST"
+EXACTLY = "EXACTLY"
 
 
 class SkedgeError(Exception):
@@ -26,9 +33,17 @@ class Pos:
 
 @dataclass(frozen=True)
 class Ref:
-    """`namespace.name`."""
+    """A dotted name: `staff.rob`, `date.session.mondays`."""
 
     namespace: str
+    name: str
+    pos: Pos
+
+
+@dataclass(frozen=True)
+class Var:
+    """A bare identifier bound by `EACH_OF x IN …` or `ANY_n_OF x IN …`."""
+
     name: str
     pos: Pos
 
@@ -45,7 +60,7 @@ class DateLiteral:
 class DateOffset:
     """`date.target - 6d`."""
 
-    base: "Ref | DateLiteral"
+    base: "SetExpr"
     days: int
     pos: Pos
 
@@ -54,8 +69,8 @@ class DateOffset:
 class DateRange:
     """`2026-09-14 .. 2026-09-18`, inclusive."""
 
-    start: "Ref | DateLiteral"
-    end: "Ref | DateLiteral"
+    start: "SetExpr"
+    end: "SetExpr"
     pos: Pos
 
 
@@ -69,149 +84,172 @@ class SetOp:
     pos: Pos
 
 
-SetExpr = Ref | DateLiteral | DateOffset | DateRange | SetOp
-
-
-@dataclass(frozen=True)
-class Or:
-    """Alternatives: `a OR b`."""
-
-    items: tuple["Expr", ...]
-    pos: Pos
-
-
-@dataclass(frozen=True)
-class And:
-    """Items that go together: `a AND b`."""
-
-    items: tuple["Expr", ...]
-    pos: Pos
-
-
-Expr = SetExpr | Or | And
-
-
-@dataclass(frozen=True)
-class Quantifier:
-    """`ANY`, `ALL`, `EACH`, or `n OF`."""
-
-    kind: str
-    n: int | None = None
+SetExpr = Ref | Var | DateLiteral | DateOffset | DateRange | SetOp
 
 
 @dataclass(frozen=True)
 class Selector:
-    """A quantified expression: the argument of ON, DURING, ACROSS, ROLE, or a verb."""
+    """A set with the quantifier written in front of it.
 
-    quantifier: Quantifier | None
-    expr: Expr
+    `quantifier` is ALL_OF, ANY_OF (with `n`) or EACH_OF, or None for a bare set. `var` is
+    the `x` of `EACH_OF x IN s`.
+    """
+
+    expr: SetExpr
+    quantifier: str | None
+    n: int | None
+    var: str | None
     pos: Pos
 
 
 @dataclass(frozen=True)
-class Clause:
-    """Base for every clause on a line."""
-
-    pos: Pos
-
-
-@dataclass(frozen=True)
-class On(Clause):
-    """`ON <selector>`."""
-
-    selector: Selector
-
-
-@dataclass(frozen=True)
-class During(Clause):
-    """`DURING <selector>`."""
-
-    selector: Selector
-
-
-@dataclass(frozen=True)
-class Across(Clause):
-    """`ACROSS <selector>`."""
-
-    selector: Selector
-
-
-@dataclass(frozen=True)
-class Role(Clause):
-    """`ROLE <selector>`."""
-
-    selector: Selector
-
-
-@dataclass(frozen=True)
-class AdHoc:
+class Task:
     """A quoted task with no positions or skills: `'archery maintenance'`."""
 
     text: str
 
 
-@dataclass(frozen=True)
-class Free:
-    """The `FREE` target: no assignment at all."""
-
-
-FREE = Free()
+Target = Selector | Task | None  # None is FREE
 
 
 @dataclass(frozen=True)
-class Verb(Clause):
-    """`TASK|FORBID|PREFER|AVOID <target>`."""
+class Clause:
+    """Base for every clause on a statement."""
 
-    kind: str
-    target: Selector | AdHoc | Free
+    pos: Pos
+
+
+@dataclass(frozen=True)
+class During(Clause):
+    """`DURING <blocks>`."""
+
+    selector: Selector
+
+
+@dataclass(frozen=True)
+class On(Clause):
+    """`ON <dates>`."""
+
+    selector: Selector
+
+
+@dataclass(frozen=True)
+class AsRole(Clause):
+    """`AS_ROLE <roles>`."""
+
+    selector: Selector
 
 
 @dataclass(frozen=True)
 class For(Clause):
-    """`FOR <duration> [CONTINUOUS]`, duration in minutes."""
+    """`FOR <duration>`, in minutes."""
 
     minutes: int
-    continuous: bool
 
 
 @dataclass(frozen=True)
-class Label(Clause):
-    """`AS <name>`."""
+class With(Clause):
+    """`WITH <staff>`."""
 
-    name: str
-
-
-@dataclass(frozen=True)
-class MetricClause(Clause):
-    """`~ metric.<name>`."""
-
-    ref: Ref
+    staff: SetExpr
 
 
 @dataclass(frozen=True)
-class Per(Clause):
-    """`PER <fields> BEYOND <n>`."""
+class Without(Clause):
+    """`WITHOUT <staff>`."""
 
-    fields: tuple[str, ...]
-    beyond: int
+    staff: SetExpr
 
 
 @dataclass(frozen=True)
-class Gap(Clause):
-    """`GAP <label> <label> <comparison> <duration>`, duration in minutes."""
+class Amount:
+    """`AT_LEAST 3`, `AT_MOST 2h`: a bound and a count or a duration in minutes."""
+
+    bound: str
+    value: int
+    duration: bool
+    pos: Pos
+
+
+@dataclass(frozen=True)
+class Pattern:
+    """`<who> DOING <what> …`, `<who> FREE …` or `<who> NOT FREE …` (`busy`)."""
+
+    who: Selector
+    what: Target
+    busy: bool
+    clauses: tuple[Clause, ...]
+    pos: Pos
+
+
+@dataclass(frozen=True)
+class Requirement:
+    """`REQUEST <who> DO <what> …`, `… FREE …`, and with `negated`, `… NOT DO …`, `… NOT FREE …`."""
+
+    who: Selector
+    what: Target
+    negated: bool
+    clauses: tuple[Clause, ...]
+    pos: Pos
+    label: str | None = None
+
+
+@dataclass(frozen=True)
+class Count:
+    """`REQUEST|PREFER <amount> <pattern> [CONSECUTIVE]`."""
+
+    prefer: bool
+    amount: Amount
+    pattern: Pattern
+    consecutive: bool
+    pos: Pos
+    label: str | None = None
+
+
+@dataclass(frozen=True)
+class Score:
+    """`PREFER <pattern> MAXIMIZE|MINIMIZE metric.x(args)`."""
+
+    pattern: Pattern
+    maximize: bool
+    metric: Ref
+    args: tuple[Var | Ref, ...]
+    pos: Pos
+
+
+Statement = Requirement | Count | Score
+
+
+@dataclass(frozen=True)
+class Binding:
+    """`EACH_OF x IN s` or `ANY_n_OF x IN s` on a line of its own."""
+
+    selector: Selector
+    pos: Pos
+
+
+@dataclass(frozen=True)
+class Condition:
+    """`IF …` or, with `unless`, `UNLESS …`."""
+
+    unless: bool
+    amount: Amount | None
+    pattern: Pattern
+    consecutive: bool
+    pos: Pos
+
+
+@dataclass(frozen=True)
+class Gap:
+    """`GAP <label> TO <label> <amount>`."""
 
     first: str
     second: str
-    comparison: str
-    minutes: int
-
-
-@dataclass(frozen=True)
-class Line:
-    """One line: its clauses in source order."""
-
-    clauses: tuple[Clause, ...]
+    amount: Amount
     pos: Pos
+
+
+Line = Binding | Condition | Statement | Gap
 
 
 @dataclass(frozen=True)
@@ -219,3 +257,84 @@ class Declaration:
     """A whole `.skedge` text."""
 
     lines: tuple[Line, ...]
+
+    @property
+    def statements(self) -> tuple[Statement, ...]:
+        """The REQUEST and PREFER lines."""
+        return tuple(x for x in self.lines if isinstance(x, Requirement | Count | Score))
+
+    @property
+    def bindings(self) -> tuple[Binding, ...]:
+        """The binding lines."""
+        return tuple(x for x in self.lines if isinstance(x, Binding))
+
+    @property
+    def conditions(self) -> tuple[Condition, ...]:
+        """The IF and UNLESS lines."""
+        return tuple(x for x in self.lines if isinstance(x, Condition))
+
+    @property
+    def gaps(self) -> tuple[Gap, ...]:
+        """The GAP lines."""
+        return tuple(x for x in self.lines if isinstance(x, Gap))
+
+
+def clause(clauses: tuple[Clause, ...], kind: type) -> Clause | None:
+    """The clause of this type among a statement's clauses, if any."""
+    return next((c for c in clauses if isinstance(c, kind)), None)
+
+
+def patterns(line: Line) -> tuple[Pattern, ...]:
+    """The patterns a line contains."""
+    if isinstance(line, Count | Score | Condition):
+        return (line.pattern,)
+    return ()
+
+
+NAMESPACES = {During: "block", On: "date", AsRole: "role"}
+
+
+def selectors(line: Line) -> Iterator[tuple[str | None, Selector]]:
+    """Every selector a line holds with its namespace, in source order.
+
+    A binding line's namespace is None: it comes from the names in its set.
+    """
+    if isinstance(line, Binding):
+        yield None, line.selector
+        return
+    for part in (line, *patterns(line)):
+        if not isinstance(part, Requirement | Pattern):
+            continue
+        yield "staff", part.who
+        if isinstance(part.what, Selector):
+            yield "activity", part.what
+        for c in part.clauses:
+            if type(c) in NAMESPACES:
+                yield NAMESPACES[type(c)], c.selector
+
+
+def set_exprs(line: Line) -> Iterator[SetExpr]:
+    """Every set expression a line holds, including WITH, WITHOUT and metric arguments."""
+    for _, selector in selectors(line):
+        yield selector.expr
+    for part in (line, *patterns(line)):
+        if isinstance(part, Requirement | Pattern):
+            for c in part.clauses:
+                if isinstance(c, With | Without):
+                    yield c.staff
+    if isinstance(line, Score):
+        yield from line.args
+
+
+def vars_in(expr: SetExpr) -> Iterator[Var]:
+    """The variables an expression mentions."""
+    if isinstance(expr, Var):
+        yield expr
+    elif isinstance(expr, SetOp):
+        yield from vars_in(expr.left)
+        yield from vars_in(expr.right)
+    elif isinstance(expr, DateRange):
+        yield from vars_in(expr.start)
+        yield from vars_in(expr.end)
+    elif isinstance(expr, DateOffset):
+        yield from vars_in(expr.base)

@@ -12,7 +12,7 @@ Full documentation: the `docs/` folder, published with MkDocs to GitHub Pages.
 Google Sheets ──read──▶ sheets/   (parsers: one per sheet, CSV or gspread)
                             │ Dataset
                             ▼
-                        skedge/   (parse, scope, resolve, validate requests)
+                        skedge/   (parse, resolve, validate requests)
                             │
                             ▼
                         solver/   (CP-SAT model, lexicographic tiers, report)

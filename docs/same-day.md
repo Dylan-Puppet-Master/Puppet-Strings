@@ -23,7 +23,7 @@ says so. One row can do both, for someone who is short of sleep and resting the 
 
 **Resting takes them off that part of the day.** No clinics, and no breaks either, since a
 category such as `staff.all` stops offering anyone who is resting all day. That is why a
-rest belongs here rather than in a `TASK FREE` request, which would collide with the
+rest belongs here rather than in a `FREE` request, which would collide with the
 mandatory break rule and report a conflict every time somebody was ill.
 
 A block belongs to the half of the day it **starts** in, split at `midday` under `[day]` in
@@ -39,10 +39,7 @@ For an absence that is neither half a day nor all of it, write an ordinary reque
 instead, which can name the blocks:
 
 ```skedge
-ON date.target
-DURING {block.clinic_3 + block.clinic_4}
-ACROSS staff.dylan
-TASK FREE
+REQUEST staff.dylan FREE DURING ALL_OF {block.clinic_3 + block.clinic_4} ON date.target
 ```
 
 ## Re-solving

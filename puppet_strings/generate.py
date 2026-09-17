@@ -1,7 +1,8 @@
 """Turn the Offerings tab into requests on the Requests sheet.
 
 Each offered clinic instance becomes a CLINIC request tagged GENERATED_TAG, so the Puppet
-Master can see, edit or delete it before solving. Loading again first removes every
+Master can see, edit or delete it before solving. One person is asked for; the rest of the
+positions fill because a clinic runs fully staffed or not at all. Loading again first removes every
 generated request for that date, so the Requests sheet mirrors the Offerings tab.
 """
 
@@ -18,13 +19,17 @@ def generated_requests(dataset: Dataset) -> list[Request]:
     requests = []
     for offering in dataset.offerings:
         blocks = " + ".join(f"block.{b}" for b in offering.blocks)
-        during = f"ALL {{{blocks}}}" if len(offering.blocks) > 1 else blocks
+        during = f"ALL_OF {{{blocks}}}" if len(offering.blocks) > 1 else blocks
         name = dataset.activities[offering.activity].name
+        skedge = (
+            f"REQUEST ANY_1_OF staff.all DO activity.{offering.activity} "
+            f"DURING {during} ON {target}"
+        )
         requests.append(
             Request(
                 id=f"offering:{target}:{offering.activity}:{offering.blocks[0]}",
                 description=f"{name} in {', '.join(offering.blocks)}",
-                skedge=f"ON {target}\nDURING {during}\nTASK activity.{offering.activity}",
+                skedge=skedge,
                 priority=Priority.CLINIC,
                 tags=(GENERATED_TAG,),
                 created=dataset.target,

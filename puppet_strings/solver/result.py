@@ -7,7 +7,7 @@ from puppet_strings.model import Assignment, Priority
 
 @dataclass(frozen=True)
 class RequestOutcome:
-    """A request copy that was not satisfied, or was deferred to a later date."""
+    """A request copy that was not satisfied, was deferred to a later date, or was inactive."""
 
     id: str
     priority: Priority
@@ -32,6 +32,7 @@ class Result:
     assignments: tuple[Assignment, ...] = ()
     unsatisfied: tuple[RequestOutcome, ...] = ()
     deferred: tuple[RequestOutcome, ...] = ()
+    inactive: tuple[RequestOutcome, ...] = ()
     conflicts: tuple[str, ...] = ()
     notes: tuple[str, ...] = field(default_factory=tuple)
     changes: tuple[Change, ...] = ()

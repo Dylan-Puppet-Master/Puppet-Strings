@@ -1,13 +1,12 @@
-"""Turn scoped verbs into statements over concrete items from a Dataset.
+"""Turn a checked declaration into statements over concrete items from a Dataset.
 
-Selectors become Choices: the items involved and how they combine. `EACH` is expanded
-here into independent copies of the declaration.
+Names are looked up, set expressions evaluated, and `EACH_OF` expanded into independent
+copies of the declaration. A copy is what the solver compiles.
 """
 
 from collections.abc import Iterator
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
-from itertools import product
 
 from puppet_strings.model import (
     LIFEGUARD_ROLES,
@@ -17,98 +16,217 @@ from puppet_strings.model import (
     Dataset,
 )
 from puppet_strings.skedge import ast
-from puppet_strings.skedge.scope import ScopedDeclaration, ScopedVerb
 
 Item = str | date
 
-ANY = ast.Quantifier("ANY")
-EACH = ast.Quantifier("EACH")
-DEFAULT_POS = ast.Pos(0, 0)  # shared by every verb's default ON, so EACH expands them together
+ALL = "all"  # every item, as one requirement; an item on its own is ALL of one
+ANY = "any"  # n of the items, the solver's choice
+POOL = "pool"  # any of the items match
 TRAINEE = "trainee"
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+DEFAULT_POS = ast.Pos(0, 0)
 
 
 @dataclass(frozen=True)
 class Choice:
-    """A resolved selector.
+    """A resolved selector: its items and how they are taken.
 
-    `alternatives` is set when the selector used OR/AND: the solver picks one alternative,
-    and every item in it goes together. Otherwise `quantifier` says how many of `items`
-    are chosen: ANY (one), ALL, or `n OF`.
+    `var` names a choice a binding line makes once for the whole declaration; every
+    selector carrying the same `var` shares it.
     """
 
     items: tuple[Item, ...]
-    alternatives: tuple[frozenset[Item], ...] | None
-    quantifier: ast.Quantifier
-    pos: ast.Pos
-
-    @property
-    def single(self) -> bool:
-        """Whether exactly one item is chosen."""
-        if self.alternatives is not None:
-            return all(len(a) == 1 for a in self.alternatives)
-        return self.quantifier.kind == "ANY"
+    kind: str
+    n: int = 1
+    var: str | None = None
+    pos: ast.Pos = DEFAULT_POS
 
 
 @dataclass(frozen=True)
-class Statement:
-    """One verb with every clause resolved."""
+class Pattern:
+    """`<who> DOING <what> …`, `<who> FREE …` or (`busy`) `<who> NOT FREE …`, resolved."""
 
-    verb: str
-    target: Choice | ast.AdHoc | ast.Free
+    who: Choice
+    what: Choice | ast.Task | None
+    busy: bool
+    during: Choice | None
     on: Choice
-    during: Choice
-    across: Choice
     role: Choice | None
+    minutes: int | None
+    with_: frozenset[str] | None
+    without: frozenset[str] | None
     pos: ast.Pos
-    minutes: int | None = None
-    continuous: bool = False
-    label: str | None = None
-    metric: str | None = None
-    per: tuple[str, ...] | None = None
-    beyond: int | None = None
+
+
+@dataclass(frozen=True)
+class Requirement:
+    """`REQUEST <who> DO <what> …` or `REQUEST <who> FREE …` (`what` is None), resolved."""
+
+    who: Choice
+    what: Choice | ast.Task | None
+    during: Choice
+    on: Choice
+    role: Choice | None
+    minutes: int | None
+    with_: frozenset[str] | None
+    without: frozenset[str] | None
+    label: str | None
+    pos: ast.Pos
+
+
+@dataclass(frozen=True)
+class Forbid:
+    """`REQUEST <who> NOT DO …`: no assignment of `who` matches the pattern.
+
+    For `REQUEST <who> NOT FREE …` the pattern is the busy one, and `who` must match it
+    in every block it allows.
+    """
+
+    who: Choice
+    pattern: Pattern
+    pos: ast.Pos
+
+
+@dataclass(frozen=True)
+class Count:
+    """`REQUEST|PREFER <amount> <pattern> [CONSECUTIVE]`, resolved."""
+
+    prefer: bool
+    amount: ast.Amount
+    pattern: Pattern
+    consecutive: bool
+    pos: ast.Pos
+
+
+@dataclass(frozen=True)
+class Score:
+    """`PREFER <pattern> MAXIMIZE|MINIMIZE metric.x(args)`, with the arguments as a key."""
+
+    pattern: Pattern
+    maximize: bool
+    metric: str
+    key: tuple[str, ...]
+    pos: ast.Pos
+
+
+@dataclass(frozen=True)
+class Condition:
+    """`IF` or (`unless`) `UNLESS`, resolved. Without an amount it asks for one match."""
+
+    unless: bool
+    amount: ast.Amount | None
+    pattern: Pattern
+    consecutive: bool
+
+
+Statement = Requirement | Forbid | Count | Score
 
 
 @dataclass(frozen=True)
 class Resolved:
-    """One expanded copy of a declaration. `key` names the EACH items it was made for."""
+    """One expanded copy of a declaration. `key` names the EACH_OF items it was made for."""
 
     key: str
+    bindings: dict[str, Choice]
     statements: tuple[Statement, ...]
+    condition: Condition | None
     gaps: tuple[ast.Gap, ...]
 
 
-def resolve(scoped: ScopedDeclaration, dataset: Dataset) -> tuple[Resolved, ...]:
-    """Resolve names and expand EACH. Raises SkedgeError on unknown or misused names."""
-    names = _Names(dataset)
-    statements = tuple(_statement(v, names, dataset) for v in scoped.verbs)
-    return tuple(_expand(statements, scoped.gaps))
+@dataclass(frozen=True)
+class Named:
+    """What a name stands for: its items, and whether it is one item rather than a set."""
+
+    items: frozenset[Item]
+    single: bool
+
+
+def resolve(declaration: ast.Declaration, dataset: Dataset) -> tuple[Resolved, ...]:
+    """Resolve names and expand EACH_OF. Raises SkedgeError on unknown or misused names."""
+    scope = _Scope(_Names(dataset), dataset)
+    for binding in declaration.bindings:
+        if binding.selector.quantifier == ast.ANY_OF:
+            scope = scope.with_any(binding.selector)
+    each = [
+        (namespace, selector)
+        for line in declaration.lines
+        for namespace, selector in ast.selectors(line)
+        if selector.quantifier == ast.EACH_OF
+    ]
+    return tuple(_expand(declaration, each, scope))
+
+
+# -- names ------------------------------------------------------------------------------------
 
 
 class _Names:
-    """Every valid name per namespace, each mapping to the items it stands for."""
+    """Every valid name per namespace."""
 
     def __init__(self, dataset: Dataset) -> None:
-        self.session = frozenset(dataset.session_dates)
-        self.spaces: dict[str, dict[str, frozenset[Item]]] = {
-            "staff": _ids_and_categories(dataset.staff, dataset.staff_categories),
-            "activity": _ids_and_categories(dataset.activities, dataset.activity_categories),
-            "block": _ids_and_categories(dataset.blocks, dataset.block_categories),
+        roles = POSITION_ROLES + LIFEGUARD_ROLES + TRAINEE_ROLES + (TRAINEE,)
+        self.spaces: dict[str, dict[str, Named]] = {
+            "staff": _members(dataset.staff, dataset.staff_categories),
+            "activity": _members(dataset.activities, dataset.activity_categories),
+            "block": _members(dataset.blocks, dataset.block_categories),
             "date": date_names(dataset),
-            "role": {
-                r: frozenset({r})
-                for r in POSITION_ROLES + LIFEGUARD_ROLES + TRAINEE_ROLES + (TRAINEE,)
-            },
-            "metric": {m: frozenset({m}) for m in dataset.metrics},
+            "role": {r: Named(frozenset({r}), True) for r in roles},
+            "metric": {m: Named(frozenset({m}), True) for m in dataset.metrics},
         }
 
-    def lookup(self, ref: ast.Ref, namespace: str) -> frozenset[Item]:
+    def lookup(self, ref: ast.Ref, namespace: str) -> Named:
         if ref.namespace != namespace:
             raise _error(f"expected a {namespace} name, not {ref.namespace}.{ref.name}", ref.pos)
         try:
             return self.spaces[namespace][ref.name]
         except KeyError:
             raise _error(f"unknown {namespace} name '{ref.name}'", ref.pos) from None
+
+
+def _members(items, categories) -> dict[str, Named]:
+    single = {i: Named(frozenset({i}), True) for i in items}
+    sets = {c: Named(frozenset(members), False) for c, members in categories.items()}
+    return {**single, **sets}
+
+
+def date_names(dataset: Dataset) -> dict[str, Named]:
+    """Every name in the `date` namespace: `target`, and `<scope>.<name>` per scope.
+
+    The scopes are `session` (the target's), `season`, and each session by its own name.
+    Within a scope, `all` and the weekdays are sets; `first`, `last` and the ordinal
+    weekdays are items that exist only when the scope reaches them. `season` also holds
+    each ordinal weekday as a set over the sessions: `season.first_mondays`.
+    """
+    names = {"target": Named(frozenset({dataset.target}), True)}
+    scopes = {"session": dataset.session_dates, "season": dataset.season_dates, **dataset.sessions}
+    for scope, dates in scopes.items():
+        for name, named in _scope_names(dates).items():
+            names[f"{scope}.{name}"] = named
+    per_session = [_scope_names(dates) for dates in dataset.sessions.values()]
+    occurrences = {n for s in per_session for n, v in s.items() if v.single and "_" in n}
+    for name in occurrences:
+        dates = frozenset().union(*(s[name].items for s in per_session if name in s))
+        names[f"season.{name}s"] = Named(dates, False)
+    return names
+
+
+def _scope_names(dates: tuple[date, ...]) -> dict[str, Named]:
+    names = {"all": Named(frozenset(dates), False)}
+    if not dates:
+        return names
+    names["first"], names["last"] = _one(dates[0]), _one(dates[-1])
+    by_weekday: dict[str, list[date]] = {}
+    for day in dates:
+        by_weekday.setdefault(WEEKDAYS[day.weekday()], []).append(day)
+    for weekday, days in by_weekday.items():
+        names[f"{weekday}s"] = Named(frozenset(days), False)
+        for ordinal, day in zip(ORDINALS, days, strict=False):
+            names[f"{ordinal}_{weekday}"] = _one(day)
+        names[f"last_{weekday}"] = _one(days[-1])
+    return names
+
+
+def _one(day: date) -> Named:
+    return Named(frozenset({day}), True)
 
 
 def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
@@ -126,204 +244,247 @@ def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
     listing = {}
     for namespace, names in _Names(dataset).spaces.items():
         rows = [
-            (name, described.get(namespace, {}).get(name) or _note(namespace, name, items))
-            for name, items in names.items()
+            (name, described.get(namespace, {}).get(name) or _note(namespace, name, named))
+            for name, named in names.items()
         ]
         listing[namespace] = sorted(rows)
     return listing
 
 
-def _note(namespace: str, name: str, items: frozenset[Item]) -> str:
+def _note(namespace: str, name: str, named: Named) -> str:
     if namespace == "date":
-        return next(iter(items)).isoformat() if len(items) == 1 else f"{len(items)} dates"
+        return next(iter(named.items)).isoformat() if named.single else f"{len(named.items)} dates"
     if namespace == "role":
         if name in LIFEGUARD_ROLES:
             return "extra lifeguard on a water clinic"
         return "trainee" if name in TRAINEE_ROLES + (TRAINEE,) else "clinic position"
-    return f"category, {len(items)} members"
+    return f"category, {len(named.items)} members"
 
 
-def date_names(dataset: Dataset) -> dict[str, frozenset[Item]]:
-    """Every name in the `date` namespace, in listing order.
+# -- expansion --------------------------------------------------------------------------------
 
-    A weekday holds every date of the session that falls on it, so `ON date.monday` means
-    one Monday and `ON EACH date.monday` means every Monday. An ordinal or `last_` name
-    holds the single date of that occurrence, and exists only if the session reaches it.
+
+@dataclass(frozen=True)
+class _Scope:
+    """What the variables stand for while one copy of a declaration is resolved.
+
+    `each` holds the item of every EACH_OF selector, by position; `vars` the EACH_OF
+    variables by name; `anys` the ANY_n_OF binding lines.
     """
-    session = dataset.session_dates
-    names: dict[str, frozenset[Item]] = {
-        "target": frozenset({dataset.target}),
-        "session": frozenset(session),
+
+    names: _Names
+    dataset: Dataset
+    each: dict[ast.Pos, Item] = field(default_factory=dict)
+    vars: dict[str, tuple[Item, str]] = field(default_factory=dict)
+    anys: dict[str, tuple[Choice, str]] = field(default_factory=dict)
+
+    def with_each(self, selector: ast.Selector, item: Item, namespace: str) -> "_Scope":
+        each = {**self.each, selector.pos: item}
+        variables = dict(self.vars)
+        if selector.var:
+            variables[selector.var] = (item, namespace)
+        return replace(self, each=each, vars=variables)
+
+    def with_any(self, selector: ast.Selector) -> "_Scope":
+        namespace = _namespace_of(selector.expr, self)
+        items, single = _evaluate(selector.expr, namespace, self)
+        if single:
+            raise _error("is one item and takes no quantifier", selector.pos)
+        choice = Choice(_sorted(items), ANY, selector.n, selector.var, selector.pos)
+        return replace(self, anys={**self.anys, selector.var: (choice, namespace)})
+
+
+def _expand(declaration: ast.Declaration, each: list, scope: _Scope) -> Iterator[Resolved]:
+    if not each:
+        yield _copy(declaration, scope)
+        return
+    (namespace, selector), rest = each[0], each[1:]
+    namespace = namespace or _namespace_of(selector.expr, scope)
+    items, single = _evaluate(selector.expr, namespace, scope)
+    if single:
+        raise _error("is one item and takes no quantifier", selector.pos)
+    for item in _sorted(items):
+        yield from _expand(declaration, rest, scope.with_each(selector, item, namespace))
+
+
+def _copy(declaration: ast.Declaration, scope: _Scope) -> Resolved:
+    conditions = declaration.conditions
+    return Resolved(
+        key=", ".join(str(item) for item in scope.each.values()),
+        bindings={name: choice for name, (choice, _) in scope.anys.items()},
+        statements=tuple(_statement(s, scope) for s in declaration.statements),
+        condition=_condition(conditions[0], scope) if conditions else None,
+        gaps=declaration.gaps,
+    )
+
+
+def _statement(statement: ast.Statement, scope: _Scope) -> Statement:
+    if isinstance(statement, ast.Count):
+        pattern = _pattern(statement.pattern, scope)
+        return Count(
+            statement.prefer, statement.amount, pattern, statement.consecutive, statement.pos
+        )
+    if isinstance(statement, ast.Score):
+        return _score(statement, scope)
+    who = _choice(statement.who, "staff", scope, pool=False)
+    parts = _parts(statement.what, statement.clauses, scope, pool=statement.negated)
+    if statement.negated:
+        pool = Choice(who.items, POOL, pos=who.pos)
+        pattern = Pattern(pool, busy=statement.what is None, **parts, pos=statement.pos)
+        return Forbid(who, pattern, statement.pos)
+    return Requirement(who, label=statement.label, **parts, pos=statement.pos)
+
+
+def _pattern(pattern: ast.Pattern, scope: _Scope) -> Pattern:
+    who = _choice(pattern.who, "staff", scope, pool=True)
+    parts = _parts(pattern.what, pattern.clauses, scope, pool=True)
+    return Pattern(who, busy=pattern.busy, **parts, pos=pattern.pos)
+
+
+def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, pool: bool) -> dict:
+    """The target and clauses shared by requirements and patterns, resolved."""
+    during = ast.clause(clauses, ast.During)
+    on = ast.clause(clauses, ast.On)
+    role = ast.clause(clauses, ast.AsRole)
+    for_ = ast.clause(clauses, ast.For)
+    with_ = ast.clause(clauses, ast.With)
+    without = ast.clause(clauses, ast.Without)
+    target = Choice((scope.dataset.target,), POOL if pool else ALL)
+    return {
+        "what": _choice(what, "activity", scope, pool) if isinstance(what, ast.Selector) else what,
+        "during": _choice(during.selector, "block", scope, pool) if during else None,
+        "on": _choice(on.selector, "date", scope, pool) if on else target,
+        "role": _choice(role.selector, "role", scope, pool) if role else None,
+        "minutes": for_.minutes if for_ else None,
+        "with_": _staff(with_.staff, scope) if with_ else None,
+        "without": _staff(without.staff, scope) if without else None,
     }
-    by_weekday: dict[str, list[date]] = {}
-    for day in session:
-        by_weekday.setdefault(WEEKDAYS[day.weekday()], []).append(day)
-    for weekday in WEEKDAYS:
-        days = by_weekday.get(weekday)
-        if not days:
-            continue
-        names[weekday] = frozenset(days)
-        for ordinal, day in zip(ORDINALS, days, strict=False):
-            names[f"{ordinal}_{weekday}"] = frozenset({day})
-        names[f"last_{weekday}"] = frozenset({days[-1]})
-    return names
 
 
-def _ids_and_categories(items, categories) -> dict[str, frozenset[Item]]:
-    return {**{i: frozenset({i}) for i in items}, **categories}
+def _staff(expr: ast.SetExpr, scope: _Scope) -> frozenset[str]:
+    items, _ = _evaluate(expr, "staff", scope)
+    return items
 
 
-def _statement(scoped: ScopedVerb, names: _Names, dataset: Dataset) -> Statement:
-    verb = scoped.verb
-    target = verb.target
-    if isinstance(target, ast.Selector):
-        target = _choice(target, "activity", names)
-    on = scoped.get(ast.On)
-    during = scoped.get(ast.During)
-    across = scoped.get(ast.Across)
-    role = scoped.get(ast.Role)
-    for_ = scoped.get(ast.For)
-    label = scoped.get(ast.Label)
-    metric = scoped.get(ast.MetricClause)
-    per = scoped.get(ast.Per)
-    on_choice = (
-        _choice(on.selector, "date", names)
-        if on
-        else Choice(tuple(dataset.session_dates), None, EACH, DEFAULT_POS)
-    )
-    across_choice = (
-        _choice(across.selector, "staff", names)
-        if across
-        else Choice(tuple(sorted(dataset.staff)), None, ANY, verb.pos)
-    )
-    statement = Statement(
-        verb=verb.kind,
-        target=target,
-        on=_within_session(on_choice, names.session),
-        during=_choice(during.selector, "block", names),
-        across=across_choice,
-        role=_choice(role.selector, "role", names) if role else None,
-        pos=verb.pos,
-        minutes=for_.minutes if for_ else None,
-        continuous=for_.continuous if for_ else False,
-        label=label.name if label else None,
-        metric=next(iter(names.lookup(metric.ref, "metric"))) if metric else None,
-        per=per.fields if per else None,
-        beyond=per.beyond if per else None,
-    )
-    _check_pool(statement, dataset)
-    return statement
+def _condition(condition: ast.Condition, scope: _Scope) -> Condition:
+    pattern = _pattern(condition.pattern, scope)
+    return Condition(condition.unless, condition.amount, pattern, condition.consecutive)
 
 
-def _check_pool(statement: Statement, dataset: Dataset) -> None:
-    """Without ROLE, a positioned activity is staffed from the ACROSS pool, so ANY only."""
-    if statement.verb != "TASK" or statement.role or not isinstance(statement.target, Choice):
-        return
-    across = statement.across
-    if across.quantifier.kind in ("ANY", "EACH") and across.alternatives is None:
-        return
-    raise _error("ACROSS must be a plain pool (no ALL, OF, AND) unless ROLE is given", across.pos)
+def _score(statement: ast.Score, scope: _Scope) -> Score:
+    metric = next(iter(scope.names.lookup(statement.metric, "metric").items))
+    keys = scope.dataset.metrics[metric].keys
+    args = [_argument(a, scope) for a in statement.args]
+    if tuple(namespace for _, namespace in args) != keys:
+        raise _error("metric arguments do not match its keys", statement.pos)
+    key = tuple(item.isoformat() if isinstance(item, date) else item for item, _ in args)
+    pattern = _pattern(statement.pattern, scope)
+    return Score(pattern, statement.maximize, metric, key, statement.pos)
 
 
-def _choice(selector: ast.Selector, namespace: str, names: _Names) -> Choice:
-    has_operators = isinstance(selector.expr, ast.Or | ast.And)
-    quantifier = selector.quantifier
-    if quantifier and has_operators:
-        raise _error("a quantifier cannot apply to an expression with OR or AND", selector.pos)
-    alternatives = _alternatives(selector.expr, namespace, names)
-    items = tuple(sorted({item for alt in alternatives for item in alt}, key=str))
-    if has_operators:
-        return Choice(items, tuple(alternatives), ANY, selector.pos)
-    quantifier = quantifier or ANY
-    if quantifier.kind in ("ALL", "OF", "EACH") and not items:
-        raise _error("this set is empty", selector.pos)
-    if quantifier.kind == "OF" and not 1 <= quantifier.n <= len(items):
-        raise _error(f"{quantifier.n} OF a set of {len(items)}", selector.pos)
-    return Choice(items, None, quantifier, selector.pos)
+def _argument(arg: ast.Var | ast.Ref, scope: _Scope) -> tuple[Item, str]:
+    if isinstance(arg, ast.Var):
+        if arg.name in scope.vars:
+            return scope.vars[arg.name]
+        if arg.name in scope.anys:
+            raise _error("metric argument must be one item", arg.pos)
+        raise _error(f"unknown variable '{arg.name}'", arg.pos)
+    named = scope.names.lookup(arg, arg.namespace)
+    if not named.single:
+        raise _error("metric argument must be one item", arg.pos)
+    return next(iter(named.items)), arg.namespace
 
 
-def _alternatives(expr: ast.Expr, namespace: str, names: _Names) -> list[frozenset[Item]]:
-    if isinstance(expr, ast.Or):
-        return [alt for item in expr.items for alt in _alternatives(item, namespace, names)]
-    if isinstance(expr, ast.And):
-        parts = [_alternatives(item, namespace, names) for item in expr.items]
-        return [frozenset().union(*combo) for combo in product(*parts)]
-    return [_set(expr, namespace, names)]
+# -- selectors and sets -----------------------------------------------------------------------
 
 
-def _set(expr: ast.SetExpr, namespace: str, names: _Names) -> frozenset[Item]:
+def _choice(selector: ast.Selector, namespace: str, scope: _Scope, pool: bool) -> Choice:
+    if selector.quantifier == ast.EACH_OF:
+        return Choice((scope.each[selector.pos],), POOL if pool else ALL, pos=selector.pos)
+    expr = selector.expr
+    if isinstance(expr, ast.Var) and expr.name in scope.anys:
+        if selector.quantifier:
+            raise _error(
+                f"'{expr.name}' is chosen by its binding and takes no quantifier", expr.pos
+            )
+        choice, bound = scope.anys[expr.name]
+        _expect(namespace, bound, expr)
+        return replace(choice, kind=POOL if pool else ANY, pos=selector.pos)
+    items, single = _evaluate(expr, namespace, scope)
+    if namespace == "date":
+        items = frozenset(d for d in items if d in scope.dataset.calendar)
+    if pool:
+        return Choice(_sorted(items), POOL, pos=selector.pos)
+    if selector.quantifier is None:
+        if not single:
+            raise _error("needs a quantifier: ALL_OF, ANY_n_OF or EACH_OF", selector.pos)
+        return Choice(_sorted(items), ALL, pos=selector.pos)
+    if single:
+        raise _error("is one item and takes no quantifier", selector.pos)
+    if selector.quantifier == ast.ALL_OF:
+        return Choice(_sorted(items), ALL, pos=selector.pos)
+    return Choice(_sorted(items), ANY, selector.n, pos=selector.pos)
+
+
+def _evaluate(expr: ast.SetExpr, namespace: str, scope: _Scope) -> tuple[frozenset[Item], bool]:
+    """The items an expression stands for, and whether it is one item."""
     if isinstance(expr, ast.Ref):
-        return names.lookup(expr, namespace)
+        named = scope.names.lookup(expr, namespace)
+        return named.items, named.single
+    if isinstance(expr, ast.Var):
+        if expr.name in scope.vars:
+            item, bound = scope.vars[expr.name]
+            _expect(namespace, bound, expr)
+            return frozenset({item}), True
+        if expr.name in scope.anys:
+            raise _error(f"'{expr.name}' is chosen by the solver and must stand alone", expr.pos)
+        raise _error(f"unknown variable '{expr.name}'", expr.pos)
     if isinstance(expr, ast.DateLiteral):
         if namespace != "date":
             raise _error(f"expected a {namespace} name, not a date", expr.pos)
-        return frozenset({expr.value})
+        return frozenset({expr.value}), True
     if isinstance(expr, ast.DateOffset):
-        return frozenset({_one_date(expr.base, names) + timedelta(days=expr.days)})
+        return frozenset({_one_date(expr.base, scope) + timedelta(days=expr.days)}), True
     if isinstance(expr, ast.DateRange):
-        start, end = _one_date(expr.start, names), _one_date(expr.end, names)
+        start, end = _one_date(expr.start, scope), _one_date(expr.end, scope)
         if end < start:
             raise _error("date range ends before it starts", expr.pos)
-        return frozenset(start + timedelta(days=i) for i in range((end - start).days + 1))
-    left, right = _set(expr.left, namespace, names), _set(expr.right, namespace, names)
-    return {"+": left | right, "-": left - right, "&": left & right}[expr.op]
+        days = frozenset(start + timedelta(days=i) for i in range((end - start).days + 1))
+        return days, False
+    left, _ = _evaluate(expr.left, namespace, scope)
+    right, _ = _evaluate(expr.right, namespace, scope)
+    return {"+": left | right, "-": left - right, "&": left & right}[expr.op], False
 
 
-def _one_date(expr: ast.Ref | ast.DateLiteral, names: _Names) -> date:
-    days = _set(expr, "date", names)
-    if len(days) != 1:
-        raise _error("a date offset or range needs a single date here", expr.pos)
-    return next(iter(days))
+def _one_date(expr: ast.SetExpr, scope: _Scope) -> date:
+    items, single = _evaluate(expr, "date", scope)
+    if not single:
+        raise _error("needs a single date here", expr.pos)
+    return next(iter(items))
 
 
-def _within_session(on: Choice, session: frozenset[Item]) -> Choice:
-    items = tuple(d for d in on.items if d in session)
-    alternatives = None
-    if on.alternatives is not None:
-        alternatives = tuple(a & session for a in on.alternatives if a & session)
-    return replace(on, items=items, alternatives=alternatives)
+def _namespace_of(expr: ast.SetExpr, scope: _Scope) -> str:
+    """The namespace a binding line's set belongs to, from the first name in it."""
+    if isinstance(expr, ast.Ref):
+        return expr.namespace
+    if isinstance(expr, ast.Var):
+        if expr.name in scope.vars:
+            return scope.vars[expr.name][1]
+        if expr.name in scope.anys:
+            return scope.anys[expr.name][1]
+        raise _error(f"unknown variable '{expr.name}'", expr.pos)
+    if isinstance(expr, ast.SetOp):
+        return _namespace_of(expr.left, scope)
+    return "date"
 
 
-def _expand(statements: tuple[Statement, ...], gaps: tuple[ast.Gap, ...]) -> Iterator[Resolved]:
-    each: dict[ast.Pos, tuple[Item, ...]] = {}
-    for statement in statements:
-        for choice in _choices(statement):
-            if choice.quantifier.kind == "EACH":
-                each.setdefault(choice.pos, choice.items)
-    positions = sorted(each, key=lambda pos: (pos.line, pos.column))
-    for combo in product(*(each[pos] for pos in positions)):
-        picked = dict(zip(positions, combo, strict=True))
-        copies = tuple(_substitute(s, picked) for s in statements)
-        key = ",".join(str(item) for item in combo if not isinstance(item, date))
-        yield Resolved(key, copies, gaps)
+def _expect(namespace: str, actual: str, var: ast.Var) -> None:
+    if namespace != actual:
+        raise _error(f"expected a {namespace} name, not '{var.name}'", var.pos)
 
 
-def _choices(statement: Statement) -> Iterator[Choice]:
-    for choice in (
-        statement.target,
-        statement.on,
-        statement.during,
-        statement.across,
-        statement.role,
-    ):
-        if isinstance(choice, Choice):
-            yield choice
-
-
-def _substitute(statement: Statement, picked: dict[ast.Pos, Item]) -> Statement:
-    def fix(choice):
-        if isinstance(choice, Choice) and choice.quantifier.kind == "EACH":
-            return Choice((picked[choice.pos],), None, ANY, choice.pos)
-        return choice
-
-    return replace(
-        statement,
-        target=fix(statement.target),
-        on=fix(statement.on),
-        during=fix(statement.during),
-        across=fix(statement.across),
-        role=fix(statement.role),
-    )
+def _sorted(items: frozenset[Item]) -> tuple[Item, ...]:
+    return tuple(sorted(items, key=str))
 
 
 def _error(message: str, pos: ast.Pos) -> ast.SkedgeError:

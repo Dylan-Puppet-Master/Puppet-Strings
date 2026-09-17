@@ -31,17 +31,17 @@ def solve_tiers(
     model: cp_model.CpModel,
     terms: dict[Priority, list[tuple[int, cp_model.IntVar]]],
     assignments: list[cp_model.IntVar],
-    minutes: list,
+    placement: list,
     config: Config,
 ) -> TierOutcome:
     """Check feasibility (explaining conflicts), then maximize each tier in order.
 
     Two cosmetic passes follow: the first minimizes the number of assignments, so nothing
-    is scheduled that no request asked for; the second minimizes the `minutes` expressions
-    (task lengths and offsets from block starts), so partial tasks are as short as asked
-    and sit at the start of their block unless a constraint moves them. Both start from
-    the schedule already found, so they get `tidy_seconds` rather than the tier limit:
-    the improvement turns up at once, and only proving it optimal takes long.
+    is scheduled that no request asked for; the second minimizes the `placement`
+    expressions (offsets from block starts), so a task shorter than its block sits at the
+    start of it unless a constraint moves it. Both start from the schedule already found,
+    so they get `tidy_seconds` rather than the tier limit: the improvement turns up at
+    once, and only proving it optimal takes long.
     """
     solver = cp_model.CpSolver()
     solver.parameters.random_seed = config.random_seed
@@ -84,8 +84,8 @@ def solve_tiers(
         model.Add(count <= _total([(1, var) for var in assignments], values))
     else:
         notes.append("tidying pass ran out of time; the schedule may hold extra assignments")
-    if minutes:
-        values, placed = _minimize(model, solver, sum(minutes), values, assignments, seconds)
+    if placement:
+        values, placed = _minimize(model, solver, sum(placement), values, assignments, seconds)
         if not placed:
             notes.append("placement pass ran out of time; partial tasks may sit later in a block")
     return TierOutcome(True, values, scores=scores, notes=tuple(notes))
