@@ -57,7 +57,7 @@ class Staff:
     id: str
     ral: int
     skills: Mapping[str, SkillStatus]
-    available: bool = True
+    resting_blocks: frozenset[str] = frozenset()
 
     def status(self, skill: str | None) -> SkillStatus:
         """Status on a skill; a position without a skill counts as checked off."""
@@ -243,27 +243,49 @@ class Assignment:
         return _minutes(self.start) + self.minutes
 
 
+class Rest(Enum):
+    """How much of a day a staff member is resting through."""
+
+    NONE = ""
+    ALL_DAY = "all day"
+    MORNING = "morning"
+    AFTERNOON = "afternoon"
+
+
 @dataclass(frozen=True)
 class Adjustment:
     """A one-day change to what a staff member may do, from the Adjustments sheet.
 
-    `available` false takes them off the day altogether, which is how someone who is sick
-    is left out of the mandatory breaks as well as the clinics. `ral` lowers their risk
-    assessment level for the day, which is how a short night narrows what they may run.
+    `resting` takes them off the whole day or half of it, which is how someone who is ill
+    is left out of the mandatory breaks as well as the clinics. `ral_penalty` comes off
+    their usual RAL for the day, which is how a short night narrows what they may run.
     """
 
     date: date
     staff: str
-    available: bool = True
-    ral: int | None = None
+    resting: Rest = Rest.NONE
+    ral_penalty: int = 0
     note: str = ""
+
+    def ral_for(self, usual: int) -> int:
+        """Their risk assessment level today. It can reach 0, which rules out every clinic."""
+        return max(0, usual - self.ral_penalty)
+
+    @property
+    def summary(self) -> str:
+        """What is different about them today, without their name."""
+        parts = []
+        if self.resting is Rest.ALL_DAY:
+            parts.append("resting all day")
+        elif self.resting is not Rest.NONE:
+            parts.append(f"resting this {self.resting.value}")
+        if self.ral_penalty:
+            parts.append(f"down {self.ral_penalty} RAL")
+        return " and ".join(parts)
 
     def describe(self, name: str) -> str:
         """A sentence for the report and the toolbar."""
-        if not self.available:
-            text = f"{name} is not working today"
-        else:
-            text = f"{name} is RAL {self.ral} today"
+        text = f"{name} is {self.summary} today"
         return f"{text} ({self.note})" if self.note else text
 
 

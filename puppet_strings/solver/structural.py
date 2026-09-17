@@ -26,8 +26,8 @@ def add_structural_constraints(model: cp_model.CpModel, variables: Variables, da
         if instance.trainees:
             model.AddAtMostOne(var for _, var in instance.trainees.values())
     for slot, var in variables.x.items():
-        if not dataset.staff[slot.staff].available:
-            model.Add(var == 0)  # not working today, whoever asked for them
+        if slot.block in dataset.staff[slot.staff].resting_blocks:
+            model.Add(var == 0)  # resting then, whoever asked for them
     _no_double_booking(model, variables, dataset)
 
 

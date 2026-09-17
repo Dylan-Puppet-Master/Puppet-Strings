@@ -291,7 +291,7 @@ def test_solve_worker_produces_a_result(window, app):
 
 def test_same_day_is_offered_only_for_a_published_day(window, tmp_path):
     assert not window.same_day_action.isEnabled()
-    assert not window.today_action.isEnabled()
+    assert not window.sleep_action.isVisible() and not window.sickness_action.isVisible()
     assert "not published" in window.status_label.text()
 
     from puppet_strings.publish.writer import publish
@@ -307,39 +307,56 @@ def test_same_day_is_offered_only_for_a_published_day(window, tmp_path):
     window.wait_for_load()
     assert window.same_day_action.isEnabled() and "is published" in window.status_label.text()
     window.same_day_action.setChecked(True)
-    assert window.same_day and window.today_action.isEnabled()
+    assert window.same_day
+    assert window.sleep_action.isVisible() and window.sickness_action.isVisible()
 
 
-def test_the_today_dialog_writes_an_adjustment(window, monkeypatch):
-    from puppet_strings.app.same_day import LOWER_RAL, NOT_WORKING, SameDayDialog
+def test_the_sleep_and_sickness_dialogs_write_one_row_each(window):
+    from puppet_strings.app.same_day import SICKNESS, SLEEP, SameDayDialog
 
-    dialog = SameDayDialog(window.store, window)
-    dialog.staff_box.setCurrentText("Vic")
-    dialog.change_box.setCurrentText(LOWER_RAL)
-    dialog.ral_box.setValue(4)
-    dialog.note_edit.setText("short sleep")
-    dialog.apply_button.click()
-    assert dialog.changed
-    assert dialog.table.rowCount() == 1
-    assert [dialog.table.item(0, c).text() for c in range(3)] == ["Vic", "RAL 4", "short sleep"]
+    sleep = SameDayDialog(window.store, SLEEP, window)
+    assert sleep.penalty_box.value() == 1  # the agreement costs one RAL
+    sleep.staff_box.setCurrentText("Vic")
+    sleep.note_edit.setText("short sleep")
+    sleep.apply_button.click()
+    assert sleep.changed and sleep.table.rowCount() == 1
+    assert [sleep.table.item(0, c).text() for c in range(3)] == ["Vic", "down 1 RAL", "short sleep"]
 
-    dialog.staff_box.setCurrentText("Alesa")
-    dialog.change_box.setCurrentText(NOT_WORKING)
-    dialog.apply_button.click()
-    assert dialog.table.rowCount() == 2
+    sickness = SameDayDialog(window.store, SICKNESS, window)
+    sickness.staff_box.setCurrentText("Alesa")
+    sickness.resting_box.setCurrentText("Resting this morning")
+    sickness.apply_button.click()
+    assert sickness.table.rowCount() == 2
 
     written = window.store.source.read("config", "Adjustments")
-    assert written[0] == ["date", "staff", "available", "ral", "note"]
-    assert ["2026-09-16", "Alesa", "no", "", ""] in written
-    assert ["2026-09-16", "Vic", "", "4", "short sleep"] in written
+    assert written[0] == ["date", "staff", "resting", "RAL_penalty", "note"]
+    assert ["2026-09-16", "Alesa", "morning", "", ""] in written
+    assert ["2026-09-16", "Vic", "", "1", "short sleep"] in written
 
-    # reloading applies it: Vic is RAL 4 and no category offers Alesa
+    # reloading applies it: Vic is a RAL lower, Alesa is off for the morning blocks only
     window.reload()
     window.wait_for_load()
     assert window.store.dataset.staff["vic"].ral == 4
-    assert "alesa" not in window.store.dataset.staff_categories["all"]
+    alesa = window.store.dataset.staff["alesa"]
+    assert alesa.resting_blocks == {"clinic_1", "clinic_2"}  # the morning, by block start
+    assert "alesa" in window.store.dataset.staff_categories["all"]  # she works the afternoon
 
-    dialog = SameDayDialog(window.store, window)
-    dialog.staff_box.setCurrentText("Vic")
-    dialog.remove_button.click()
+    sickness = SameDayDialog(window.store, SICKNESS, window)
+    sickness.staff_box.setCurrentText("Vic")
+    sickness.remove_button.click()
     assert [row[1] for row in window.store.source.read("config", "Adjustments")[1:]] == ["Alesa"]
+
+
+def test_one_person_can_be_both_short_of_sleep_and_resting(window):
+    from puppet_strings.app.same_day import SICKNESS, SLEEP, SameDayDialog
+
+    sleep = SameDayDialog(window.store, SLEEP, window)
+    sleep.staff_box.setCurrentText("Vic")
+    sleep.apply_button.click()
+    sickness = SameDayDialog(window.store, SICKNESS, window)
+    sickness.staff_box.setCurrentText("Vic")
+    sickness.resting_box.setCurrentText("Resting this afternoon")
+    sickness.apply_button.click()
+    (row,) = window.store.dataset.today_adjustments
+    assert row.ral_penalty == 1 and row.summary == "resting this afternoon and down 1 RAL"
+    assert len(window.store.source.read("config", "Adjustments")) == 2  # one header, one row

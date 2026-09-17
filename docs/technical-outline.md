@@ -598,11 +598,13 @@ Recorded so the outline matches the code.
   match per instance, whose literal is the AND of each member's presence there, reified
   with `AddMinEquality`. `AND` elsewhere on those verbs is a validation error, and a
   staff-keyed metric cannot score a group. `POSITION_ROLES` is now an alias of `ORDINALS`.
-- **Same-day changes** (Puppet Master, 2026-09-16). Absence and a lowered RAL are per-date
-  data on a new optional `Adjustments` tab, applied to `Staff` at load time; absence also
-  drops the person from every staff category, so mandatory requests over `staff.all` stop
-  demanding anything of them, and `add_structural_constraints` pins their variables to
-  zero in case a request names them directly. `load_dataset` reads the target's own
+- **Same-day changes** (Puppet Master, 2026-09-16). Rests and RAL penalties are per-date
+  data on a new optional `Adjustments` tab, applied to `Staff` at load time as
+  `resting_blocks` and a reduced `ral`; `resting` is `all day`, `morning` or `afternoon`,
+  with a block belonging to the half it starts in, split at `config.midday`. Someone
+  resting all day also drops out of every staff category, so mandatory requests over
+  `staff.all` stop demanding anything of them, and `add_structural_constraints` pins a
+  resting block's variables to zero in case a request names them directly. `load_dataset` reads the target's own
   published tab as `Dataset.baseline`. `solve(..., same_day=True)` rewards each kept
   baseline assignment in a new `STABILITY` tier between `CLINIC` and `HIGH`, hints those
   variables, and returns a `Change` per staff member and block that differs.

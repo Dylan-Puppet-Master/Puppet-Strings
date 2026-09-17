@@ -6,7 +6,7 @@ from datetime import date
 from puppet_strings.app.facets import Facets, facets
 from puppet_strings.config import Config
 from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
-from puppet_strings.model import Adjustment, Dataset, Request
+from puppet_strings.model import Adjustment, Dataset, Request, Rest
 from puppet_strings.names import normalize
 from puppet_strings.sheets.adjustments import adjustment_rows
 from puppet_strings.sheets.load import load_dataset
@@ -80,12 +80,28 @@ class RequestStore:
         """Whether generated requests exist for the target date."""
         return has_offerings_loaded(tuple(self.requests), self.dataset.target)
 
-    def set_adjustment(self, staff_id: str, available: bool, ral: int | None, note: str) -> None:
-        """Record what changed for one staff member today, replacing any earlier row."""
+    def set_adjustment(
+        self,
+        staff_id: str,
+        resting: Rest | None = None,
+        penalty: int | None = None,
+        note: str = "",
+    ) -> None:
+        """Record what changed for one staff member today.
+
+        Only the fields given are set, so a sleep agreement and a rest can be recorded
+        one after the other without either wiping the other.
+        """
         target = self.dataset.target
-        kept = [a for a in self.dataset.adjustments if (a.date, a.staff) != (target, staff_id)]
-        adjustment = Adjustment(target, staff_id, available, ral, note)
-        self._write_adjustments([*kept, adjustment])
+        rows = {(a.date, a.staff): a for a in self.dataset.adjustments}
+        current = rows.get((target, staff_id), Adjustment(target, staff_id))
+        rows[target, staff_id] = replace(
+            current,
+            resting=current.resting if resting is None else resting,
+            ral_penalty=current.ral_penalty if penalty is None else penalty,
+            note=note or current.note,
+        )
+        self._write_adjustments(list(rows.values()))
 
     def clear_adjustment(self, staff_id: str) -> None:
         """Put one staff member back to their usual standing for today."""

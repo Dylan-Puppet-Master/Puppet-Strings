@@ -133,14 +133,14 @@ hand.
 
 ## Adjustments (config spreadsheet)
 
-One row per staff member per date, for the day only: who is off, and whose RAL has
-dropped. See [Same-day changes](same-day.md) for what each column does and why absence
+One row per staff member per date, for the day only: who is resting, and whose RAL is
+down. See [Same-day changes](same-day.md) for what each column does and why absence
 lives here rather than in a request. The tab is optional; without it nobody is adjusted.
 
-| date | staff | available | ral | note |
+| date | staff | resting | RAL_penalty | note |
 |---|---|---|---|---|
-| 2026-06-15 | Alesa | no | | sick |
-| 2026-06-15 | Vic | | 4 | short sleep |
+| 2026-06-15 | Alesa | all day | | sick |
+| 2026-06-15 | Vic | | 1 | short sleep |
 
 ## Metrics (config spreadsheet)
 

@@ -7,7 +7,7 @@ from puppet_strings.config import Config
 from puppet_strings.model import Dataset
 from puppet_strings.names import normalize
 from puppet_strings.sheets import metrics as metrics_sheet
-from puppet_strings.sheets.adjustments import on_date, parse_adjustments
+from puppet_strings.sheets.adjustments import on_date, parse_adjustments, resting_blocks
 from puppet_strings.sheets.blocks import block_categories, parse_blocks
 from puppet_strings.sheets.calendar import parse_calendar, parse_date
 from puppet_strings.sheets.categories import parse_staff_categories
@@ -18,16 +18,19 @@ from puppet_strings.sheets.requests import parse_requests
 from puppet_strings.sheets.skills import parse_position_skills, parse_skills, trainers
 from puppet_strings.sheets.source import LoadError, Source
 
-ADJUSTMENT_HEADER = ("date", "staff", "available", "ral", "note")
+ADJUSTMENT_HEADER = ("date", "staff", "resting", "RAL_penalty", "note")
 ALL_STAFF = "all"
 CLINIC_TRAINERS = "clinic_trainers"
 ANY_CLINIC = "any_clinic"
 
 
-def _adjusted(member, adjustment):
-    """A staff member as they stand today."""
-    ral = member.ral if adjustment.ral is None else adjustment.ral
-    return replace(member, ral=ral, available=adjustment.available)
+def _adjusted(member, adjustment, blocks, midday):
+    """A staff member as they stand today: a lowered RAL, and the blocks they rest through."""
+    return replace(
+        member,
+        ral=adjustment.ral_for(member.ral),
+        resting_blocks=resting_blocks(adjustment, blocks, midday),
+    )
 
 
 def load_dataset(source: Source, config: Config, target: date) -> Dataset:
@@ -48,12 +51,21 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
     if tabs["adjustments"] in source.tabs("config"):
         wanted.append(tabs["adjustments"])  # the tab is optional
     config_tables = source.read_many("config", wanted)
+    blocks = parse_blocks(config_tables[tabs["blocks"]])
+    calendar = parse_calendar(config_tables[tabs["calendar"]])
+    if target not in calendar:
+        raise LoadError(f"Calendar: {target} is not a camp day")
+    today_blocks = [b for b in blocks.values() if calendar[target].day_type in b.day_types]
+
     adjustments = parse_adjustments(
         config_tables.get(tabs["adjustments"], [[*ADJUSTMENT_HEADER]]), staff
     )
     today = on_date(adjustments, target)
-    staff = {**staff, **{a.staff: _adjusted(staff[a.staff], a) for a in today}}
-    working = frozenset(i for i, member in staff.items() if member.available)
+    rested = {a.staff: _adjusted(staff[a.staff], a, today_blocks, config.midday) for a in today}
+    staff = {**staff, **rested}
+    # someone resting the whole day is not offered by any category, so nothing is asked of them
+    off = {i for i, member in staff.items() if len(member.resting_blocks) == len(today_blocks)}
+    working = frozenset(staff) - off
 
     categories = parse_staff_categories(
         source.read("staff_categories", tabs["staff_categories"]), staff
@@ -65,10 +77,6 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
     }
     # a category never offers someone who is not working today
     staff_categories = {c: members & working for c, members in categories.items()}
-    blocks = parse_blocks(config_tables[tabs["blocks"]])
-    calendar = parse_calendar(config_tables[tabs["calendar"]])
-    if target not in calendar:
-        raise LoadError(f"Calendar: {target} is not a camp day")
     offerings, offering_warnings = parse_offerings(
         source.read("clinic_schedule", tabs["offerings"]),
         activities,

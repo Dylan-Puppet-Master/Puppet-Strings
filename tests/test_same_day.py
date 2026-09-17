@@ -7,11 +7,11 @@ import pytest
 
 from puppet_strings.config import Config
 from puppet_strings.generate import generated_requests
-from puppet_strings.model import Adjustment, Offering, Priority
+from puppet_strings.model import Adjustment, Offering, Priority, Rest
 from puppet_strings.sheets.adjustments import adjustment_rows, on_date, parse_adjustments
 from puppet_strings.sheets.source import LoadError
 from puppet_strings.solver.solve import solve
-from tests.build import OK, TARGET, clinic, dataset, published, request, staff
+from tests.build import BLOCKS, OK, TARGET, clinic, dataset, published, request, resting, staff
 
 CONFIG = Config(time_limit_seconds=10, workers=4)
 ARCHERY = clinic("Archery 1 & 2", ("Archery 1 & 2", 4), category="weapons")
@@ -68,9 +68,9 @@ def test_someone_not_working_today_is_replaced_and_the_change_is_logged():
         [ARCHERY],
         [("Archery 1 & 2", ["clinic_1"])],
         [("Dylan", "Archery 1 & 2", "first", "clinic_1")],
-        adjustments=[Adjustment(TARGET, "dylan", available=False, note="sick")],
+        adjustments=[Adjustment(TARGET, "dylan", Rest.ALL_DAY, note="sick")],
     )
-    ds = replace(ds, staff={**ds.staff, "dylan": replace(ds.staff["dylan"], available=False)})
+    ds = replace(ds, staff={**ds.staff, "dylan": resting(ds.staff["dylan"], BLOCKS)})
     result = solve(ds, CONFIG, same_day=True)
     assert [a.staff for a in result.assignments] == ["randy"]
     gone, took_over = sorted(result.changes, key=lambda c: c.staff)
@@ -103,7 +103,7 @@ def test_only_the_people_who_must_move_are_moved():
         ("Randy", "Riflery", "first", "clinic_1"),
     ]
     ds = day(members, [ARCHERY, RIFLERY], offerings, rows)
-    away = replace(ds, staff={**ds.staff, "randy": replace(ds.staff["randy"], available=False)})
+    away = replace(ds, staff={**ds.staff, "randy": resting(ds.staff["randy"], BLOCKS)})
     result = solve(away, CONFIG, same_day=True)
     assert {(a.staff, a.activity) for a in result.assignments} == {
         ("dylan", "archery_1_2"),
@@ -142,21 +142,73 @@ def test_a_plain_solve_logs_nothing_and_ignores_the_baseline():
 
 def test_adjustments_sheet(dataset):
     table = [
-        ["date", "staff", "available", "ral", "note"],
-        ["2026-09-16", "Vic", "", "4", "short sleep"],
-        ["2026-09-16", "Alesa", "no", "", "sick"],
-        ["2026-09-17", "Vic", "no", "", ""],
+        ["date", "staff", "resting", "RAL_penalty", "note"],
+        ["2026-09-16", "Vic", "", "1", "short sleep"],
+        ["2026-09-16", "Alesa", "all day", "", "sick"],
+        ["2026-09-17", "Vic", "Morning", "2", ""],
     ]
     adjustments = parse_adjustments(table, dataset.staff)
-    assert adjustments[0] == Adjustment(date(2026, 9, 16), "vic", True, 4, "short sleep")
-    assert adjustments[1].available is False and adjustments[1].ral is None
+    assert adjustments[0] == Adjustment(date(2026, 9, 16), "vic", Rest.NONE, 1, "short sleep")
+    assert adjustments[1].resting is Rest.ALL_DAY and adjustments[1].ral_penalty == 0
+    assert adjustments[2].resting is Rest.MORNING and adjustments[2].ral_penalty == 2
     assert {a.staff for a in on_date(adjustments, date(2026, 9, 16))} == {"vic", "alesa"}
     assert adjustment_rows(adjustments, dataset.staff)[1:] == [
-        ["2026-09-16", "Alesa", "no", "", "sick"],
-        ["2026-09-16", "Vic", "", "4", "short sleep"],
-        ["2026-09-17", "Vic", "no", "", ""],
+        ["2026-09-16", "Alesa", "all day", "", "sick"],
+        ["2026-09-16", "Vic", "", "1", "short sleep"],
+        ["2026-09-17", "Vic", "morning", "2", ""],
     ]
     assert parse_adjustments(adjustment_rows(adjustments, dataset.staff), dataset.staff)
+
+
+def test_a_penalty_comes_off_the_usual_ral():
+    assert Adjustment(TARGET, "vic", ral_penalty=1).ral_for(5) == 4
+    assert Adjustment(TARGET, "vic", ral_penalty=2).ral_for(3) == 1
+    assert Adjustment(TARGET, "vic", ral_penalty=5).ral_for(3) == 0  # rules out every clinic
+
+
+def test_resting_covers_the_half_of_the_day_a_block_starts_in():
+    from datetime import time
+
+    from puppet_strings.model import Block
+    from puppet_strings.sheets.adjustments import resting_blocks
+
+    blocks = [
+        Block("clinic_1", time(9, 15), time(10, 30), frozenset(), frozenset()),
+        Block("lunch", time(12, 0), time(13, 0), frozenset(), frozenset()),
+        Block("clinic_3", time(14, 0), time(15, 15), frozenset(), frozenset()),
+    ]
+    midday = time(12, 0)
+    morning = Adjustment(TARGET, "vic", Rest.MORNING)
+    assert resting_blocks(morning, blocks, midday) == {"clinic_1"}
+    afternoon = Adjustment(TARGET, "vic", Rest.AFTERNOON)
+    assert resting_blocks(afternoon, blocks, midday) == {"lunch", "clinic_3"}
+    assert resting_blocks(Adjustment(TARGET, "vic", Rest.ALL_DAY), blocks, midday) == {
+        "clinic_1",
+        "lunch",
+        "clinic_3",
+    }
+    assert resting_blocks(Adjustment(TARGET, "vic", ral_penalty=1), blocks, midday) == frozenset()
+
+
+def test_resting_half_a_day_leaves_the_other_half_alone():
+    members = [staff("Dylan", archery_1_2=OK), staff("Randy", archery_1_2=OK)]
+    offerings = [("Archery 1 & 2", ["clinic_1"]), ("Archery 1 & 2", ["clinic_3"])]
+    rows = [
+        ("Dylan", "Archery 1 & 2", "first", "clinic_1"),
+        ("Randy", "Archery 1 & 2", "first", "clinic_3"),
+    ]
+    ds = day(members, [ARCHERY], offerings, rows)
+    morning_off = replace(
+        ds, staff={**ds.staff, "dylan": resting(ds.staff["dylan"], BLOCKS, "morning")}
+    )
+    result = solve(morning_off, CONFIG, same_day=True)
+    held = {(a.staff, a.block) for a in result.assignments}
+    assert ("dylan", "clinic_1") not in held  # he is resting through the morning
+    assert ("randy", "clinic_3") in held  # his own afternoon is untouched
+    # Randy can cover the morning as well, so the clinic still runs and only he is told
+    assert ("randy", "clinic_1") in held
+    assert {c.staff for c in result.changes} == {"dylan", "randy"}
+    assert result.unsatisfied == ()
 
 
 @pytest.mark.parametrize(
@@ -164,11 +216,12 @@ def test_adjustments_sheet(dataset):
     [
         (["2026-09-16", "Nobody", "no", "", ""], "not on the Skills sheet"),
         (["2026-09-16", "Vic", "", "9", ""], "must be between 1 and 5"),
-        (["2026-09-16", "Vic", "", "", "just a note"], "set `available` to no"),
-        (["not-a-date", "Vic", "no", "", ""], "must be YYYY-MM-DD"),
+        (["2026-09-16", "Vic", "", "", "just a note"], "give a `resting` or a `RAL_penalty`"),
+        (["2026-09-16", "Vic", "later", "", ""], "must be one of"),
+        (["not-a-date", "Vic", "all day", "", ""], "must be YYYY-MM-DD"),
     ],
 )
 def test_bad_adjustment_rows(dataset, row, message):
-    table = [["date", "staff", "available", "ral", "note"], row]
+    table = [["date", "staff", "resting", "RAL_penalty", "note"], row]
     with pytest.raises(LoadError, match=message):
         parse_adjustments(table, dataset.staff)

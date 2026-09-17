@@ -73,6 +73,17 @@ def request(id, skedge, priority=Priority.HIGH, weight=1.0):
     return Request(id, id, skedge, priority, weight)
 
 
+def resting(member, blocks, half=None):
+    """A copy of a staff member resting through a half of the day, or all of it."""
+    midday = time(12, 0)
+    ids = [
+        name
+        for name, (start, _, _) in blocks.items()
+        if half is None or (time.fromisoformat(start) < midday) == (half == "morning")
+    ]
+    return replace(member, resting_blocks=frozenset(ids))
+
+
 def dataset(
     members,
     activities,

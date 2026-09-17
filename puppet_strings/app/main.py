@@ -30,7 +30,7 @@ from puppet_strings.app.editor import RequestEditor
 from puppet_strings.app.facets import SCOPES
 from puppet_strings.app.names_panel import NamesPanel
 from puppet_strings.app.requests_model import RequestFilter, RequestsModel
-from puppet_strings.app.same_day import SameDayDialog
+from puppet_strings.app.same_day import SICKNESS, SLEEP, SameDayDialog
 from puppet_strings.app.schedule_dialog import ScheduleDialog
 from puppet_strings.app.store import RequestStore
 from puppet_strings.config import Config
@@ -159,8 +159,10 @@ class MainWindow(QMainWindow):
         self.same_day_action.setCheckable(True)
         self.same_day_action.setToolTip("Re-solve a published day, moving as few people as it can")
         self.same_day_action.toggled.connect(self._same_day_toggled)
-        self.today_action = toolbar.addAction("Who is off today…", self.open_same_day)
-        self.today_action.setEnabled(False)
+        self.sleep_action = toolbar.addAction(SLEEP, lambda: self.open_same_day(SLEEP))
+        self.sickness_action = toolbar.addAction(SICKNESS, lambda: self.open_same_day(SICKNESS))
+        for action in (self.sleep_action, self.sickness_action):
+            action.setVisible(False)  # only while changing a day that is already out
         self.status_label = QLabel("")
         toolbar.addWidget(self.status_label)
 
@@ -294,13 +296,14 @@ class MainWindow(QMainWindow):
             self.same_day_action.blockSignals(True)
             self.same_day_action.setChecked(False)
             self.same_day_action.blockSignals(False)
-        self.today_action.setEnabled(self.same_day)
+        for action in (self.sleep_action, self.sickness_action):
+            action.setVisible(self.same_day)
 
-    def open_same_day(self) -> None:
-        """Record who is off today, or whose RAL has dropped."""
+    def open_same_day(self, kind: str) -> None:
+        """Record a sleep agreement or a sickness for today."""
         if self.store.dataset is None:
             return
-        dialog = SameDayDialog(self.store, self)
+        dialog = SameDayDialog(self.store, kind, self)
         dialog.exec()
         if dialog.changed:
             self.reload()  # standing feeds eligibility, so read everything again

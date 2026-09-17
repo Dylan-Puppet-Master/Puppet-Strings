@@ -14,22 +14,28 @@ alone and expire on their own.
 |---|---|
 | `date` | The day it applies to. |
 | `staff` | Who, as named on the Skills sheet. |
-| `available` | `no` takes them off the day entirely. Blank leaves them working. |
-| `ral` | Their risk assessment level for the day. Blank leaves it as the Skills sheet has it. |
+| `resting` | `all day`, `morning` or `afternoon`. Blank leaves them working the whole day. |
+| `RAL_penalty` | How many levels to take off their usual RAL for the day. Blank takes off none. |
 | `note` | Why, for the record: `sick`, `short sleep`. |
 
-A row must set `available` to `no` or give a `ral`, otherwise it does nothing and the
-loader says so.
+A row must give a `resting` or a `RAL_penalty`, otherwise it does nothing and the loader
+says so. One row can do both, for someone who is short of sleep and resting the afternoon.
 
-**Someone not working today is off the whole day.** No clinics, and no breaks either, since
-a category such as `staff.all` stops offering them. That is why absence belongs here rather
-than in a `TASK FREE` request, which would collide with the mandatory break rule and report
-a conflict every time somebody was ill.
+**Resting takes them off that part of the day.** No clinics, and no breaks either, since a
+category such as `staff.all` stops offering anyone who is resting all day. That is why a
+rest belongs here rather than in a `TASK FREE` request, which would collide with the
+mandatory break rule and report a conflict every time somebody was ill.
 
-**A lower RAL narrows what they may run.** They stay on the day and keep everything their
-new level allows, and come off whatever it does not.
+A block belongs to the half of the day it **starts** in, split at `midday` under `[day]` in
+`config.toml`, which is noon unless you change it. So a 12:00 lunch block counts as
+afternoon.
 
-For someone who is leaving at lunchtime rather than out all day, write an ordinary request
+**A RAL penalty narrows what they may run.** Camp's sleep agreement costs one level, so a
+penalty of `1` takes a RAL 5 down to 4 for the day. They stay on the day and keep
+everything their new level allows, and come off whatever it does not. A penalty large
+enough to reach 0 rules out every clinic, since every position asks for at least RAL 1.
+
+For an absence that is neither half a day nor all of it, write an ordinary request
 instead, which can name the blocks:
 
 ```skedge
@@ -44,8 +50,15 @@ TASK FREE
 ![Recording who is off today](img/same-day.png)
 
 In the app, **Same-day changes** in the toolbar becomes available once the day on screen is
-published. Switch it on, use **Who is off today…** to record what changed, and press
-**Solve**. The schedule window opens with a **Changes** tab listing what moved. **Publish**
+published. Switching it on reveals two buttons:
+
+- **Sleep agreement**: pick the person, and their RAL drops by one for the day.
+- **Sickness**: pick the person and whether they are resting all day, the morning or the
+  afternoon.
+
+Both write the same Adjustments row and both list what is already in effect, so one person
+can be short of sleep and resting the afternoon without either recording wiping the other.
+**Put back to usual** clears someone's row. Then press **Solve**. The schedule window opens with a **Changes** tab listing what moved. **Publish**
 writes the day again, along with a Changes tab in Published Schedules.
 
 From the command line:
@@ -91,6 +104,11 @@ The **Changes** tab has one row per staff member and block that is not what was 
 | Alesa | Clinic 1 | Canoe 1 & 2 (1st) | free |
 | Alesa | Clinic 2 | break 10:45-11:15 | free |
 | Vic | Clinic 3 | Secret Pool (1st) | free |
+
+A half-day rest, or a mandatory request the rest makes impossible, is worth knowing about:
+if a counselor rests all morning and a `MUST_HAPPEN` request gives every counselor a
+morning counselor hour, the two cannot both hold. The solve stops and the report names
+that request, which is the signal to relax it or to rest them all day instead.
 
 Anyone missing from it is unaffected. Times appear for a task that takes only part of its
 block, so a break that moved shows where it moved to.

@@ -78,11 +78,11 @@ def test_same_day_reports_what_moved(tmp_path, capsys):
     copy = published_copy(tmp_path)
     capsys.readouterr()
     adjustments = copy / "config" / "Adjustments.csv"
-    adjustments.write_text("date,staff,available,ral,note\n2026-09-16,Alesa,no,,sick\n")
+    adjustments.write_text("date,staff,resting,RAL_penalty,note\n2026-09-16,Alesa,all day,,sick\n")
     args = ["--fixtures", str(copy), "--date", "2026-09-16", "solve", "--same-day"]
     assert main(args) == 0
     out = capsys.readouterr().out
-    assert "today: Alesa is not working today (sick)" in out
+    assert "today: Alesa is resting all day today (sick)" in out
     assert "Staff  Block" in out and "Alesa" in out.split("Staff  Block")[1]
 
 

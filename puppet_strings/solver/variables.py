@@ -80,7 +80,7 @@ class Variables:
         for position in activity.positions:
             holders = instance.holders[position.role] = {}
             for member in self.dataset.staff.values():
-                if not member.available or member.ral < position.ral:
+                if member.ral < position.ral or member.resting_blocks.intersection(blocks):
                     continue
                 if not member.status(position.skill).eligible:
                     continue

@@ -73,6 +73,9 @@ workers = 8
 
 [views]
 remainder = "DYOW/WPs"    # label for the unused part of a partly used block
+
+[day]
+midday = "12:00"          # where morning ends, for a half-day rest
 ```
 
 A spreadsheet's id is the long string in its URL between `/d/` and `/edit`.
