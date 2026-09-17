@@ -11,8 +11,10 @@ from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.compile import SCALE, Compiled, Compiler
 from puppet_strings.solver.result import Change, RequestOutcome, Result
 from puppet_strings.solver.structural import add_structural_constraints
-from puppet_strings.solver.tiers import solve_tiers
+from puppet_strings.solver.tiers import Cancel, Cancelled, solve_tiers
 from puppet_strings.solver.variables import Slot, Variables
+
+__all__ = ["Cancel", "Cancelled", "RequestError", "solve"]  # Cancel and Cancelled live in tiers
 
 
 class RequestError(Exception):
@@ -24,13 +26,20 @@ class RequestError(Exception):
         self.error = error
 
 
-def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False) -> Result:
+def solve(
+    dataset: Dataset,
+    config: Config | None = None,
+    same_day: bool = False,
+    cancel: Cancel | None = None,
+) -> Result:
     """Schedule the dataset's target date.
 
     With `same_day`, the schedule already published for that date is held together: keeping
     it matters more than anything but staffing the clinics, and the result lists what moved.
+    Passing a `Cancel` lets another thread stop the solve, which raises `Cancelled`.
     """
     config = config or Config()
+    cancel = cancel or Cancel()
     model = cp_model.CpModel()
     variables = Variables(model, dataset)
     compiler = Compiler(model, variables, dataset)
@@ -43,7 +52,11 @@ def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False
         copies += [(request, copy) for copy in resolved]
     _check_adhoc_tasks(copies)
     compiler.prepare(copies)
-    active = {request.id for request, copy in copies if compiler.compile(request, copy)}
+    active = set()
+    for request, copy in copies:
+        cancel.check()  # building the model is the part that holds the interpreter
+        if compiler.compile(request, copy):
+            active.add(request.id)
     compiler.close_adhoc_tasks()
     variables.finish()
     add_structural_constraints(model, variables, dataset)
@@ -55,7 +68,7 @@ def solve(dataset: Dataset, config: Config | None = None, same_day: bool = False
     placement = [
         iv.start - iv.block.start_minute for iv in variables.intervals.values() if iv.partial
     ]
-    outcome = solve_tiers(model, compiler.terms, list(unique.values()), placement, config)
+    outcome = solve_tiers(model, compiler.terms, list(unique.values()), placement, config, cancel)
     if not outcome.feasible:
         conflicts = tuple(
             compiler.compiled[i].id

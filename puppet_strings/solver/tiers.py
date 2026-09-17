@@ -12,6 +12,44 @@ from puppet_strings.config import Config
 from puppet_strings.model import SOFT_TIERS, Priority
 
 
+class Cancelled(Exception):
+    """The solve was stopped before it finished."""
+
+
+class Cancel:
+    """Stops a solve from another thread, between passes and inside the one running.
+
+    A solve holds the interpreter for much of the time it spends building the model, so a
+    caller waiting on it cannot poll. It hands one of these in instead and calls `stop`.
+    """
+
+    def __init__(self) -> None:
+        self._stopped = False
+        self._solver: cp_model.CpSolver | None = None
+
+    @property
+    def stopped(self) -> bool:
+        """Whether a stop has been asked for."""
+        return self._stopped
+
+    def stop(self) -> None:
+        """Ask the solve to stop. Safe to call from another thread."""
+        self._stopped = True
+        if self._solver is not None:
+            self._solver.StopSearch()
+
+    def watch(self, solver: cp_model.CpSolver) -> None:
+        """Let `stop` reach the solver that is about to search."""
+        self._solver = solver
+        if self._stopped:
+            solver.StopSearch()
+
+    def check(self) -> None:
+        """Give up if the solve has been stopped."""
+        if self._stopped:
+            raise Cancelled
+
+
 @dataclass(frozen=True)
 class TierOutcome:
     """The schedule the solver settled on, or the conflicting assumptions if infeasible."""
@@ -33,6 +71,7 @@ def solve_tiers(
     assignments: list[cp_model.IntVar],
     placement: list,
     config: Config,
+    cancel: Cancel,
 ) -> TierOutcome:
     """Check feasibility (explaining conflicts), then maximize each tier in order.
 
@@ -47,7 +86,9 @@ def solve_tiers(
     solver.parameters.random_seed = config.random_seed
     solver.parameters.max_time_in_seconds = config.time_limit_seconds
     solver.parameters.num_workers = 1
+    cancel.watch(solver)
     status = solver.Solve(model)
+    cancel.check()
     if status == cp_model.INFEASIBLE:
         return TierOutcome(False, conflicts=tuple(solver.SufficientAssumptionsForInfeasibility()))
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -66,6 +107,7 @@ def solve_tiers(
         expression = sum(coefficient * var for coefficient, var in terms[tier])
         model.Maximize(expression)
         status = solver.Solve(model)
+        cancel.check()
         model.ClearObjective()
         if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             values = _snapshot(solver)
@@ -80,12 +122,14 @@ def solve_tiers(
     seconds = min(config.tidy_seconds, config.time_limit_seconds)
     count = sum(assignments)
     values, tidied = _minimize(model, solver, count, values, assignments, seconds)
+    cancel.check()
     if tidied:
         model.Add(count <= _total([(1, var) for var in assignments], values))
     else:
         notes.append("tidying pass ran out of time; the schedule may hold extra assignments")
     if placement:
         values, placed = _minimize(model, solver, sum(placement), values, assignments, seconds)
+        cancel.check()
         if not placed:
             notes.append("placement pass ran out of time; partial tasks may sit later in a block")
     return TierOutcome(True, values, scores=scores, notes=tuple(notes))

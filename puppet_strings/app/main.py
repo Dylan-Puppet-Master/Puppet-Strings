@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from puppet_strings.app.busy import BusyDialog
 from puppet_strings.app.editor import RequestEditor
 from puppet_strings.app.facets import SCOPES
 from puppet_strings.app.names_panel import NamesPanel
@@ -77,22 +78,29 @@ class SolveWorker(QThread):
 
     done = Signal(object)
     failed = Signal(str)
+    stopped = Signal()
 
-    def __init__(self, store: RequestStore, same_day: bool) -> None:
+    def __init__(self, store: RequestStore, same_day: bool, cancel) -> None:
         super().__init__()
         self.store = store
         self.same_day = same_day
+        self.cancel = cancel
 
     def run(self) -> None:
-        """Solve and emit the result or the error text."""
-        from puppet_strings.solver.solve import RequestError, solve  # already imported by run_solve
+        """Solve and emit the result, the error text, or that it was stopped."""
+        # already imported by run_solve
+        from puppet_strings.solver.solve import Cancelled, RequestError, solve
 
         try:
-            self.done.emit(solve(self.store.current, self.store.config, self.same_day))
+            result = solve(self.store.current, self.store.config, self.same_day, self.cancel)
+        except Cancelled:
+            self.stopped.emit()
         except (RequestError, LoadError) as e:
             self.failed.emit(str(e))
         except Exception:  # noqa: BLE001 - shown to the user, never swallowed
             self.failed.emit(traceback.format_exc())
+        else:
+            self.done.emit(result)
 
 
 class MainWindow(QMainWindow):
@@ -102,6 +110,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.store = store
         self.worker: SolveWorker | None = None
+        self.busy: BusyDialog | None = None
         self.loader: LoadWorker | None = None
         self.reload_requested = False
         self.setWindowTitle("Puppet Strings")
@@ -331,25 +340,44 @@ class MainWindow(QMainWindow):
             )
             if answer != QMessageBox.Yes:
                 return
-        import puppet_strings.solver.solve  # noqa: F401 - import on the main thread; a QThread import crashes
+        # import on the main thread; a QThread import crashes
+        from puppet_strings.solver.solve import Cancel
 
         self.status_label.setText("  Solving…")
-        self.worker = SolveWorker(self.store, self.same_day)
+        self.busy = BusyDialog(f"Solving {self.target}…", self)
+        cancel = Cancel()
+        self.busy.cancelled.connect(cancel.stop)
+        self.worker = SolveWorker(self.store, self.same_day, cancel)
         self.worker.done.connect(self._solved)
         self.worker.failed.connect(self._solve_failed)
+        self.worker.stopped.connect(self._solve_stopped)
         self.worker.finished.connect(self._solve_finished)
         self.worker.start()
+        self.busy.show()  # shown, not run: the solve reports back through the event loop
+
+    def _close_busy(self) -> None:
+        """Take the panel down before anything else claims the screen."""
+        if self.busy is not None:
+            self.busy.finish()
+            self.busy = None
 
     def _solve_finished(self) -> None:
         self.worker = None
+        self._close_busy()
 
     def _solved(self, result) -> None:
+        self._close_busy()
         self.status_label.setText("")
         ScheduleDialog(
             self.store.source, self.store.config, self.store.current, result, self
         ).exec()
 
+    def _solve_stopped(self) -> None:
+        self._close_busy()
+        self.status_label.setText("  Solve cancelled")
+
     def _solve_failed(self, message: str) -> None:
+        self._close_busy()
         self.status_label.setText("")
         QMessageBox.critical(self, "Solve failed", message)
 

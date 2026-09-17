@@ -384,3 +384,42 @@ def test_the_solvers_own_priority_is_not_offered(window):
     assert offered == ["MUST_HAPPEN", "CLINIC", "HIGH", "MEDIUM", "LOW"]
     filters = [window.priority_filter.itemText(i) for i in range(window.priority_filter.count())]
     assert Priority.STABILITY.value not in filters
+
+
+def test_solving_puts_a_modal_panel_up_and_takes_it_down(window, app):
+    from puppet_strings.app.busy import BusyDialog
+
+    window.run_solve()
+    busy = window.busy
+    assert isinstance(busy, BusyDialog) and busy.isVisible()
+    assert busy.windowModality() == Qt.ApplicationModal  # the window behind takes no clicks
+    assert busy.bar.minimum() == busy.bar.maximum() == 0  # a sweep, not a percentage
+    window.worker.done.disconnect()  # keep the schedule dialog shut
+    window.worker.wait(60000)
+    app.processEvents()
+    assert window.busy is None and not busy.isVisible()
+
+
+def test_cancelling_the_panel_asks_the_solve_to_stop(window, app):
+    window.run_solve()
+    worker = window.worker
+    worker.done.disconnect()
+    assert not worker.cancel.stopped
+    window.busy.cancel_button.click()
+    assert worker.cancel.stopped
+    assert not window.busy.cancel_button.isEnabled()  # asking twice does nothing
+    worker.wait(60000)
+    app.processEvents()
+    assert window.busy is None
+
+
+def test_the_busy_panel_asks_to_stop_once(app):
+    from puppet_strings.app.busy import STOPPING, BusyDialog
+
+    dialog = BusyDialog("Solving…")
+    asked = []
+    dialog.cancelled.connect(lambda: asked.append(1))
+    dialog.cancel_button.click()
+    assert asked == [1] and dialog.label.text() == STOPPING
+    dialog.reject()  # Escape after asking leaves the work alone
+    assert asked == [1]

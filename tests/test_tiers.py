@@ -5,7 +5,7 @@ from ortools.sat.python import cp_model
 
 from puppet_strings.config import Config
 from puppet_strings.model import Priority
-from puppet_strings.solver.solve import solve
+from puppet_strings.solver.solve import Cancel, Cancelled, solve
 from tests.build import OK, clinic, dataset, request, staff
 
 CONFIG = Config(time_limit_seconds=10, workers=4)
@@ -63,3 +63,39 @@ def test_no_schedule_at_all_names_the_setting_to_raise(monkeypatch):
     monkeypatch.setattr(cp_model.CpSolver, "Solve", lambda self, model, *a, **k: cp_model.UNKNOWN)
     with pytest.raises(RuntimeError, match="raise time_limit_seconds"):
         solve(build(), CONFIG)
+
+
+class FakeSolver:
+    """Records the stop a Cancel sends it, standing in for a search in progress."""
+
+    def __init__(self) -> None:
+        self.stopped = False
+
+    def StopSearch(self) -> None:  # noqa: N802 - the name OR-Tools uses
+        self.stopped = True
+
+
+def test_a_cancel_stops_the_running_pass_and_the_ones_after_it():
+    cancel = Cancel()
+    running = FakeSolver()
+    cancel.watch(running)
+    assert not running.stopped and not cancel.stopped
+    cancel.stop()
+    assert running.stopped and cancel.stopped
+    later = FakeSolver()
+    cancel.watch(later)  # a pass starting after the stop gives up at once
+    assert later.stopped
+    with pytest.raises(Cancelled):
+        cancel.check()
+
+
+def test_a_stopped_solve_gives_up_instead_of_returning_a_schedule():
+    cancel = Cancel()
+    cancel.stop()
+    with pytest.raises(Cancelled):
+        solve(build(), CONFIG, cancel=cancel)
+
+
+def test_an_unstopped_solve_is_unaffected():
+    result = solve(build(), CONFIG, cancel=Cancel())
+    assert result.feasible and result.assignments
