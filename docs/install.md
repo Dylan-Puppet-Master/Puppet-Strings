@@ -68,7 +68,7 @@ credentials = "~/.config/puppet_strings/service_account.json"
 
 [solver]
 time_limit_seconds = 30   # per priority tier
-tidy_seconds = 2          # per cosmetic pass, which only neatens a working schedule
+tidy_seconds = 2          # the cosmetic pass, which only neatens a working schedule
 workers = 8
 
 [views]

@@ -45,7 +45,7 @@ def only_the_first_solve_reports_success(monkeypatch):
 def test_a_schedule_survives_passes_that_find_nothing(monkeypatch):
     calls = only_the_first_solve_reports_success(monkeypatch)
     result = solve(build(), CONFIG)
-    assert len(calls) > 3  # the tier passes and both cosmetic passes still ran
+    assert len(calls) > 2  # the tier pass and the placement pass still ran after the first
     assert result.feasible
     assert [a.staff for a in result.assignments if a.activity == "archery_1_2"]
     assert [a for a in result.assignments if a.activity == "break"]

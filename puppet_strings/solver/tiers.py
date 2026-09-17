@@ -75,12 +75,11 @@ def solve_tiers(
 ) -> TierOutcome:
     """Check feasibility (explaining conflicts), then maximize each tier in order.
 
-    Two cosmetic passes follow: the first minimizes the number of assignments, so nothing
-    is scheduled that no request asked for; the second minimizes the `placement`
-    expressions (offsets from block starts), so a task shorter than its block sits at the
-    start of it unless a constraint moves it. Both start from the schedule already found,
-    so they get `tidy_seconds` rather than the tier limit: the improvement turns up at
-    once, and only proving it optimal takes long.
+    A cosmetic pass follows, minimizing the `placement` expressions (offsets from block
+    starts) so that a task shorter than its block sits at the start of it unless a
+    constraint moves it. It starts from the schedule already found, so it gets
+    `tidy_seconds` rather than the tier limit: the improvement turns up at once, and only
+    proving it optimal takes long.
     """
     solver = cp_model.CpSolver()
     solver.parameters.random_seed = config.random_seed
@@ -119,15 +118,8 @@ def solve_tiers(
             notes.append(f"tier {tier.value} ran out of time; kept the schedule so far")
         model.Add(expression >= scores[tier])
 
-    seconds = min(config.tidy_seconds, config.time_limit_seconds)
-    count = sum(assignments)
-    values, tidied = _minimize(model, solver, count, values, assignments, seconds)
-    cancel.check()
-    if tidied:
-        model.Add(count <= _total([(1, var) for var in assignments], values))
-    else:
-        notes.append("tidying pass ran out of time; the schedule may hold extra assignments")
     if placement:
+        seconds = min(config.tidy_seconds, config.time_limit_seconds)
         values, placed = _minimize(model, solver, sum(placement), values, assignments, seconds)
         cancel.check()
         if not placed:

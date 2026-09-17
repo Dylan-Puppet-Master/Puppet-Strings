@@ -637,11 +637,13 @@ Recorded so the outline matches the code.
   every successful pass (`ResponseProto().solution`, indexed by variable) and returns a
   `TierOutcome.value(var)` lookup instead of the live solver. A tier or cosmetic pass that
   returns anything but OPTIMAL or FEASIBLE keeps the previous snapshot, bounds its tier at
-  the score that snapshot achieves, and adds a note. The cosmetic passes also hint the
-  assignment booleans from the snapshot so they start from the known schedule. Only the
-  first pass can fail the solve, and it names `time_limit_seconds`. The cosmetic passes
-  get their own short budget, `tidy_seconds` (default 2), because the hint makes the
+  the score that snapshot achieves, and adds a note. The cosmetic pass also hints the
+  assignment booleans from the snapshot so it starts from the known schedule. Only the
+  first pass can fail the solve, and it names `time_limit_seconds`. The cosmetic pass
+  gets its own short budget, `tidy_seconds` (default 2), because the hint makes the
   better schedule appear at once and the rest of the time goes on proving optimality.
+  There was once a second cosmetic pass, dropping assignments nobody asked for; that is
+  now a constraint built into the model, so it holds however long the solve takes.
 - **Requests have tags** (comma-separated column). Offerings are no longer generated
   inside the solver: **Load offerings** (app button or `load-offerings` command) writes
   one `CLINIC` request per offering to the Requests sheet, tagged `generated`, with ids

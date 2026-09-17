@@ -69,16 +69,17 @@ These come from the sheets and never need a request:
 
 ## The report
 
-**A quoted task happens only where a request asks for it.** A clinic is already bounded,
-since it runs where a request names it and has a fixed number of positions, but a task
-such as `'break'` could otherwise appear wherever something paid for it. Closing that
-keeps a `PREFER` from inflating the amount of work: a `REQUEST … DO`, or a `REQUEST
-AT_LEAST` or `EXACTLY` pattern, is what brings a task into being.
+**Nothing happens that no request asked for.** A clinic runs only where a `REQUEST … DO`
+names it, and a trainee or a quoted task exists only where such a request, or a `REQUEST
+AT_LEAST` or `EXACTLY` pattern, selected it. This is built into the model rather than
+tidied up afterwards, so it holds however long the solve takes. It is what keeps a
+`PREFER` from inflating the amount of work: a preference moves the breaks people already
+have and cannot buy anyone another.
 
-**Tidiness.** After the last tier the solver drops any assignment no request asked for and
-pushes a task shorter than its block to the start of the block unless a `GAP` or another
-task moves it. The Staff View labels the rest of a partly used block `DYOW/WPs` (the
-wording is `remainder` under `[views]` in `config.toml`).
+**Tidiness.** After the last tier the solver pushes a task shorter than its block to the
+start of the block, unless a `GAP` or another task moves it. The Staff View labels the
+rest of a partly used block `DYOW/WPs` (the wording is `remainder` under `[views]` in
+`config.toml`).
 
 After each solve the report lists every soft request that was not satisfied, every
 deferrable request that was put off, every request that was inactive (its dates all past
@@ -93,10 +94,9 @@ so rather than failing the solve:
 |---|---|
 | tier X hit the time limit | That tier's score may not be the best possible. |
 | tier X ran out of time | That tier found nothing new; the schedule so far stands. |
-| tidying pass ran out of time | The schedule may hold an assignment no request asked for. |
 | placement pass ran out of time | A task shorter than its block may sit later in it than it needs to. |
 
 Raise `time_limit_seconds` in `config.toml` if the tier notes appear often, or
-`tidy_seconds` for the last two. If even the first pass
+`tidy_seconds` for the last one. If even the first pass
 finds nothing in that time, the solve stops and says so, since there is no schedule to
 fall back on.

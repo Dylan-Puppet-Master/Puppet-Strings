@@ -101,6 +101,8 @@ class Compiler:
         self.terms: dict[Priority, list[tuple[int, cp_model.IntVar]]] = {t: [] for t in SOFT_TIERS}
         self.compiled: list[Compiled] = []
         self.asked_for: dict[Slot, list[Literal]] = {}  # what asks for each quoted-task assignment
+        self.asked_instances: dict[tuple[str, str], list[Literal]] = {}  # and for each clinic
+        self.asked_trainees: dict[tuple[str, str, str], list[Literal]] = {}  # and each trainee
         self.shortened: dict[Slot, list[Literal]] = {}  # what gives it a FOR length
         self._same_starts: dict[tuple[int, int], cp_model.IntVar] = {}
         self._published: dict[date, dict[tuple[str, str], list[Row]]] = {}
@@ -123,13 +125,18 @@ class Compiler:
             for st in copy.statements:
                 if isinstance(st, Requirement) and st.what is not None and target in st.on.items:
                     self._create(st.who.items, st.what, st.during, st.role, st.with_, request.id)
+        # second, so these attach to the clinics above rather than bringing their own
+        for request, copy in copies:
+            for st in copy.statements:
                 if not isinstance(st, Count) or st.prefer or st.amount.bound == ast.AT_MOST:
                     continue
                 p = st.pattern
                 if p.what is not None and target in p.on.items:
-                    self._create(p.who.items, p.what, p.during, p.role, p.with_, request.id)
+                    self._create(
+                        p.who.items, p.what, p.during, p.role, p.with_, request.id, clinics=False
+                    )
 
-    def _create(self, staff_ids, what, during, role, partners, source: str) -> None:
+    def _create(self, staff_ids, what, during, role, partners, source: str, clinics=True) -> None:
         today = [b.id for b in self.dataset.blocks_on(self.dataset.target)]
         blocks = [b for b in (during.items if during else today) if b in today]
         people = set(staff_ids) | (partners or frozenset())
@@ -140,10 +147,11 @@ class Compiler:
         spans = during is not None and during.kind == ALL and len(blocks) == 2
         trainees = role is not None and set(role.items) & {TRAINEE, *TRAINEE_ROLES}
         for activity_id in what.items:
-            if spans and self.dataset.activities[activity_id].double:
+            double = spans and self.dataset.activities[activity_id].double
+            if clinics and double:
                 ordered = sorted(blocks, key=lambda b: self.dataset.blocks[b].start)
                 self.variables.instance(activity_id, tuple(ordered), source)
-            else:
+            elif clinics:
                 for b in blocks:
                     self.variables.instance(activity_id, (b,), source)
             if trainees:
@@ -260,16 +268,20 @@ class Compiler:
     def _require(self, st: Requirement, active, name: str) -> tuple[list[Made], Literal]:
         """Every chosen staff member does the thing in every chosen block on every chosen date."""
         target = self.dataset.target
-        who = self._choose(st.who, active, f"{name}:staff")
-        whats = (
-            self._choose(st.what, active, f"{name}:activity")
-            if isinstance(st.what, Choice)
-            else {st.what: True}
-        )
-        blocks = self._choose(st.during, active, f"{name}:block")
-        roles = self._choose(st.role, active, f"{name}:role") if st.role else {None: True}
-        dates = self._choose(st.on, active, f"{name}:date")
+        loose = self._loose(st)
+
+        def chosen(choice: Choice, label: str) -> dict:
+            if choice is loose:
+                return dict.fromkeys(choice.items, True)  # counted at the end, not chosen here
+            return self._choose(choice, active, f"{name}:{label}")
+
+        who = chosen(st.who, "staff")
+        whats = chosen(st.what, "activity") if isinstance(st.what, Choice) else {st.what: True}
+        blocks = chosen(st.during, "block")
+        roles = chosen(st.role, "role") if st.role else {None: True}
+        dates = chosen(st.on, "date")
         made = []
+        counted: list[Literal] = []
         for (d, on), (b, on_b), (s, on_s), (w, on_w), (r, on_r) in product(
             dates.items(), blocks.items(), who.items(), whats.items(), roles.items()
         ):
@@ -278,20 +290,52 @@ class Compiler:
                 self._imply(conds, self._was_held(s, w, r, d, b, st))
                 continue
             if not self.dataset.holds(s, d, b):
-                self._imply(conds, False)
+                if loose is None:
+                    self._imply(conds, False)
+                else:
+                    counted.append(False)  # this member has nothing it could hold
                 continue
             if d > target:
                 continue  # a later date can hold it, and holds nothing yet
             held, start, end = self._hold(s, w, r, b, st, conds, name)
-            self._imply(conds, held)
+            if loose is None:
+                self._imply(conds, held)
+            else:
+                counted.append(held)
             self._partners(s, w, b, st, conds, name)
             made.append(Made(self._all_of(conds, f"made:{name}:{s}:{b}"), start, end))
+        if loose is not None:
+            terms = [x for x in counted if x is not False and x is not True]
+            constant = sum(1 for x in counted if x is True)
+            self._add(sum(terms) + constant >= loose.n, [active])
         later = [on for d, on in dates.items() if d > target]
         if not later or st.on.kind != ANY:
             return made, False
         if target in dates:
             self._bonus(dates[target])
         return made, self._any_of(later, f"later:{name}")
+
+    def _loose(self, st: Requirement) -> Choice | None:
+        """The one chooser a requirement can count rather than choose, if it has one.
+
+        `ANY_n_OF` asks that n of a pool do the one thing named of them, which is the same
+        as asking that n of those assignments happen. When everything else in the
+        requirement names a single thing, so each member has exactly one assignment to its
+        name, counting says it without a variable per member. A quoted task keeps its
+        choice, which is also what stops the task happening where nobody asked for it.
+        """
+        if st.with_ or st.without or st.label or isinstance(st.what, ast.Task):
+            return None
+        if st.on.items != (self.dataset.target,):
+            return None
+        wide = [
+            c
+            for c in (st.who, st.what, st.during, st.role)
+            if isinstance(c, Choice) and len(c.items) > 1
+        ]
+        if len(wide) != 1 or wide[0].kind != ANY or wide[0].var is not None:
+            return None
+        return wide[0]
 
     def _hold(self, s: str, w, r, b: str, st: Requirement, conds: list, name: str) -> tuple:
         """The literal for one assignment on the target date, and its start and end."""
@@ -308,11 +352,14 @@ class Compiler:
                 self._add(interval.size == st.minutes, conds)
                 self.shortened.setdefault(slot, []).append(selector)
             return var, interval.start, interval.end
+        asks = self._all_of(conds, f"asks:{name}:{s}:{w}:{b}")
+        self.asked_instances.setdefault((w, b), []).append(asks)
         if r is None:
             held = self._any_of(self.variables.holders(s, w, b), f"holds:{name}:{s}:{w}:{b}")
         elif r == TRAINEE or r in TRAINEE_ROLES:
             role, var = self.variables.trainee(s, w, b, name)
             held = var if r in (TRAINEE, role) else False
+            self.asked_trainees.setdefault((s, w, b), []).append(asks)
         else:
             held = self.variables.lookup(s, w, r, b)
         return held, block.start_minute, block.end_minute
@@ -786,15 +833,18 @@ class Compiler:
         return _negate(reached)
 
     def _ask_for(self, matches: list[Match], p: Pattern, active: Literal) -> None:
-        """A quoted-task assignment an AT_LEAST or EXACTLY pattern matches may exist for it."""
-        if not isinstance(p.what, ast.Task):
+        """An assignment an AT_LEAST or EXACTLY pattern matches may exist for it."""
+        if p.what is None:
             return
         for m in matches:
             if m.date != self.dataset.target:
                 continue
-            people = {m.staff, *(p.with_ or ())}
-            for s in people:
-                self.asked_for.setdefault(Slot(s, m.activity, None, m.block), []).append(active)
+            if isinstance(p.what, ast.Task):
+                for s in {m.staff, *(p.with_ or ())}:
+                    self.asked_for.setdefault(Slot(s, m.activity, None, m.block), []).append(active)
+                continue
+            if m.role in TRAINEE_ROLES:  # a clinic itself runs only where a REQUEST … DO says
+                self.asked_trainees.setdefault((m.staff, m.activity, m.block), []).append(active)
 
     def _bonus(self, term) -> None:
         """The incentive to act early on a deferrable request, below every tier's requests."""
@@ -843,23 +893,44 @@ class Compiler:
 
     # -- closing -------------------------------------------------------------------------------
 
-    def close_adhoc_tasks(self) -> None:
-        """A quoted-task assignment exists only where something asks for it. Call once.
+    def close(self) -> None:
+        """Nothing happens that no request asked for. Call once, after compiling.
 
-        It is as long as its block unless a request with `FOR` selects it.
+        A quoted-task assignment, a clinic and a trainee each exist only where a positive
+        REQUEST, or a counted pattern that has an amount to reach, selected them. Position
+        holders need no rule of their own: a clinic that runs is staffed and one that does
+        not is empty. A quoted task is as long as its block unless a `FOR` selects it.
         """
         for slot, var in self.variables.x.items():
             if slot.activity in self.dataset.activities:
                 continue
-            asked = [s for s in self.asked_for.get(slot, []) if s is not False]
-            if not any(s is True for s in asked):
-                self.model.AddBoolOr([var.Not(), *asked])
+            self._only_if_asked(var, self.asked_for.get(slot, []))
             shortened = [s for s in self.shortened.get(slot, []) if s is not False]
             if any(s is True for s in shortened):
                 continue
             interval = self.variables.intervals[slot]
             unless = [var, *(s.Not() for s in shortened)]
             self.model.Add(interval.size == interval.block.minutes).OnlyEnforceIf(unless)
+        for instance in self.variables.unique_instances():
+            activity = instance.activity.id
+            asked = [
+                a for b in instance.blocks for a in self.asked_instances.get((activity, b), [])
+            ]
+            self._only_if_asked(instance.filled, asked)
+            for staff_id, (_, var) in instance.trainees.items():
+                asked = [
+                    a
+                    for b in instance.blocks
+                    for a in self.asked_trainees.get((staff_id, activity, b), [])
+                ]
+                self._only_if_asked(var, asked)
+
+    def _only_if_asked(self, var: cp_model.IntVar, asked: list[Literal]) -> None:
+        """Allow this only where one of these selected it."""
+        live = _distinct([a for a in asked if a is not False])
+        if any(a is True for a in asked):
+            return
+        self.model.AddBoolOr([var.Not(), *live])
 
     # -- literals ------------------------------------------------------------------------------
 

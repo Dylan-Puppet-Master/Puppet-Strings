@@ -604,6 +604,24 @@ def test_a_count_request_is_met_or_not():
     assert {a.staff for a in result.assignments} == {"dylan"}
 
 
+def test_a_counted_pattern_measures_clinics_without_starting_one():
+    """Only a positive REQUEST … DO makes a clinic run, whatever a count would like."""
+    members = [
+        staff("Dylan", archery_1_2=OK, candle_making=OK),
+        staff("Randy", archery_1_2=OK, candle_making=OK),
+    ]
+    offerings = [("Archery 1 & 2", ["clinic_1"]), ("Candle Making", ["clinic_3"])]
+    exact = request("two", "REQUEST EXACTLY 2 staff.dylan DOING activity.all", Priority.MUST_HAPPEN)
+    result = run(dataset(members, [ARCHERY, CANDLE], offerings=offerings, requests=[exact]))
+    assert result.feasible
+    # the two offered clinics and nothing else, however many blocks the count could reach
+    assert sorted((a.activity, a.block) for a in result.assignments) == [
+        ("archery_1_2", "clinic_1"),
+        ("candle_making", "clinic_3"),
+    ]
+    assert {a.staff for a in result.assignments} == {"dylan"}
+
+
 def test_a_duration_amount_sums_lengths_and_past_dates_count():
     yesterday = TARGET - timedelta(days=1)
     text = "REQUEST AT_LEAST 2h staff.james DOING 'dance practice' DURING block.any_clinic ON {(date.target - 1d) .. date.target}"

@@ -57,12 +57,16 @@ def solve(
         cancel.check()  # building the model is the part that holds the interpreter
         if compiler.compile(request, copy):
             active.add(request.id)
-    compiler.close_adhoc_tasks()
+    compiler.close()
     variables.finish()
     add_structural_constraints(model, variables, dataset)
     baseline = dataset.baseline if same_day else None
     if baseline is not None:
         _hold_to(model, compiler, variables, baseline)
+
+    for compiled in compiler.compiled:  # start from "every request is met" and repair
+        if isinstance(compiled.sat, cp_model.IntVar):
+            model.AddHint(compiled.sat, 1)
 
     unique = {var.Index(): var for var in variables.x.values()}
     placement = [
