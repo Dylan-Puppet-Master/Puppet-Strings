@@ -126,8 +126,8 @@ Published past dates count toward the duration.
 
 ### FORBID
 
-No assignment matching every clause may exist. Selectors filter, so quantifiers are not
-allowed.
+No assignment matching every clause may exist. Selectors filter, so `ALL` and `n OF` have
+nothing to choose and are errors. `EACH` still works, and still splits the declaration.
 
 ### PREFER and AVOID
 
@@ -135,6 +135,10 @@ Each matching assignment adds (`PREFER`) or subtracts (`AVOID`) its score. `~ me
 uses the metric's value for the assignment, normalized to 0–1 against the metric's
 declared scale; an assignment the metric has no row for is worth that metric's `default`.
 Neither verb can be `MUST_HAPPEN`.
+
+Selectors filter here, so `ALL` and `n OF` are errors. `EACH` is allowed and still splits
+the declaration, which matters with `PER`: `ACROSS EACH staff.facilitators` gives each
+person their own allowance, while `ACROSS staff.facilitators` makes the pool share one.
 
 Preferring a set of blocks and avoiding everything outside it say the same thing, so
 `PREFER 'break' DURING block.meals` and `AVOID 'break' DURING {block.any - block.meals}`
@@ -190,7 +194,7 @@ Each error carries a line and column. The validator rejects:
 - a name that does not exist in its namespace
 - a verb with no `DURING`
 - a quantifier applied to an expression containing `OR` or `AND`
-- `FORBID`, `PREFER` or `AVOID` with a quantifier
+- `FORBID`, `PREFER` or `AVOID` with `ALL` or `n OF`, which choose rather than filter
 - `PREFER` or `AVOID` at `MUST_HAPPEN`, or a weight on a `MUST_HAPPEN` request
 - a zero or negative weight
 - `PER` on a verb other than `AVOID`, or `BEYOND` below 1
@@ -389,13 +393,13 @@ Priority `MUST_HAPPEN`.
 Where those breaks land. There are still three of them, wherever the meal blocks are.
 
 ```skedge
-ACROSS {staff.all - staff.director - staff.counselor}
+ACROSS EACH {staff.all - staff.director - staff.counselor}
 DURING {block.any - block.meals}
 AVOID 'break'
 ```
 
-`EACH` belongs on the `TASK`, which asks something of each person separately. This one
-only scores what the `TASK` placed, so it takes the pool as it is.
+Writing it with `EACH`, like the request it steers, gives each person their own reading of
+the rule. That is the same thing here, and different as soon as `PER` is involved.
 
 Priority `HIGH`. Weight: `2`.
 

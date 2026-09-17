@@ -598,6 +598,11 @@ Recorded so the outline matches the code.
   match per instance, whose literal is the AND of each member's presence there, reified
   with `AddMinEquality`. `AND` elsewhere on those verbs is a validation error, and a
   staff-keyed metric cannot score a group. `POSITION_ROLES` is now an alias of `ORDINALS`.
+- **`EACH` is allowed on `FORBID`, `PREFER` and `AVOID`** (Puppet Master, 2026-09-16); only
+  `ALL` and `n OF` are refused, since those choose rather than filter. `EACH` is not
+  redundant there: it splits the declaration, so `PER` counts per person rather than over
+  the pool. `STABILITY` is refused on the Requests sheet and left out of the app's
+  dropdowns, via `WRITABLE_PRIORITIES`.
 - **A quoted task happens only where a TASK selected it** (Puppet Master, 2026-09-16).
   `Compiler` records, per ad hoc slot, the conjunction of clause literals that selects it,
   and `close_adhoc_tasks` then adds `x -> OR(selectors)`, or pins `x` to zero when nothing

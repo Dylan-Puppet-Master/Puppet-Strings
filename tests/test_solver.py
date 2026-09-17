@@ -671,3 +671,68 @@ def test_a_wish_about_a_task_nobody_asks_for_is_rejected():
     typo = request("w", "DURING block.any\nAVOID 'breaks'", Priority.HIGH)  # the task is 'break'
     with pytest.raises(RequestError, match="no request asks for 'breaks'"):
         run(dataset([staff("Sarah")], [], requests=[THREE_BREAKS, typo]))
+
+
+def test_each_gives_every_person_their_own_allowance():
+    """EACH is not redundant on a filter verb: it changes what PER counts together."""
+    archery = clinic("Archery 1 & 2", ("Archery 1 & 2", 4), category="weapons")
+    candle = clinic("Candle Making", ("Candle making", 1))
+    members = [
+        staff("Dylan", archery_1_2=OK, candle_making=OK),
+        staff("Randy", archery_1_2=OK, candle_making=OK),
+    ]
+    offerings = [
+        ("Archery 1 & 2", ["clinic_1"]),
+        ("Candle Making", ["clinic_1"]),
+        ("Archery 1 & 2", ["clinic_3"]),
+        ("Candle Making", ["clinic_3"]),
+    ]
+    variety = (
+        "ACROSS {pool}\nDURING block.any_clinic\nAVOID activity.any_clinic PER activity BEYOND 1"
+    )
+
+    def solve_with(pool):
+        ds = dataset(
+            members,
+            [archery, candle],
+            offerings=offerings,
+            requests=[request("v", variety.format(pool=pool), Priority.HIGH, 3)],
+        )
+        result = run(ds)
+        who = {(a.block, a.activity): a.staff for a in result.assignments}
+        return who, result.tier_scores[Priority.HIGH]
+
+    shared, shared_score = solve_with("staff.all")
+    apiece, apiece_score = solve_with("EACH staff.all")
+    # one allowance for the pool is spent whoever runs the second archery, so it is a loss
+    assert shared_score < apiece_score == 0
+    # an allowance each can be kept by giving the two archery slots to two people
+    assert apiece["clinic_1", "archery_1_2"] != apiece["clinic_3", "archery_1_2"]
+    assert len(set(shared.values())) <= 2  # the pool reading has no such pressure
+
+
+def test_a_preference_may_be_written_to_match_the_task_it_steers():
+    """The wording that reads in parallel with the TASK is accepted."""
+    pool = "{staff.all - staff.director}"
+    requests = [
+        request(
+            "breaks",
+            f"ACROSS EACH {pool}\nDURING 3 OF block.any\nTASK 'break' FOR 30m",
+            Priority.MUST_HAPPEN,
+        ),
+        request(
+            "at-meals",
+            f"ACROSS EACH {pool}\nPREFER 'break' DURING block.meals",
+            Priority.HIGH,
+            2,
+        ),
+    ]
+    ds = dataset(
+        [staff("Sarah"), staff("David")],
+        [],
+        requests=requests,
+        categories={"director": ["David"]},
+        blocks=blocks_with_meals(3),
+    )
+    breaks = [a for a in run(ds).assignments if a.staff == "sarah"]
+    assert len(breaks) == 3 and all(a.block.startswith("meal") for a in breaks)

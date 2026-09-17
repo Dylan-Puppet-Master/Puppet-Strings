@@ -34,7 +34,7 @@ from puppet_strings.app.same_day import SICKNESS, SLEEP, SameDayDialog
 from puppet_strings.app.schedule_dialog import ScheduleDialog
 from puppet_strings.app.store import RequestStore
 from puppet_strings.config import Config
-from puppet_strings.model import Priority
+from puppet_strings.model import WRITABLE_PRIORITIES
 from puppet_strings.sheets.source import CsvSource, LoadError, SheetsSource
 
 
@@ -170,7 +170,7 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout()
         self.text_filter = QLineEdit()
         self.text_filter.setPlaceholderText("search id, description, skedge")
-        self.priority_filter = _combo(["any priority"] + [p.value for p in Priority])
+        self.priority_filter = _combo(["any priority"] + [p.value for p in WRITABLE_PRIORITIES])
         self.scope_filter = _combo(["any scope", *SCOPES])
         self.tag_filter = _combo(["any tag"])
         self.staff_filter = _combo(["any staff"])

@@ -71,9 +71,10 @@ def _check_verb(scoped: ScopedVerb, hard: bool) -> None:
             raise _error(f"PER fields must be some of {', '.join(KEY_FIELDS)}", per)
     if kind != "TASK":
         for clause, selector in _selectors(scoped):
-            if _quantifier(selector) not in (None, "ANY"):
+            # EACH still splits the declaration, which changes what PER counts together
+            if _quantifier(selector) not in (None, "ANY", "EACH"):
                 raise ast.SkedgeError(
-                    f"{kind} takes no quantifier; it filters assignments",
+                    f"{kind} takes no ALL or OF; it filters assignments rather than choosing",
                     selector.pos.line,
                     selector.pos.column,
                 )

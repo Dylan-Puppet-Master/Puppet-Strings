@@ -235,3 +235,11 @@ def test_blocks_accept_a_missing_leading_zero(source):
         row[1] = row[1].lstrip("0")  # 09:15 as a person would type it
     blocks = parse_blocks(table)
     assert blocks["clinic_1"].start == time.fromisoformat(times["clinic_1"][0])
+
+
+def test_the_solvers_own_priority_cannot_be_written_on_the_sheet():
+    header = ["id", "description", "skedge", "priority", "weight", "tags", "created"]
+    row = ["x", "", "DURING block.clinic_1\nTASK 'a'", "STABILITY", "", "", ""]
+    with pytest.raises(LoadError, match="STABILITY is the solver's own"):
+        parse_requests([header, row])
+    assert parse_requests([header, [*row[:3], "HIGH", *row[4:]]])[0].priority.value == "HIGH"

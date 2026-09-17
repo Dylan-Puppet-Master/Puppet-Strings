@@ -368,3 +368,15 @@ def test_one_person_can_be_both_short_of_sleep_and_resting(window):
     (row,) = window.store.dataset.today_adjustments
     assert row.ral_penalty == 1 and row.summary == "resting this afternoon and down 1 RAL"
     assert len(window.store.source.read("config", "Adjustments")) == 2  # one header, one row
+
+
+def test_the_solvers_own_priority_is_not_offered(window):
+    from puppet_strings.model import Priority
+
+    offered = [
+        window.editor.priority_box.itemText(i) for i in range(window.editor.priority_box.count())
+    ]
+    assert Priority.STABILITY.value not in offered
+    assert offered == ["MUST_HAPPEN", "CLINIC", "HIGH", "MEDIUM", "LOW"]
+    filters = [window.priority_filter.itemText(i) for i in range(window.priority_filter.count())]
+    assert Priority.STABILITY.value not in filters

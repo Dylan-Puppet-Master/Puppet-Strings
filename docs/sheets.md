@@ -126,7 +126,7 @@ hand.
 | `id` | Unique and stable, in `kebab-case`. Appears in the solver's report. |
 | `description` | Plain language, for people. |
 | `skedge` | The request itself; see the [Skedge reference](skedge.md). Multi-line cells are fine. |
-| `priority` | One of `MUST_HAPPEN`, `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. |
+| `priority` | One of `MUST_HAPPEN`, `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. `STABILITY` is the solver's own during a [same-day change](same-day.md) and is refused here. |
 | `weight` | Blank (meaning 1) or a positive number. Not allowed with `MUST_HAPPEN`. |
 | `tags` | **Comma-separated.** Any labels you like, for filtering in the request manager. Requests made from the Offerings tab carry the tag `generated`. |
 | `created` | `YYYY-MM-DD`, for the record. |

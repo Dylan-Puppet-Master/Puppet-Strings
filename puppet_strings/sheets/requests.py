@@ -1,6 +1,6 @@
 """Requests: one row per request, one column per field."""
 
-from puppet_strings.model import Priority, Request
+from puppet_strings.model import WRITABLE_PRIORITIES, Priority, Request
 from puppet_strings.sheets.calendar import parse_date
 from puppet_strings.sheets.source import LoadError, Table, header_rows, split_list
 
@@ -24,7 +24,10 @@ def parse_requests(table: Table) -> tuple[Request, ...]:
         try:
             priority = Priority(row["priority"])
         except ValueError as e:
-            raise LoadError(f"{cell}: priority must be one of {[p.value for p in Priority]}") from e
+            allowed = [p.value for p in WRITABLE_PRIORITIES]
+            raise LoadError(f"{cell}: priority must be one of {allowed}") from e
+        if priority not in WRITABLE_PRIORITIES:
+            raise LoadError(f"{cell}: {priority.value} is the solver's own, not a priority to set")
         weight = _weight(row["weight"], priority, cell)
         created = parse_date(row["created"], cell) if row["created"] else None
         requests.append(

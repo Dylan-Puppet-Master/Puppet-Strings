@@ -118,6 +118,16 @@ def test_ordinal_and_last_date_names(dataset):
         resolve(dataset, "ON date.third_thursday\nDURING block.any\nTASK 'x'")
 
 
+def test_each_splits_a_filter_verb_too(dataset):
+    copies = resolve(
+        dataset,
+        "ON date.target\nACROSS EACH staff.counselor\nDURING block.any_clinic\n"
+        "PREFER activity.any_clinic",
+    )
+    assert [c.key for c in copies] == ["dylan", "james", "paul"]
+    assert copies[0].statements[0].across.items == ("dylan",)
+
+
 def test_across_groups_keep_their_alternatives_for_filter_verbs(dataset):
     (copy,) = resolve(
         dataset,

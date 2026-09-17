@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from puppet_strings.model import Dataset, Priority, Request
+from puppet_strings.model import WRITABLE_PRIORITIES, Dataset, Priority, Request
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
@@ -134,7 +134,7 @@ class RequestEditor(QWidget):
         self.description_edit = QLineEdit()
         self.description_edit.setPlaceholderText("what this request is for; the id is made from it")
         self.priority_box = QComboBox()
-        self.priority_box.addItems([p.value for p in Priority])
+        self.priority_box.addItems([p.value for p in WRITABLE_PRIORITIES])
         self.weight_box = QDoubleSpinBox()
         self.weight_box.setRange(0.01, 1000)
         self.weight_box.setValue(1)

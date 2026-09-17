@@ -25,7 +25,7 @@ def request(skedge, priority=Priority.HIGH, weight=1.0):
         (
             "DURING ALL block.any_clinic\nFORBID activity.riflery",
             Priority.HIGH,
-            "FORBID takes no quantifier",
+            "FORBID takes no ALL or OF",
             1,
             8,
         ),

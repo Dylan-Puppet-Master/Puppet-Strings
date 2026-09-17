@@ -6,7 +6,7 @@
 |---|---|
 | `MUST_HAPPEN` | Hard. If the hard requests cannot all hold, the report names the conflicting ids and no schedule is produced. |
 | `CLINIC` | Soft, first tier. The offered clinics. An unstaffable clinic is reported instead of blocking the schedule. |
-| `STABILITY` | Soft, second tier, and only during a [same-day change](same-day.md): keep the published schedule. |
+| `STABILITY` | Soft, second tier, and only during a [same-day change](same-day.md): keep the published schedule. The solver sets this itself; it cannot be written on a request. |
 | `HIGH`, `MEDIUM`, `LOW` | Soft, in that order. |
 
 Soft tiers are solved one after another: the `CLINIC` score is maximized and then fixed as
