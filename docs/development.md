@@ -53,12 +53,22 @@ Add a row to `STATUS_WORDS` in `puppet_strings/sheets/skills.py`. If the status 
 able to supervise a scaffold, give it a `SkillStatus` whose `can_scaffold` is true in
 `model.py`.
 
+## Keeping the specification true
+
+[The Skedge specification](spec.md) is the language's definition, and `tests/test_spec.py`
+holds it to the code: the grammar block must equal `grammar.lark`, every error message it
+quotes must exist in the source, and its lists of namespaces, priorities and `PER` fields
+must match what the code offers. Change the language and the spec fails until you update
+it, which is the point.
+
 ## Adding a Skedge feature
 
 Grammar in `skedge/grammar.lark`; AST nodes in `skedge/ast.py`; the parser transformer in
 `skedge/parser.py`; validation rules in `skedge/validate.py`; compilation in
-`solver/compile.py`. Add a parser test, a validation test, and a solver test. Add the
-construct to [Skedge reference](skedge.md); the docs test parses every example there.
+`solver/compile.py`. Add a parser test, a validation test, and a solver test. Write the
+rule into [the specification](spec.md), and add an example to
+[Skedge reference](skedge.md); the docs test parses, validates and solves every example
+there.
 
 ## Releasing the docs
 

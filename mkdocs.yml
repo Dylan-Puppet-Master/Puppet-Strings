@@ -29,6 +29,7 @@ nav:
   - The request manager: app.md
   - Same-day changes: same-day.md
   - Skedge reference: skedge.md
+  - Skedge specification: spec.md
   - How the solver decides: solver.md
   - Design: technical-outline.md
   - Development: development.md

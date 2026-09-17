@@ -4,6 +4,10 @@ Skedge is the language requests are written in. A request is one declaration: a 
 of clauses that select assignments and say what must, must not, should or should not
 happen to them.
 
+This page is the readable version, with worked examples. For the exact rules, including
+the grammar and every error the validator reports, see the
+[Skedge specification](spec.md).
+
 ## The model
 
 An **assignment** is one staff member doing one activity in one role in one block on one
@@ -478,4 +482,5 @@ Priority `LOW`.
 
 ## Grammar
 
-The grammar the parser uses, in Lark syntax, is `puppet_strings/skedge/grammar.lark`.
+The grammar the parser uses is in the [specification](spec.md#4-grammar), and in
+`puppet_strings/skedge/grammar.lark`.
