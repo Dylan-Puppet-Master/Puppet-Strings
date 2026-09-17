@@ -3,11 +3,9 @@
 Columns: block_id, start, end, day_types (comma-separated), categories (comma-separated).
 """
 
-from datetime import time
-
 from puppet_strings.model import Block
 from puppet_strings.names import normalize
-from puppet_strings.sheets.source import LoadError, Table, header_rows, split_list
+from puppet_strings.sheets.source import LoadError, Table, header_rows, parse_time, split_list
 
 ANY_BLOCK = "any"
 
@@ -22,8 +20,8 @@ def parse_blocks(table: Table) -> dict[str, Block]:
         cell = f"{where} row '{row['block_id']}'"
         block = Block(
             id=block_id,
-            start=_time(row["start"], cell),
-            end=_time(row["end"], cell),
+            start=parse_time(row["start"], cell),
+            end=parse_time(row["end"], cell),
             day_types=frozenset(normalize(t) for t in split_list(row["day_types"])),
             categories=frozenset(normalize(c) for c in split_list(row["categories"])) | {ANY_BLOCK},
         )
@@ -39,10 +37,3 @@ def block_categories(blocks: dict[str, Block]) -> dict[str, frozenset[str]]:
     """Category id -> block ids, including the built-in `any`."""
     names = {c for b in blocks.values() for c in b.categories}
     return {c: frozenset(b.id for b in blocks.values() if c in b.categories) for c in names}
-
-
-def _time(text: str, where: str) -> time:
-    try:
-        return time.fromisoformat(text)
-    except ValueError as e:
-        raise LoadError(f"{where}: time '{text}' must be HH:MM") from e

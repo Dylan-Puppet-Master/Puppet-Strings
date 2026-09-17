@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from datetime import time
 from pathlib import Path
 
+from puppet_strings.sheets.source import parse_time
+
 DEFAULT_PATH = Path("~/.config/puppet_strings/config.toml")
 
 DEFAULT_REMAINDER = "DYOW/WPs"  # label for the unassigned part of a partly used block
@@ -55,7 +57,7 @@ def load_config(path: Path | None = None) -> Config:
         sheets=data.get("sheets", {}),
         tabs={**DEFAULT_TABS, **data.get("tabs", {})},
         credentials=Path(data.get("auth", {}).get("credentials", Config.credentials)).expanduser(),
-        midday=time.fromisoformat(data.get("day", {}).get("midday", "12:00")),
+        midday=parse_time(data.get("day", {}).get("midday", "12:00"), str(path)),
         remainder=data.get("views", {}).get("remainder", DEFAULT_REMAINDER),
         time_limit_seconds=solver.get("time_limit_seconds", Config.time_limit_seconds),
         tidy_seconds=solver.get("tidy_seconds", Config.tidy_seconds),

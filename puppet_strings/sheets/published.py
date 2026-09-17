@@ -5,10 +5,10 @@ block; an ad hoc task scheduled with `FOR` may fill part of it.
 """
 
 from collections.abc import Mapping
-from datetime import date, time
+from datetime import date
 
 from puppet_strings.model import Activity, Assignment, Staff
-from puppet_strings.sheets.source import LoadError, Table, header_rows, parse_int
+from puppet_strings.sheets.source import LoadError, Table, header_rows, parse_int, parse_time
 
 COLUMNS = ("staff", "activity", "role", "block", "start", "minutes", "source")
 
@@ -36,10 +36,6 @@ def parse_published(
             activity = activity_ids[text]
         else:
             raise LoadError(f"{cell}: unknown activity")
-        try:
-            start = time.fromisoformat(row["start"])
-        except ValueError as e:
-            raise LoadError(f"{cell}: start '{row['start']}' must be HH:MM") from e
         assignments.append(
             Assignment(
                 staff=staff_ids[row["staff"]],
@@ -47,7 +43,7 @@ def parse_published(
                 role=row["role"] or None,
                 date=day,
                 block=row["block"],
-                start=start,
+                start=parse_time(row["start"], cell),
                 minutes=parse_int(row["minutes"], cell),
                 source=row["source"],
             )

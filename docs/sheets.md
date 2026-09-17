@@ -75,7 +75,7 @@ One row per time block. Blocks are the units the solver assigns staff to.
 | Column | Meaning |
 |---|---|
 | `block_id` | The block's name, used in requests as `block.<block_id>`. |
-| `start`, `end` | Times as `HH:MM` on a 24-hour clock. Blocks may overlap; the solver never gives one person two assignments that overlap in time. |
+| `start`, `end` | The block's times, written any ordinary way: `8:30`, `08:30` and `8:30 AM` all mean the same thing. Blocks may overlap; the solver never gives one person two assignments that overlap in time. |
 | `day_types` | **Comma-separated.** The kinds of day this block exists on. Each date's kind comes from the Calendar sheet's `day_type` column. A block whose list does not include that day's type does not exist that day, so no request can select it. |
 | `categories` | **Comma-separated.** Groups of blocks a request can name at once: `block.any_clinic`, `block.break_slots`. `block.any` (every block) is built in and need not be listed. |
 
@@ -205,7 +205,7 @@ back for past dates.
 | Column | Meaning |
 |---|---|
 | `staff`, `activity`, `role`, `block` | Who does what, in which role, in which block |
-| `start` | `HH:MM`, where the task starts inside its block |
+| `start` | Where the task starts inside its block, written as `HH:MM` |
 | `minutes` | How long it lasts; a clinic fills its block |
 | `source` | `offering`, or the request id that required it |
 

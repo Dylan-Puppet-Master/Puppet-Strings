@@ -5,6 +5,7 @@ Parsers never touch this module; they take tables.
 """
 
 import csv
+from datetime import datetime, time
 from pathlib import Path
 from typing import Protocol
 
@@ -167,6 +168,22 @@ def parse_int(value: str, where: str) -> int:
         return int(value)
     except ValueError as e:
         raise LoadError(f"{where}: expected a whole number, got '{value}'") from e
+
+
+# How a time may be written. A leading zero is optional, and a spreadsheet's own 12-hour
+# formatting is understood, so 8:30, 08:30 and 8:30 AM all mean the same thing.
+TIME_FORMATS = ("%H:%M", "%H:%M:%S", "%I:%M %p", "%I:%M:%S %p", "%I:%M%p", "%I:%M:%S%p")
+
+
+def parse_time(text: str, where: str) -> time:
+    """A time cell, however the sheet happens to write it."""
+    cleaned = " ".join(text.strip().upper().replace(".", "").split())
+    for pattern in TIME_FORMATS:
+        try:
+            return datetime.strptime(cleaned, pattern).time()
+        except ValueError:
+            continue
+    raise LoadError(f"{where}: time '{text}' must look like 8:30, 08:30 or 8:30 AM")
 
 
 def split_list(value: str) -> list[str]:

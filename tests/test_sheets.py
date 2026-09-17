@@ -9,7 +9,7 @@ from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import assignment_rows, parse_published
 from puppet_strings.sheets.requests import parse_requests, request_rows
 from puppet_strings.sheets.skills import parse_position_skills, parse_skills, trainers
-from puppet_strings.sheets.source import LoadError
+from puppet_strings.sheets.source import LoadError, parse_time
 
 
 def test_skills_statuses(source):
@@ -203,3 +203,35 @@ def test_dataset(dataset):
         "playstation",
     ]
     assert set(dataset.published) == {date(2026, 9, 14), date(2026, 9, 15)}
+
+
+@pytest.mark.parametrize(
+    ("written", "expected"),
+    [
+        ("8:30", time(8, 30)),
+        ("08:30", time(8, 30)),
+        (" 8:30 ", time(8, 30)),
+        ("8:30 AM", time(8, 30)),
+        ("8:30AM", time(8, 30)),
+        ("5:45 pm", time(17, 45)),
+        ("17:45", time(17, 45)),
+        ("08:30:00", time(8, 30)),
+        ("12:00", time(12, 0)),
+    ],
+)
+def test_a_time_may_be_written_any_ordinary_way(written, expected):
+    assert parse_time(written, "Blocks") == expected
+
+
+def test_a_time_that_is_not_a_time_says_so():
+    with pytest.raises(LoadError, match="must look like 8:30, 08:30 or 8:30 AM"):
+        parse_time("half eight", "Blocks")
+
+
+def test_blocks_accept_a_missing_leading_zero(source):
+    table = [row[:] for row in source.read("config", "Blocks")]
+    times = {row[0]: (row[1], row[2]) for row in table[1:]}
+    for row in table[1:]:
+        row[1] = row[1].lstrip("0")  # 09:15 as a person would type it
+    blocks = parse_blocks(table)
+    assert blocks["clinic_1"].start == time.fromisoformat(times["clinic_1"][0])
