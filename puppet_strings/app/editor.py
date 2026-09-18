@@ -1,11 +1,12 @@
 """The request editor: one field per request column, a Skedge editor, live validation."""
 
 import re
-from datetime import date
+from datetime import date, datetime
 
 from PySide6.QtCore import QRegularExpression, QStringListModel, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
+    QApplication,
     QComboBox,
     QCompleter,
     QDoubleSpinBox,
@@ -304,25 +305,54 @@ class RequestEditor(QWidget):
         self.skedge_edit.insertPlainText(text)
         self.skedge_edit.setFocus()
 
-    def _report(self, message: str, ok: bool) -> bool:
+    # what the line under the editor says, and what it means: valid, broken, or in hand
+    COLORS = {True: "color: #1b6f3b", False: "color: #b00020", None: "color: #6b6b6b"}
+
+    def _report(self, message: str, ok: bool | None) -> bool:
+        """Say how the request stands. `ok` of None is neither: a note, with Save left alone."""
         self.status.setText(message)
-        self.status.setStyleSheet("color: #1b6f3b" if ok else "color: #b00020")
-        self.save_button.setEnabled(ok)
-        return ok
+        self.status.setStyleSheet(self.COLORS[ok])
+        if ok is not None:
+            self.save_button.setEnabled(ok)
+        return bool(ok)
 
     def _priority_changed(self, text: str) -> None:
         self.weight_box.setEnabled(not Priority(text).hard)
         self.timer.start()
 
-    def saved_as(self, request: Request) -> None:
-        """Show the id the store gave the request just saved."""
+    def saving(self) -> None:
+        """Say that the write is under way; the sheet is not always quick."""
+        self.save_button.setEnabled(False)
+        self.save_button.setText("Saving…")
+        self._report("Saving…", ok=None)
+        QApplication.processEvents()  # so the button changes before the write, not after
+
+    def saved_as(self, request: Request, note: str = "") -> None:
+        """Show the id the store gave the request just saved, and that it is written.
+
+        The confirmation names the time, so a second save of the same request still shows
+        that something happened, and stays until the next edit re-validates the request.
+        """
         self.original_id = request.id
         self.id_label.setText(request.id)
         self.delete_button.setEnabled(True)
+        self.save_button.setText("Save")
+        self._report(f"✓ Saved {request.id} at {datetime.now():%H:%M:%S}{note}", ok=True)
+
+    def not_saved(self, why: str) -> None:
+        """Put the editor back the way it was, the save having been called off.
+
+        The request is still whatever it was, so Save goes back to being the way to save it.
+        """
+        self.save_button.setText("Save")
+        self.save_button.setEnabled(True)
+        self._report(why, ok=None)
 
     def _save(self) -> None:
-        if self.validate():
-            self.saved.emit(self.current(), self.original_id)
+        if not self.validate():
+            return
+        self.saving()
+        self.saved.emit(self.current(), self.original_id)
 
     def _delete(self) -> None:
         if self.original_id:

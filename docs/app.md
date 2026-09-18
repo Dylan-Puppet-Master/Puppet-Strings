@@ -7,6 +7,9 @@ puppet-strings app
 ![The request manager](img/app.png)
 
 **Toolbar.** Pick the target date (tomorrow by default). **Reload** reads every sheet again.
+Reading the sheets and loading the offerings both put up a progress panel, the one the
+solver uses, without a Cancel button: neither can usefully be stopped part-way, but both
+take long enough over Google Sheets to be worth saying so.
 **Load offerings** turns the Offerings tab into one `CLINIC` request per offered clinic,
 tagged `generated`, and saves them to the Requests sheet. Loading first removes every
 generated request for the target date, so the sheet mirrors the Offerings tab: a clinic
@@ -95,7 +98,11 @@ id is made from the description on the first save (`Dylan's day off` becomes
 `dylan-s-day-off`, then `-2`, `-3` if taken) and never changes afterwards; it is what the
 solver's report refers to. The
 line under the editor says whether the request is valid, or shows the first error with its
-line and column. Save is enabled only for a valid request. Ctrl+S saves. **New** starts a
+line and column. Save is enabled only for a valid request. Ctrl+S saves. While the write
+is going out to the sheet the button reads **Saving…**; when it lands, the line turns green
+and says `✓ Saved dylan-s-day-off at 14:32:05`, with the time, so a second save of the same
+request still visibly does something. The confirmation stays until the next edit, which
+validates the request again. **New** starts a
 fresh request; **Delete** removes the selected one. Every save rewrites the Requests tab.
 
 **Name completion.** Type a namespace and a dot in the Skedge box, such as `staff.`, and a

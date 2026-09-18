@@ -115,6 +115,7 @@ class MainWindow(QMainWindow):
         self.store = store
         self.worker: SolveWorker | None = None
         self.busy: BusyDialog | None = None
+        self.progress: BusyDialog | None = None  # for work that cannot be cancelled
         self.loader: LoadWorker | None = None
         self.reload_requested = False
         self.setWindowTitle("Puppet Strings")
@@ -316,11 +317,26 @@ class MainWindow(QMainWindow):
             self.reload_requested = True
             return
         self.status_label.setText(f"  Loading {self.target}…")
+        self.start_progress(f"Reading the sheets for {self.target}…")
         self.loader = LoadWorker(self.store, self.target)
         self.loader.done.connect(self._loaded)
         self.loader.failed.connect(self._load_failed)
         self.loader.finished.connect(self._load_finished)
         self.loader.start()
+
+    def start_progress(self, message: str) -> None:
+        """Put up a panel saying what the window is busy with, and paint it at once."""
+        if self.progress is not None:
+            return
+        self.progress = BusyDialog(message, self, cancellable=False)
+        self.progress.show()
+        QApplication.processEvents()  # the panel is no use if it paints after the work
+
+    def end_progress(self) -> None:
+        """Take that panel down."""
+        if self.progress is not None:
+            self.progress.finish()
+            self.progress = None
 
     def wait_for_load(self) -> None:
         """Block until background loads finish (used by tests)."""
@@ -336,6 +352,7 @@ class MainWindow(QMainWindow):
             self.reload()
 
     def _loaded(self) -> None:
+        self.end_progress()
         dataset = self.store.dataset
         if self.editor.original_id and self.model.request(self.editor.original_id) is None:
             self.editor.clear()  # the request shown was deleted on the sheet
@@ -360,6 +377,7 @@ class MainWindow(QMainWindow):
         self.status_label.setText("  " + ". ".join(parts + today + list(dataset.warnings)))
 
     def _load_failed(self, message: str) -> None:
+        self.end_progress()
         self.status_label.setText("")
         QMessageBox.critical(self, "Could not load", message)
 
@@ -403,7 +421,11 @@ class MainWindow(QMainWindow):
         """Add the Offerings tab's clinics to the Requests sheet as generated requests."""
         if self.store.dataset is None:
             return
-        count = self.store.load_offerings()
+        self.start_progress(f"Loading the offerings for {self.target}…")
+        try:
+            count = self.store.load_offerings()
+        finally:
+            self.end_progress()
         self.model.refresh()
         self.groups.refresh()
         self.refresh_conflicts()
@@ -470,11 +492,16 @@ class MainWindow(QMainWindow):
             self.editor.show_request(self.proxy.data(current, Qt.UserRole))
 
     def _saved(self, request, original_id) -> None:
+        """Write one request to the sheet, and leave the editor saying that it is written."""
         if not self._in_scope_or_agreed(request):
+            self.editor.not_saved("Not saved; still editing")
             self.status_label.setText("  Not saved; still editing")
             return
-        saved = self.store.save(request, original_id)
-        self.editor.saved_as(saved)
+        QApplication.setOverrideCursor(Qt.WaitCursor)  # the sheet write is what takes the time
+        try:
+            saved = self.store.save(request, original_id)
+        finally:
+            QApplication.restoreOverrideCursor()
         self.model.refresh()
         self.groups.refresh()
         self.editor.set_dataset(self.store.dataset, self.store.groups)
@@ -482,6 +509,7 @@ class MainWindow(QMainWindow):
         found = self.refresh_conflicts()
         clashes = [c for c in found if saved.id in c.requests]
         note = f"; it conflicts with {len(clashes)} other request(s)" if clashes else ""
+        self.editor.saved_as(saved, note)  # last, so nothing else overwrites the confirmation
         self.status_label.setText(f"  Saved {saved.id}{note}")
 
     def _in_scope_or_agreed(self, request) -> bool:

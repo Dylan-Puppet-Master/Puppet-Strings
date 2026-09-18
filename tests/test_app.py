@@ -746,3 +746,69 @@ def test_a_conflicting_request_opens_even_when_the_group_hides_it(window):
     window.editor.clear()
     window.conflicts.itemDoubleClicked.emit(conflict_child(window, "dylan-is-free"), 0)
     assert window.editor.original_id == "dylan-is-free"
+
+
+# -- saying what the window is doing ---------------------------------------------------------
+
+
+def test_saving_says_so_and_then_says_it_is_done(window):
+    editor = window.editor
+    editor.clear()
+    editor.description_edit.setText("Dylan's day off")
+    editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING block.clinic_1")
+    assert editor.validate()
+    assert editor.save_button.text() == "Save"
+    editor.save_button.click()
+    assert editor.save_button.text() == "Save"  # back to itself once the write is done
+    assert editor.status.text().startswith("✓ Saved dylan-s-day-off at ")
+    assert "color: #1b6f3b" in editor.status.styleSheet()
+    assert editor.save_button.isEnabled()
+    editor.description_edit.setText("changed")  # editing clears the confirmation
+    assert editor.validate() and editor.status.text() == "Valid"
+
+
+def test_a_save_that_is_called_off_leaves_the_editor_alone(window, monkeypatch):
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Cancel)
+    editor = write_request(
+        window,
+        "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON ALL_OF date.session.two.first_week",
+    )
+    editor.save_button.click()
+    assert editor.save_button.text() == "Save" and editor.save_button.isEnabled()
+    assert editor.status.text() == "Not saved; still editing"
+    assert "color: #6b6b6b" in editor.status.styleSheet()
+
+
+def test_saving_shows_a_conflict_in_the_confirmation(window):
+    save_request(window, "Dylan on riflery", PIN_RIFLERY)
+    save_request(window, "Dylan is free", DYLAN_FREE)
+    assert "it conflicts with 1 other request(s)" in window.editor.status.text()
+
+
+def test_reloading_puts_up_a_panel_until_the_sheets_are_read(window):
+    assert window.progress is None
+    window.reload()
+    assert window.progress is not None
+    assert window.progress.label.text() == "Reading the sheets for 2026-09-16…"
+    assert not window.progress.cancel_button.isVisible()  # reading cannot be called off
+    window.wait_for_load()
+    assert window.progress is None
+
+
+def test_a_panel_that_cannot_be_cancelled_ignores_escape(window):
+    window.reload()
+    panel = window.progress
+    panel.reject()  # Escape
+    assert panel.label.text() != "Stopping…" and window.progress is panel
+    window.wait_for_load()
+
+
+def test_loading_offerings_puts_up_a_panel(window):
+    seen = []
+    original = window.store.load_offerings
+    monkey = lambda: (seen.append(window.progress.label.text()), original())[1]  # noqa: E731
+    window.store.load_offerings = monkey
+    window.load_offerings()
+    assert seen == ["Loading the offerings for 2026-09-16…"]
+    assert window.progress is None
+    assert "Loaded 24 offerings" in window.status_label.text()
