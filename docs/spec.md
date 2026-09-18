@@ -52,7 +52,7 @@ Skedge has two statements and two ways of talking about assignments.
 |---|---|
 | Keyword | Upper case: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `GAP`, `TO`, `DO`, `DOING`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY_n_OF`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
 | Quantifier | `ALL_OF`, `EACH_OF`, and `ANY_n_OF` for any whole `n` from 1: `ANY_1_OF`, `ANY_3_OF` |
-| Name | Dotted, lower case, digits and underscores: `staff.mary_kate`, `date.session.mondays` |
+| Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `date.session.four.second_week.monday` |
 | Variable, label | A bare identifier: `s`, `morning`. A label is followed by a colon. |
 | Quoted task | Single quotes, any text but a quote: `'archery maintenance'` |
 | Date | `2026-06-14` |
@@ -184,23 +184,32 @@ resting all day is in no category, though their own name still resolves.
 
 ### 5.1 Dates
 
-Date names are nested: `date.<scope>.<name>`.
+Date names are nested spans: `date.<span>` is a set, and `date.<span>.<name>` is a name
+within it. Spans come from the Calendar sheet's `session` and `week` columns.
 
-| Scope | Covers |
-|---|---|
-| `date.session` | the session `date.target` falls in |
-| `date.season` | every session of the season |
-| `date.<session>` | one named session from the Calendar sheet, such as `date.session_2` |
-
-| Name within a scope | Kind | Holds |
+| Span | Kind | Covers |
 |---|---|---|
-| `all` | set | every date of the scope |
-| `mondays` … `sundays` | set | every date of the scope falling on that weekday |
-| `first`, `last` | item | the scope's first and last date |
-| `first_monday` … `sixth_sunday`, `last_monday` … `last_sunday` | item | that occurrence within the scope |
+| `date.target` | item | the date being scheduled |
+| `date.season` | set | every date on the Calendar sheet |
+| `date.session.one` … `date.session.twenty` | set | every date of that numbered session |
+| `date.session.this` | set | the session `date.target` falls in |
+| `date.session.<s>.first_week` … `date.session.<s>.twentieth_week` | set | every date of that week of that session |
+| `date.session.this.this_week` | set | the week `date.target` falls in |
+
+| Name within `date.season` or a session | Kind | Holds |
+|---|---|---|
+| `mondays` … `sundays` | set | every date of the span falling on that weekday |
+| `first`, `last` | item | the span's first and last date |
+| `first_monday` … `twentieth_sunday`, `last_monday` … `last_sunday` | item | that occurrence within the span |
 | `first_mondays` … `last_sundays` | set, `date.season` only | that occurrence within each session of the season |
 
-An item name exists only if the scope reaches that occurrence.
+| Name within a week | Kind | Holds |
+|---|---|---|
+| `monday` … `sunday` | item | that weekday of the week |
+| `first`, `last` | item | the week's first and last date |
+
+A name exists only if the span reaches that occurrence: `date.session.two.second_week` is
+a name only when session 2 has a second week. Session and week numbers run from 1 to 20.
 
 `role.trainee` resolves per staff member from the Skills sheet: checked off or needing a
 scaffold becomes `scaffolded`, needing a shadow or no checkoff becomes `shadow`.

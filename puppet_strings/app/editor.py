@@ -13,13 +13,17 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
+from puppet_strings.app.groups import same_group
 from puppet_strings.model import WRITABLE_PRIORITIES, Dataset, Priority, Request
+from puppet_strings.names import normalize
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
@@ -120,6 +124,35 @@ class SkedgeEdit(QPlainTextEdit):
         self.setTextCursor(cursor)
 
 
+class GroupsEdit(QListWidget):
+    """The groups a request is in, as a tick against every group there is."""
+
+    changed = Signal()
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setMaximumHeight(90)
+        self.setToolTip("Tick every group this request belongs to")
+        self.itemChanged.connect(lambda _: self.changed.emit())
+
+    def show_groups(self, groups: list[str], ticked: tuple[str, ...]) -> None:
+        """List every group, with the request's own ticked."""
+        self.blockSignals(True)
+        self.clear()
+        for group in groups:
+            item = QListWidgetItem(group)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            inside = any(same_group(group, g) for g in ticked)
+            item.setCheckState(Qt.Checked if inside else Qt.Unchecked)
+            self.addItem(item)
+        self.blockSignals(False)
+
+    def ticked(self) -> tuple[str, ...]:
+        """The groups ticked, in the order they are listed."""
+        rows = range(self.count())
+        return tuple(self.item(r).text() for r in rows if self.item(r).checkState() == Qt.Checked)
+
+
 class RequestEditor(QWidget):
     """Edits one request. Emits `saved(request, original_id)` and `deleted(request_id)`."""
 
@@ -129,6 +162,7 @@ class RequestEditor(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.dataset: Dataset | None = None
+        self.groups: list[str] = []
         self.original_id: str | None = None
         self.id_label = QLabel("")
         self.description_edit = QLineEdit()
@@ -140,6 +174,14 @@ class RequestEditor(QWidget):
         self.weight_box.setValue(1)
         self.tags_edit = QLineEdit()
         self.tags_edit.setPlaceholderText("comma-separated")
+        self.groups_edit = GroupsEdit()
+        self.requester_edit = QLineEdit()
+        self.requester_edit.setPlaceholderText("who asked for this; a staff name")
+        self.requester_names = QStringListModel([], self)
+        self.requester_completer = QCompleter(self.requester_names, self)
+        self.requester_completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.requester_completer.setFilterMode(Qt.MatchContains)
+        self.requester_edit.setCompleter(self.requester_completer)
         self.created_label = QLabel("")
         self.skedge_edit = SkedgeEdit()
         self.highlighter = SkedgeHighlighter(self.skedge_edit.document())
@@ -155,6 +197,8 @@ class RequestEditor(QWidget):
         form.addRow("priority", self.priority_box)
         form.addRow("weight", self.weight_box)
         form.addRow("tags", self.tags_edit)
+        form.addRow("groups", self.groups_edit)
+        form.addRow("requester", self.requester_edit)
         form.addRow("created", self.created_label)
         buttons = QHBoxLayout()
         for button in (self.new_button, self.save_button, self.delete_button):
@@ -173,14 +217,18 @@ class RequestEditor(QWidget):
         self.skedge_edit.textChanged.connect(self.timer.start)
         self.priority_box.currentTextChanged.connect(self._priority_changed)
         self.weight_box.valueChanged.connect(self.timer.start)
+        self.requester_edit.textChanged.connect(self.timer.start)
         self.save_button.clicked.connect(self._save)
         self.delete_button.clicked.connect(self._delete)
         self.new_button.clicked.connect(self.clear)
         self.clear()
 
-    def set_dataset(self, dataset: Dataset | None) -> None:
-        """Names are validated and suggested against this dataset."""
+    def set_dataset(self, dataset: Dataset | None, groups: list[str] | None = None) -> None:
+        """Names are validated and suggested against this dataset; groups fill the checklist."""
         self.dataset = dataset
+        self.groups = list(groups or [])
+        self.groups_edit.show_groups(self.groups, self.groups_edit.ticked())
+        self.requester_names.setStringList(sorted(dataset.staff) if dataset else [])
         names = (
             []
             if dataset is None
@@ -201,6 +249,8 @@ class RequestEditor(QWidget):
         self.priority_box.setCurrentText(request.priority.value)
         self.weight_box.setValue(request.weight)
         self.tags_edit.setText(", ".join(request.tags))
+        self.groups_edit.show_groups(self.groups, request.groups)
+        self.requester_edit.setText(request.requester)
         self.created_label.setText(request.created.isoformat() if request.created else "")
         self.skedge_edit.setPlainText(request.skedge)
         self.delete_button.setEnabled(True)
@@ -214,6 +264,8 @@ class RequestEditor(QWidget):
         self.priority_box.setCurrentText(Priority.MEDIUM.value)
         self.weight_box.setValue(1)
         self.tags_edit.clear()
+        self.groups_edit.show_groups(self.groups, ())
+        self.requester_edit.clear()
         self.created_label.setText(date.today().isoformat())
         self.skedge_edit.setPlainText("")
         self.delete_button.setEnabled(False)
@@ -230,6 +282,8 @@ class RequestEditor(QWidget):
             priority=priority,
             weight=1.0 if priority.hard else self.weight_box.value(),
             tags=tuple(t.strip() for t in self.tags_edit.text().split(",") if t.strip()),
+            groups=self.groups_edit.ticked(),
+            requester=normalize(self.requester_edit.text()),
             created=date.fromisoformat(created) if created else None,
         )
 

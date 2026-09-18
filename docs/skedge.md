@@ -58,7 +58,7 @@ Names are dotted, lowercase `snake_case`. Sheet values become identifiers by the
 | `metric` | Metric tables, such as `metric.preference` |
 
 A name is either one thing or a set, and sets are always plural or collective
-(`block.all`, `date.session.mondays`). There is no `block.any`: "any one block" is
+(`block.all`, `date.session.this.mondays`). There is no `block.any`: "any one block" is
 `ANY_1_OF block.all`, so the choosing is always visible.
 
 A staff category holds only the people working on the day being scheduled. Someone resting
@@ -66,21 +66,50 @@ all day is in no category, though their own name still works.
 
 ### Dates
 
-Date names are nested by scope. `date.session` is the session being scheduled,
-`date.season` is the whole season, and a named session such as `date.session_2` is that
-session.
+Date names are the Calendar sheet read out loud. Every day on that sheet says which
+session it belongs to and which week of that session it is, and the `date` namespace is
+built from those two numbers. Nothing depends on which date happens to be selected, so
+"the first Monday of session 4" says the same thing on any day of the season.
+
+There are three kinds of span, each nested inside the one before:
+
+| Span | Written | Holds |
+|---|---|---|
+| The season | `date.season` | Every date on the Calendar sheet. |
+| A session | `date.session.four` | Every date of session 4. |
+| A week of a session | `date.session.four.second_week` | Every date of that session's second week. |
+
+Sessions are named by number in words — `one`, `two`, `three` … — and weeks by
+position — `first_week`, `second_week`, …. The session holding the date being scheduled is
+also `date.session.this`, and the week holding it is `date.session.this.this_week`.
+
+A season or a session carries these names:
 
 | Name | Holds |
 |---|---|
-| `date.target` | The date being scheduled. |
-| `date.session.all`, `date.season.all` | Every date of the scope. |
-| `date.session.mondays`, `date.season.mondays` | Every Monday of the scope. |
-| `date.session.first`, `date.session.last` | The scope's first and last date. |
-| `date.session.first_monday`, `date.session.last_friday` | That one occurrence in the scope. |
-| `date.season.first_mondays` | The first Monday of every session in the season. |
+| `date.session.four.first`, `.last` | The span's first and last date. |
+| `date.session.four.mondays` … `.sundays` | Every Monday of the span. |
+| `date.session.four.first_monday`, `.second_monday`, `.last_friday` | That one occurrence in the span. |
+| `date.season.first_mondays` | The first Monday of every session in the season, as one set. |
 
-A name for an occurrence the scope never reaches does not exist, and using it is a
-validation error, not a request that silently never fires.
+A week is short enough to reach each weekday once, so inside a week the weekday is a
+single date and needs no counting:
+
+| Name | Holds |
+|---|---|
+| `date.session.four.second_week.monday` | One date: that week's Monday. |
+| `date.session.four.second_week.first`, `.last` | That week's first and last date. |
+
+And `date.target` is the date being scheduled, which is the date every request is about
+unless it says `ON` something else.
+
+```skedge
+REQUEST ALL_OF staff.director DO 'session opening' DURING ANY_1_OF block.all ON ALL_OF date.session.two.first_week
+```
+
+A name for an occurrence the span never reaches does not exist, and using it is a
+validation error, not a request that silently never fires. A near miss is told what the
+nearest real name is.
 
 ### Combining sets
 
@@ -97,7 +126,7 @@ mixing different operators requires them, so there is no precedence to remember:
 ## Requirements: `<who> DO <what>`
 
 ```skedge
-REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_1_OF block.all ON EACH_OF date.session.mondays
+REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_1_OF block.all ON EACH_OF date.session.this.mondays
 ```
 
 Read it in three steps, always in this order:
@@ -184,7 +213,7 @@ becomes something you can request or prefer:
 | Request | Meaning |
 |---|---|
 | `REQUEST AT_MOST 2 staff.all DOING 'break' DURING EACH_OF block.all` | Never more than two people on break at once. Met or not. |
-| `PREFER AT_MOST 8 EACH_OF staff.all DOING activity.all ON date.session.all` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
+| `PREFER AT_MOST 8 EACH_OF staff.all DOING activity.all ON date.session.this` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
 | `REQUEST AT_LEAST 2h staff.james DOING 'dance practice' ON {2026-09-16 .. 2026-09-17}` | James's dance practice adds up to two hours. |
 
 An amount is `AT_LEAST`, `AT_MOST` or `EXACTLY`, then a number of assignments or a length
@@ -305,7 +334,7 @@ Priority `MUST_HAPPEN`.
 ### Lucy and Tom take out the garbage together every Monday
 
 ```skedge
-REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_1_OF block.all ON EACH_OF date.session.mondays
+REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_1_OF block.all ON EACH_OF date.session.this.mondays
 ```
 
 Priority `HIGH`.
@@ -343,7 +372,7 @@ Priority `MEDIUM`.
 One day is chosen; clinic 1 and clinic 2 on it are separate requests.
 
 ```skedge
-ANY_1_OF d IN date.session_2.all
+ANY_1_OF d IN date.session.two
 REQUEST staff.dylan DO 'archery maintenance' DURING EACH_OF {block.clinic_1 + block.clinic_2} ON d
 ```
 
@@ -391,7 +420,7 @@ Priority `MEDIUM`, weight `0.5`.
 ### Rotate ropes positions
 
 ```skedge
-PREFER AT_MOST 3 EACH_OF staff.ropes_level_2 DOING activity.ropes AS_ROLE EACH_OF {role.first + role.second} ON date.session.all
+PREFER AT_MOST 3 EACH_OF staff.ropes_level_2 DOING activity.ropes AS_ROLE EACH_OF {role.first + role.second} ON date.session.this
 ```
 
 Priority `LOW`.
@@ -399,7 +428,7 @@ Priority `LOW`.
 ### Balance clinic workload
 
 ```skedge
-PREFER AT_MOST 8 EACH_OF staff.all DOING activity.all ON date.session.all
+PREFER AT_MOST 8 EACH_OF staff.all DOING activity.all ON date.session.this
 ```
 
 Priority `MEDIUM`, weight `0.25`.
@@ -478,7 +507,7 @@ Priority `MUST_HAPPEN`.
 ### A review with every director, on the second Thursday
 
 ```skedge
-REQUEST ALL_OF staff.director DO 'mid-session review' DURING ANY_1_OF block.all ON date.session.second_thursday
+REQUEST ALL_OF staff.director DO 'mid-session review' DURING ANY_1_OF block.all ON date.session.this.second_thursday
 ```
 
 Priority `MEDIUM`.

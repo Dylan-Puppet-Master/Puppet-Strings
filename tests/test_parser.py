@@ -15,7 +15,7 @@ def test_every_doc_example_parses(name):
 def test_requirement_shape_and_positions():
     (st,) = parse(
         "REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' "
-        "DURING ANY_1_OF block.all ON EACH_OF date.session.mondays"
+        "DURING ANY_1_OF block.all ON EACH_OF date.session.this.mondays"
     ).lines
     assert isinstance(st, ast.Requirement) and not st.negated and st.label is None
     assert st.who.quantifier == ast.ALL_OF and st.who.pos == ast.Pos(1, 9)
@@ -27,7 +27,7 @@ def test_requirement_shape_and_positions():
     assert during.expr == ast.Ref("block", "all", ast.Pos(1, 79))
     on = ast.clause(st.clauses, ast.On).selector
     assert on.quantifier == ast.EACH_OF and on.var is None
-    assert on.expr == ast.Ref("date", "session.mondays", ast.Pos(1, 100))
+    assert on.expr == ast.Ref("date", "session.this.mondays", ast.Pos(1, 100))
 
 
 def test_negation_and_free():

@@ -21,23 +21,47 @@ date is already published.
 **Same-day changes.** Once the day on screen is published, the toolbar offers
 **Same-day changes** and **Who is off today…**. See [Same-day changes](same-day.md).
 
-**The table.** One row per request. Click a column heading to sort by it. Filters above
-it: free text over id, description and Skedge; priority; scope; tag; staff; activity; and
-a date. The scope is derived from the
-request's `ON` clause:
+## Groups
 
-| Scope | The `ON` clause |
+**The groups pane.** Down the left-hand side is every group of requests, with how many
+requests are in each. Click one and the table shows only that group. `All requests` and
+`Ungrouped` head the list and are not groups themselves: `Ungrouped` is whatever is in no
+group at all, which is how a request that has been forgotten about turns up.
+
+Three groups are always there — **Clinic requests**, **Special daily requests** and
+**Special weekly requests** — and you make the rest. **New** asks for a name, **Rename**
+renames a group everywhere it is used, and **Delete** takes a group off its requests
+without deleting the requests themselves. The three default groups cannot be deleted.
+
+A request may belong to as many groups as you like, or to none; groups and tags are
+separate, so a request can be in the `Ropes rewrite` group and still be tagged `legal`.
+Put a request in a group either by ticking the group in the editor, or by selecting rows
+in the table and right-clicking: the menu offers every group, adding or removing the whole
+selection at once. Groups live in the `groups` column of the Requests sheet, so they are
+there again the next time the app opens. A group you have just made and put nothing in yet
+stays in the pane until you close the app.
+
+**The table.** One row per request. Click a column heading to sort by it. Filters above
+it: free text over id, description, Skedge and requester; priority; scope; tag; staff;
+activity; and a date. These narrow whatever group is showing, so the group is the shelf
+and the filters are the search. The scope is derived from the dates a request resolves to:
+
+| Scope | The dates it reaches |
 |---|---|
-| season | none (the request applies every day), or `ON date.season.all` |
-| session | `ON date.session.all` |
-| week | a range, an offset such as `date.target - 6d`, or any other date name |
-| day | one date |
-| pin | one date, one staff member, `MUST_HAPPEN` |
+| season | every camp day: no `ON` clause, or `ON date.season` |
+| session | exactly one session, such as `ON date.session.four` |
+| week | more than one day but less than a session, such as a week, a range, or `date.session.four.mondays` |
+| day | one day |
+| pin | one day, one staff member, `MUST_HAPPEN` |
 
 The staff and activity filters use the names a request resolves to, so filtering by
 `dylan` finds requests written for `staff.counselor` as well.
 
 **The editor.** One field per request column and a Skedge editor with highlighting. The
+**groups** field ticks off every group the request is in, and **requester** records who
+asked for it — type a staff name and it completes, the same names `staff.` gives you in
+the Skedge box. A requester who is not on the Skills sheet makes the request invalid, so a
+misremembered name is caught here rather than saved and forgotten. The
 id is made from the description on the first save (`Dylan's day off` becomes
 `dylan-s-day-off`, then `-2`, `-3` if taken) and never changes afterwards; it is what the
 solver's report refers to. The
@@ -58,4 +82,13 @@ member's name, how many members a category has, a block's times, a date. Double-
 to insert it at the cursor.
 
 **Calendar.** Below the names, a calendar with camp days (the dates on the Calendar sheet)
-shaded. Click any date to insert it into the Skedge editor at the cursor, as `2026-06-15`.
+shaded. Down its left-hand side, each week is labelled with the session and week it is,
+`S4` over `W2`, taken from the Calendar sheet — the numbers `date.session.four.second_week`
+is built from, rather than the week of the year. Click any date to insert it into the
+Skedge editor at the cursor, as `2026-06-15`.
+
+**Saving a request about other dates.** A request does not have to be about the date being
+scheduled: `ON date.session.two.first_week` is a perfectly good request to write in the
+middle of session 1. Because the table shows the date on screen, such a request would
+vanish the moment it was saved, so saving one asks first, names the dates it is about, and
+lets you either save it anyway or go back to editing.

@@ -146,7 +146,7 @@ def dataset(
             c: frozenset(b.id for b in block_objects.values() if c in b.categories)
             for c in categories_by_block
         },
-        calendar={d: CalendarDay(d, "session_1", "regular") for d in session},
+        calendar={d: CalendarDay(d, session=1, week=1, day_type="regular") for d in session},
         offerings=tuple(Offering(normalize(a), tuple(b)) for a, b in offerings),
         requests=tuple(requests),
         metrics=metrics or {},

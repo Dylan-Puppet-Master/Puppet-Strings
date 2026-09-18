@@ -6,10 +6,8 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from PySide6.QtCore import QDate, Qt, QThread, Signal
-from PySide6.QtGui import QColor, QTextCharFormat
 from PySide6.QtWidgets import (
     QApplication,
-    QCalendarWidget,
     QCheckBox,
     QComboBox,
     QDateEdit,
@@ -18,6 +16,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QSplitter,
     QTableView,
@@ -27,8 +26,11 @@ from PySide6.QtWidgets import (
 )
 
 from puppet_strings.app.busy import BusyDialog
+from puppet_strings.app.calendar_pane import SessionCalendar
 from puppet_strings.app.editor import RequestEditor
-from puppet_strings.app.facets import SCOPES
+from puppet_strings.app.facets import SCOPES, facets
+from puppet_strings.app.groups import ALL, same_group
+from puppet_strings.app.groups_panel import GroupsPane
 from puppet_strings.app.names_panel import NamesPanel
 from puppet_strings.app.requests_model import RequestFilter, RequestsModel
 from puppet_strings.app.same_day import SICKNESS, SLEEP, SameDayDialog
@@ -130,20 +132,29 @@ class MainWindow(QMainWindow):
         self.editor.deleted.connect(self._deleted)
         self.names = NamesPanel()
         self.names.picked.connect(self.editor.insert_name)
-        self.calendar = QCalendarWidget()
-        self.calendar.setGridVisible(True)
-        self.calendar.clicked.connect(self.insert_date)
+        self.calendar = SessionCalendar()
+        self.calendar.picked.connect(self.insert_date)
+        self.groups = GroupsPane(store)
+        self.groups.chosen.connect(self._group_chosen)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._group_menu)
 
         self._build_toolbar()
         left = QWidget()
         left_layout = QVBoxLayout(left)
         left_layout.addLayout(self._build_filters())
         left_layout.addWidget(self.table)
+        groups_box = QWidget()
+        groups_layout = QVBoxLayout(groups_box)
+        groups_layout.addWidget(QLabel("Groups"))
+        groups_layout.addWidget(self.groups)
         splitter = QSplitter()
+        splitter.addWidget(groups_box)
         splitter.addWidget(left)
         splitter.addWidget(self.editor)
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 2)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 4)
+        splitter.setStretchFactor(2, 3)
         self.setCentralWidget(splitter)
         names_dock = QDockWidget("Names", self)
         names_dock.setWidget(self.names)
@@ -207,6 +218,7 @@ class MainWindow(QMainWindow):
     def apply_filters(self) -> None:
         """Push the filter widgets' state into the proxy model."""
         self.proxy.set_filters(
+            group=self.groups.current,
             text=self.text_filter.text(),
             priority=_choice(self.priority_filter),
             scope=_choice(self.scope_filter),
@@ -215,6 +227,49 @@ class MainWindow(QMainWindow):
             activity=_choice(self.activity_filter),
             date=self.date_filter.date().toPython() if self.date_check.isChecked() else None,
         )
+
+    def _group_chosen(self, group: str) -> None:
+        """Show the group the pane switched to."""
+        self.apply_filters()
+        chosen = "" if group == ALL else f" in {group}"
+        self.status_label.setText(f"  {self.proxy.rowCount()} requests{chosen}")
+
+    def _group_menu(self, point) -> None:
+        """Right-click the table to put the rows picked into a group, or take them out."""
+        rows = self.table.selectionModel().selectedRows()
+        ids = [self.proxy.data(row, Qt.UserRole).id for row in rows]
+        if not ids:
+            return
+        menu = QMenu(self)
+        for group in self.store.groups:
+            in_it = self._requests(ids)
+            inside = all(any(same_group(group, g) for g in r.groups) for r in in_it)
+            action = menu.addAction(f"Remove from {group}" if inside else f"Add to {group}")
+            action.triggered.connect(
+                lambda _=False, g=group, was=inside: self._set_group(ids, g, not was)
+            )
+        menu.exec(self.table.viewport().mapToGlobal(point))
+
+    def _requests(self, ids: list[str]):
+        wanted = set(ids)
+        return [r for r in self.store.requests if r.id in wanted]
+
+    def _set_group(self, ids: list[str], group: str, member: bool) -> None:
+        self.store.set_group(ids, group, member)
+        self._groups_changed()
+        moved = "into" if member else "out of"
+        self.status_label.setText(f"  Moved {len(ids)} request(s) {moved} {group}")
+
+    def _groups_changed(self) -> None:
+        """Groups moved: the pane's counts, the editor's ticks and the table all follow."""
+        self.model.refresh()
+        self.groups.refresh()
+        self.editor.set_dataset(self.store.dataset, self.store.groups)
+        if self.editor.original_id:
+            current = self.model.request(self.editor.original_id)
+            if current is not None:
+                self.editor.show_request(current)
+        self.apply_filters()
 
     @property
     def target(self) -> date:
@@ -255,27 +310,18 @@ class MainWindow(QMainWindow):
             self.editor.clear()  # the request shown was deleted on the sheet
         self.model.refresh()
         self.table.resizeColumnsToContents()
-        self.editor.set_dataset(dataset)
+        self.editor.set_dataset(dataset, self.store.groups)
+        self.groups.refresh()
         self.names.show_dataset(dataset)
         self._fill_combo(self.staff_filter, "any staff", sorted(dataset.staff))
         self._fill_combo(self.activity_filter, "any activity", sorted(dataset.activities))
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
-        self._mark_camp_days(dataset)
+        self.calendar.show_dataset(dataset)
         self._refresh_same_day()
         today = [a.describe(dataset.staff[a.staff].name) for a in dataset.today_adjustments]
         state = "published" if dataset.baseline is not None else "not published"
         parts = [f"Loaded {len(self.store.requests)} requests", f"{dataset.target} is {state}"]
         self.status_label.setText("  " + ". ".join(parts + today + list(dataset.warnings)))
-
-    def _mark_camp_days(self, dataset) -> None:
-        """Shade the dates on the Calendar sheet; any date can still be picked."""
-        self.calendar.setDateTextFormat(QDate(), QTextCharFormat())  # clear old marks
-        camp_day = QTextCharFormat()
-        camp_day.setBackground(QColor("#d6efe6"))
-        for day in dataset.calendar:
-            self.calendar.setDateTextFormat(QDate(day), camp_day)
-        self.calendar.setSelectedDate(QDate(dataset.target))
-        self.calendar.setCurrentPage(dataset.target.year, dataset.target.month)
 
     def _load_failed(self, message: str) -> None:
         self.status_label.setText("")
@@ -326,9 +372,9 @@ class MainWindow(QMainWindow):
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
         self.status_label.setText(f"  Loaded {count} offerings for {self.target}")
 
-    def insert_date(self, day: QDate) -> None:
+    def insert_date(self, day: date) -> None:
         """Put a clicked calendar date into the Skedge editor at the cursor."""
-        self.editor.insert_name(day.toString("yyyy-MM-dd"))
+        self.editor.insert_name(day.isoformat())
 
     def run_solve(self) -> None:
         """Solve the target date in the background, then show the schedule dialog."""
@@ -386,15 +432,48 @@ class MainWindow(QMainWindow):
             self.editor.show_request(self.proxy.data(current, Qt.UserRole))
 
     def _saved(self, request, original_id) -> None:
+        if not self._in_scope_or_agreed(request):
+            self.status_label.setText("  Not saved; still editing")
+            return
         saved = self.store.save(request, original_id)
         self.editor.saved_as(saved)
         self.model.refresh()
+        self.groups.refresh()
+        self.editor.set_dataset(self.store.dataset, self.store.groups)
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
         self.status_label.setText(f"  Saved {saved.id}")
+
+    def _in_scope_or_agreed(self, request) -> bool:
+        """Warn before saving a request that says nothing about the date being scheduled.
+
+        Such a request is perfectly good — it is about other dates — but it will vanish
+        from the table the moment it is saved, so it is worth saying so first.
+        """
+        dataset = self.store.dataset
+        if dataset is None:
+            return True
+        facet = facets(request, dataset)
+        if not facet.valid or facet.covers(dataset.target):
+            return True
+        listed = ", ".join(d.isoformat() for d in sorted(facet.dates)[:3])
+        when = listed or "no date on the calendar"
+        if len(facet.dates) > 3:
+            when += f" and {len(facet.dates) - 3} more"
+        answer = QMessageBox.question(
+            self,
+            "Not about this date",
+            f"This request does not cover {dataset.target}, the date being scheduled.\n"
+            f"It is about: {when}.\n\n"
+            "Save it anyway? It will apply on those dates and leave this date's table.",
+            QMessageBox.Save | QMessageBox.Cancel,
+            QMessageBox.Cancel,
+        )
+        return answer == QMessageBox.Save
 
     def _deleted(self, request_id: str) -> None:
         self.store.delete(request_id)
         self.model.refresh()
+        self.groups.refresh()
         self.status_label.setText(f"  Deleted {request_id}")
 
     @staticmethod

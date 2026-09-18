@@ -14,13 +14,13 @@ DO = "REQUEST {who} DO 'a' DURING block.clinic_1"
 def test_scopes(dataset):
     cases = {
         DO.format(who="staff.dylan"): "season",
-        DO.format(who="staff.dylan") + " ON ALL_OF date.season.all": "season",
-        DO.format(who="staff.dylan") + " ON ALL_OF date.session.all": "session",
+        DO.format(who="staff.dylan") + " ON ALL_OF date.season": "season",
+        DO.format(who="staff.dylan") + " ON ALL_OF date.session.this": "session",
         DO.format(who="staff.dylan") + " ON ANY_1_OF {(date.target - 6d) .. date.target}": "week",
-        DO.format(who="staff.dylan") + " ON EACH_OF date.session.fridays": "week",
+        DO.format(who="staff.dylan") + " ON EACH_OF date.session.this.fridays": "week",
         DO.format(who="staff.dylan") + " ON 2026-09-16": "day",
         DO.format(who="staff.dylan") + " ON date.target": "day",
-        "PREFER AT_MOST 8 EACH_OF staff.all DOING activity.all ON date.session.all": "session",
+        "PREFER AT_MOST 8 EACH_OF staff.all DOING activity.all ON date.session.this": "session",
     }
     for skedge, expected in cases.items():
         assert facets(req(skedge), dataset).scope == expected, skedge
@@ -46,7 +46,8 @@ def test_facets_collect_staff_activities_dates(dataset):
     assert f.dates == {date(2026, 9, 16)}
     assert facets(req(DO.format(who="staff.dylan")), dataset).dates == set(dataset.calendar)
     g = facets(
-        req("PREFER AT_MOST 1 staff.dylan DOING activity.weapons ON date.session.fridays"), dataset
+        req("PREFER AT_MOST 1 staff.dylan DOING activity.weapons ON date.session.this.fridays"),
+        dataset,
     )
     assert g.activities == {"archery_1_2", "riflery", "muay_thai"} and g.dates == {
         date(2026, 9, 18),

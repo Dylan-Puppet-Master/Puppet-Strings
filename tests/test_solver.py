@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import timedelta
 
 import pytest
@@ -434,6 +435,48 @@ def test_avoid_is_one_small_request_per_person_and_block(meals):
     )
     placed = sorted(a.block for a in run(ds).assignments)
     assert len(placed) == 3 and all(b.startswith("meal") for b in placed)
+
+
+def test_a_block_overlapping_two_clinics_does_not_stop_anyone_working_both():
+    """Overlap is not transitive: rest hour meets both clinics, which do not meet each other."""
+    blocks = {
+        "clinic_1": ("09:15", "10:30", ("any_clinic",)),
+        "rest_hour": ("10:00", "11:00", ()),
+        "clinic_2": ("10:45", "12:00", ("any_clinic",)),
+    }
+    ds = dataset(
+        [staff("Dylan", archery_1_2=OK)],
+        [ARCHERY, RIFLERY],
+        offerings=[("Archery 1 & 2", ["clinic_1"]), ("Archery 1 & 2", ["clinic_2"])],
+        blocks=blocks,
+    )
+    result = run(ds)
+    assert result.feasible and not result.unsatisfied
+    assert sorted(a.block for a in where(result, staff="dylan")) == ["clinic_1", "clinic_2"]
+
+
+def test_a_block_on_another_kind_of_day_never_clashes():
+    """pack_out belongs to changeover days, so it cannot stop work on a regular day."""
+    blocks = {
+        "clinic_1": ("09:15", "10:30", ("any_clinic",)),
+        "pack_out": ("09:15", "11:00", ()),
+        "clinic_2": ("10:45", "12:00", ("any_clinic",)),
+    }
+    ds = dataset(
+        [staff("Dylan", archery_1_2=OK)],
+        [ARCHERY],
+        offerings=[("Archery 1 & 2", ["clinic_1"]), ("Archery 1 & 2", ["clinic_2"])],
+        blocks=blocks,
+    )
+    ds = replace(
+        ds,
+        blocks={
+            **ds.blocks,
+            "pack_out": replace(ds.blocks["pack_out"], day_types=frozenset({"changeover"})),
+        },
+    )
+    result = run(ds)
+    assert result.feasible and not result.unsatisfied
 
 
 # -- FREE, NOT FREE and priorities ----------------------------------------------------------

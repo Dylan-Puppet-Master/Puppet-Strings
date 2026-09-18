@@ -71,7 +71,7 @@ def test_staff_view(dataset):
 def test_clinic_view(dataset):
     view = clinic_view(dataset, rows(dataset))
     table = view.rows
-    assert table[0] == ["Day 4, Session 1 - Wednesday"]
+    assert table[0] == ["Day 4, Session 1 Week 1 - Wednesday"]
     assert table[1] == ["Clinic", "Clinic 1", "Clinic 2", "Clinic 3", "Clinic 4"]
     assert view.title_span == 5 and view.freeze_rows == 2
     labels = [row[0] if row else "" for row in table]

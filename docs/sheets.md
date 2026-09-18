@@ -120,11 +120,18 @@ One row per camp day.
 | Column | Meaning |
 |---|---|
 | `date` | `YYYY-MM-DD`. |
-| `session` | Which session the day belongs to, such as `session_1`. `date.session.all` in a request means every date with the same session as the target date, and `date.session_1.all` names this session wherever the target falls. `session`, `season` and `target` are not allowed as session names. |
+| `session` | Which session the day belongs to, as a number: `1`, `2`, `3` …. Session 4 is `date.session.four` in a request. |
+| `week` | Which week **of that session** the day is in, as a number starting at `1` for each session. Week 2 of session 4 is `date.session.four.second_week`. Number a session's weeks 1, 2, 3 … with none skipped. |
 | `day_type` | The kind of day, matched against each block's `day_types`. Any label you like; `regular` for an ordinary day. |
 
-`date.session.mondays` … `date.session.sundays` are the dates of the target's session that
-fall on that weekday; `date.season.all` is every date on the sheet. See
+The two numbers are what the whole `date` namespace is built from, so they are worth
+getting right: a day's session and week decide which requests reach it. A week does not
+have to be seven days, and it does not have to start on a particular weekday — it is
+whatever run of days you number alike. The request manager's calendar shows each row's
+`S<session>` and `W<week>` down the left-hand side, so a mis-numbered day is easy to spot.
+
+`date.session.four.mondays` is every Monday of session 4, `date.session.four.second_week.monday`
+is the one Monday of its second week, and `date.season` is every date on the sheet. See
 [Dates](skedge.md#dates) for the full list of date names.
 
 ## Requests (config spreadsheet)
@@ -140,6 +147,8 @@ hand.
 | `priority` | One of `MUST_HAPPEN`, `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. `STABILITY` is the solver's own during a [same-day change](same-day.md) and is refused here. |
 | `weight` | Blank (meaning 1) or a positive number. Not allowed with `MUST_HAPPEN`. |
 | `tags` | **Comma-separated.** Any labels you like, for filtering in the request manager. Requests made from the Offerings tab carry the tag `generated`. |
+| `groups` | **Comma-separated.** The [groups](app.md#groups) the request belongs to in the request manager, such as `Clinic requests`. A request may be in several groups or in none. Written in plain language, not `kebab-case`. |
+| `requester` | Who asked for this, as a staff name: `mary_kate`. Blank if it is nobody's in particular. A name that is not on the Skills sheet makes the request invalid, so a typo is caught rather than lost. |
 | `created` | `YYYY-MM-DD`, for the record. |
 
 ## Adjustments (config spreadsheet)

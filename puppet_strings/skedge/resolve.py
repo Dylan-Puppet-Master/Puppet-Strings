@@ -7,10 +7,12 @@ copies of the declaration. A copy is what the solver compiles.
 from collections.abc import Iterator
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
+from difflib import get_close_matches
 
 from puppet_strings.model import (
+    CARDINAL_WORDS,
     LIFEGUARD_ROLES,
-    ORDINALS,
+    ORDINAL_WORDS,
     POSITION_ROLES,
     TRAINEE_ROLES,
     Dataset,
@@ -179,7 +181,15 @@ class _Names:
         try:
             return self.spaces[namespace][ref.name]
         except KeyError:
-            raise _error(f"unknown {namespace} name '{ref.name}'", ref.pos) from None
+            raise _error(
+                f"unknown {namespace} name '{ref.name}'{self._suggest(namespace, ref.name)}",
+                ref.pos,
+            ) from None
+
+    def _suggest(self, namespace: str, name: str) -> str:
+        """The nearest name there is, so a near miss says what to write instead."""
+        close = get_close_matches(name, self.spaces[namespace], n=1, cutoff=0.6)
+        return f"; did you mean '{namespace}.{close[0]}'?" if close else ""
 
 
 def _members(items, categories) -> dict[str, Named]:
@@ -189,40 +199,99 @@ def _members(items, categories) -> dict[str, Named]:
 
 
 def date_names(dataset: Dataset) -> dict[str, Named]:
-    """Every name in the `date` namespace: `target`, and `<scope>.<name>` per scope.
+    """Every name in the `date` namespace.
 
-    The scopes are `session` (the target's), `season`, and each session by its own name.
-    Within a scope, `all` and the weekdays are sets; `first`, `last` and the ordinal
-    weekdays are items that exist only when the scope reaches them. `season` also holds
-    each ordinal weekday as a set over the sessions: `season.first_mondays`.
+    The tree is the Calendar sheet read out loud. `date.season` is the whole season and
+    `date.session.four` is session 4, whatever date is being scheduled; `date.session.this`
+    is the session that date falls in. A session holds its weeks, a week holds its days:
+
+        date.session.four                     every date of session 4
+        date.session.four.first_week          every date of its first week
+        date.session.four.second_week.monday  one date
+        date.session.four.second_monday       one date
+        date.session.four.mondays             every Monday of the session
+
+    Every span (the season, a session, a week) carries the same names, so what can be said
+    of one can be said of the others.
     """
     names = {"target": Named(frozenset({dataset.target}), True)}
-    scopes = {"session": dataset.session_dates, "season": dataset.season_dates, **dataset.sessions}
-    for scope, dates in scopes.items():
-        for name, named in _scope_names(dates).items():
-            names[f"{scope}.{name}"] = named
-    per_session = [_scope_names(dates) for dates in dataset.sessions.values()]
-    occurrences = {n for s in per_session for n, v in s.items() if v.single and "_" in n}
-    for name in occurrences:
-        dates = frozenset().union(*(s[name].items for s in per_session if name in s))
-        names[f"season.{name}s"] = Named(dates, False)
+    _add(names, "season", _span_names(dataset.season_dates))
+    for number, dates in dataset.sessions.items():
+        _add(names, f"session.{CARDINAL_WORDS[number - 1]}", _session_names(dataset, number, dates))
+        if number == dataset.session:
+            _add(names, "session.this", _session_names(dataset, number, dates, this=True))
+    names.update(_season_occurrences(dataset))
     return names
 
 
-def _scope_names(dates: tuple[date, ...]) -> dict[str, Named]:
-    names = {"all": Named(frozenset(dates), False)}
+def _session_names(
+    dataset: Dataset, number: int, dates: tuple[date, ...], this: bool = False
+) -> dict[str, Named]:
+    """One session's own names, with its weeks nested underneath.
+
+    The session being scheduled is also `date.session.this`, and only there does
+    `this_week` mean anything: the week the target date falls in.
+    """
+    names = _span_names(dates)
+    weeks = dataset.weeks(number)
+    for week, week_dates in weeks.items():
+        _add(names, f"{ORDINAL_WORDS[week - 1]}_week", _week_names(week_dates))
+    if this:
+        _add(names, "this_week", _week_names(weeks[dataset.calendar[dataset.target].week]))
+    return names
+
+
+def _span_names(dates: tuple[date, ...]) -> dict[str, Named]:
+    """The names any run of dates carries: the whole run, its ends, and its weekdays."""
+    names = {"": Named(frozenset(dates), False)}
     if not dates:
         return names
     names["first"], names["last"] = _one(dates[0]), _one(dates[-1])
-    by_weekday: dict[str, list[date]] = {}
-    for day in dates:
-        by_weekday.setdefault(WEEKDAYS[day.weekday()], []).append(day)
-    for weekday, days in by_weekday.items():
+    for weekday, days in _by_weekday(dates).items():
         names[f"{weekday}s"] = Named(frozenset(days), False)
-        for ordinal, day in zip(ORDINALS, days, strict=False):
+        for ordinal, day in zip(ORDINAL_WORDS, days, strict=False):
             names[f"{ordinal}_{weekday}"] = _one(day)
         names[f"last_{weekday}"] = _one(days[-1])
     return names
+
+
+def _week_names(dates: tuple[date, ...]) -> dict[str, Named]:
+    """A week's names.
+
+    A week reaches each weekday at most once, so it needs none of the counting a longer
+    span does: `monday` is the one Monday there is.
+    """
+    names = {"": Named(frozenset(dates), False)}
+    if dates:
+        names["first"], names["last"] = _one(dates[0]), _one(dates[-1])
+    for weekday, days in _by_weekday(dates).items():
+        names[weekday] = _one(days[0])
+    return names
+
+
+def _season_occurrences(dataset: Dataset) -> dict[str, Named]:
+    """`date.season.first_mondays`: one occurrence taken from every session at once."""
+    per_session = [_span_names(dates) for dates in dataset.sessions.values()]
+    wanted = {n for s in per_session for n, named in s.items() if named.single and "_" in n}
+    return {
+        f"season.{name}s": Named(
+            frozenset().union(*(s[name].items for s in per_session if name in s)), False
+        )
+        for name in wanted
+    }
+
+
+def _by_weekday(dates: tuple[date, ...]) -> dict[str, list[date]]:
+    by_weekday: dict[str, list[date]] = {}
+    for day in dates:
+        by_weekday.setdefault(WEEKDAYS[day.weekday()], []).append(day)
+    return by_weekday
+
+
+def _add(names: dict[str, Named], scope: str, under: dict[str, Named]) -> None:
+    """Graft a span's names under a scope; its own name is the scope with nothing after it."""
+    for name, named in under.items():
+        names[f"{scope}.{name}" if name else scope] = named
 
 
 def _one(day: date) -> Named:
@@ -253,7 +322,10 @@ def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
 
 def _note(namespace: str, name: str, named: Named) -> str:
     if namespace == "date":
-        return next(iter(named.items)).isoformat() if named.single else f"{len(named.items)} dates"
+        if named.single:
+            day = next(iter(named.items))
+            return f"{day.isoformat()} ({day:%A})"
+        return f"{len(named.items)} date" + ("" if len(named.items) == 1 else "s")
     if namespace == "role":
         if name in LIFEGUARD_ROLES:
             return "extra lifeguard on a water clinic"

@@ -151,8 +151,8 @@ def clinic_view(
 
 def _title(dataset: Dataset) -> str:
     day = dataset.session_dates.index(dataset.target) + 1
-    session = dataset.calendar[dataset.target].session.replace("_", " ").title()
-    return f"Day {day}, {session} - {dataset.target:%A}"
+    today = dataset.calendar[dataset.target]
+    return f"Day {day}, Session {today.session} Week {today.week} - {dataset.target:%A}"
 
 
 def _offered(dataset: Dataset) -> set[str]:

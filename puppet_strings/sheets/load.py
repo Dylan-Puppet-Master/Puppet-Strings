@@ -27,7 +27,6 @@ from puppet_strings.sheets.source import LoadError, Source
 ADJUSTMENT_HEADER = ("date", "staff", "resting", "RAL_penalty", "note")
 ALL = "all"
 CLINIC_TRAINERS = "clinic_trainers"
-DATE_SCOPES = ("target", "session", "season")
 
 
 def load_dataset(source: Source, config: Config, target: date) -> Dataset:
@@ -55,7 +54,6 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
     calendar = parse_calendar(config_tables[tabs["calendar"]])
     if target not in calendar:
         raise LoadError(f"Calendar: {target} is not a camp day")
-    _reserve("date", {day.session for day in calendar.values()}, DATE_SCOPES)
 
     adjustments = parse_adjustments(
         config_tables.get(tabs["adjustments"], [[*ADJUSTMENT_HEADER]]), staff

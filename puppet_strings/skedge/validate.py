@@ -26,6 +26,8 @@ def validate_request(request: Request, dataset: Dataset) -> tuple[Resolved, ...]
         raise ast.SkedgeError("weight must be positive", 1, 1)
     if request.priority.hard and request.weight != 1:
         raise ast.SkedgeError("weight is not allowed with MUST_HAPPEN", 1, 1)
+    if request.requester and request.requester not in dataset.staff:
+        raise ast.SkedgeError(f"unknown requester '{request.requester}'", 1, 1)
     declaration = parse(request.skedge)
     check(declaration, hard=request.priority.hard)
     return resolve(declaration, dataset)

@@ -11,8 +11,10 @@ pytest.importorskip("PySide6")
 from PySide6.QtCore import QDate, QItemSelectionModel, Qt  # noqa: E402
 from PySide6.QtGui import QTextCursor  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox  # noqa: E402
 
+from puppet_strings.app.calendar_pane import ROWS  # noqa: E402
+from puppet_strings.app.groups import ALL, DEFAULT_GROUPS, UNGROUPED  # noqa: E402
 from puppet_strings.app.main import MainWindow  # noqa: E402
 from puppet_strings.app.store import RequestStore  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
@@ -169,10 +171,10 @@ def test_completer_narrows_as_the_name_is_typed(window):
 def test_choosing_a_completion_replaces_what_was_typed(window):
     editor = window.editor
     editor.clear()
-    QTest.keyClicks(editor.skedge_edit, "ON date.session.sec")
-    assert "date.session.second_thursday" in completions(editor)
-    editor.skedge_edit.completer.activated.emit("date.session.second_thursday")
-    assert editor.skedge_edit.toPlainText() == "ON date.session.second_thursday"
+    QTest.keyClicks(editor.skedge_edit, "ON date.session.this.sec")
+    assert "date.session.this.second_thursday" in completions(editor)
+    editor.skedge_edit.completer.activated.emit("date.session.this.second_thursday")
+    assert editor.skedge_edit.toPlainText() == "ON date.session.this.second_thursday"
 
 
 def test_completer_stays_shut_for_plain_words_and_dates(window):
@@ -423,3 +425,187 @@ def test_the_busy_panel_asks_to_stop_once(app):
     assert asked == [1] and dialog.label.text() == STOPPING
     dialog.reject()  # Escape after asking leaves the work alone
     assert asked == [1]
+
+
+# -- groups -------------------------------------------------------------------------------
+
+
+def group_rows(window):
+    """What the groups pane shows, as {group: count}."""
+    pane = window.groups.list
+    return {
+        pane.item(r).data(Qt.UserRole): int(pane.item(r).text().rsplit("(", 1)[1].rstrip(")"))
+        for r in range(pane.count())
+    }
+
+
+def pick_group(window, name):
+    window.groups.list.setCurrentRow(window.groups._row_of(name))
+
+
+def test_groups_pane_lists_defaults_with_counts(window):
+    rows = group_rows(window)
+    assert list(rows)[:2] == [ALL, UNGROUPED]
+    assert list(rows)[2:] == list(DEFAULT_GROUPS)
+    assert rows[ALL] == 30 and rows[UNGROUPED] == 0
+    assert rows["Clinic requests"] == 24
+    assert rows["Special daily requests"] == 3 and rows["Special weekly requests"] == 3
+
+
+def test_picking_a_group_filters_the_table(window):
+    pick_group(window, "Special weekly requests")
+    assert visible_ids(window) == {"clinic-preference", "clinic-variety", "dylan-off-ropes"}
+    assert "3 requests in Special weekly requests" in window.status_label.text()
+    window.priority_filter.setCurrentText("MEDIUM")  # filters narrow within the group
+    assert visible_ids(window) == {"clinic-preference", "clinic-variety"}
+    window.priority_filter.setCurrentIndex(0)
+    pick_group(window, UNGROUPED)
+    assert visible_ids(window) == set()
+    pick_group(window, ALL)
+    assert window.proxy.rowCount() == 30
+
+
+def test_making_a_group_and_putting_requests_in_it(window, monkeypatch):
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("Ropes rewrite", True))
+    window.groups.new_group()
+    assert group_rows(window)["Ropes rewrite"] == 0  # an empty group stays in the pane
+    assert window.groups.current == "Ropes rewrite" and visible_ids(window) == set()
+    window._set_group(["dylan-off-ropes", "breaks"], "Ropes rewrite", member=True)
+    assert group_rows(window)["Ropes rewrite"] == 2
+    assert visible_ids(window) == {"dylan-off-ropes", "breaks"}
+    saved = window.store.source.read("config", "Requests")
+    row = next(r for r in saved if r[0] == "dylan-off-ropes")
+    assert row[saved[0].index("groups")] == "Special weekly requests, Ropes rewrite"
+    window._set_group(["breaks"], "Ropes rewrite", member=False)
+    assert group_rows(window)["Ropes rewrite"] == 1
+    assert group_rows(window)["Special daily requests"] == 3  # its other groups are untouched
+
+
+def test_renaming_and_deleting_a_group(window, monkeypatch):
+    names = iter([("Ropes rewrite", True), ("Ropes", True)])
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: next(names))
+    window.groups.new_group()
+    window._set_group(["dylan-off-ropes", "breaks"], "Ropes rewrite", member=True)
+    window.groups.rename_group()
+    assert "Ropes rewrite" not in group_rows(window)
+    assert group_rows(window)["Ropes"] == 2 and window.groups.current == "Ropes"
+    assert {r.id for r in window.store.requests if "Ropes" in r.groups} == {
+        "dylan-off-ropes",
+        "breaks",
+    }
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
+    window.groups.delete_group()
+    assert "Ropes" not in group_rows(window)
+    assert window.model.rowCount() == 30  # the requests stay, in their other groups
+    assert group_rows(window)["Special weekly requests"] == 3
+
+
+def test_a_default_group_cannot_be_renamed_and_a_name_is_not_taken_twice(window, monkeypatch):
+    pick_group(window, "Clinic requests")
+    assert not window.groups.rename_button.isEnabled()
+    assert not window.groups.delete_button.isEnabled()
+    pick_group(window, ALL)
+    assert not window.groups.rename_button.isEnabled()
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("  clinic   requests ", True))
+    told = []
+    monkeypatch.setattr(QMessageBox, "information", lambda _w, _t, text: told.append(text))
+    window.groups.new_group()
+    assert told and "already a group" in told[0]
+    assert len(group_rows(window)) == 5  # nothing added
+
+
+def test_the_editor_ticks_and_changes_groups(window):
+    editor = window.editor
+    editor.show_request(window.model.request("dylan-off-ropes"))
+    assert editor.groups_edit.ticked() == ("Special weekly requests",)
+    editor.groups_edit.item(1).setCheckState(Qt.Checked)  # Special daily requests
+    assert editor.current().groups == ("Special daily requests", "Special weekly requests")
+    editor.save_button.click()
+    assert group_rows(window)["Special daily requests"] == 4
+    assert editor.groups_edit.ticked() == ("Special daily requests", "Special weekly requests")
+
+
+# -- the requester ------------------------------------------------------------------------
+
+
+def test_requester_completes_and_is_checked(window):
+    editor = window.editor
+    editor.show_request(window.model.request("dylan-off-ropes"))
+    assert editor.requester_edit.text() == "dylan"
+    model = editor.requester_completer.model()
+    assert "cam_vl" in model.stringList() and "dylan" in model.stringList()
+    editor.requester_edit.setText("Mary Kate")
+    assert editor.current().requester == "mary_kate"  # a typed name is normalized
+    assert not editor.validate()
+    assert "unknown requester 'mary_kate'" in editor.status.text()
+    editor.requester_edit.setText("rob")
+    assert editor.validate()
+    editor.save_button.click()
+    saved = window.store.source.read("config", "Requests")
+    row = next(r for r in saved if r[0] == "dylan-off-ropes")
+    assert row[saved[0].index("requester")] == "rob"
+
+
+# -- saving a request that is not about the date being scheduled ---------------------------
+
+
+def write_request(window, skedge, description="Elsewhere"):
+    editor = window.editor
+    editor.clear()
+    editor.description_edit.setText(description)
+    editor.skedge_edit.setPlainText(skedge)
+    editor.validate()
+    return editor
+
+
+def test_saving_a_request_outside_the_date_asks_first(window, monkeypatch):
+    asked = []
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda _w, _t, text, *a: asked.append(text) or QMessageBox.Cancel
+    )
+    editor = write_request(
+        window,
+        "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON ALL_OF date.session.two.first_week",
+    )
+    editor.save_button.click()
+    assert asked and "does not cover 2026-09-16" in asked[0]
+    assert "2026-09-27, 2026-09-28, 2026-09-29 and 4 more" in asked[0]
+    assert window.model.rowCount() == 30  # cancelled: nothing saved, still editing
+    assert window.editor.original_id is None
+    assert "Not saved" in window.status_label.text()
+
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Save)
+    editor.save_button.click()
+    assert window.model.rowCount() == 31
+    assert window.model.request("elsewhere") is not None
+    assert visible_ids(window) == set(visible_ids(window)) - {"elsewhere"}  # not on this date
+
+
+def test_saving_a_request_about_this_date_asks_nothing(window, monkeypatch):
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: pytest.fail("should not have asked")
+    )
+    for skedge in (
+        "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON date.target",
+        "REQUEST staff.dylan DO 'x' DURING block.clinic_1",  # no ON: every day
+        "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON ALL_OF date.session.one.first_week",
+    ):
+        editor = write_request(window, skedge, description=f"ok {skedge[-6:]}")
+        editor.save_button.click()
+        assert editor.original_id is not None
+
+
+# -- the calendar --------------------------------------------------------------------------
+
+
+def test_calendar_labels_weeks_with_their_session(window):
+    calendar = window.calendar
+    assert calendar.monthShown() == 9 and calendar.yearShown() == 2026
+    labelled = {calendar.row_start(r).toString("yyyy-MM-dd"): calendar.week_of_row(r) for r in ROWS}
+    assert labelled["2026-09-13"] == (1, 1)  # the week the target falls in
+    assert labelled["2026-09-20"] == (1, 2)
+    assert labelled["2026-09-27"] == (2, 1)
+    assert labelled["2026-08-30"] == (None, None)  # before camp: no label
+    calendar.setCurrentPage(2026, 10)
+    assert calendar.week_of_row(1) == (2, 1)  # the week of 2026-10-03, camp's last day
+    assert calendar.week_of_row(3) == (None, None)

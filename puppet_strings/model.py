@@ -36,7 +36,57 @@ class SkillStatus(Enum):
 SHADOW = "shadow"
 SCAFFOLDED = "scaffolded"
 TRAINEE_ROLES = (SHADOW, SCAFFOLDED)
-ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth")
+
+# Words for counting things the Puppet Master names out loud: the third Monday of a
+# session, the second week of session four. A season never runs to twenty of anything, and
+# the Calendar sheet is checked against that, so a number beyond these is a mistake.
+ORDINAL_WORDS = (
+    "first",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "seventh",
+    "eighth",
+    "ninth",
+    "tenth",
+    "eleventh",
+    "twelfth",
+    "thirteenth",
+    "fourteenth",
+    "fifteenth",
+    "sixteenth",
+    "seventeenth",
+    "eighteenth",
+    "nineteenth",
+    "twentieth",
+)
+CARDINAL_WORDS = (
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+    "twenty",
+)
+MAX_COUNTED = len(ORDINAL_WORDS)
+
+ORDINALS = ORDINAL_WORDS[:6]
 POSITION_ROLES = ORDINALS  # a clinic's positions are named by ordinal
 
 # Skills are held by normalized name (`names.normalize`), so a Skills column headed
@@ -47,6 +97,11 @@ POSITION_ROLES = ORDINALS  # a clinic's positions are named by ordinal
 LIFEGUARD_ROLES = ("lifeguard", "lifeguard_2", "lifeguard_3")
 LIFEGUARD_SKILL = "lifeguard"  # the LIFEGUARD column on the Skills tab
 LIFEGUARD_RAL = 5
+
+# The groups the request manager sorts requests into to begin with. A group is a label on
+# a request, like a tag, so the ones the Puppet Master adds need nothing declared anywhere.
+DEFAULT_GROUPS = ("Special daily requests", "Special weekly requests")
+CLINIC_GROUP = DEFAULT_GROUPS[0]
 
 ANY_SKILL = "any"  # a Positions cell reading "Any" needs no checkoff
 MAX_RAL = 5
@@ -145,10 +200,16 @@ def minute_to_time(minute: int) -> time:
 
 @dataclass(frozen=True)
 class CalendarDay:
-    """One camp day from the Calendar sheet."""
+    """One camp day from the Calendar sheet.
+
+    `session` and `week` are the numbers written on the sheet: session 4, week 2 of that
+    session. They are what `date.session.four.second_week` is built from, so a day belongs
+    to exactly one session and one week of it.
+    """
 
     date: date
-    session: str
+    session: int
+    week: int
     day_type: str
 
 
@@ -184,7 +245,11 @@ WRITABLE_PRIORITIES = tuple(p for p in Priority if p is not Priority.STABILITY)
 
 @dataclass(frozen=True)
 class Request:
-    """One row of the Requests sheet."""
+    """One row of the Requests sheet.
+
+    `groups` are the panes of the request manager a request shows up in; a request may be
+    in several or in none. `requester` is the staff id of whoever asked for it, or "".
+    """
 
     id: str
     description: str
@@ -192,6 +257,8 @@ class Request:
     priority: Priority
     weight: float = 1.0
     tags: tuple[str, ...] = ()
+    groups: tuple[str, ...] = ()
+    requester: str = ""
     created: date | None = None
 
 
@@ -328,9 +395,19 @@ class Dataset:
         return tuple(latest.values())
 
     @property
+    def session(self) -> int:
+        """The number of the session the target falls in."""
+        return self.calendar[self.target].session
+
+    @property
     def session_dates(self) -> tuple[date, ...]:
         """Dates of the session containing the target, in order."""
-        return self.sessions[self.calendar[self.target].session]
+        return self.sessions[self.session]
+
+    @property
+    def week_dates(self) -> tuple[date, ...]:
+        """Dates of the week of the session containing the target, in order."""
+        return self.weeks(self.session)[self.calendar[self.target].week]
 
     @property
     def season_dates(self) -> tuple[date, ...]:
@@ -338,12 +415,19 @@ class Dataset:
         return tuple(sorted(self.calendar))
 
     @property
-    def sessions(self) -> dict[str, tuple[date, ...]]:
-        """Each session's dates in order, sessions in calendar order."""
-        grouped: dict[str, list[date]] = {}
+    def sessions(self) -> dict[int, tuple[date, ...]]:
+        """Each session's dates in order, by session number, lowest number first."""
+        grouped: dict[int, list[date]] = {}
         for day in self.season_dates:
             grouped.setdefault(self.calendar[day].session, []).append(day)
-        return {session: tuple(days) for session, days in grouped.items()}
+        return {session: tuple(grouped[session]) for session in sorted(grouped)}
+
+    def weeks(self, session: int) -> dict[int, tuple[date, ...]]:
+        """One session's weeks in order, by week number."""
+        grouped: dict[int, list[date]] = {}
+        for day in self.sessions.get(session, ()):
+            grouped.setdefault(self.calendar[day].week, []).append(day)
+        return {week: tuple(grouped[week]) for week in sorted(grouped)}
 
     def blocks_on(self, day: date) -> tuple[Block, ...]:
         """Blocks that exist on a date, in Blocks sheet order."""

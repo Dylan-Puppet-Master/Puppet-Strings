@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import date
 
 from puppet_strings.app.facets import Facets, facets
+from puppet_strings.app.groups import DEFAULT_GROUPS, clean, same_group
 from puppet_strings.config import Config
 from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
 from puppet_strings.model import Adjustment, Dataset, Request, Rest
@@ -35,6 +36,9 @@ class RequestStore:
         self.dataset: Dataset | None = None
         self.requests: list[Request] = []
         self.facets: dict[str, Facets] = {}
+        # A group lives on the requests in it, so one just made holds nothing yet and would
+        # vanish on the next read. These keep it in the pane until something joins it.
+        self.empty_groups: list[str] = []
 
     def load(self, target: date) -> None:
         """Read every sheet for a target date. Raises LoadError."""
@@ -125,6 +129,68 @@ class RequestStore:
     def tags(self) -> list[str]:
         """Every tag in use, sorted."""
         return sorted({t for r in self.requests for t in r.tags})
+
+    @property
+    def groups(self) -> list[str]:
+        """Every group there is: the default ones first, then the rest alphabetically.
+
+        A group is whatever some request says it is in, plus the ones made in the app that
+        nothing has joined yet.
+        """
+        known = list(DEFAULT_GROUPS)
+        for name in [g for r in self.requests for g in r.groups] + self.empty_groups:
+            if not any(same_group(name, seen) for seen in known):
+                known.append(name)
+        return known[: len(DEFAULT_GROUPS)] + sorted(known[len(DEFAULT_GROUPS) :], key=str.lower)
+
+    def count(self, group: str) -> int:
+        """How many requests are in a group."""
+        return sum(1 for r in self.requests if any(same_group(group, g) for g in r.groups))
+
+    def add_group(self, name: str) -> str:
+        """Make a group. Returns the name it settled on, or "" if it is not a new one."""
+        name = clean(name)
+        if not name or any(same_group(name, known) for known in self.groups):
+            return ""
+        self.empty_groups.append(name)
+        return name
+
+    def rename_group(self, old: str, new: str) -> str:
+        """Rename a group everywhere it appears. Returns the new name, or "" if refused."""
+        new = clean(new)
+        taken = [g for g in self.groups if not same_group(old, g)]
+        if not new or new == old or any(same_group(new, known) for known in taken):
+            return ""
+        self.empty_groups = [new if same_group(old, g) else g for g in self.empty_groups]
+        self._regroup(lambda groups: tuple(new if same_group(old, g) else g for g in groups))
+        return new
+
+    def delete_group(self, name: str) -> None:
+        """Remove a group from every request that is in it."""
+        self.empty_groups = [g for g in self.empty_groups if not same_group(name, g)]
+        self._regroup(lambda groups: tuple(g for g in groups if not same_group(name, g)))
+
+    def set_group(self, request_ids: list[str], group: str, member: bool) -> None:
+        """Put requests into a group or take them out of it."""
+        wanted = set(request_ids)
+
+        def change(request: Request) -> tuple[str, ...]:
+            groups = tuple(g for g in request.groups if not same_group(group, g))
+            return groups + (group,) if member else groups
+
+        self.requests = [
+            replace(r, groups=change(r)) if r.id in wanted else r for r in self.requests
+        ]
+        if member:
+            self.empty_groups = [g for g in self.empty_groups if not same_group(group, g)]
+        self._write()
+
+    def _regroup(self, change) -> None:
+        """Rewrite every request's groups, and the sheet, if anything moved."""
+        rewritten = [replace(r, groups=change(r.groups)) for r in self.requests]
+        if rewritten != self.requests:
+            self.requests = rewritten
+            self._write()
 
     def delete(self, request_id: str) -> None:
         """Remove a request and write the Requests tab."""

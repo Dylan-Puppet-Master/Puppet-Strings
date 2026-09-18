@@ -18,7 +18,7 @@ def test_solve_prints_views_and_report(capsys):
     assert main(["--fixtures", str(FIXTURES), "--date", "2026-09-16", "solve"]) == 0
     out = capsys.readouterr().out
     assert "Staff" in out and "Breakfast" in out and "Clinic 1" in out
-    assert "Day 4, Session 1 - Wednesday" in out
+    assert "Day 4, Session 1 Week 1 - Wednesday" in out
     assert re.search(r"Blacksmithing \(DBL\)\s+(\w+)\s+\1\b", out)
     assert "unsatisfied  offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1" in out
 

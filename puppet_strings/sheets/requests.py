@@ -1,11 +1,24 @@
 """Requests: one row per request, one column per field."""
 
 from puppet_strings.model import WRITABLE_PRIORITIES, Priority, Request
+from puppet_strings.names import normalize
 from puppet_strings.sheets.calendar import parse_date
 from puppet_strings.sheets.source import LoadError, Table, header_rows, split_list
 
-COLUMNS = ("id", "description", "skedge", "priority", "weight", "tags", "created")
-REQUIRED = tuple(c for c in COLUMNS if c != "tags")
+COLUMNS = (
+    "id",
+    "description",
+    "skedge",
+    "priority",
+    "weight",
+    "tags",
+    "groups",
+    "requester",
+    "created",
+)
+# tags, groups and requester may be left off a sheet written before they existed
+OPTIONAL = ("tags", "groups", "requester")
+REQUIRED = tuple(c for c in COLUMNS if c not in OPTIONAL)
 
 
 def parse_requests(table: Table) -> tuple[Request, ...]:
@@ -38,6 +51,8 @@ def parse_requests(table: Table) -> tuple[Request, ...]:
                 priority=priority,
                 weight=weight,
                 tags=tuple(split_list(row.get("tags", ""))),
+                groups=tuple(split_list(row.get("groups", ""))),
+                requester=normalize(row.get("requester", "")),
                 created=created,
             )
         )
@@ -50,8 +65,19 @@ def request_rows(requests: tuple[Request, ...]) -> Table:
     for r in requests:
         weight = "" if r.priority.hard else _format_weight(r.weight)
         created = r.created.isoformat() if r.created else ""
-        tags = ", ".join(r.tags)
-        rows.append([r.id, r.description, r.skedge, r.priority.value, weight, tags, created])
+        rows.append(
+            [
+                r.id,
+                r.description,
+                r.skedge,
+                r.priority.value,
+                weight,
+                ", ".join(r.tags),
+                ", ".join(r.groups),
+                r.requester,
+                created,
+            ]
+        )
     return rows
 
 

@@ -33,7 +33,7 @@ def test_defaults(dataset):
 def test_quantifiers(dataset):
     (copy,) = resolve(
         dataset,
-        "REQUEST ANY_2_OF staff.counselor DO 'x' DURING ALL_OF block.all ON ANY_1_OF date.session.all",
+        "REQUEST ANY_2_OF staff.counselor DO 'x' DURING ALL_OF block.all ON ANY_1_OF date.session.this",
     )
     (st,) = copy.statements
     assert (st.who.kind, st.who.n, st.who.items) == (ANY, 2, ("dylan", "james", "paul"))
@@ -56,7 +56,8 @@ def test_each_of_expands_into_keyed_copies(dataset):
         "lisa, clinic_2",
     ]
     dated = resolve(
-        dataset, "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON EACH_OF date.session.mondays"
+        dataset,
+        "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON EACH_OF date.session.this.mondays",
     )
     assert [c.key for c in dated] == ["2026-09-14", "2026-09-21"]
     assert (
@@ -140,24 +141,43 @@ def test_date_windows(dataset):
     assert on(dataset, "{(date.target - 6d) .. date.target}") == dataset.session_dates[:4]
     assert on(dataset, "{(date.target + 1d) .. (date.target + 10d)}") == dataset.session_dates[4:]
     assert on(dataset, "{2026-10-20 .. 2026-10-21}") == ()  # no such camp days
-    assert on(dataset, "date.session.fridays") == (date(2026, 9, 18), date(2026, 9, 25))
+    assert on(dataset, "date.session.this.fridays") == (date(2026, 9, 18), date(2026, 9, 25))
 
 
 def test_date_scopes(dataset):
-    assert on(dataset, "date.session.all") == dataset.session_dates
-    assert on(dataset, "date.session_2.all") == dataset.sessions["session_2"]
-    assert len(on(dataset, "date.season.all")) == 21
-    assert on(dataset, "date.session.first", item=True) == (date(2026, 9, 13),)
+    assert on(dataset, "date.session.this") == dataset.session_dates
+    assert on(dataset, "date.session.one") == dataset.session_dates
+    assert on(dataset, "date.session.two") == dataset.sessions[2]
+    assert len(on(dataset, "date.season")) == 21
+    assert on(dataset, "date.session.this.first", item=True) == (date(2026, 9, 13),)
     assert on(dataset, "date.season.last", item=True) == (date(2026, 10, 3),)
-    assert on(dataset, "date.session.first_thursday", item=True) == (date(2026, 9, 17),)
-    assert on(dataset, "date.session.second_thursday", item=True) == (date(2026, 9, 24),)
-    assert on(dataset, "date.session.last_thursday", item=True) == (date(2026, 9, 24),)
+    assert on(dataset, "date.session.this.first_thursday", item=True) == (date(2026, 9, 17),)
+    assert on(dataset, "date.session.this.second_thursday", item=True) == (date(2026, 9, 24),)
+    assert on(dataset, "date.session.this.last_thursday", item=True) == (date(2026, 9, 24),)
     assert on(dataset, "date.season.first_mondays") == (date(2026, 9, 14), date(2026, 9, 28))
     assert on(dataset, "date.season.last_fridays") == (date(2026, 9, 25), date(2026, 10, 2))
-    with pytest.raises(SkedgeError, match="unknown date name 'session.third_thursday'"):
-        on(dataset, "date.session.third_thursday", item=True)
+    with pytest.raises(SkedgeError, match="unknown date name 'session.this.third_thursday'"):
+        on(dataset, "date.session.this.third_thursday", item=True)
     with pytest.raises(SkedgeError, match="needs a quantifier"):
-        resolve(dataset, "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON date.session.mondays")
+        resolve(
+            dataset,
+            "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON date.session.this.mondays",
+        )
+
+
+def test_weeks_of_a_session(dataset):
+    """A session holds its weeks, and a week holds one of each weekday."""
+    assert on(dataset, "date.session.one.first_week") == dataset.session_dates[:7]
+    assert on(dataset, "date.session.one.second_week") == dataset.session_dates[7:]
+    assert on(dataset, "date.session.this.this_week") == dataset.week_dates
+    assert on(dataset, "date.session.one.second_week.monday", item=True) == (date(2026, 9, 21),)
+    assert on(dataset, "date.session.two.first_week.monday", item=True) == (date(2026, 9, 28),)
+    assert on(dataset, "date.session.one.first_week.first", item=True) == (date(2026, 9, 13),)
+    assert on(dataset, "date.session.one.first_week.last", item=True) == (date(2026, 9, 19),)
+    with pytest.raises(SkedgeError, match="unknown date name 'session.two.second_week'"):
+        on(dataset, "date.session.two.second_week")
+    with pytest.raises(SkedgeError, match="did you mean 'date.session.one.first_week'"):
+        on(dataset, "date.session.one.frist_week")
 
 
 def test_roles(dataset):
@@ -178,7 +198,8 @@ def test_name_listing_matches_the_namespaces(dataset):
     assert list(listing) == ["staff", "activity", "block", "date", "role", "metric"]
     assert ("all", "category, 21 members") in listing["staff"]
     assert ("all", "category, 16 members") in listing["activity"]
-    assert ("session.second_thursday", "2026-09-24") in listing["date"]
+    assert ("session.this.second_thursday", "2026-09-24 (Thursday)") in listing["date"]
+    assert ("session.two.first_week.monday", "2026-09-28 (Monday)") in listing["date"]
     assert ("season.first_mondays", "2 dates") in listing["date"]
     assert ("trainee", "trainee") in listing["role"]
     assert ("preference", "scale 1-5") in listing["metric"]
