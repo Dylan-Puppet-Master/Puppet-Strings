@@ -28,10 +28,13 @@ requests are in each. Click one and the table shows only that group. `All reques
 `Ungrouped` head the list and are not groups themselves: `Ungrouped` is whatever is in no
 group at all, which is how a request that has been forgotten about turns up.
 
-Three groups are always there — **Clinic requests**, **Special daily requests** and
-**Special weekly requests** — and you make the rest. **New** asks for a name, **Rename**
+Two groups are always there — **Special daily requests** and **Special weekly
+requests** — and you make the rest. Requests made from the Offerings tab are in no group,
+so they sit under `Ungrouped`: there are dozens of them and the `generated` tag and the
+`CLINIC` priority already tell them apart. **New** asks for a name, **Rename**
 renames a group everywhere it is used, and **Delete** takes a group off its requests
-without deleting the requests themselves. The three default groups cannot be deleted.
+without deleting the requests themselves. The two default groups cannot be renamed or
+deleted.
 
 A request may belong to as many groups as you like, or to none; groups and tags are
 separate, so a request can be in the `Ropes rewrite` group and still be tagged `legal`.

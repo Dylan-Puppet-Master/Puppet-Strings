@@ -678,8 +678,9 @@ Recorded so the outline matches the code.
 - **Requests belong to groups** (Puppet Master, 2026-09-18). A `groups` column on the
   Requests sheet holds the groups a request is in, comma-separated, and the request
   manager switches between them in a pane of its own: `All requests`, `Ungrouped`, the
-  three default groups (Clinic requests, Special daily requests, Special weekly requests)
-  and whatever the Puppet Master makes. A group lives on its requests, so making one
+  two default groups (Special daily requests, Special weekly requests) and whatever the
+  Puppet Master makes. Generated clinic requests are in no group, being too many and
+  already marked by their tag. A group lives on its requests, so making one
   declares nothing; the filters narrow within the group rather than replacing it. A
   `requester` column records who asked, as a staff name, checked like any other name.
   Saving a request that says nothing about the date being scheduled asks first.

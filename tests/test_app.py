@@ -471,8 +471,8 @@ def test_groups_pane_lists_defaults_with_counts(window):
     rows = group_rows(window)
     assert list(rows)[:2] == [ALL, UNGROUPED]
     assert list(rows)[2:] == list(DEFAULT_GROUPS)
-    assert rows[ALL] == 30 and rows[UNGROUPED] == 0
-    assert rows["Clinic requests"] == 24
+    assert rows[ALL] == 30
+    assert rows[UNGROUPED] == 24  # the generated clinic requests are in no group
     assert rows["Special daily requests"] == 3 and rows["Special weekly requests"] == 3
 
 
@@ -484,7 +484,7 @@ def test_picking_a_group_filters_the_table(window):
     assert visible_ids(window) == {"clinic-preference", "clinic-variety"}
     window.priority_filter.setCurrentIndex(0)
     pick_group(window, UNGROUPED)
-    assert visible_ids(window) == set()
+    assert len(visible_ids(window)) == 24 and all("offering" in i for i in visible_ids(window))
     pick_group(window, ALL)
     assert window.proxy.rowCount() == 30
 
@@ -525,24 +525,24 @@ def test_renaming_and_deleting_a_group(window, monkeypatch):
 
 
 def test_a_default_group_cannot_be_renamed_and_a_name_is_not_taken_twice(window, monkeypatch):
-    pick_group(window, "Clinic requests")
+    pick_group(window, "Special daily requests")
     assert not window.groups.rename_button.isEnabled()
     assert not window.groups.delete_button.isEnabled()
     pick_group(window, ALL)
     assert not window.groups.rename_button.isEnabled()
-    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("  clinic   requests ", True))
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("  special   DAILY requests ", True))
     told = []
     monkeypatch.setattr(QMessageBox, "information", lambda _w, _t, text: told.append(text))
     window.groups.new_group()
     assert told and "already a group" in told[0]
-    assert len(group_rows(window)) == 5  # nothing added
+    assert len(group_rows(window)) == 4  # nothing added
 
 
 def test_the_editor_ticks_and_changes_groups(window):
     editor = window.editor
     editor.show_request(window.model.request("dylan-off-ropes"))
     assert editor.groups_edit.ticked() == ("Special weekly requests",)
-    editor.groups_edit.item(1).setCheckState(Qt.Checked)  # Special daily requests
+    editor.groups_edit.item(0).setCheckState(Qt.Checked)  # Special daily requests
     assert editor.current().groups == ("Special daily requests", "Special weekly requests")
     editor.save_button.click()
     assert group_rows(window)["Special daily requests"] == 4

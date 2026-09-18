@@ -1,7 +1,7 @@
 """Turn the Offerings tab into requests on the Requests sheet.
 
-Each offered clinic instance becomes a CLINIC request tagged GENERATED_TAG and filed in the
-clinic group, so the Puppet Master can see, edit or delete it before solving. One person is
+Each offered clinic instance becomes a CLINIC request tagged GENERATED_TAG, so the Puppet
+Master can see, edit or delete it before solving. One person is
 asked for; the rest of the positions fill because a clinic runs fully staffed or not at
 all. Loading again first removes every generated request for that date, so the Requests
 sheet mirrors the Offerings tab.
@@ -9,7 +9,7 @@ sheet mirrors the Offerings tab.
 
 from datetime import date
 
-from puppet_strings.model import CLINIC_GROUP, Dataset, Priority, Request
+from puppet_strings.model import Dataset, Priority, Request
 
 GENERATED_TAG = "generated"
 
@@ -33,7 +33,6 @@ def generated_requests(dataset: Dataset) -> list[Request]:
                 skedge=skedge,
                 priority=Priority.CLINIC,
                 tags=(GENERATED_TAG,),
-                groups=(CLINIC_GROUP,),
                 created=dataset.target,
             )
         )

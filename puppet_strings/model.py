@@ -100,8 +100,9 @@ LIFEGUARD_RAL = 5
 
 # The groups the request manager sorts requests into to begin with. A group is a label on
 # a request, like a tag, so the ones the Puppet Master adds need nothing declared anywhere.
-CLINIC_GROUP = "Clinic requests"
-DEFAULT_GROUPS = (CLINIC_GROUP, "Special daily requests", "Special weekly requests")
+# Requests made from the Offerings tab are in no group: the `generated` tag already tells
+# them apart, and a group they filled by the dozen buried everything else.
+DEFAULT_GROUPS = ("Special daily requests", "Special weekly requests")
 
 ANY_SKILL = "any"  # a Positions cell reading "Any" needs no checkoff
 MAX_RAL = 5

@@ -147,7 +147,7 @@ hand.
 | `priority` | One of `MUST_HAPPEN`, `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. `STABILITY` is the solver's own during a [same-day change](same-day.md) and is refused here. |
 | `weight` | Blank (meaning 1) or a positive number. Not allowed with `MUST_HAPPEN`. |
 | `tags` | **Comma-separated.** Any labels you like, for filtering in the request manager. Requests made from the Offerings tab carry the tag `generated`. |
-| `groups` | **Comma-separated.** The [groups](app.md#groups) the request belongs to in the request manager, such as `Clinic requests`. A request may be in several groups or in none. Written in plain language, not `kebab-case`. |
+| `groups` | **Comma-separated.** The [groups](app.md#groups) the request belongs to in the request manager, such as `Special daily requests`. A request may be in several groups or in none. Written in plain language, not `kebab-case`. |
 | `requester` | Who asked for this, as a staff name: `mary_kate`. Blank if it is nobody's in particular. A name that is not on the Skills sheet makes the request invalid, so a typo is caught rather than lost. |
 | `created` | `YYYY-MM-DD`, for the record. |
 

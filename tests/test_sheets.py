@@ -202,7 +202,7 @@ def test_requests_round_trip(source):
     assert requests[2].tags == ()
     assert requests[-1].tags == ("generated",)
     assert requests[0].groups == ("Special daily requests",)
-    assert requests[-1].groups == ("Clinic requests",)
+    assert requests[-1].groups == ()  # generated clinic requests are in no group
     assert requests[0].requester == "lucy"
     assert requests[1].requester == ""
     assert parse_requests(request_rows(requests)) == requests

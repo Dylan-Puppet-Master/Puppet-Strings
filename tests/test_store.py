@@ -72,7 +72,7 @@ def test_renaming_and_deleting_a_group_rewrite_the_sheet(tmp_path):
     s = store(tmp_path)
     s.set_group(["breaks", "counselor-hours"], "Ropes rewrite", member=True)
     assert s.rename_group("Ropes rewrite", "Ropes") == "Ropes"
-    assert s.rename_group("Ropes", "Clinic requests") == ""  # a name already taken
+    assert s.rename_group("Ropes", "Special daily requests") == ""  # a name already taken
     assert s.rename_group("Ropes", " ") == ""
     written = s.source.read("config", "Requests")
     column = written[0].index("groups")
