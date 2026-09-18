@@ -39,13 +39,16 @@ TRAINEE_ROLES = (SHADOW, SCAFFOLDED)
 ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth")
 POSITION_ROLES = ORDINALS  # a clinic's positions are named by ordinal
 
+# Skills are held by normalized name (`names.normalize`), so a Skills column headed
+# "Candle making" and a Positions cell reading "Candle Making" are the same skill.
+#
 # A lifeguard is an extra person on a water clinic, beyond its facilitator positions.
 # Every lifeguard position requires the LIFEGUARD skill at RAL 5.
 LIFEGUARD_ROLES = ("lifeguard", "lifeguard_2", "lifeguard_3")
-LIFEGUARD_SKILL = "LIFEGUARD"
+LIFEGUARD_SKILL = "lifeguard"  # the LIFEGUARD column on the Skills tab
 LIFEGUARD_RAL = 5
 
-ANY_SKILL = "Any"
+ANY_SKILL = "any"  # a Positions cell reading "Any" needs no checkoff
 MAX_RAL = 5
 
 
@@ -60,7 +63,7 @@ class Staff:
     resting_blocks: frozenset[str] = frozenset()
 
     def status(self, skill: str | None) -> SkillStatus:
-        """Status on a skill; a position without a skill counts as checked off."""
+        """Status on a skill by normalized name; no skill counts as checked off."""
         if skill is None:
             return SkillStatus.CHECKED_OFF
         return self.skills.get(skill, SkillStatus.NONE)

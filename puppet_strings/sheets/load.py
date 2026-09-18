@@ -16,7 +16,12 @@ from puppet_strings.sheets.clinic_data import parse_clinics
 from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import parse_published
 from puppet_strings.sheets.requests import parse_requests
-from puppet_strings.sheets.skills import parse_position_skills, parse_skills, trainers
+from puppet_strings.sheets.skills import (
+    known_skills,
+    parse_position_skills,
+    parse_skills,
+    trainers,
+)
 from puppet_strings.sheets.source import LoadError, Source
 
 ADJUSTMENT_HEADER = ("date", "staff", "resting", "RAL_penalty", "note")
@@ -37,8 +42,9 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
     skills_tables = source.read_many("skills", [tabs["skills"], tabs["position_skills"]])
     staff, skill_warnings = parse_skills(skills_tables[tabs["skills"]])
     warnings += skill_warnings
-    position_skills = parse_position_skills(skills_tables[tabs["position_skills"]])
-    activities = parse_clinics(source.read("clinic_data", tabs["clinics"]), position_skills)
+    skills = known_skills(skills_tables[tabs["skills"]])
+    position_skills = parse_position_skills(skills_tables[tabs["position_skills"]], skills)
+    activities = parse_clinics(source.read("clinic_data", tabs["clinics"]), position_skills, skills)
     wanted = [tabs["blocks"], tabs["calendar"], tabs["requests"], tabs["metrics"]]
     if tabs["adjustments"] in source.tabs("config"):
         wanted.append(tabs["adjustments"])  # the tab is optional

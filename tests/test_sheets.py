@@ -3,27 +3,46 @@ from datetime import date, time
 import pytest
 
 from puppet_strings.model import Offering, SkillStatus
+from puppet_strings.names import normalize
 from puppet_strings.sheets.blocks import parse_blocks
 from puppet_strings.sheets.clinic_data import parse_clinics
 from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import assignment_rows, parse_published
 from puppet_strings.sheets.requests import parse_requests, request_rows
-from puppet_strings.sheets.skills import parse_position_skills, parse_skills, trainers
+from puppet_strings.sheets.skills import (
+    ClinicPositions,
+    known_skills,
+    parse_position_skills,
+    parse_skills,
+    trainers,
+)
 from puppet_strings.sheets.source import LoadError, parse_time
+
+_KNOWN = {"canoe": "Canoe"}  # skills the Skills tab of a hand-built table has columns for
+
+
+def _known(source):
+    return known_skills(source.read("skills", "Skills"))
+
+
+def _positions(clinic: str, *skills: str | None) -> dict[str, ClinicPositions]:
+    """A Positions tab of one row, padded with blank cells."""
+    padded = tuple(skills) + (None,) * (3 - len(skills))
+    return {normalize(clinic): ClinicPositions(clinic, padded)}
 
 
 def test_skills_statuses(source):
     staff, warnings = parse_skills(source.read("skills", "Skills"))
-    assert staff["alan"].skills["Canopy Tour 1st"] is SkillStatus.CHECKED_OFF
-    assert staff["alan"].skills["Gravity Zip Line 1st"] is SkillStatus.CHECKED_OFF
-    assert staff["audrey"].skills["Candle making"] is SkillStatus.TRAINER
-    assert staff["cam_vl"].skills["Ceramics Wheel"] is SkillStatus.NEEDS_SCAFFOLD
-    assert staff["cam_vl"].skills["Candle making"] is SkillStatus.NEEDS_SCAFFOLD
-    assert staff["paul"].skills["Candle making"] is SkillStatus.NEEDS_SHADOW
-    assert staff["brian"].skills["Riflery"] is SkillStatus.CHECKED_OFF
-    assert staff["dylan"].skills["Riflery"] is SkillStatus.NONE
-    assert staff["alesa"].skills["LIFEGUARD"] is SkillStatus.CHECKED_OFF
-    assert "Canopy Tour" not in staff["alan"].skills  # date columns are skipped
+    assert staff["alan"].skills["canopy_tour_1st"] is SkillStatus.CHECKED_OFF
+    assert staff["alan"].skills["gravity_zip_line_1st"] is SkillStatus.CHECKED_OFF
+    assert staff["audrey"].skills["candle_making"] is SkillStatus.TRAINER
+    assert staff["cam_vl"].skills["ceramics_wheel"] is SkillStatus.NEEDS_SCAFFOLD
+    assert staff["cam_vl"].skills["candle_making"] is SkillStatus.NEEDS_SCAFFOLD
+    assert staff["paul"].skills["candle_making"] is SkillStatus.NEEDS_SHADOW
+    assert staff["brian"].skills["riflery"] is SkillStatus.CHECKED_OFF
+    assert staff["dylan"].skills["riflery"] is SkillStatus.NONE
+    assert staff["alesa"].skills["lifeguard"] is SkillStatus.CHECKED_OFF
+    assert "canopy_tour" not in staff["alan"].skills  # date columns are skipped
     assert staff["randy"].ral == 5
     assert staff["brian"].ral == 3
     assert warnings == ["Skills: Tyson / Low Ropes: unknown status 'Yes' ignored"]
@@ -39,23 +58,39 @@ def test_skill_status_properties():
 
 
 def test_position_skills(source):
-    skills = parse_position_skills(source.read("skills", "Positions"))
-    assert skills["Gravity Zip Line"] == ("Gravity Zip Line 1st", "Gravity Zip Line 2nd", None)
-    assert skills["Low Ropes"] == ("Low Ropes", None, None)
+    skills = parse_position_skills(source.read("skills", "Positions"), _known(source))
+    assert skills["gravity_zip_line"].skills == (
+        "gravity_zip_line_1st",
+        "gravity_zip_line_2nd",
+        None,
+    )
+    assert skills["low_ropes"].skills == ("low_ropes", "any", None)
+    # the Skills column is "Candle making" and the Positions cell "Candle Making"
+    assert skills["candle_making"].skills[0] == "candle_making"
+
+
+def test_position_skills_reject_a_skill_with_no_column(source):
+    table = [
+        ["Clinic_Name", "1st", "2nd", "3rd"],
+        ["Canoe 1 & 2", "Kayaking", "", ""],
+    ]
+    with pytest.raises(LoadError, match="no column for these"):
+        parse_position_skills(table, {"canoe": "Canoe"})
 
 
 def test_clinics(source):
-    skills = parse_position_skills(source.read("skills", "Positions"))
-    activities = parse_clinics(source.read("clinic_data", "Clinics"), skills)
+    known = _known(source)
+    skills = parse_position_skills(source.read("skills", "Positions"), known)
+    activities = parse_clinics(source.read("clinic_data", "Clinics"), skills, known)
     zip_line = activities["gravity_zip_line"]
     assert [p.role for p in zip_line.positions] == ["first", "second"]
     assert [p.ral for p in zip_line.positions] == [5, 3]
-    assert zip_line.positions[1].skill == "Gravity Zip Line 2nd"
+    assert zip_line.positions[1].skill == "gravity_zip_line_2nd"
     assert activities["blacksmithing_dbl"].double
     canoe = activities["canoe_1_2"]
     assert [(p.role, p.skill, p.ral) for p in canoe.positions] == [
-        ("first", "Canoe", 5),
-        ("lifeguard", "LIFEGUARD", 5),
+        ("first", "canoe", 5),
+        ("lifeguard", "lifeguard", 5),
     ]
     assert [p.role for p in activities["secret_pool"].positions] == ["first", "lifeguard"]
     assert activities["craft_fairy"].positions[0].skill is None
@@ -70,7 +105,35 @@ def test_clinics_reject_wrong_ral_length():
         ["Canoe 1", "8", "2", "5", "Water"],
     ]
     with pytest.raises(LoadError, match="must be 2 digits"):
-        parse_clinics(table, {})
+        parse_clinics(table, _positions("Canoe 1", "canoe"), _KNOWN)
+
+
+def test_clinics_reject_a_blank_position_cell():
+    table = [
+        ["Clinic_Name", "Slots", "Staff_Required", "RAL_Required", "Category"],
+        ["Canoe 1", "8", "2", "55", "Water"],
+    ]
+    with pytest.raises(LoadError, match="second position's cell is blank"):
+        parse_clinics(table, _positions("Canoe 1", "canoe"), _KNOWN)
+
+
+def test_clinics_reject_a_clinic_missing_from_positions():
+    table = [
+        ["Clinic_Name", "Slots", "Staff_Required", "RAL_Required", "Category"],
+        ["Canoe 1", "8", "1", "5", "Water"],
+    ]
+    with pytest.raises(LoadError, match="no row on the Positions tab"):
+        parse_clinics(table, {}, _KNOWN)
+
+
+def test_clinics_reject_a_positions_row_naming_no_clinic():
+    table = [
+        ["Clinic_Name", "Slots", "Staff_Required", "RAL_Required", "Category"],
+        ["Canoe 1", "8", "1", "5", "Water"],
+    ]
+    positions = {**_positions("Canoe 1", "canoe"), **_positions("Canoe 2", "canoe")}
+    with pytest.raises(LoadError, match="a Positions row for no clinic"):
+        parse_clinics(table, positions, _KNOWN)
 
 
 def test_offerings(dataset):
@@ -91,6 +154,22 @@ def test_offerings_weekday_warning_and_unknown_clinic(dataset):
         parse_offerings(table, dataset.activities, set(dataset.blocks), "Wednesday")
     _, warnings = parse_offerings(table[:4], dataset.activities, set(dataset.blocks), "Wednesday")
     assert warnings == ["Offerings: tab says THURSDAY but the target date is a Wednesday"]
+
+
+def test_offerings_warn_about_a_heading_that_is_no_block(dataset):
+    table = [
+        ["WEDNESDAY", "", ""],
+        ["Clinic 1", "slots", "Play Station"],
+        ["Candle Making", "6", "Craft Fairy"],
+    ]
+    offerings, warnings = parse_offerings(
+        table, dataset.activities, set(dataset.blocks), "Wednesday"
+    )
+    assert offerings == (Offering("candle_making", ("clinic_1",)),)
+    assert warnings == [
+        "Offerings: row 2 heading 'Play Station' is no block on the Blocks sheet, "
+        "so nothing under it was offered"
+    ]
 
 
 def test_offerings_reject_lone_double(dataset):

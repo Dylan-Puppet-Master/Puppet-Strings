@@ -46,8 +46,13 @@ This table lives in one place in the code, `STATUS_WORDS` at the top of
 `puppet_strings/sheets/skills.py`. To add a status, add a row there.
 
 **Positions tab.** `Clinic_Name | 1st | 2nd | 3rd`: the skill each position requires.
-Blank or `Any` means no checkoff is needed. A clinic missing from this tab has no eligible
-staff and is reported as unstaffable when offered.
+`Any` means no checkoff is needed. Every clinic on Clinic_Data must have a row here with a
+cell filled in for each of its positions, and every skill named must be a column heading on
+the main tab (heading plus rank, e.g. `Canopy Tour 1st`). Clinic and skill names are matched
+the way every other name is, ignoring case, spacing and punctuation, so a `Candle making`
+column and a `Candle Making` cell are the same skill. A missing row, a blank cell, or a name
+nothing matches stops loading with an error listing every one. None of them is read as
+"anyone may facilitate" — that is what `Any` is for.
 
 The staff roster is the set of rows on the main tab, and `staff.all` names all of them.
 `staff.clinic_trainers` is everyone with at least one `Trainer` cell.
@@ -63,6 +68,11 @@ be on the Skills sheet. A column headed `etc.` is ignored.
 The grid you already fill in. Row 1 is the weekday; row 2 has `Clinic 1` … `Clinic 4`
 above each group of columns. Below, category headings in capitals and clinic names. The
 lookup columns (slots, staff) are ignored, as is everything below a `Cancelled` row.
+
+Each row 2 heading must name a block on the Blocks sheet — `Clinic 1` finds the block
+`clinic_1`, `Playstation` the block `playstation`. A heading that names no block takes its
+whole column with it: nothing under it is offered, and the block looks free all day. That is
+a warning, listed with the other load warnings, not an error.
 
 A `(DBL)` clinic must appear in two adjacent clinic blocks; it becomes one instance with
 the same staff in both. The tab has no date: the target date is the `--date` argument or

@@ -15,6 +15,7 @@ from puppet_strings.sheets.source import LoadError, Table
 WEEKDAY_ROW = 0
 HEADER_ROW = 1
 CANCELLED = "cancelled"
+LOOKUP_HEADINGS = {"slots", "staff"}  # the grid's own columns, which head no block
 
 
 def parse_offerings(
@@ -31,7 +32,8 @@ def parse_offerings(
     sheet_weekday = next((c.strip() for c in table[WEEKDAY_ROW] if c.strip()), "")
     if sheet_weekday.lower() != weekday.lower():
         warnings.append(f"{where}: tab says {sheet_weekday} but the target date is a {weekday}")
-    columns = _block_columns(table[HEADER_ROW], block_ids, where)
+    columns, heading_warnings = _block_columns(table[HEADER_ROW], block_ids, where)
+    warnings += heading_warnings
     by_name = {a.name: a for a in activities.values()}
     categories = {a.category for a in activities.values()}
     listed: list[tuple[str, str]] = []  # (block id, activity id) in column order
@@ -48,11 +50,29 @@ def parse_offerings(
     return _merge_doubles(listed, activities, [b for _, b in columns], where), warnings
 
 
-def _block_columns(header: list[str], block_ids: set[str], where: str) -> list[tuple[int, str]]:
-    columns = [(i, normalize(c)) for i, c in enumerate(header) if normalize(c) in block_ids]
+def _block_columns(
+    header: list[str], block_ids: set[str], where: str
+) -> tuple[list[tuple[int, str]], list[str]]:
+    """The columns to read, and a warning for every other heading in row 2.
+
+    A heading that matches no block id takes its whole column with it, clinics and all, so
+    a Playstation column headed anything but the playstation block's id would quietly offer
+    nothing. The warning names it rather than leaving the block looking empty.
+    """
+    columns = []
+    warnings = []
+    for column, cell in enumerate(header):
+        heading = normalize(cell)
+        if heading in block_ids:
+            columns.append((column, heading))
+        elif heading and heading not in LOOKUP_HEADINGS:
+            warnings.append(
+                f"{where}: row {HEADER_ROW + 1} heading '{cell.strip()}' is no block on the "
+                "Blocks sheet, so nothing under it was offered"
+            )
     if not columns:
         raise LoadError(f"{where}: no block heading in row 2 matches a block id")
-    return columns
+    return columns, warnings
 
 
 def _merge_doubles(
