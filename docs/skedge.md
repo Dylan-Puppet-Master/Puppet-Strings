@@ -275,8 +275,30 @@ GAP morning TO afternoon AT_MOST 5h
 `GAP a TO b AT_LEAST 0m` is plain ordering. Real start and end times are compared, so a
 one-hour task may slide around inside its 75-minute block to make a gap work.
 
-A request with several `REQUEST` lines is met when all of them are. A `PREFER` always
-stands alone, with at most a binding and a condition.
+### One request, several statements
+
+A request holds as many `REQUEST` and `PREFER` statements as the thing being asked for
+needs. Plain English often does not fit in one statement — "everyone gets a break, and we
+would rather they were not all at once" is two — and writing them as one request keeps
+them under one description, one priority and one weight, and lets them share a binding, an
+`IF` and a `GAP`.
+
+```skedge
+# Rob runs the pole course this morning, and we would rather he were free at playstation.
+REQUEST staff.rob DO activity.pole_course_explore_level_1_2_dbl AS_ROLE role.first DURING ALL_OF {block.clinic_1 + block.clinic_2}
+PREFER AT_LEAST 1 staff.rob FREE DURING block.playstation
+```
+
+The `REQUEST` statements stand or fall together: the request is met when every one of them
+is, and that is what the report names. Each `PREFER` is weighed on its own in the request's
+tier, met or not, whether or not the requirements are.
+
+Two things to keep in mind. A binding expands the **whole** request, so `EACH_OF s IN
+staff.all` beside a `REQUEST` makes that requirement once per person, which is usually
+what is wanted but is worth seeing. And a `PREFER` still cannot sit in a `MUST_HAPPEN`
+request, together with requirements or alone: there is no tier above the hard one to weigh
+it in, so put the preference at a soft priority, in a request of its own if the
+requirements must be hard.
 
 ## What makes things happen
 
@@ -291,8 +313,8 @@ asks for is an error, which catches misspelled task names.
 
 `MUST_HAPPEN` is hard. `CLINIC`, `HIGH`, `MEDIUM` and `LOW` are soft tiers, and no amount
 of a lower tier outweighs a higher one; within a tier, weights set the exchange rate. See
-[How the solver decides](solver.md). A `PREFER` cannot be `MUST_HAPPEN`; a cap that must
-hold is `REQUEST AT_MOST`.
+[How the solver decides](solver.md). A `PREFER` cannot be `MUST_HAPPEN`, in a request of
+its own or beside requirements; a cap that must hold is `REQUEST AT_MOST`.
 
 ## Time horizon
 

@@ -59,7 +59,6 @@ DO = "REQUEST staff.dylan DO 'x' DURING block.clinic_1"
             2,
             1,
         ),
-        (f"PREFER AT_MOST 1 staff.all DOING 'x'\n{DO}", Priority.HIGH, "PREFER stands alone", 1, 1),
         (
             "REQUEST staff.dylan DO 'x' DURING block.nope",
             Priority.HIGH,
@@ -164,7 +163,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING block.clinic_1"
         (
             "PREFER AT_MOST 1 staff.all DOING 'x'",
             Priority.MUST_HAPPEN,
-            "PREFER cannot be MUST_HAPPEN",
+            "PREFER needs a priority it can be weighed at",
             1,
             1,
         ),

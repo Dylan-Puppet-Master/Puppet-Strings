@@ -4,6 +4,11 @@ Each active copy of a REQUEST gets a satisfaction literal `sat`: an assumption w
 request is hard, `weight * sat` in its tier when soft. A copy's constraints are enforced
 by `active`, which is `sat` and, when the declaration has a condition, that it applies.
 A PREFER adds objective terms only.
+
+A declaration may hold both. Its REQUEST statements share the one `sat`, exactly as they
+would alone, and its PREFER statements add their terms afterwards, so a block that says
+"these things must happen, and this is what we would rather have" is compiled as the two
+things it says.
 """
 
 from collections.abc import Iterator
@@ -168,10 +173,21 @@ class Compiler:
         self._bindings, self._shared = copy.bindings, {}
         tier = Priority.CLINIC if request.priority.hard else request.priority
         applies = self._applies(copy.condition, name)
-        statement = copy.statements[0]
-        if isinstance(statement, Score) or (isinstance(statement, Count) and statement.prefer):
-            self._prefer(statement, applies, request.weight, tier, name)
-            return True
+        wanted = [st for st in copy.statements if _is_prefer(st)]
+        required = [st for st in copy.statements if not _is_prefer(st)]
+        if required:
+            # first, so that a preference can be about what the requirements chose, and so
+            # that `_collapse` sees only the constraints the requirements posted
+            self._required(request, copy, required, applies, tier, name)
+        for index, statement in enumerate(wanted):
+            label = name if index == 0 else f"{name}#{index + 1}"
+            self._prefer(statement, applies, request.weight, tier, label)
+        return True
+
+    def _required(
+        self, request: Request, copy: Resolved, statements: list, applies: Literal, tier, name: str
+    ) -> None:
+        """Compile the copy's REQUEST statements, which stand or fall together."""
         sat: Literal = self.model.NewBoolVar(f"sat:{name}")
         if request.priority.hard:
             self.model.AddAssumption(sat)
@@ -182,7 +198,7 @@ class Compiler:
         posted = len(self.model.Proto().constraints)
         deferred: list[Literal] = []
         made: dict[str, list[Made]] = {}
-        for st in copy.statements:
+        for st in statements:
             if isinstance(st, Requirement):
                 assignments, later = self._require(st, active, name)
                 deferred.append(later)
@@ -200,7 +216,6 @@ class Compiler:
         self.compiled.append(
             Compiled(name, request, sat, self._any_of(deferred, f"deferred:{name}"))
         )
-        return True
 
     def _collapse(self, sat: Literal, applies: Literal, posted: int) -> Literal:
         """The literal a copy's satisfaction already is, when the model holds one.
@@ -1029,6 +1044,11 @@ def _negate(literal: Literal) -> Literal:
 
 def _minute(a: Assignment) -> int:
     return a.start.hour * 60 + a.start.minute
+
+
+def _is_prefer(statement) -> bool:
+    """Whether a statement asks for something rather than requiring it."""
+    return isinstance(statement, Score) or (isinstance(statement, Count) and statement.prefer)
 
 
 def _dates_of(statement) -> tuple[date, ...]:

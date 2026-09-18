@@ -684,3 +684,12 @@ Recorded so the outline matches the code.
   declares nothing; the filters narrow within the group rather than replacing it. A
   `requester` column records who asked, as a staff name, checked like any other name.
   Saving a request that says nothing about the date being scheduled asks first.
+- **A request block holds any number of statements** (Puppet Master, 2026-09-18). `PREFER`
+  no longer has to stand alone: a declaration may mix `REQUEST` and `PREFER` statements, so
+  one piece of plain English that needs several statements stays one request, with one
+  description, priority and weight, and one binding, condition and set of gaps. The
+  compiler splits them: the requirements share the declaration's `sat` literal exactly as
+  before and are what the report names, and each preference adds its own objective terms in
+  the declaration's tier afterwards, where `_collapse` cannot see them. `PREFER` in a
+  `MUST_HAPPEN` declaration is still refused — there is no tier above the hard one to weigh
+  it in.

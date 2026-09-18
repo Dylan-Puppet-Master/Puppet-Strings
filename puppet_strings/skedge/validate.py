@@ -42,10 +42,10 @@ def check(declaration: ast.Declaration, hard: bool) -> None:
     if len(conditions) > 1:
         raise _error("only one IF or UNLESS per declaration", conditions[1].pos)
     prefers = [s for s in statements if _is_prefer(s)]
-    if prefers and len(statements) > 1:
-        raise _error("PREFER stands alone", prefers[0].pos)
     if prefers and hard:
-        raise _error("PREFER cannot be MUST_HAPPEN", prefers[0].pos)
+        raise _error(
+            "PREFER needs a priority it can be weighed at, so not MUST_HAPPEN", prefers[0].pos
+        )
     for line in declaration.lines:
         _check_line(line)
     _check_labels(declaration)

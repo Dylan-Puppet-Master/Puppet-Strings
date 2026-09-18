@@ -1117,3 +1117,113 @@ def test_fixture_dataset_solves(dataset):
         for a in result.assignments
         if a.block == "playstation" and a.staff not in dataset.staff_categories["director"]
     ]
+
+
+# -- one block, several statements -----------------------------------------------------------
+
+
+BOTH = [staff("Dylan", candle_making=OK), staff("Mogee", candle_making=OK)]
+DYLAN_IN_CLINIC_2 = (
+    "PREFER AT_LEAST 1 staff.dylan DOING activity.candle_making DURING block.clinic_2"
+)
+
+
+def test_one_request_may_require_and_prefer_at_once():
+    """A declaration can say what must happen and what would be better, in one block."""
+    ds = dataset(
+        BOTH,
+        [CANDLE],
+        offerings=[("Candle Making", ["clinic_2"])],
+        requests=[
+            request(
+                "candle-plan",
+                "REQUEST staff.mogee DO activity.candle_making DURING block.clinic_1\n"
+                + DYLAN_IN_CLINIC_2,
+                Priority.MEDIUM,
+            )
+        ],
+    )
+    result = run(ds)
+    assert result.feasible and not result.unsatisfied
+    assert where(result, block="clinic_1")[0].staff == "mogee"  # the requirement
+    assert where(result, block="clinic_2")[0].staff == "dylan"  # the preference
+
+
+def test_a_mixed_request_is_reported_on_its_requirements():
+    """The report is about the REQUEST statements; the PREFER statements only pull the score."""
+    ds = dataset(
+        BOTH,
+        [ARCHERY, CANDLE],
+        offerings=[("Candle Making", ["clinic_2"])],
+        requests=[
+            request(
+                "impossible",
+                "REQUEST staff.mogee DO activity.archery_1_2 DURING block.clinic_1\n"
+                + DYLAN_IN_CLINIC_2,
+                Priority.MEDIUM,
+            )
+        ],
+    )
+    result = run(ds)
+    assert result.feasible
+    assert ids(result.unsatisfied) == ["impossible"]  # named once, for its requirement
+    assert where(result, block="clinic_2")[0].staff == "dylan"  # its preference still counted
+
+
+def test_several_preferences_may_share_one_request():
+    ds = dataset(
+        BOTH,
+        [CANDLE],
+        offerings=[("Candle Making", ["clinic_1"]), ("Candle Making", ["clinic_2"])],
+        requests=[
+            request(
+                "who-goes-where",
+                "PREFER AT_LEAST 1 staff.dylan DOING activity.candle_making DURING block.clinic_1\n"
+                "PREFER AT_LEAST 1 staff.mogee DOING activity.candle_making DURING block.clinic_2",
+            )
+        ],
+    )
+    result = run(ds)
+    assert result.feasible
+    assert where(result, block="clinic_1")[0].staff == "dylan"
+    assert where(result, block="clinic_2")[0].staff == "mogee"
+
+
+def test_each_of_still_expands_the_whole_block():
+    """A binding is the declaration's, so a requirement beside it is made once per item."""
+    ds = dataset(
+        BOTH,
+        [CANDLE],
+        offerings=[("Candle Making", ["clinic_1"]), ("Candle Making", ["clinic_2"])],
+        requests=[
+            request(
+                "each-one",
+                "EACH_OF s IN staff.all\n"
+                "REQUEST s DO activity.candle_making DURING ANY_1_OF block.any_clinic\n"
+                "PREFER AT_MOST 1 s DOING activity.candle_making",
+                Priority.MEDIUM,
+            )
+        ],
+    )
+    result = run(ds)
+    assert result.feasible
+    assert ids(result.unsatisfied) == []
+    assert {a.staff for a in result.assignments} == {"dylan", "mogee"}
+
+
+def test_a_preference_cannot_ride_along_on_a_hard_request():
+    """There is no tier above the hard one for a preference to be weighed in."""
+    ds = dataset(
+        BOTH,
+        [CANDLE],
+        requests=[
+            request(
+                "both",
+                "REQUEST staff.dylan DO activity.candle_making DURING block.clinic_1\n"
+                "PREFER AT_MOST 1 staff.mogee DOING activity.candle_making",
+                priority=Priority.MUST_HAPPEN,
+            )
+        ],
+    )
+    with pytest.raises(RequestError, match="PREFER needs a priority it can be weighed at"):
+        run(ds)

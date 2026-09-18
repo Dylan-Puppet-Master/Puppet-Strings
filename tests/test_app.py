@@ -530,7 +530,9 @@ def test_a_default_group_cannot_be_renamed_and_a_name_is_not_taken_twice(window,
     assert not window.groups.delete_button.isEnabled()
     pick_group(window, ALL)
     assert not window.groups.rename_button.isEnabled()
-    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("  special   DAILY requests ", True))
+    monkeypatch.setattr(
+        QInputDialog, "getText", lambda *a, **k: ("  special   DAILY requests ", True)
+    )
     told = []
     monkeypatch.setattr(QMessageBox, "information", lambda _w, _t, text: told.append(text))
     window.groups.new_group()

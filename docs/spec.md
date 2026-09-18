@@ -379,9 +379,14 @@ A declaration is lines of these kinds, in any order.
 | Negative condition | `UNLESS [amount] <pattern> [CONSECUTIVE]` | The statements apply only when this does not hold. |
 | Gap | `GAP a TO b <amount>` | Relates the assignments of the `REQUEST` labeled `a` to those of the one labeled `b`. |
 
-A declaration needs at least one statement and takes at most one condition. It is met when
-all its statements and gaps hold, or when its condition says they do not apply. A `PREFER`
-must be the only statement in its declaration.
+A declaration needs at least one statement and takes at most one condition, and may mix
+`REQUEST` and `PREFER` statements freely: one piece of plain English often needs several
+statements, and they belong together under one description, one priority and one weight.
+
+Its `REQUEST` statements stand or fall together: the declaration is met when all of them
+and all its gaps hold, or when its condition says they do not apply, and that is what the
+report names. Its `PREFER` statements are weighed one by one in the declaration's tier,
+whether or not the requirements are met. A condition governs both.
 
 ### 10.1 GAP
 
@@ -416,8 +421,9 @@ names is an error, not a line that does nothing.
 | `STABILITY` | Soft, second tier, set by the solver during a same-day change and not writable on a request. |
 | `HIGH`, `MEDIUM`, `LOW` | Soft, in that order. |
 
-`REQUEST` may have any priority. `PREFER` may not be `MUST_HAPPEN`: a cap that must hold is
-`REQUEST AT_MOST`.
+`REQUEST` may have any priority. `PREFER` may not be `MUST_HAPPEN`, in a declaration of its
+own or beside requirements: there is no tier above the hard one to weigh a preference in,
+and a cap that must hold is `REQUEST AT_MOST`.
 
 Soft tiers are solved lexicographically: a tier's score is maximized, fixed as a floor, and
 the next tier is then maximized. No amount of a lower tier outweighs a higher one.
@@ -486,7 +492,6 @@ a metric call. The validator and the solver report:
 | `needs DURING` | A positive requirement with no `DURING`. |
 | `given twice` | A clause repeated in one statement. |
 | `only one IF or UNLESS per declaration` | Two condition lines. |
-| `PREFER stands alone` | A `PREFER` beside another statement. |
 | `unknown … name` | A name that does not exist in its namespace. |
 | `expected a … name` | A name or variable from the wrong namespace. |
 | `unknown variable` | A bare identifier no `IN` binds. |
@@ -499,8 +504,9 @@ a metric call. The validator and the solver report:
 | `write NOT DO` | `AT_MOST 0`, `EXACTLY 0`. |
 | `metric arguments do not match its keys` | Wrong number or namespace of arguments. |
 | `metric argument must be one item` | A set, or an `ANY_2_OF` variable, as an argument. |
-| `PREFER cannot be MUST_HAPPEN` | Use `REQUEST AT_MOST`, `AT_LEAST` or `EXACTLY`. |
+| `PREFER needs a priority it can be weighed at` | A `PREFER` in a `MUST_HAPPEN` declaration; use `REQUEST AT_MOST`, `AT_LEAST` or `EXACTLY`. |
 | `weight must be positive` | A weight of zero or less. |
+| `unknown requester` | A `requester` field naming nobody on the Skills sheet. |
 | `weight is not allowed with MUST_HAPPEN` | A weight on a hard request. |
 | `GAP needs a duration` | `GAP a TO b AT_LEAST 3`. |
 | `only REQUEST … DO can be labeled` | A label on a `NOT`, `FREE` or amount `REQUEST`. |
