@@ -88,7 +88,8 @@ is built from, rather than the week of the year. Click any date to insert it int
 Skedge editor at the cursor, as `2026-06-15`.
 
 **Saving a request about other dates.** A request does not have to be about the date being
-scheduled: `ON date.session.two.first_week` is a perfectly good request to write in the
-middle of session 1. Because the table shows the date on screen, such a request would
-vanish the moment it was saved, so saving one asks first, names the dates it is about, and
+scheduled: `ON ALL_OF date.session.two.first_week` is a perfectly good request to write in
+the middle of session 1. It will do nothing to the schedule you are about to solve, though,
+which is easy to write by accident — a mistyped date, or `session.two` where you meant
+`session.this`. So saving such a request asks first, names the dates it *is* about, and
 lets you either save it anyway or go back to editing.

@@ -200,10 +200,13 @@ One row per camp day. This is the "session calendar" the proposal names as the s
 | Column | Type | Example |
 |---|---|---|
 | `date` | ISO date | `2026-09-16` |
-| `session` | identifier | `session_3` |
+| `session` | whole number, 1-20 | `3` |
+| `week` | whole number, 1-20, counted within the session | `2` |
 | `day_type` | identifier | `regular` |
 
-`date.session` is every date sharing the target's session. `date.sunday` … `date.saturday` are the dates of the target's Sunday-to-Saturday week that fall inside the session.
+The two numbers are the whole of the `date` namespace: `date.session.three` is every date
+of session 3 and `date.session.three.second_week` every date of its second week. See
+[Dates](skedge.md#dates); this table was rewritten on 2026-09-18 with that redesign (§11).
 
 ### 2.7 Requests (new, read and written)
 
@@ -661,3 +664,22 @@ Recorded so the outline matches the code.
   View joins a block's tasks with ", then " and labels unused time `DYOW/WPs`
   (configurable). The published tab gained `start` and `minutes` columns; the Blocks
   sheet lost `display_group`.
+- **The `date` namespace is built from session and week numbers** (2026-09-18). The
+  Calendar sheet's `session` column holds a number rather than a name, and a new `week`
+  column numbers the days within each session. Every date name is then a span or a name
+  inside one: `date.season`, `date.session.four`, `date.session.four.second_week`, and
+  `date.session.four.second_week.monday`. `date.session.this` is the session holding the
+  target date and `date.session.this.this_week` the week; the old `date.session.all`,
+  `date.season.all` and `date.<session name>.all` are gone. A span carries `first`,
+  `last`, the weekday sets and the counted occurrences; a week, reaching each weekday
+  once, carries the weekday as a single date. An unknown name now suggests the nearest
+  real one. The request manager's calendar labels each row `S<session>` / `W<week>` in
+  place of the ISO week of the year, and the names panel nests on the dots.
+- **Requests belong to groups** (Puppet Master, 2026-09-18). A `groups` column on the
+  Requests sheet holds the groups a request is in, comma-separated, and the request
+  manager switches between them in a pane of its own: `All requests`, `Ungrouped`, the
+  three default groups (Clinic requests, Special daily requests, Special weekly requests)
+  and whatever the Puppet Master makes. A group lives on its requests, so making one
+  declares nothing; the filters narrow within the group rather than replacing it. A
+  `requester` column records who asked, as a staff name, checked like any other name.
+  Saving a request that says nothing about the date being scheduled asks first.

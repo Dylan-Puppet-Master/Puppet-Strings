@@ -206,7 +206,8 @@ class MainWindow(QMainWindow):
             self.staff_filter,
             self.activity_filter,
         )
-        for widget in (self.text_filter, *combos, self.date_check, self.date_filter):
+        layout.addWidget(self.text_filter, stretch=2)  # the box worth having room
+        for widget in (*combos, self.date_check, self.date_filter):
             layout.addWidget(widget)
         self.text_filter.textChanged.connect(self.apply_filters)
         for combo in combos:
@@ -240,21 +241,24 @@ class MainWindow(QMainWindow):
         ids = [self.proxy.data(row, Qt.UserRole).id for row in rows]
         if not ids:
             return
+        picked = self._requests(ids)
         menu = QMenu(self)
         for group in self.store.groups:
-            in_it = self._requests(ids)
-            inside = all(any(same_group(group, g) for g in r.groups) for r in in_it)
+            # a group the whole selection is already in is one to take it out of
+            inside = all(any(same_group(group, g) for g in r.groups) for r in picked)
             action = menu.addAction(f"Remove from {group}" if inside else f"Add to {group}")
             action.triggered.connect(
                 lambda _=False, g=group, was=inside: self._set_group(ids, g, not was)
             )
         menu.exec(self.table.viewport().mapToGlobal(point))
 
-    def _requests(self, ids: list[str]):
+    def _requests(self, ids: list[str]) -> list:
+        """The requests with these ids."""
         wanted = set(ids)
         return [r for r in self.store.requests if r.id in wanted]
 
     def _set_group(self, ids: list[str], group: str, member: bool) -> None:
+        """Move requests into a group or out of it, and say so."""
         self.store.set_group(ids, group, member)
         self._groups_changed()
         moved = "into" if member else "out of"
@@ -464,7 +468,7 @@ class MainWindow(QMainWindow):
             "Not about this date",
             f"This request does not cover {dataset.target}, the date being scheduled.\n"
             f"It is about: {when}.\n\n"
-            "Save it anyway? It will apply on those dates and leave this date's table.",
+            "Save it anyway? It will apply on those dates and do nothing on this one.",
             QMessageBox.Save | QMessageBox.Cancel,
             QMessageBox.Cancel,
         )

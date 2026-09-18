@@ -5,6 +5,7 @@ import pytest
 from puppet_strings.model import Offering, SkillStatus
 from puppet_strings.names import normalize
 from puppet_strings.sheets.blocks import parse_blocks
+from puppet_strings.sheets.calendar import parse_calendar
 from puppet_strings.sheets.clinic_data import parse_clinics
 from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import assignment_rows, parse_published
@@ -200,7 +201,29 @@ def test_requests_round_trip(source):
     assert requests[0].tags == ("legal", "counselors")
     assert requests[2].tags == ()
     assert requests[-1].tags == ("generated",)
+    assert requests[0].groups == ("Special daily requests",)
+    assert requests[-1].groups == ("Clinic requests",)
+    assert requests[0].requester == "lucy"
+    assert requests[1].requester == ""
     assert parse_requests(request_rows(requests)) == requests
+
+
+def test_requests_read_a_sheet_written_before_groups_existed():
+    """The three newest columns are optional, so an older Requests tab still loads."""
+    table = [
+        ["id", "description", "skedge", "priority", "weight", "created"],
+        ["x", "", "REQUEST staff.dylan FREE DURING block.clinic_1", "HIGH", "2", ""],
+    ]
+    (request,) = parse_requests(table)
+    assert request.tags == () and request.groups == () and request.requester == ""
+
+
+def test_a_requester_is_normalized_like_any_other_name():
+    table = [
+        ["id", "description", "skedge", "priority", "weight", "requester", "created"],
+        ["x", "", "REQUEST staff.dylan FREE DURING block.clinic_1", "HIGH", "", "Mary Kate", ""],
+    ]
+    assert parse_requests(table)[0].requester == "mary_kate"
 
 
 def test_requests_reject_weight_on_hard():
@@ -251,6 +274,36 @@ def test_published_round_trip(dataset, source):
     )
 
 
+CALENDAR = [
+    ["date", "session", "week", "day_type"],
+    ["2026-09-13", "1", "1", "regular"],
+    ["2026-09-20", "1", "2", "changeover"],
+    ["2026-09-27", "2", "1", "regular"],
+]
+
+
+def test_calendar_numbers_sessions_and_weeks():
+    days = parse_calendar(CALENDAR)
+    first = days[date(2026, 9, 13)]
+    assert (first.session, first.week, first.day_type) == (1, 1, "regular")
+    assert days[date(2026, 9, 27)].session == 2
+
+
+@pytest.mark.parametrize(
+    ("row", "message"),
+    [
+        (["2026-10-04", "one", "1", "regular"], "expected a whole number"),
+        (["2026-10-04", "0", "1", "regular"], "session must be between 1 and 20"),
+        (["2026-10-04", "2", "21", "regular"], "week must be between 1 and 20"),
+        (["2026-09-13", "1", "1", "regular"], "appears twice"),
+        (["2026-10-04", "2", "3", "regular"], "session 2 has a week 2 with no days"),
+    ],
+)
+def test_calendar_rejects_numbers_it_cannot_name(row, message):
+    with pytest.raises(LoadError, match=message):
+        parse_calendar([*CALENDAR, row])
+
+
 def test_dataset(dataset):
     assert dataset.staff_categories["counselor"] == {"dylan", "james", "paul"}
     assert dataset.staff_categories["village_hero"] == {"audrey", "mogee"}
@@ -271,6 +324,11 @@ def test_dataset(dataset):
     }
     assert dataset.session_dates[0] == date(2026, 9, 13)
     assert len(dataset.session_dates) == 14  # a two-week session
+    assert dataset.session == 1
+    assert list(dataset.sessions) == [1, 2]
+    assert list(dataset.weeks(1)) == [1, 2]
+    assert dataset.weeks(1)[2][0] == date(2026, 9, 20)
+    assert dataset.week_dates == dataset.session_dates[:7]  # the target is in week 1
     assert [b.id for b in dataset.blocks_on(dataset.target)][:3] == [
         "breakfast",
         "clinic_1",

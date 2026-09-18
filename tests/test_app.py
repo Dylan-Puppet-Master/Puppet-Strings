@@ -214,6 +214,30 @@ def test_names_panel_lists_namespaces(window):
     assert window.editor.skedge_edit.toPlainText().endswith("staff.dylan")
 
 
+def child(item, text):
+    return next(item.child(i) for i in range(item.childCount()) if item.child(i).text(0) == text)
+
+
+def test_names_panel_nests_dotted_names(window):
+    dates = next(
+        window.names.topLevelItem(i)
+        for i in range(window.names.topLevelItemCount())
+        if window.names.topLevelItem(i).text(0) == "date"
+    )
+    session = child(dates, "date.session")
+    assert session.data(0, Qt.UserRole) is None  # only a step on the way to a name
+    one = child(session, "date.session.one")
+    assert one.data(0, Qt.UserRole) == "date.session.one" and one.text(1) == "14 dates"
+    week = child(one, "date.session.one.second_week")
+    monday = child(week, "date.session.one.second_week.monday")
+    assert monday.text(1) == "2026-09-21 (Monday)"
+    window.editor.clear()
+    window.names.itemDoubleClicked.emit(session, 0)  # not a name: nothing is inserted
+    assert window.editor.skedge_edit.toPlainText() == ""
+    window.names.itemDoubleClicked.emit(monday, 0)
+    assert window.editor.skedge_edit.toPlainText() == "date.session.one.second_week.monday"
+
+
 def test_calendar_click_inserts_a_date(window):
     window.editor.clear()
     window.editor.skedge_edit.setPlainText("ON ")
@@ -578,7 +602,11 @@ def test_saving_a_request_outside_the_date_asks_first(window, monkeypatch):
     editor.save_button.click()
     assert window.model.rowCount() == 31
     assert window.model.request("elsewhere") is not None
-    assert visible_ids(window) == set(visible_ids(window)) - {"elsewhere"}  # not on this date
+    window.date_check.setChecked(True)  # it does nothing on the date being scheduled
+    window.date_filter.setDate(QDate(2026, 9, 16))
+    assert "elsewhere" not in visible_ids(window)
+    window.date_filter.setDate(QDate(2026, 9, 28))
+    assert "elsewhere" in visible_ids(window)
 
 
 def test_saving_a_request_about_this_date_asks_nothing(window, monkeypatch):
