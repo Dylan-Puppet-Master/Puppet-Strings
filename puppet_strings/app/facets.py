@@ -38,11 +38,20 @@ class Facets:
 
 def facets(request: Request, dataset: Dataset) -> Facets:
     """Derive filter facets; an invalid request gets empty facets and its error text."""
+    return resolve_request(request, dataset)[0]
+
+
+def resolve_request(request: Request, dataset: Dataset) -> tuple[Facets, tuple]:
+    """The request's facets and the copies it resolved to, from one pass of the validator.
+
+    The copies are what the conflict finder reads, and resolving is the expensive part of
+    reading a request, so the two are done together.
+    """
     try:
         declaration = parse(request.skedge)
         copies = validate_request(request, dataset)
     except ast.SkedgeError as e:
-        return Facets("season", frozenset(), frozenset(), frozenset(), str(e))
+        return Facets("season", frozenset(), frozenset(), frozenset(), str(e)), ()
     staff: set[str] = set()
     activities: set[str] = set()
     dates: set[date] = set()
@@ -56,7 +65,7 @@ def facets(request: Request, dataset: Dataset) -> Facets:
     if not _dated(declaration):  # no ON: the request applies on every day scheduled
         dates = set(dataset.calendar)
     scope = _scope_of(declaration, request, dataset, dates)
-    return Facets(scope, frozenset(staff), frozenset(activities), frozenset(dates))
+    return Facets(scope, frozenset(staff), frozenset(activities), frozenset(dates)), copies
 
 
 def _dated(declaration: ast.Declaration) -> bool:

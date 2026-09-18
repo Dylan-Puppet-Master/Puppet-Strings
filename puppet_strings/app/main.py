@@ -27,6 +27,8 @@ from PySide6.QtWidgets import (
 
 from puppet_strings.app.busy import BusyDialog
 from puppet_strings.app.calendar_pane import SessionCalendar
+from puppet_strings.app.conflicts import summary
+from puppet_strings.app.conflicts_panel import ConflictsPane
 from puppet_strings.app.editor import RequestEditor
 from puppet_strings.app.facets import SCOPES, facets
 from puppet_strings.app.groups import ALL, same_group
@@ -136,6 +138,8 @@ class MainWindow(QMainWindow):
         self.calendar.picked.connect(self.insert_date)
         self.groups = GroupsPane(store)
         self.groups.chosen.connect(self._group_chosen)
+        self.conflicts = ConflictsPane()
+        self.conflicts.picked.connect(self.show_request)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._group_menu)
 
@@ -162,6 +166,9 @@ class MainWindow(QMainWindow):
         calendar_dock = QDockWidget("Calendar: click a date to insert it", self)
         calendar_dock.setWidget(self.calendar)
         self.addDockWidget(Qt.RightDockWidgetArea, calendar_dock)
+        self.conflicts_dock = QDockWidget("Conflicts", self)
+        self.conflicts_dock.setWidget(self.conflicts)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.conflicts_dock)
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Main")
@@ -229,6 +236,25 @@ class MainWindow(QMainWindow):
             date=self.date_filter.date().toPython() if self.date_check.isChecked() else None,
         )
 
+    def show_request(self, request_id: str) -> None:
+        """Open a request in the editor, and select its row when the table is showing it."""
+        request = self.model.request(request_id)
+        if request is None:
+            return
+        for row in range(self.proxy.rowCount()):
+            index = self.proxy.index(row, 0)
+            if self.proxy.data(index, Qt.UserRole).id == request_id:
+                self.table.setCurrentIndex(index)
+                return
+        self.editor.show_request(request)  # filtered out of the table, but still editable
+
+    def refresh_conflicts(self) -> tuple:
+        """Show the requests that contradict each other, and return them."""
+        found = self.store.conflicts
+        self.conflicts.show_conflicts(found, self.store.requests)
+        self.conflicts_dock.setWindowTitle(f"Conflicts ({len(found)})" if found else "Conflicts")
+        return found
+
     def _group_chosen(self, group: str) -> None:
         """Show the group the pane switched to."""
         self.apply_filters()
@@ -268,6 +294,7 @@ class MainWindow(QMainWindow):
         """Groups moved: the pane's counts, the editor's ticks and the table all follow."""
         self.model.refresh()
         self.groups.refresh()
+        self.refresh_conflicts()
         self.editor.set_dataset(self.store.dataset, self.store.groups)
         if self.editor.original_id:
             current = self.model.request(self.editor.original_id)
@@ -322,9 +349,14 @@ class MainWindow(QMainWindow):
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
         self.calendar.show_dataset(dataset)
         self._refresh_same_day()
+        found = self.refresh_conflicts()
         today = [a.describe(dataset.staff[a.staff].name) for a in dataset.today_adjustments]
         state = "published" if dataset.baseline is not None else "not published"
-        parts = [f"Loaded {len(self.store.requests)} requests", f"{dataset.target} is {state}"]
+        parts = [
+            f"Loaded {len(self.store.requests)} requests",
+            f"{dataset.target} is {state}",
+            summary(found),
+        ]
         self.status_label.setText("  " + ". ".join(parts + today + list(dataset.warnings)))
 
     def _load_failed(self, message: str) -> None:
@@ -373,6 +405,8 @@ class MainWindow(QMainWindow):
             return
         count = self.store.load_offerings()
         self.model.refresh()
+        self.groups.refresh()
+        self.refresh_conflicts()
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
         self.status_label.setText(f"  Loaded {count} offerings for {self.target}")
 
@@ -445,7 +479,10 @@ class MainWindow(QMainWindow):
         self.groups.refresh()
         self.editor.set_dataset(self.store.dataset, self.store.groups)
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
-        self.status_label.setText(f"  Saved {saved.id}")
+        found = self.refresh_conflicts()
+        clashes = [c for c in found if saved.id in c.requests]
+        note = f"; it conflicts with {len(clashes)} other request(s)" if clashes else ""
+        self.status_label.setText(f"  Saved {saved.id}{note}")
 
     def _in_scope_or_agreed(self, request) -> bool:
         """Warn before saving a request that says nothing about the date being scheduled.
@@ -478,6 +515,7 @@ class MainWindow(QMainWindow):
         self.store.delete(request_id)
         self.model.refresh()
         self.groups.refresh()
+        self.refresh_conflicts()
         self.status_label.setText(f"  Deleted {request_id}")
 
     @staticmethod

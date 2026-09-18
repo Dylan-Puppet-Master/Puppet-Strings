@@ -3,7 +3,8 @@
 from dataclasses import replace
 from datetime import date
 
-from puppet_strings.app.facets import Facets, facets
+from puppet_strings.app.conflicts import Conflict, find_conflicts
+from puppet_strings.app.facets import Facets, resolve_request
 from puppet_strings.app.groups import DEFAULT_GROUPS, clean, same_group
 from puppet_strings.config import Config
 from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
@@ -36,6 +37,7 @@ class RequestStore:
         self.dataset: Dataset | None = None
         self.requests: list[Request] = []
         self.facets: dict[str, Facets] = {}
+        self.resolved: dict[str, tuple] = {}  # each request's copies, for the conflict finder
         # A group lives on the requests in it, so one just made holds nothing yet and would
         # vanish on the next read. These keep it in the pane until something joins it.
         self.empty_groups: list[str] = []
@@ -44,7 +46,20 @@ class RequestStore:
         """Read every sheet for a target date. Raises LoadError."""
         self.dataset = load_dataset(self.source, self.config, target)
         self.requests = list(self.dataset.requests)
-        self.facets = {r.id: facets(r, self.dataset) for r in self.requests}
+        self.facets, self.resolved = {}, {}
+        for request in self.requests:
+            self._index(request)
+
+    def _index(self, request: Request) -> None:
+        """Work out what one request means: its facets, and the copies it resolves to."""
+        self.facets[request.id], self.resolved[request.id] = resolve_request(request, self.dataset)
+
+    @property
+    def conflicts(self) -> tuple[Conflict, ...]:
+        """Where the requests contradict each other, read off the resolved copies."""
+        if self.dataset is None:
+            return ()
+        return find_conflicts(self.requests, self.resolved, self.dataset)
 
     def save(self, request: Request, original_id: str | None) -> Request:
         """Add or replace a request and write the whole Requests tab.
@@ -60,7 +75,7 @@ class RequestStore:
             if not request.id:
                 request = replace(request, id=unique_id(request.description, set(ids)))
             self.requests.append(request)
-        self.facets[request.id] = facets(request, self.dataset)
+        self._index(request)
         self._write()
         return request
 
@@ -68,9 +83,11 @@ class RequestStore:
         """Replace the date's generated requests with the Offerings tab's. Returns how many."""
         generated = generated_requests(self.dataset)
         self.requests = merge(self.requests, generated, self.dataset.target)
-        self.facets = {r.id: f for r, f in ((r, self.facets.get(r.id)) for r in self.requests) if f}
+        kept = {r.id for r in self.requests}
+        self.facets = {i: f for i, f in self.facets.items() if i in kept}
+        self.resolved = {i: c for i, c in self.resolved.items() if i in kept}
         for request in generated:
-            self.facets[request.id] = facets(request, self.dataset)
+            self._index(request)
         self._write()
         return len(generated)
 
@@ -196,6 +213,7 @@ class RequestStore:
         """Remove a request and write the Requests tab."""
         self.requests = [r for r in self.requests if r.id != request_id]
         self.facets.pop(request_id, None)
+        self.resolved.pop(request_id, None)
         self._write()
 
     def _write(self) -> None:

@@ -60,6 +60,30 @@ and the filters are the search. The scope is derived from the dates a request re
 The staff and activity filters use the names a request resolves to, so filtering by
 `dylan` finds requests written for `staff.counselor` as well.
 
+## Conflicts
+
+**The conflicts pane.** Along the bottom, every place two requests contradict each other,
+found without solving. Each heading is one collision — one person, one date, one block —
+and everything under it belongs to that collision: the requests caught in it, hardest
+first, and the reasons they cannot all hold. A request in two collisions appears under
+both. Double-click one to open it in the editor.
+
+| What it catches | Example |
+|---|---|
+| Asked to work and to be free | `REQUEST staff.dylan DO activity.riflery DURING block.clinic_1` beside `REQUEST staff.dylan FREE DURING block.clinic_1` |
+| Asked to do something and told not to | the same, beside `REQUEST staff.dylan NOT DO activity.weapons` |
+| Asked to be free and to be busy | `FREE` beside `NOT FREE` in one block |
+| Two things at once that do not fit | two `FOR` tasks whose minutes exceed the block, or two clinics in one block |
+
+It reads only what is **settled**. `REQUEST ANY_1_OF staff.all DO …`, `DURING ANY_2_OF
+block.all` and every `PREFER` leave the solver room to move, and moving things around each
+other is its job, so they are never reported. What is left is worth looking at: a request
+saved into a collision says so in the toolbar as it saves. A request can also contradict
+itself, now that one request may hold several statements, and that shows up the same way.
+
+The pane is not a substitute for solving. It finds what is plain on paper; the solver
+finds the rest and names the requests it could not meet.
+
 **The editor.** One field per request column and a Skedge editor with highlighting. The
 **groups** field ticks off every group the request is in, and **requester** records who
 asked for it — type a staff name and it completes, the same names `staff.` gives you in

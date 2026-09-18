@@ -693,3 +693,13 @@ Recorded so the outline matches the code.
   the declaration's tier afterwards, where `_collapse` cannot see them. `PREFER` in a
   `MUST_HAPPEN` declaration is still refused — there is no tier above the hard one to weigh
   it in.
+
+- **Conflicts are found without solving** (Puppet Master, 2026-09-18). `app/conflicts.py`
+  reads the resolved copies the store already keeps and turns every *forced* statement into
+  a claim on a slot — one staff member, one date, one block. A statement is forced when it
+  leaves the solver no choice: `who`, `ON` and `DURING` are all `ALL_OF` (or a single item,
+  or an `EACH_OF` copy) and a `DO` names one activity or task. Claims on a slot are then
+  compared: free against do, do against not-do, free against not-free, and do against do by
+  minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
+  leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
+  is what keeps the pane quiet enough to be worth reading.
