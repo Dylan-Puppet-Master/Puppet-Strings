@@ -75,6 +75,8 @@ both. Double-click one to open it in the editor.
 | Asked to be free and to be busy | `FREE` beside `NOT FREE` in one block |
 | Two things at once that do not fit | two `FOR` tasks whose minutes exceed the block, or two clinics in one block |
 
+![The conflicts pane](img/conflicts.png)
+
 It reads only what is **settled**. `REQUEST ANY_1_OF staff.all DO …`, `DURING ANY_2_OF
 block.all` and every `PREFER` leave the solver room to move, and moving things around each
 other is its job, so they are never reported. What is left is worth looking at: a request

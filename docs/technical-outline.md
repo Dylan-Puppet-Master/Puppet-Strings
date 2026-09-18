@@ -693,7 +693,6 @@ Recorded so the outline matches the code.
   the declaration's tier afterwards, where `_collapse` cannot see them. `PREFER` in a
   `MUST_HAPPEN` declaration is still refused — there is no tier above the hard one to weigh
   it in.
-
 - **Conflicts are found without solving** (Puppet Master, 2026-09-18). `app/conflicts.py`
   reads the resolved copies the store already keeps and turns every *forced* statement into
   a claim on a slot — one staff member, one date, one block. A statement is forced when it
