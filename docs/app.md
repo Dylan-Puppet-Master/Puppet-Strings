@@ -12,12 +12,23 @@ solver uses, without a Cancel button: neither can usefully be stopped part-way, 
 take long enough over Google Sheets to be worth saying so. Both run off the window's own
 thread, so the panel keeps painting and the window stays alive while they work.
 **Load offerings** turns the Offerings tab into one `CLINIC` request per offered clinic,
-tagged `generated`, and saves them to the Requests sheet. Loading first removes every
-generated request for the target date, so the sheet mirrors the Offerings tab: a clinic
-you removed there disappears here. Hand-written requests are never touched. Between loads
-you can delete a generated request to drop that clinic, or edit it, for example to
-replace `ANY_1_OF staff.all` with a category to limit who runs it; loading again undoes
-such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
+tagged `generated`, and saves them to the Requests sheet. Such a request has one
+`REQUEST … AS_ROLE` line per position on Clinic_Data, so a clinic wanting a facilitator, a
+second and a lifeguard reads:
+
+```skedge
+REQUEST ANY_1_OF staff.all DO activity.canoe_1_2 AS_ROLE role.first DURING block.clinic_1 ON 2026-09-17
+REQUEST ANY_1_OF staff.all DO activity.canoe_1_2 AS_ROLE role.second DURING block.clinic_1 ON 2026-09-17
+REQUEST ANY_1_OF staff.all DO activity.canoe_1_2 AS_ROLE role.lifeguard DURING block.clinic_1 ON 2026-09-17
+```
+
+The lines stand or fall together, so the clinic still runs fully staffed or not at all —
+but every position it wants is now written down rather than left to the skill matching.
+Loading first removes every generated request for the target date, so the sheet mirrors
+the Offerings tab: a clinic you removed there disappears here. Hand-written requests are
+never touched. Between loads you can delete a generated request to drop that clinic, or
+edit it, for example to replace `ANY_1_OF staff.all` on one line with a category to limit
+who runs that position; loading again undoes such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
 clinic view and the report; it asks first if no offerings are loaded for the date.
 **Publish** in that window writes the schedule to Published Schedules, asking first if the
 date is already published.

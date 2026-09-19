@@ -1,15 +1,17 @@
 """Turn the Offerings tab into requests on the Requests sheet.
 
 Each offered clinic instance becomes a CLINIC request tagged GENERATED_TAG, so the Puppet
-Master can see, edit or delete it before solving. One person is
-asked for; the rest of the positions fill because a clinic runs fully staffed or not at
-all. Loading again first removes every generated request for that date, so the Requests
-sheet mirrors the Offerings tab.
+Master can see, edit or delete it before solving. The request asks for every position by
+name: one `REQUEST … AS_ROLE` line per position on Clinic_Data, facilitators first and
+then any lifeguards. The lines of one request stand or fall together, so a clinic still
+runs fully staffed or not at all, and now the request says so out loud instead of leaving
+it to the skill matching to work out. Loading again first removes every generated request
+for that date, so the Requests sheet mirrors the Offerings tab.
 """
 
 from datetime import date
 
-from puppet_strings.model import Dataset, Priority, Request
+from puppet_strings.model import Activity, Dataset, Priority, Request
 
 GENERATED_TAG = "generated"
 
@@ -21,11 +23,9 @@ def generated_requests(dataset: Dataset) -> list[Request]:
     for offering in dataset.offerings:
         blocks = " + ".join(f"block.{b}" for b in offering.blocks)
         during = f"ALL_OF {{{blocks}}}" if len(offering.blocks) > 1 else blocks
-        name = dataset.activities[offering.activity].name
-        skedge = (
-            f"REQUEST ANY_1_OF staff.all DO activity.{offering.activity} "
-            f"DURING {during} ON {target}"
-        )
+        activity = dataset.activities[offering.activity]
+        name = activity.name
+        skedge = _skedge(activity, during, target)
         requests.append(
             Request(
                 id=f"offering:{target}:{offering.activity}:{offering.blocks[0]}",
@@ -37,6 +37,19 @@ def generated_requests(dataset: Dataset) -> list[Request]:
             )
         )
     return requests
+
+
+def _skedge(activity: Activity, during: str, target: str) -> str:
+    """One REQUEST line per position of the clinic, each naming the role it asks for.
+
+    A clinic with no positions on Clinic_Data gets the one roleless line it always got;
+    asking for no role at all is still a request that the clinic runs.
+    """
+    head = f"REQUEST ANY_1_OF staff.all DO activity.{activity.id}"
+    tail = f"DURING {during} ON {target}"
+    if not activity.positions:
+        return f"{head} {tail}"
+    return "\n".join(f"{head} AS_ROLE role.{p.role} {tail}" for p in activity.positions)
 
 
 def merge(existing: list[Request], generated: list[Request], target: date) -> list[Request]:

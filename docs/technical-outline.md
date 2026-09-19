@@ -650,7 +650,10 @@ Recorded so the outline matches the code.
 - **Requests have tags** (comma-separated column). Offerings are no longer generated
   inside the solver: **Load offerings** (app button or `load-offerings` command) writes
   one `CLINIC` request per offering to the Requests sheet, tagged `generated`, with ids
-  `offering:<date>:<activity>:<block>`. Loading first removes the date's generated rows. The solver
+  `offering:<date>:<activity>:<block>`. The request has one `REQUEST … AS_ROLE role.<role>`
+  line per position of the clinic (facilitators then lifeguards), which stand or fall
+  together: the positions the clinic wants are written down rather than implied by the
+  structural constraints alone. Loading first removes the date's generated rows. The solver
   warns when no generated requests exist for the target date. Clinic instances come only
   from `TASK` statements; a `(DBL)` clinic asked for with `DURING ALL` of two blocks is
   one instance.
