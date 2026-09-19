@@ -310,15 +310,21 @@ class SheetsSource:
 
         A spreadsheet already there is left alone apart from the tabs it is missing, so this
         is safe to call on a day that has been published for a week.
+
+        The cache is kept up to date as the tabs are added rather than thrown away after
+        each one: a day's spreadsheet is made with five tabs, and asking Google what tabs
+        it has between every two of them is four requests spent learning what we just did.
         """
         folder = self._walk(root, path, make=True)
         sheet = self.drive.spreadsheet(folder, title)
         self._open[sheet.id] = self.client.open_by_key(sheet.id)
         self._tabs.pop(sheet.id, None)
+        have = list(self.tabs(sheet.id))
         for tab in tabs:
-            if tab not in self.tabs(sheet.id):
+            if tab not in have:
                 self._spreadsheet(sheet.id).add_worksheet(tab, rows=100, cols=26)
-                self._tabs.pop(sheet.id, None)
+                have.append(tab)
+        self._tabs[sheet.id] = have
         self._drop_first_sheet(sheet.id, tabs)
         return sheet.id
 

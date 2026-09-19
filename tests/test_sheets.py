@@ -710,3 +710,24 @@ def test_a_published_cabin_act_is_read_as_the_one_on_that_day():
     (tuesday_row,) = parse_published(table, tuesday, staff, activities)
     assert monday_row.activity == f"cabin_act_m2_{monday}"
     assert tuesday_row.activity == f"cabin_act_m2_{tuesday}"
+
+
+def test_a_load_lists_each_span_folder_once(source):
+    """Listing is a Drive request, and a season has hundreds of days behind it."""
+    from puppet_strings.sheets.load import load_dataset
+    from puppet_strings.sheets.source import CsvSource
+    from tests.conftest import CONFIG, TARGET
+
+    class Counting(CsvSource):
+        def __init__(self, root):
+            super().__init__(root)
+            self.listed = []
+
+        def documents(self, root, path):
+            self.listed.append(path)
+            return super().documents(root, path)
+
+    counting = Counting(source.root)
+    load_dataset(counting, CONFIG, TARGET)
+    assert counting.listed  # it does list the span the target is in
+    assert len(counting.listed) == len(set(counting.listed))

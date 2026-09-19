@@ -203,7 +203,9 @@ def _build(
         m.name: metrics_sheet.parse_metric(m, metric_tables[tab_of[m.name]], to_id) for m in index
     }
 
-    schedules = _published(source, config, spans, calendar, target, staff, activities)
+    schedules = _published(
+        source, config, spans, calendar, target, staff, activities, {span.id: in_span}
+    )
     baseline = schedules.pop(target, None)  # the target's own schedule is what to hold to
 
     return Dataset(
@@ -284,22 +286,30 @@ def _categories_table(source: Source, in_span: dict[str, str], span: Span) -> li
     return source.read(in_span[STAFF_CATEGORIES], STAFF_CATEGORIES_TAB)
 
 
-def _published(source, config, spans, calendar, target, staff, activities):
+def _published(source, config, spans, calendar, target, staff, activities, listed):
     """Every published day up to and including the target, read from its own spreadsheet.
 
     A past day is a fact the target is scheduled around, so the assignment rows are what is
     read: the three views beside them are for people. Days are spread over a spreadsheet
     each, so they are fetched in parallel.
+
+    A span's folder is listed once, not once per day in it, and `listed` carries in the one
+    the caller has already listed to find the target's own day. Listing is a Drive request,
+    and a season reaching the end of August has a couple of hundred days behind it; asking
+    for the same folder that many times is most of the wait on every reload.
     """
     wanted: dict[date, str] = {}
     by_span = {s.id: s for s in spans}
+    listed = dict(listed)
     for day in sorted(calendar):
         if day > target:
             break
         span = by_span[calendar[day].span]
-        for title, key in source.documents(ROOT, span_path(span)).items():
-            if title == day_title(span, day):
-                wanted[day] = key
+        if span.id not in listed:
+            listed[span.id] = source.documents(ROOT, span_path(span))
+        key = listed[span.id].get(day_title(span, day))
+        if key is not None:
+            wanted[day] = key
     tables = source.read_all(
         {day.isoformat(): key for day, key in wanted.items()}, config.tabs["assignments"]
     )
