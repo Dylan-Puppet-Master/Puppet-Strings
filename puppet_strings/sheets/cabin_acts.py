@@ -15,11 +15,18 @@ weekday appears once and holds until the next one.
 
 Only the labels this module names are read; everything else on the grid is for the people
 filling it in. The Support Requests tab says the same thing a second time and is ignored.
+
+Each act becomes an `Activity` under `activities.cabin_acts`, staffed like a clinic: one
+position per hero the HEROES cell names. That is why a cabin act needs no requests of its
+own — one line on the Requests sheet asks for all of them, and the positions say who by.
 """
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import date
 
+from puppet_strings.model import POSITION_ROLES, Activity, Position, Staff
 from puppet_strings.names import normalize
 from puppet_strings.sheets.source import LoadError, Table, split_list
 
@@ -30,6 +37,10 @@ CABIN_COLUMN = 0
 
 ACTIVITY = "activity"
 HEROES = "heroes"
+
+CABIN_ACT_CATEGORY = "cabin_act"
+CABIN_ACT_BLOCK = "cabin_act"  # the Blocks sheet's own name for the slot they run in
+MIN_RAL = 1  # a cabin act asks for people by name or skill, never by risk level
 
 # Cabin acts are scheduled Monday to Friday; the grid's spare "Extra" columns head no day.
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday")
@@ -108,3 +119,98 @@ def _weekday_columns(header: list[str], where: str) -> list[tuple[int, str]]:
 
 def _cell(cells: list[str], column: int) -> str:
     return cells[column].strip() if column < len(cells) else ""
+
+
+def cabin_act_activities(
+    boards: Mapping[str, tuple[CabinAct, ...]],
+    weeks: Mapping[tuple[int, int], Mapping[str, date]],
+    staff: Mapping[str, Staff],
+    categories: Mapping[str, frozenset[str]],
+    skills: Mapping[str, str],
+) -> tuple[dict[str, Activity], list[str]]:
+    """Every cabin act on every sheet as an activity, plus warnings.
+
+    `weeks` maps (session, week) to that week's dates by weekday name, read off the Calendar
+    sheet. Anything that cannot be placed or named is a warning rather than an error: a
+    typo in one cabin's HEROES cell should not cost the other hundred acts their staff.
+    """
+    activities: dict[str, Activity] = {}
+    warnings: list[str] = []
+    for title in sorted(boards):
+        session, week = parse_title(title, title)
+        days = weeks.get((session, week))
+        if days is None:
+            warnings.append(f"{title}: the Calendar sheet has no session {session} week {week}")
+            continue
+        for act in boards[title]:
+            day = days.get(act.weekday)
+            if day is None:
+                warnings.append(
+                    f"{title}: {act.cabin} is on a {act.weekday} that week has no day for"
+                )
+                continue
+            activity, act_warnings = _activity(act, day, title, staff, categories, skills)
+            warnings += act_warnings
+            if activity is None:
+                continue
+            if activity.id in activities:
+                warnings.append(f"{title}: {act.cabin} on {day} is on another sheet too")
+                continue
+            activities[activity.id] = activity
+    return activities, warnings
+
+
+def _activity(
+    act: CabinAct,
+    day: date,
+    title: str,
+    staff: Mapping[str, Staff],
+    categories: Mapping[str, frozenset[str]],
+    skills: Mapping[str, str],
+) -> tuple[Activity | None, list[str]]:
+    """One cabin act as an activity, with a position per hero its HEROES cell names."""
+    positions, warnings = [], []
+    for hero in act.heroes:
+        position = _position(hero, POSITION_ROLES[len(positions)], staff, categories, skills)
+        if position is None:
+            warnings.append(
+                f"{title}: {act.cabin} on {day} asks for '{hero}', who is no staff member, "
+                "staff category or skill"
+            )
+            continue
+        positions.append(position)
+        if len(positions) == len(POSITION_ROLES):
+            warnings.append(f"{title}: {act.cabin} on {day} asks for more heroes than positions")
+            break
+    if not positions:  # an act nobody is asked for needs nobody scheduled
+        return None, warnings
+    return (
+        Activity(
+            name=f"{act.cabin} {act.activity}".strip() if act.activity else f"{act.cabin} CA",
+            id=normalize(f"cabin act {act.cabin} {day}"),
+            category=CABIN_ACT_CATEGORY,
+            slots=0,
+            positions=tuple(positions),
+            cabin=act.cabin,
+            day=day,
+        ),
+        warnings,
+    )
+
+
+def _position(
+    hero: str,
+    role: str,
+    staff: Mapping[str, Staff],
+    categories: Mapping[str, frozenset[str]],
+    skills: Mapping[str, str],
+) -> Position | None:
+    """What one HEROES entry asks for: a person, anyone in a category, or anyone with a skill."""
+    name = normalize(hero)
+    if name in staff:
+        return Position(role, None, MIN_RAL, frozenset({name}), hero)
+    if name in categories:
+        return Position(role, None, MIN_RAL, frozenset(categories[name]), hero)
+    if name in skills:
+        return Position(role, name, MIN_RAL, None, hero)
+    return None

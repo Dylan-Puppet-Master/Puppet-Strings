@@ -54,7 +54,6 @@ the spreadsheets from Drive.
 puppet-strings names                     # every name you can write in a request
 puppet-strings validate                  # check every request on the sheet
 puppet-strings --date 2026-06-15 load-offerings   # Offerings tab -> requests tagged "generated"
-puppet-strings import-cabin-acts         # cabin act sheets -> requests tagged "cabin act"
 puppet-strings --date 2026-06-15 solve   # print tomorrow's schedule
 puppet-strings solve --publish           # and write it to Published Schedules
 puppet-strings solve --same-day          # re-solve a published day, moving as few people as it can

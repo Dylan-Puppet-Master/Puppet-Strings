@@ -18,7 +18,6 @@ from puppet_strings.model import (
     Dataset,
 )
 from puppet_strings.names import normalize
-from puppet_strings.sheets.skills import SKILLS_PREFIX
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.namespaces import (
     ACTIVITIES,
@@ -233,31 +232,40 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
     belongs to one cabin on one day — so each has its own branch and neither can be picked
     up by accident. `activities.all` is deliberately both: it is the only name that means
     every activity there is.
+
+    A clinic is named by itself or by its Clinic_Data category. A cabin act is named by its
+    cabin and nothing else: `activities.cabin_acts.p4` is P4's act, and which day's act
+    that is comes from the dates the request is about. Its own generated id is not a name,
+    because nobody should have to write a date into one.
     """
     clinics = {i: a for i, a in dataset.activities.items() if not a.cabin}
     cabin_acts = {i: a for i, a in dataset.activities.items() if a.cabin}
     names = {ALL_NAME: Named(frozenset(dataset.activities), False)}
-    _add(names, CLINICS, _branch(clinics, dataset.activity_categories))
-    _add(names, CABIN_ACTS, _branch(cabin_acts, _cabin_categories(cabin_acts)))
+    _add(
+        names,
+        CLINICS,
+        {
+            ALL_NAME: Named(frozenset(clinics), False),
+            **_members(clinics, dataset.activity_categories),
+        },
+    )
+    _add(
+        names,
+        CABIN_ACTS,
+        {
+            ALL_NAME: Named(frozenset(cabin_acts), False),
+            **{cabin: Named(ids, False) for cabin, ids in _cabin_categories(cabin_acts).items()},
+        },
+    )
     return names
 
 
-def _branch(items: Mapping[str, object], categories: Mapping[str, frozenset[str]]) -> dict:
-    """One branch of `activities`: its own `all`, each activity, and each category."""
-    return {ALL_NAME: Named(frozenset(items), False), **_members(items, categories)}
-
-
 def _cabin_categories(cabin_acts: Mapping[str, object]) -> dict[str, frozenset[str]]:
-    """`activities.cabin_acts.p4` is P4's act on every date the cabin act sheets cover."""
+    """`activities.cabin_acts.p4` is P4's act on every day the cabin act sheets cover."""
     by_cabin: dict[str, set[str]] = {}
     for activity_id, activity in cabin_acts.items():
         by_cabin.setdefault(normalize(activity.cabin), set()).add(activity_id)
     return {cabin: frozenset(ids) for cabin, ids in by_cabin.items()}
-
-
-def _branch_of(activity) -> str:
-    """Which branch of `activities` an activity is listed under."""
-    return CABIN_ACTS if activity.cabin else CLINICS
 
 
 def date_names(dataset: Dataset) -> dict[str, Named]:
@@ -368,7 +376,14 @@ def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
     """
     described = {
         STAFF: {i: s.name for i, s in dataset.staff.items()},
-        ACTIVITIES: {f"{_branch_of(a)}.{i}": a.name for i, a in dataset.activities.items()},
+        ACTIVITIES: {
+            **{f"{CLINICS}.{i}": a.name for i, a in dataset.activities.items() if not a.cabin},
+            **{
+                f"{CABIN_ACTS}.{normalize(a.cabin)}": f"cabin {a.cabin}"
+                for a in dataset.activities.values()
+                if a.cabin
+            },
+        },
         BLOCKS: {i: f"{b.start:%H:%M}-{b.end:%H:%M}" for i, b in dataset.blocks.items()},
         METRICS: {m: f"scale {v.scale_min:g}-{v.scale_max:g}" for m, v in dataset.metrics.items()},
     }
@@ -392,9 +407,6 @@ def _note(namespace: str, name: str, named: Named) -> str:
         if name in LIFEGUARD_ROLES:
             return "extra lifeguard on a water clinic"
         return "trainee" if name in TRAINEE_ROLES + (TRAINEE,) else "clinic position"
-    if namespace == STAFF and name.startswith(SKILLS_PREFIX):
-        skill = name[len(SKILLS_PREFIX) :]
-        return f"checked off on {skill}, {len(named.items)} members"
     return f"category, {len(named.items)} members"
 
 

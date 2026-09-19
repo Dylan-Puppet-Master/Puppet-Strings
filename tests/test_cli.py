@@ -6,7 +6,7 @@ from tests.conftest import FIXTURES
 
 def test_validate_and_names(capsys):
     assert main(["--fixtures", str(FIXTURES), "--date", "2026-09-16", "validate"]) == 0
-    assert "30 of 30 requests valid" in capsys.readouterr().out
+    assert "31 of 31 requests valid" in capsys.readouterr().out
     assert main(["--fixtures", str(FIXTURES), "--date", "2026-09-16", "names"]) == 0
     out = capsys.readouterr().out
     assert "staff.cam_vl  (Cam VL)" in out
@@ -95,21 +95,3 @@ def test_same_day_publishes_over_the_day_without_force(tmp_path, capsys):
     assert main(args) == 0
     assert (copy / "published" / "Changes.csv").exists()
     assert "published 2026-09-16" in capsys.readouterr().out
-
-
-def test_import_cabin_acts_rewrites_every_cabin_act_request(tmp_path, capsys):
-    import shutil
-
-    copy = tmp_path / "fixtures"
-    shutil.copytree(FIXTURES, copy)
-    args = ["--fixtures", str(copy), "--date", "2026-09-16", "import-cabin-acts"]
-    assert main(args) == 0
-    printed = capsys.readouterr().out
-    assert "imported 4 cabin acts from 2 sheet(s)" in printed
-    assert "'Nobody At All'" in printed  # the one hero nothing on the sheets answers to
-    rows = copy.joinpath("config", "Requests.csv").read_text()
-    assert "cabin_act:2026-09-14:m1" in rows and "cabin act" in rows
-    assert "help M1 with CA" in rows
-    # importing again neither doubles them nor leaves the old ones behind
-    assert main(args) == 0
-    assert rows == copy.joinpath("config", "Requests.csv").read_text()

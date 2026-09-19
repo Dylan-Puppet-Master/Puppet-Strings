@@ -32,3 +32,4 @@ offering:2026-09-16:secret_pool:clinic_4,Secret Pool in clinic_4,REQUEST ANY_1_O
 offering:2026-09-16:ceramics_wheel:clinic_4,Ceramics Wheel in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.ceramics_wheel DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
 offering:2026-09-16:craft_fairy:clinic_4,Craft Fairy in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.craft_fairy DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
 offering:2026-09-16:salsa:clinic_4,Salsa in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.salsa DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+cabin-acts,Every cabin act is staffed by the heroes its cabin asked for,REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act,CLINIC,,cabin act,,,2026-09-16

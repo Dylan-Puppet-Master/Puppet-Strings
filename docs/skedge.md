@@ -51,7 +51,7 @@ Names are dotted, lowercase `snake_case`. Sheet values become identifiers by the
 
 | Namespace | Contents |
 |---|---|
-| `staff` | Staff members and staff categories, plus `staff.skills.<skill>`, `staff.all`, `staff.clinic_trainers` |
+| `staff` | Staff members and staff categories, plus `staff.all`, `staff.clinic_trainers` |
 | `activity` | Clinics and their categories (`activities.clinics.ropes`), plus `activities.clinics.all` |
 | `block` | Blocks and block categories (`blocks.meals`), plus `blocks.all` |
 | `date` | `dates.target`, and the nested scopes below |
@@ -65,11 +65,10 @@ A name is either one thing or a set, and sets are always plural or collective
 A staff category holds only the people working on the day being scheduled. Someone resting
 all day is in no category, though their own name still works.
 
-Every column of the Skills sheet is also a category: `staff.skills.lifeguard` is everyone
-checked off on LIFEGUARD, `staff.skills.canopy_tour_1st` everyone checked off to run a
-canopy tour first. They sit under `skills.` so a skill and a Staff Categories column can
-share a name without either losing; where they do, the Staff Categories column is the
-plain `staff.<name>` and the skill is `staff.skills.<name>`.
+There is no name for "anyone checked off on a skill". Asking for a skill is asking for
+somebody to do a thing that needs it, and the thing already says so: that is what an
+activity's positions are. See
+[asking for an activity without naming anybody](#asking-for-an-activity-without-naming-anybody).
 
 ### Dates
 

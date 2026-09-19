@@ -35,26 +35,18 @@ clinic view and the report; it asks first if no offerings are loaded for the dat
 **Publish** in that window writes the schedule to Published Schedules, asking first if the
 date is already published.
 
-**Import cabin acts** reads every cabin act sheet in the Cabin Acts folder — the whole
-season, not just the week on screen — and rebuilds the cabin act requests from them. Each
-cabin act becomes one `CLINIC` request tagged `generated` and `cabin act`, holding one
-statement per hero its HEROES cell names:
+**Cabin acts** need no button. They are activities, read from every sheet in the Cabin
+Acts folder each time **Reload** runs, and one line on the Requests sheet asks for all of
+them:
 
 ```skedge
-REQUEST staff.dylan DO 'help M1 with CA' DURING blocks.cabin_act ON 2026-09-14
-REQUEST ANY_1_OF staff.skills.lifeguard DO 'LIFEGUARD with M1' DURING blocks.cabin_act ON 2026-09-14
+REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act
 ```
 
-A statement each is what makes two heroes two people. A person asked for by name is there
-to help, so the task reads `help M1 with CA`; a category or a skill is there for what it
-can do, so it reads what that is. The dates come from the session and week in each sheet's
-title and the Calendar sheet, not from the target date.
-
-Importing first throws away **every** cabin act request, whatever its date, because one
-import reads every sheet and so speaks for the whole season — unlike **Load offerings**,
-which only replaces the target date's. Anything the sheets ask for that no name answers to
-is listed afterwards rather than stopping the import. See
-[The sheets](sheets.md#cabin-act-sheets-the-cabin-acts-folder) for the grid it reads.
+Each act's HEROES cell becomes its positions, so who may fill them is already written
+down. A hero nothing on the sheets answers to is reported with the other load warnings,
+naming the cabin and the day. See
+[The sheets](sheets.md#cabin-act-sheets-the-cabin-acts-folder) for the grid they come from.
 
 **Configure**, on the right-hand end of the toolbar, is where the Google account and the
 sheets are chosen. See [Install and set up](install.md#5-sign-in-and-choose-the-sheets).

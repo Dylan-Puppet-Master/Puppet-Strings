@@ -52,7 +52,7 @@ def visible_ids(window):
 
 
 def test_table_and_filters(window):
-    assert window.proxy.rowCount() == 30
+    assert window.proxy.rowCount() == 31
     window.tag_filter.setCurrentText("generated")
     assert window.proxy.rowCount() == 24
     window.tag_filter.setCurrentText("legal")
@@ -93,7 +93,7 @@ def test_editor_validation_and_save(window):
     assert "3 EACH_OF copies" in editor.status.text()
     editor.tags_edit.setText("training, week 2")
     editor.save_button.click()
-    assert window.model.rowCount() == 31
+    assert window.model.rowCount() == 32
     assert editor.id_label.text() == "dylan-s-day-off"
     saved = window.store.source.read("config", "Requests")
     row = next(r for r in saved if r[0] == "dylan-s-day-off")
@@ -102,7 +102,7 @@ def test_editor_validation_and_save(window):
     editor.description_edit.setText("Dylan's day off, changed")
     editor.save_button.click()
     assert editor.id_label.text() == "dylan-s-day-off"  # editing keeps the id
-    assert window.model.rowCount() == 31
+    assert window.model.rowCount() == 32
     editor.clear()
     editor.description_edit.setText("Dylan's day off")
     editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING blocks.clinic_1")
@@ -110,9 +110,9 @@ def test_editor_validation_and_save(window):
     editor.save_button.click()
     assert editor.id_label.text() == "dylan-s-day-off-2"
     editor.delete_button.click()
-    assert window.model.rowCount() == 31
+    assert window.model.rowCount() == 32
     window._deleted("dylan-s-day-off")
-    assert window.model.rowCount() == 30
+    assert window.model.rowCount() == 31
 
 
 def test_selecting_a_row_fills_the_editor(window):
@@ -279,7 +279,7 @@ def test_reload_picks_up_a_row_deleted_on_the_sheet(window):
     window.reload()
     window.reload()  # a second click while loading queues another load, not a no-op
     window.wait_for_load()
-    assert window.model.rowCount() == 29
+    assert window.model.rowCount() == 30
     assert window.model.request(shown) is None
     assert window.editor.original_id is None and window.loader is None
 
@@ -467,8 +467,8 @@ def test_groups_pane_lists_defaults_with_counts(window):
     rows = group_rows(window)
     assert list(rows)[:2] == [ALL, UNGROUPED]
     assert list(rows)[2:] == list(DEFAULT_GROUPS)
-    assert rows[ALL] == 30
-    assert rows[UNGROUPED] == 24  # the generated clinic requests are in no group
+    assert rows[ALL] == 31
+    assert rows[UNGROUPED] == 25  # the generated clinic requests are in no group
     assert rows["Special daily requests"] == 3 and rows["Special weekly requests"] == 3
 
 
@@ -480,9 +480,10 @@ def test_picking_a_group_filters_the_table(window):
     assert visible_ids(window) == {"clinic-preference", "clinic-variety"}
     window.priority_filter.setCurrentIndex(0)
     pick_group(window, UNGROUPED)
-    assert len(visible_ids(window)) == 24 and all("offering" in i for i in visible_ids(window))
+    shown = visible_ids(window)
+    assert len(shown) == 25 and all("offering" in i or i == "cabin-acts" for i in shown)
     pick_group(window, ALL)
-    assert window.proxy.rowCount() == 30
+    assert window.proxy.rowCount() == 31
 
 
 def test_making_a_group_and_putting_requests_in_it(window, monkeypatch):
@@ -516,7 +517,7 @@ def test_renaming_and_deleting_a_group(window, monkeypatch):
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
     window.groups.delete_group()
     assert "Ropes" not in group_rows(window)
-    assert window.model.rowCount() == 30  # the requests stay, in their other groups
+    assert window.model.rowCount() == 31  # the requests stay, in their other groups
     assert group_rows(window)["Special weekly requests"] == 3
 
 
@@ -592,13 +593,13 @@ def test_saving_a_request_outside_the_date_asks_first(window, monkeypatch):
     editor.save_button.click()
     assert asked and "does not cover 2026-09-16" in asked[0]
     assert "2026-09-27, 2026-09-28, 2026-09-29 and 4 more" in asked[0]
-    assert window.model.rowCount() == 30  # cancelled: nothing saved, still editing
+    assert window.model.rowCount() == 31  # cancelled: nothing saved, still editing
     assert window.editor.original_id is None
     assert "Not saved" in window.status_label.text()
 
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Save)
     editor.save_button.click()
-    assert window.model.rowCount() == 31
+    assert window.model.rowCount() == 32
     assert window.model.request("elsewhere") is not None
     window.date_check.setChecked(True)  # it does nothing on the date being scheduled
     window.date_filter.setDate(QDate(2026, 9, 16))
@@ -832,39 +833,4 @@ def test_an_offerings_load_that_fails_says_so(window, monkeypatch):
     window.load_offerings()
     window.wait_for_offerings()
     assert shown == ["Offerings: no tab"]
-    assert window.progress is None
-
-
-def test_import_cabin_acts_mirrors_the_cabin_act_sheets(window, monkeypatch):
-    warned = []
-    monkeypatch.setattr(QMessageBox, "warning", lambda _w, _t, text: warned.append(text))
-    before = window.model.rowCount()
-    window.import_cabin_acts()
-    window.wait_for_cabin_acts()
-    assert window.model.rowCount() == before + 4
-    assert "Imported 4 cabin acts" in window.status_label.text()
-    assert warned and "'Nobody At All'" in warned[0]
-    imported = [r for r in window.store.requests if "cabin act" in r.tags]
-    assert len(imported) == 4
-    assert all(r.priority.value == "CLINIC" for r in imported)
-    # a second import replaces them rather than adding another set
-    window.import_cabin_acts()
-    window.wait_for_cabin_acts()
-    assert window.model.rowCount() == before + 4
-
-
-def test_a_cabin_act_import_that_fails_says_so(window, monkeypatch):
-    from puppet_strings.sheets.source import LoadError
-
-    shown = []
-    monkeypatch.setattr(QMessageBox, "critical", lambda _w, _t, text: shown.append(text))
-
-    def refuse():
-        raise LoadError("no folder chosen; pick one in Configure")
-
-    monkeypatch.setattr(window.store, "import_cabin_acts", refuse)
-    window.import_cabin_acts()
-    window.wait_for_cabin_acts()
-    assert window.status_label.text() == ""
-    assert shown == ["no folder chosen; pick one in Configure"]
     assert window.progress is None

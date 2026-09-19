@@ -169,7 +169,7 @@ normalizes to a built-in name, are a load error.
 
 | Namespace | Holds | Built in |
 |---|---|---|
-| `staff` | Staff members, staff categories, skills as `staff.skills.<skill>` | `staff.all`, `staff.clinic_trainers` |
+| `staff` | Staff members, staff categories | `staff.all`, `staff.clinic_trainers` |
 | `activities` | Clinics under `clinics`, cabin acts under `cabin_acts` | `activities.all`, `activities.clinics.all`, `activities.cabin_acts.all` |
 | `blocks` | Blocks, block categories | `blocks.all` |
 | `dates` | | `dates.target`, and the scopes below |
@@ -187,9 +187,9 @@ no name that means "any one of": that is what `ANY_1_OF` is for.
 A staff category, and `staff.all`, hold only the people working on `dates.target`: someone
 resting all day is in no category, though their own name still resolves.
 
-`staff.skills.<skill>` is one per column of the Skills tab, holding everyone whose status
-there is eligible (`checked off` or `trainer`). The `skills.` prefix keeps them apart from
-the Staff Categories columns, so the two can never collide.
+A skill is not a name. What a skill may be asked for is a position on an activity, which
+carries the skill it needs, so `REQUEST <activity>` asks for people with those skills
+without naming any of them.
 
 ### 5.1 Dates
 

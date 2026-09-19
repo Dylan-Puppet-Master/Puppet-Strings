@@ -55,8 +55,8 @@ nothing matches stops loading with an error listing every one. None of them is r
 "anyone may facilitate" — that is what `Any` is for.
 
 The staff roster is the set of rows on the main tab, and `staff.all` names all of them.
-`staff.clinic_trainers` is everyone with at least one `Trainer` cell. Each skill column is
-a category of its own, `staff.skills.<skill>`, holding everyone checked off on it.
+`staff.clinic_trainers` is everyone with at least one `Trainer` cell. A skill itself is not
+a name: it is asked for by the position that needs it, on a clinic or on a cabin act.
 
 ## Staff Categories
 
@@ -84,12 +84,21 @@ the app's date picker. A weekday mismatch is a warning.
 The cabin act block is a time campers may do anything in, and somebody other than the
 Puppet Master fills in what each cabin is doing and who they want along. There is one
 spreadsheet per session and week, all of them in one Drive folder chosen in the Configure
-pane, and the **Import cabin acts** button reads every one of them.
+pane, and every one of them is read each time the sheets are read.
+
+A cabin act is an **activity**, like a clinic: a thing that happens, with a position per
+person it needs. It is not a request, so nothing has to be imported and there is no button
+to press. One line on the Requests sheet asks for all of them:
+
+```skedge
+REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act
+```
+
+The Blocks tab must therefore have a `cabin_act` row, which is the slot they run in.
 
 The sheet's **title** says which week it is for: `S5W1` is session 5, week 1, matched
 anywhere in the title, so `Cabin Act Sorting - S5W1` works. Those two numbers and the
-weekday are looked up on the Calendar sheet to get the date, so nothing on the sheet has
-to carry one.
+weekday give the date from the Calendar sheet, so nothing on the grid has to carry one.
 
 Only the **Board** tab is read; the Support Requests tab says the same thing a second time
 and is ignored. Its layout:
@@ -106,20 +115,22 @@ filling it in. Rows are found by their labels rather than by counting, so adding
 the cabin block changes nothing. Only Monday to Friday are scheduled: the `Extra` columns
 are not days and are skipped.
 
-**HEROES** is a comma-separated list, and each item becomes its own statement in the
-request, so asking for two people asks for two people. An item is either:
+**HEROES** is a comma-separated list, and each item becomes one position of the activity,
+so asking for two people asks for two people. An item is either:
 
-| Item | Becomes | The task reads |
-|---|---|---|
-| A staff member on the Skills sheet | `REQUEST staff.vic` | `help M2 with CA` |
-| A Staff Categories column | `REQUEST ANY_1_OF staff.village_hero` | `Village HERO with M2` |
-| A Skills column | `REQUEST ANY_1_OF staff.skills.lifeguard` | `LIFEGUARD with M2` |
+| Item | The position it makes |
+|---|---|
+| A staff member on the Skills sheet | Only that person may hold it |
+| A Staff Categories column | Anyone in that category may hold it |
+| A Skills column | Anyone checked off on that skill may hold it |
 
-A person named is being asked for as themselves, so the task says they are there to help;
-anything else is being asked for what it can do, so the task says what that is. An item
-that is none of the three is a warning naming the cabin and the day, and the rest of that
-cabin act still imports. A cabin act with an empty HEROES cell asks nothing of anybody and
-makes no request.
+An item that is none of the three is a warning naming the cabin and the day, and the rest
+of that cabin act is still staffed. A cabin act with an empty HEROES cell asks nothing of
+anybody and becomes no activity at all.
+
+The names it makes are `activities.cabin_acts.<cabin>` — `activities.cabin_acts.p4` — and
+`activities.cabin_acts.all`. A cabin's name stands for its act on whichever days the
+request is about, so over one day it is one thing and over a week it is five.
 
 ## Blocks (config spreadsheet)
 

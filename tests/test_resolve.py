@@ -197,7 +197,10 @@ def test_name_listing_matches_the_namespaces(dataset):
     listing = name_listing(dataset)
     assert list(listing) == ["staff", "activities", "blocks", "dates", "roles", "metrics"]
     assert ("all", "category, 21 members") in listing["staff"]
-    assert ("all", "category, 16 members") in listing["activities"]
+    assert ("all", "category, 20 members") in listing["activities"]
+    assert ("clinics.all", "category, 16 members") in listing["activities"]
+    assert ("cabin_acts.all", "category, 4 members") in listing["activities"]
+    assert ("cabin_acts.m1", "cabin M1") in listing["activities"]
     assert ("session.this.second_thursday", "2026-09-24 (Thursday)") in listing["dates"]
     assert ("session.two.first_week.monday", "2026-09-28 (Monday)") in listing["dates"]
     assert ("season.first_mondays", "2 dates") in listing["dates"]

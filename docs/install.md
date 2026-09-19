@@ -113,14 +113,12 @@ doing.
 puppet-strings names
 puppet-strings validate
 puppet-strings --date 2026-06-15 load-offerings
-puppet-strings import-cabin-acts
 puppet-strings --date 2026-06-15 solve
 ```
 
 `names` lists every name you can use in a request. `validate` checks every request.
 `load-offerings` turns the Offerings tab into requests for that date, replacing ones
-loaded before. `import-cabin-acts` turns every cabin act sheet in the Cabin Acts folder
-into requests, replacing the ones imported before. `solve` prints the
+loaded before. `solve` prints the
 schedule for a date without publishing it. If any command reports a
 load error, it names the sheet, tab and row to fix.
 
