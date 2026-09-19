@@ -10,6 +10,7 @@ labeled     : NAME ":" request
 gap         : "GAP" NAME "TO" NAME amount
 
 request     : "REQUEST" chooser "DO" do_target do_clause*         -> request_do
+            | "REQUEST" chooser do_clause*                        -> request_activity
             | "REQUEST" chooser FREE do_clause*                   -> request_free
             | "REQUEST" chooser "NOT" "DO" target clause*         -> request_not_do
             | "REQUEST" chooser "NOT" FREE clause*                -> request_not_free

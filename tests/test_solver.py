@@ -100,10 +100,8 @@ def test_unstaffable_clinic_is_reported_and_the_rest_is_scheduled():
     result = run(ds)
     assert result.feasible
     assert requests_of(result.unsatisfied) == ["offering:2026-09-16:muay_thai:clinic_2"]
-    assert ids(result.unsatisfied) == [  # one line per position it asked for
-        "offering:2026-09-16:muay_thai:clinic_2[first]",
-        "offering:2026-09-16:muay_thai:clinic_2[second]",
-    ]
+    # one line per clinic, not per position: an instance fills all of its positions or none
+    assert ids(result.unsatisfied) == ["offering:2026-09-16:muay_thai:clinic_2"]
     assert result.unsatisfied[0].priority is Priority.CLINIC
     assert where(result, activity="archery_1_2")[0].staff == "dylan"
 

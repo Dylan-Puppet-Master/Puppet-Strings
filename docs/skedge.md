@@ -25,6 +25,7 @@ And two ways to talk about assignments:
 
 | Form | Meaning |
 |---|---|
+| `<what> DURING <blocks> ON <dates>` | An **activity requirement**: this activity happens, then. It names nobody, because the activity already says who may run it. |
 | `<who> DO <what> DURING <blocks> ON <dates>` | A **requirement**: these people do this, then. |
 | `<who> DOING <what> …` | A **pattern**: all the assignments where these people are doing this. Used for counting, scoring and conditions. |
 
@@ -169,6 +170,37 @@ An ad hoc task such as `'break'` has no positions, skills or camper slots; it oc
 staff time only. `'break' FOR 30m` is a 30-minute break somewhere inside one block, the
 Staff View labels the rest of the block `DYOW/WPs`, and several short tasks can share a
 block.
+
+### Asking for an activity without naming anybody
+
+An activity already records who may run it: each of its positions needs a skill, and a
+cabin act's positions may name a person or a category outright. So a request for an
+activity names only the activity:
+
+```skedge
+REQUEST activities.clinics.archery_1_2 DURING blocks.clinic_2
+```
+
+That asks that archery runs in clinic 2, staffed by whoever its positions allow. There is
+no `DO`, because there is no subject: adding `ANY_1_OF staff.all DO` in front would say the
+same thing twice. Filling one position of an activity fills them all, so this is a request
+for every person it needs, and the report names the activity once rather than once per
+position.
+
+`EACH_OF` over a set asks for each of them separately, which is how one line asks for a
+whole board of cabin acts:
+
+```skedge
+REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act
+```
+
+To narrow who may run something beyond what the activity says, say so in a second
+statement rather than in this one:
+
+```skedge
+REQUEST activities.clinics.candle_making DURING blocks.clinic_1
+REQUEST EACH_OF staff.counselor NOT DO activities.clinics.candle_making
+```
 
 ### NOT DO and FREE
 

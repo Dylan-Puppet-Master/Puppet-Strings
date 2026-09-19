@@ -158,6 +158,11 @@ class _Builder(Transformer):
         who, what, *clauses = items
         return ast.Requirement(who, _target(what), False, tuple(clauses), _pos(meta))
 
+    def request_activity(self, meta, items):
+        """`REQUEST <activity>`: the activity happens, and its own positions say who by."""
+        what, *clauses = items
+        return ast.Requirement(None, _target(what), False, tuple(clauses), _pos(meta))
+
     def request_free(self, meta, items):
         who, _, *clauses = items
         return ast.Requirement(who, None, False, tuple(clauses), _pos(meta))

@@ -463,13 +463,32 @@ def _statement(statement: ast.Statement, scope: _Scope) -> Statement:
         )
     if isinstance(statement, ast.Score):
         return _score(statement, scope)
-    who = _choice(statement.who, STAFF, scope, pool=False)
+    who = (
+        _anyone(statement, scope)
+        if statement.who is None
+        else _choice(statement.who, STAFF, scope, pool=False)
+    )
     parts = _parts(statement.what, statement.clauses, scope, pool=statement.negated)
     if statement.negated:
         pool = Choice(who.items, POOL, pos=who.pos)
         pattern = Pattern(pool, busy=statement.what is None, **parts, pos=statement.pos)
         return Forbid(who, pattern, statement.pos)
     return Requirement(who, label=statement.label, **parts, pos=statement.pos)
+
+
+def _anyone(statement: ast.Requirement, scope: _Scope) -> Choice:
+    """The subject of `REQUEST <activity>`, which names none: anyone the activity allows.
+
+    The request is sugar for `REQUEST ANY_1_OF staff.all DO <activity>`. Asking that one
+    person holds a position of an activity asks that it runs at all, and a running activity
+    fills every position it has (`solver.structural`), so naming one person here asks for
+    all of the people it needs — which is why the activity's positions are the only place
+    who may do it has to be written down.
+    """
+    if not isinstance(statement.what, ast.Selector):
+        raise _error("name an activity here, not a task", statement.pos)
+    everyone = frozenset(scope.dataset.staff_categories.get(ALL_NAME, frozenset()))
+    return Choice(_sorted(everyone), ANY, 1, pos=statement.pos)
 
 
 def _pattern(pattern: ast.Pattern, scope: _Scope) -> Pattern:

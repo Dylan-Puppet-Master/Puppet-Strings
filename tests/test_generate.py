@@ -11,40 +11,46 @@ def test_generated_requests_cover_every_offering(dataset):
     double = next(r for r in generated if "pole_course" in r.id)
     assert double.id == "offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1"
     assert double.skedge == (
-        "REQUEST ANY_1_OF staff.all DO activities.clinics.pole_course_explore_level_1_2_dbl "
-        "AS_ROLE EACH_OF {roles.first + roles.second + roles.third} "
+        "REQUEST activities.clinics.pole_course_explore_level_1_2_dbl "
         "DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2} ON 2026-09-16"
     )
     assert double.priority is Priority.CLINIC and double.tags == ("generated",)
     assert double.created == date(2026, 9, 16)
 
 
-def test_generated_requests_ask_for_every_position_by_role(dataset):
-    """Every position named, facilitators first, then lifeguards."""
+def test_a_generated_request_names_no_staff(dataset):
+    """Who may run a clinic is its positions' skills, so the request says only what and when."""
     by_id = {r.id: r for r in generated_requests(dataset)}
     two = by_id["offering:2026-09-16:gravity_zip_line:clinic_1"]
     assert two.skedge == (
-        "REQUEST ANY_1_OF staff.all DO activities.clinics.gravity_zip_line "
-        "AS_ROLE EACH_OF {roles.first + roles.second} DURING blocks.clinic_1 ON 2026-09-16"
+        "REQUEST activities.clinics.gravity_zip_line DURING blocks.clinic_1 ON 2026-09-16"
     )
-    water = by_id["offering:2026-09-16:canoe_1_2:clinic_1"]
-    assert "AS_ROLE EACH_OF {roles.first + roles.lifeguard}" in water.skedge
+    assert "staff." not in two.skedge and "AS_ROLE" not in two.skedge
 
 
-def test_one_position_takes_the_role_on_its_own(dataset):
-    """A one-item set takes no quantifier, so EACH_OF over one role would be rejected."""
-    one = {r.id: r for r in generated_requests(dataset)}["offering:2026-09-16:riflery:clinic_3"]
-    assert "AS_ROLE roles.first DURING" in one.skedge and "EACH_OF {role" not in one.skedge
+def test_a_generated_request_still_fills_every_position(dataset):
+    """Naming no role asks that the clinic runs, and a running clinic fills all of them."""
+    from dataclasses import replace
+
+    from puppet_strings.config import Config
+    from puppet_strings.solver.solve import solve
+
+    water = {r.id: r for r in generated_requests(dataset)}["offering:2026-09-16:canoe_1_2:clinic_1"]
+    only = replace(dataset, requests=(replace(water, priority=Priority.MUST_HAPPEN),))
+    result = solve(only, Config(time_limit_seconds=10, workers=4))
+    assert result.feasible
+    filled = sorted(a.role for a in result.assignments if a.activity == "canoe_1_2")
+    assert filled == ["first", "lifeguard"]
 
 
-def test_each_position_is_its_own_choice_of_person(dataset):
-    """EACH_OF splits into one copy per position; ALL_OF would want one person in both."""
+def test_a_generated_request_is_one_copy_not_one_per_position(dataset):
+    """One row in the report per clinic instance, because its positions fill together."""
     two = {r.id: r for r in generated_requests(dataset)}[
         "offering:2026-09-16:gravity_zip_line:clinic_1"
     ]
     copies = validate_request(two, dataset)
-    assert [copy.key for copy in copies] == ["first", "second"]
-    assert [copy.statements[0].role.items for copy in copies] == [("first",), ("second",)]
+    assert [copy.key for copy in copies] == [""]
+    assert copies[0].statements[0].role is None
 
 
 def test_every_generated_request_validates(dataset):

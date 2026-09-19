@@ -186,9 +186,13 @@ class Pattern:
 
 @dataclass(frozen=True)
 class Requirement:
-    """`REQUEST <who> DO <what> …`, `… FREE …`, and with `negated`, `… NOT DO …`, `… NOT FREE …`."""
+    """`REQUEST <who> DO <what> …`, `… FREE …`, and with `negated`, `… NOT DO …`, `… NOT FREE …`.
 
-    who: Selector
+    `who` is None for `REQUEST <activity>`, which names no one: the activity's own
+    positions say who may hold it, so there is nothing left for the request to add.
+    """
+
+    who: Selector | None
     what: Target
     negated: bool
     clauses: tuple[Clause, ...]
@@ -307,7 +311,8 @@ def selectors(line: Line) -> Iterator[tuple[str | None, Selector]]:
     for part in (line, *patterns(line)):
         if not isinstance(part, Requirement | Pattern):
             continue
-        yield STAFF, part.who
+        if part.who is not None:
+            yield STAFF, part.who
         if isinstance(part.what, Selector):
             yield ACTIVITIES, part.what
         for c in part.clauses:
