@@ -52,6 +52,14 @@ class LoadError(Exception):
     """Bad or missing sheet data. The message names the sheet, tab, and cell or row."""
 
 
+class NotACampDay(LoadError):
+    """The date asked for is not on the Calendar sheet.
+
+    It is a load error like any other, but its own kind, because it is the one the Puppet
+    Master causes rather than the sheets: it means pick another date, not go and fix a tab.
+    """
+
+
 class Source(Protocol):
     """A collection of named spreadsheets, each a collection of named tabs."""
 

@@ -6,7 +6,7 @@ from dataclasses import replace
 from datetime import date
 
 from puppet_strings.config import Config
-from puppet_strings.model import Dataset, Span, block_runs_on
+from puppet_strings.model import CalendarDay, Dataset, Span, block_runs_on
 from puppet_strings.names import normalize
 from puppet_strings.sheets import metrics as metrics_sheet
 from puppet_strings.sheets.adjustments import parse_adjustments, resting_blocks
@@ -24,7 +24,7 @@ from puppet_strings.sheets.skills import (
     parse_skills,
     trainers,
 )
-from puppet_strings.sheets.source import LoadError, Source
+from puppet_strings.sheets.source import LoadError, NotACampDay, Source
 
 ADJUSTMENT_HEADER = ("date", "staff", "resting", "RAL_penalty", "note")
 ALL = "all"
@@ -38,35 +38,71 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
     request per spreadsheet plus one for the metric tabs and one for past schedules.
 
     The cabin act sheets are a folder of their own, one per session and week, and the whole
-    folder is read: they are fetched in parallel and started first, so the dozens of small
-    requests they take run while the rest of the sheets are being read and parsed.
+    folder is read: they are fetched in parallel, so the dozens of small requests they take
+    run while the rest of the sheets are being read and parsed.
+
+    The Calendar comes first and the target date is checked against it before anything else
+    is read. A date camp is not running is the one mistake that makes everything after it
+    meaningless — no block exists on it, so no request can reach it — and it is easy to make,
+    because the app opens on tomorrow whatever tomorrow is.
     """
     tabs = config.tabs
     warnings: list[str] = []
+    config_tables = _config_tables(source, config)
+    spans = parse_calendar(config_tables[tabs["calendar"]], config.date_order)
+    calendar = calendar_days(spans)
+    check_camp_day(target, calendar)
     with ThreadPoolExecutor(max_workers=1) as pool:
         boards = pool.submit(_cabin_act_boards, source, config)
-        return _build(source, config, target, tabs, warnings, boards)
+        return _build(
+            source, config, target, tabs, warnings, boards, config_tables, spans, calendar
+        )
 
 
-def _build(source: Source, config: Config, target: date, tabs, warnings: list[str], boards):
-    """Everything but the cabin act sheets, which are already on their way."""
+def _config_tables(source: Source, config: Config) -> dict:
+    """Every tab of the config spreadsheet that is read, in one request."""
+    tabs = config.tabs
+    wanted = [tabs["blocks"], tabs["calendar"], tabs["requests"], tabs["metrics"]]
+    if tabs["adjustments"] in source.tabs("config"):
+        wanted.append(tabs["adjustments"])  # the tab is optional
+    return source.read_many("config", wanted)
+
+
+def check_camp_day(target: date, calendar: dict[date, CalendarDay]) -> None:
+    """Raise NotACampDay unless the Calendar sheet covers the date. Says what to try instead."""
+    if target in calendar:
+        return
+    if not calendar:
+        raise NotACampDay("Calendar: no rows, so no date is a camp day")
+    days = sorted(calendar)
+    nearest = min(days, key=lambda day: (abs((day - target).days), day))
+    raise NotACampDay(
+        f"Calendar: {target} is not a camp day. The calendar runs {days[0]} to {days[-1]}; "
+        f"the nearest camp day is {nearest}."
+    )
+
+
+def _build(
+    source: Source,
+    config: Config,
+    target: date,
+    tabs,
+    warnings: list[str],
+    boards,
+    config_tables: dict,
+    spans,
+    calendar,
+):
+    """Everything but the Calendar and the cabin act sheets, which are already read."""
     skills_tables = source.read_many("skills", [tabs["skills"], tabs["position_skills"]])
     staff, skill_warnings = parse_skills(skills_tables[tabs["skills"]])
     warnings += skill_warnings
     skills = known_skills(skills_tables[tabs["skills"]])
     position_skills = parse_position_skills(skills_tables[tabs["position_skills"]], skills)
     clinics = parse_clinics(source.read("clinic_data", tabs["clinics"]), position_skills, skills)
-    wanted = [tabs["blocks"], tabs["calendar"], tabs["requests"], tabs["metrics"]]
-    if tabs["adjustments"] in source.tabs("config"):
-        wanted.append(tabs["adjustments"])  # the tab is optional
-    config_tables = source.read_many("config", wanted)
     blocks = parse_blocks(config_tables[tabs["blocks"]])
     categories = {c for b in blocks.values() for c in b.categories} - {ALL_BLOCKS}
     _reserve("block", categories, (ALL_BLOCKS, *blocks))
-    spans = parse_calendar(config_tables[tabs["calendar"]], config.date_order)
-    calendar = calendar_days(spans)
-    if target not in calendar:
-        raise LoadError(f"Calendar: {target} is not a camp day")
 
     adjustments = parse_adjustments(
         config_tables.get(tabs["adjustments"], [[*ADJUSTMENT_HEADER]]), staff

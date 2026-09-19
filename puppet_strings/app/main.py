@@ -46,7 +46,7 @@ from puppet_strings.config import Config, load_config
 from puppet_strings.google_auth import AuthError
 from puppet_strings.model import WRITABLE_PRIORITIES
 from puppet_strings.session import open_source
-from puppet_strings.sheets.source import CsvSource, LoadError
+from puppet_strings.sheets.source import CsvSource, LoadError, NotACampDay
 
 
 def run_app(config: Config, fixtures: Path | None) -> int:
@@ -94,6 +94,7 @@ class LoadWorker(QThread):
 
     done = Signal()
     failed = Signal(str)
+    not_a_camp_day = Signal(str)
 
     def __init__(self, store: RequestStore, target: date) -> None:
         super().__init__()
@@ -104,6 +105,9 @@ class LoadWorker(QThread):
         """Load and report success or the error text."""
         try:
             self.store.load(self.target)
+        except NotACampDay as e:
+            self.not_a_camp_day.emit(str(e))
+            return
         except LoadError as e:
             self.failed.emit(str(e))
             return
@@ -417,6 +421,7 @@ class MainWindow(QMainWindow):
         self.loader = LoadWorker(self.store, self.target)
         self.loader.done.connect(self._loaded)
         self.loader.failed.connect(self._load_failed)
+        self.loader.not_a_camp_day.connect(self._not_a_camp_day)
         self.loader.finished.connect(self._load_finished)
         self.loader.start()
 
@@ -481,6 +486,12 @@ class MainWindow(QMainWindow):
         self.end_progress()
         self.status_label.setText("")
         QMessageBox.critical(self, "Could not load", message)
+
+    def _not_a_camp_day(self, message: str) -> None:
+        """A date camp is not running is a date to change, not a sheet to go and fix."""
+        self.end_progress()
+        self._say(message)
+        QMessageBox.warning(self, "Not a camp day", message)
 
     @property
     def same_day(self) -> bool:

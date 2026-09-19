@@ -198,6 +198,10 @@ Skedge: the first is `dates.session.one.all`, the second `dates.session.two.all`
 else is reached by its name, as `dates.other.family_camp.all`. Inserting a main season row
 renumbers the ones after it, so a request naming `dates.session.four` follows the sheet.
 
+The target date must be one of these spans. It is the first thing checked on every load,
+before any other sheet is read, because no block exists on a day camp is not running and so
+nothing else would mean anything.
+
 **Dates may be written however the sheet shows them.** Google Sheets hands the program a
 date cell as whatever it *displays*, so a column formatted as a date arrives as
 `6/14/2026`, `14 June 2026` or `Sunday, June 14, 2026` depending on the sheet's locale and

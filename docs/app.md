@@ -7,6 +7,10 @@ puppet-strings app
 ![The request manager](img/app.png)
 
 **Toolbar.** Pick the target date (tomorrow by default). **Reload** reads every sheet again.
+The Calendar is read first and the date checked against it, so a date camp is not running
+says so at once — naming the range the calendar covers and the nearest camp day — rather
+than after a slow read of everything else. It is a prompt to pick another date, not a
+failure: the window stays as it was, and the calendar panel shades the days you can choose.
 Reading the sheets and loading the offerings both put up a progress panel, the one the
 solver uses, without a Cancel button: neither can usefully be stopped part-way, but both
 take long enough over Google Sheets to be worth saying so. Both run off the window's own

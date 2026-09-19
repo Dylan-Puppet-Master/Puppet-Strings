@@ -491,3 +491,70 @@ def test_the_date_order_setting_is_checked(tmp_path):
         load_config(path)
     path.write_text('[day]\ndate_order = "dmy"\n')
     assert load_config(path).date_order == "dmy"
+
+
+class CountingSource:
+    """Wraps a source and records which sheets it was asked for."""
+
+    def __init__(self, inner):
+        self.inner, self.asked = inner, []
+
+    def __getattr__(self, name):
+        return getattr(self.inner, name)
+
+    def read(self, sheet, tab):
+        self.asked.append(sheet)
+        return self.inner.read(sheet, tab)
+
+    def read_many(self, sheet, tabs):
+        self.asked.append(sheet)
+        return self.inner.read_many(sheet, tabs)
+
+    def read_group(self, folder, tab):
+        self.asked.append(folder)
+        return self.inner.read_group(folder, tab)
+
+
+def test_a_date_off_the_calendar_is_caught_before_anything_else_is_read(source):
+    """The Calendar is read first, so a date camp is not running fails at once."""
+    from puppet_strings.config import Config
+    from puppet_strings.sheets.load import load_dataset
+    from puppet_strings.sheets.source import NotACampDay
+
+    counting = CountingSource(source)
+    with pytest.raises(NotACampDay, match="2026-12-25 is not a camp day"):
+        load_dataset(counting, Config(), date(2026, 12, 25))
+    assert counting.asked == ["config"]  # nothing else was fetched
+
+
+def test_a_date_off_the_calendar_says_what_to_try_instead(source):
+    from puppet_strings.config import Config
+    from puppet_strings.sheets.load import load_dataset
+    from puppet_strings.sheets.source import NotACampDay
+
+    with pytest.raises(NotACampDay) as info:
+        load_dataset(source, Config(), date(2026, 12, 25))
+    assert "The calendar runs 2026-09-13 to 2026-10-03" in str(info.value)
+    assert "nearest camp day is 2026-10-03" in str(info.value)
+
+
+def test_a_camp_day_is_not_an_error(source):
+    from puppet_strings.config import Config
+    from puppet_strings.sheets.load import load_dataset
+
+    assert load_dataset(source, Config(), date(2026, 9, 16)) is not None
+
+
+def test_an_empty_calendar_says_so():
+    from puppet_strings.sheets.load import check_camp_day
+    from puppet_strings.sheets.source import NotACampDay
+
+    with pytest.raises(NotACampDay, match="no rows, so no date is a camp day"):
+        check_camp_day(date(2026, 9, 16), {})
+
+
+def test_not_a_camp_day_is_still_a_load_error():
+    """Anything catching LoadError keeps catching it; the command line prints it the same."""
+    from puppet_strings.sheets.source import NotACampDay
+
+    assert issubclass(NotACampDay, LoadError)

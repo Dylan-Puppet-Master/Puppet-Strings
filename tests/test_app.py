@@ -881,3 +881,23 @@ def test_double_clicking_a_metric_opens_its_table(window, monkeypatch):
     )
     window.names.itemDoubleClicked.emit(child(metrics, "metrics.preference"), 0)
     assert opened == ["preference"]
+
+
+def test_a_date_off_the_calendar_asks_for_another_one(window, monkeypatch):
+    """Not a camp day is a warning naming a date to try, not a critical load failure."""
+    warned, critical = [], []
+    monkeypatch.setattr(QMessageBox, "warning", lambda _w, _t, text: warned.append(text))
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a: critical.append(a))
+    window.date_edit.setDate(QDate(2026, 12, 25))
+    window.reload()
+    window.wait_for_load()
+    assert warned and "2026-12-25 is not a camp day" in warned[0]
+    assert "nearest camp day is 2026-10-03" in warned[0]
+    assert not critical  # it is the date that is wrong, not the sheets
+    assert "not a camp day" in window.status_label.text()
+    assert window.progress is None
+    # and picking a camp day loads as usual
+    window.date_edit.setDate(QDate(2026, 9, 16))
+    window.reload()
+    window.wait_for_load()
+    assert "Loaded" in window.status_label.text()
