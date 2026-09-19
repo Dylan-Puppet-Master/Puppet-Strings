@@ -5,11 +5,36 @@ Parsers never touch this module; they take tables.
 """
 
 import csv
+from dataclasses import dataclass, field
 from datetime import datetime, time
 from pathlib import Path
 from typing import Protocol
 
 Table = list[list[str]]
+
+
+@dataclass(frozen=True)
+class Fill:
+    """A background colour on one cell: the 0-based row and column, and a hex colour."""
+
+    row: int
+    column: int
+    colour: str
+
+
+@dataclass(frozen=True)
+class Styled:
+    """A table plus the formatting Google Sheets should apply to it.
+
+    Everything here is advice a sheet may ignore: a CSV file takes the rows and drops the
+    rest, which is why the views build one object rather than formatting as they go.
+    """
+
+    rows: Table
+    title_span: int = 0  # merge row 1 across this many columns
+    bold_rows: tuple[int, ...] = ()  # 0-based row indexes
+    freeze_rows: int = 0
+    fills: tuple[Fill, ...] = field(default_factory=tuple)
 
 
 class LoadError(Exception):
@@ -31,8 +56,8 @@ class Source(Protocol):
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Replace a tab's contents, creating the tab if needed."""
 
-    def style(self, sheet: str, tab: str, title_span: int, bold_rows, freeze_rows: int):
-        """Merge the title, bold rows, freeze rows. Where formatting is not possible, no-op."""
+    def style(self, sheet: str, tab: str, styled: Styled):
+        """Apply a Styled's formatting. Where formatting is not possible, no-op."""
 
 
 class CsvSource:
@@ -67,7 +92,7 @@ class CsvSource:
         with path.open("w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerows(table)
 
-    def style(self, sheet: str, tab: str, title_span: int, bold_rows, freeze_rows: int):
+    def style(self, sheet: str, tab: str, styled: Styled):
         """CSV files carry no formatting."""
 
 
@@ -131,18 +156,37 @@ class SheetsSource:
         if table:
             worksheet.update(table, "A1")
 
-    def style(self, sheet: str, tab: str, title_span: int, bold_rows, freeze_rows: int):
-        """Merge the title across `title_span` columns, bold the rows, freeze the top rows."""
+    def style(self, sheet: str, tab: str, styled: Styled):
+        """Merge the title, bold the rows, freeze the top rows, fill the coloured cells.
+
+        Every cell is cleared back to plain first, so republishing a shorter schedule does
+        not leave yesterday's colours under it. The fills go in one `batch_format` call: a
+        printed day is hundreds of coloured cells, and a request each would take longer
+        than the solve did.
+        """
         from gspread.utils import rowcol_to_a1
 
         worksheet = self._spreadsheet(sheet).worksheet(tab)
         worksheet.unmerge_cells(f"A1:{rowcol_to_a1(max(worksheet.row_count, 1), 26)}")
-        worksheet.format("A1:Z1000", {"textFormat": {"bold": False}})
-        if title_span > 1:
-            worksheet.merge_cells(f"A1:{rowcol_to_a1(1, title_span)}")
-        for row in bold_rows:
+        worksheet.format("A1:Z1000", _PLAIN)
+        if styled.title_span > 1:
+            worksheet.merge_cells(f"A1:{rowcol_to_a1(1, styled.title_span)}")
+        for row in styled.bold_rows:
             worksheet.format(f"A{row + 1}:Z{row + 1}", {"textFormat": {"bold": True}})
-        worksheet.freeze(rows=freeze_rows)
+        worksheet.freeze(rows=styled.freeze_rows)
+        batch = [
+            {"range": _a1(fill), "format": {"backgroundColor": _rgb(fill.colour)}}
+            for fill in styled.fills
+        ]
+        if batch:
+            worksheet.batch_format(batch)
+
+
+# What every cell is reset to before the day's own formatting goes on.
+_PLAIN = {
+    "textFormat": {"bold": False},
+    "backgroundColor": {"red": 1, "green": 1, "blue": 1},
+}
 
 
 def header_rows(table: Table, required: tuple[str, ...], where: str) -> list[dict[str, str]]:
@@ -160,6 +204,21 @@ def header_rows(table: Table, required: tuple[str, ...], where: str) -> list[dic
         padded = cells + [""] * (len(header) - len(cells))
         rows.append({name: value.strip() for name, value in zip(header, padded, strict=False)})
     return rows
+
+
+def _a1(fill: Fill) -> str:
+    """A fill's cell as a sheet writes it: row 0, column 0 is A1."""
+    from gspread.utils import rowcol_to_a1
+
+    return rowcol_to_a1(fill.row + 1, fill.column + 1)
+
+
+def _rgb(colour: str) -> dict[str, float]:
+    """`#rrggbb` as the red/green/blue fractions the Sheets API wants."""
+    text = colour.lstrip("#")
+    return {
+        name: int(text[i : i + 2], 16) / 255 for name, i in (("red", 0), ("green", 2), ("blue", 4))
+    }
 
 
 def parse_int(value: str, where: str) -> int:

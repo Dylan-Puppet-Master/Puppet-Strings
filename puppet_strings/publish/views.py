@@ -1,7 +1,5 @@
 """The two printable views of a schedule, and the report, as tables."""
 
-from dataclasses import dataclass
-
 from puppet_strings.config import DEFAULT_REMAINDER
 from puppet_strings.model import (
     LIFEGUARD_ROLES,
@@ -14,13 +12,15 @@ from puppet_strings.model import (
     Dataset,
     minute_to_time,
 )
-from puppet_strings.sheets.source import Table
+from puppet_strings.publish.palette import BLOCK_COLOURS, CATEGORY_COLOURS, colour
+from puppet_strings.sheets.source import Fill, Styled, Table
 from puppet_strings.solver.result import Result
 
 AVAILABLE = "Available"
 FREE = "free"
 PLAYSTATION = "playstation"
 ANY_CLINIC = "any_clinic"
+HEADINGS_ROW = 1  # row 0 is the title; row 1 names the blocks
 
 
 def staff_view(
@@ -64,16 +64,6 @@ def _minute(t) -> int:
     return t.hour * 60 + t.minute
 
 
-@dataclass(frozen=True)
-class Styled:
-    """A table plus the formatting Google Sheets should apply to it."""
-
-    rows: Table
-    title_span: int = 0  # merge row 1 across this many columns
-    bold_rows: tuple[int, ...] = ()  # 0-based row indexes
-    freeze_rows: int = 0
-
-
 TRAINEE_LABELS = {SHADOW: "Shadow", SCAFFOLDED: "Scaffold"}
 
 
@@ -86,6 +76,11 @@ def clinic_view(
     holder (1st above 2nd) and a Shadow or Scaffold row for trainees. Offered clinics with
     nobody assigned keep their row. Then every other task, one name per row, and finally
     `remainder` listing staff with nothing in that block.
+
+    Two sets of colours make the grid readable on paper: each clinic block column has its
+    own, on its heading and on every cell of it that says something, and each category on
+    Clinic_Data has its own, on the name of every clinic in it. A category is a run of
+    rows down the left-hand column, so one colour marks where it starts and ends.
     """
     clinic_ids = dataset.block_categories.get(ANY_CLINIC, frozenset())
     blocks = [b.id for b in dataset.blocks_on(dataset.target) if b.id in clinic_ids]
@@ -100,14 +95,18 @@ def clinic_view(
     shown = _offered(dataset) | {
         a.activity for a in assignments if a.activity in dataset.activities
     }
-    for category in dict.fromkeys(a.category for a in dataset.activities.values()):
+    labels: list[Fill] = []  # the left-hand column, one colour per category
+    categories = dict.fromkeys(a.category for a in dataset.activities.values())
+    for index, category in enumerate(categories):
         activities = [
             a for a in dataset.activities.values() if a.category == category and a.id in shown
         ]
         if not activities:
             continue
+        shade = colour(CATEGORY_COLOURS, index)
         for activity in activities:
             bold.append(len(rows))
+            labels.append(Fill(len(rows), 0, shade))
             holders = {
                 b: [
                     names[a.staff]
@@ -129,6 +128,7 @@ def clinic_view(
                     for b in blocks
                 }
                 if any(trainees.values()):
+                    labels.append(Fill(len(rows), 0, shade))  # still that clinic's category
                     rows += _stack(label, trainees, blocks)
         rows.append([])
 
@@ -146,7 +146,29 @@ def clinic_view(
         b: [names[s] for s in sorted(names, key=names.get) if (s, b) not in busy] for b in blocks
     }
     rows += _stack(remainder, free, blocks)
-    return Styled(rows, title_span=len(blocks) + 1, bold_rows=tuple(bold), freeze_rows=2)
+    return Styled(
+        rows,
+        title_span=len(blocks) + 1,
+        bold_rows=tuple(bold),
+        freeze_rows=2,
+        fills=tuple(labels) + _block_fills(rows, len(blocks)),
+    )
+
+
+def _block_fills(rows: Table, count: int) -> tuple[Fill, ...]:
+    """Each clinic block column's colour: on its heading, and on every cell that says something.
+
+    The heading is always coloured, so the top of the sheet says which colour is which
+    block; below it an empty cell stays white, which is what makes an unstaffed clinic or a
+    block somebody is free in show up as a gap.
+    """
+    return tuple(
+        Fill(r, c, colour(BLOCK_COLOURS, c - 1))
+        for r, row in enumerate(rows)
+        if r >= HEADINGS_ROW
+        for c in range(1, count + 1)
+        if r == HEADINGS_ROW or (c < len(row) and row[c])
+    )
 
 
 def _title(dataset: Dataset) -> str:

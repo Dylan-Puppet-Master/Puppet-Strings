@@ -241,6 +241,16 @@ These tabs are overwritten on every publish:
   clinic nobody could staff keeps its row, empty. After the clinics come the other tasks
   (counselor hours, breaks) one name per row, and a final `DYOW/WPs` group listing everyone
   with nothing in that block. Title and clinic names are bold and the top rows are frozen.
+
+    It is also coloured, so a printed copy can be read across a room. Each clinic block
+    has a colour of its own, on its heading and on every cell of that column with a name
+    in it, which leaves the gaps white: an unstaffed clinic and a block somebody is free
+    in both show as blank. Each category on Clinic_Data has a colour of its own too, on
+    the name of every clinic in it, so a category reads as one run down the left-hand
+    column. Both sets of colours are the lists in `puppet_strings/publish/palette.py`;
+    change a colour there and the next publish uses it. Colours are given out in sheet
+    order and wrap round if a day ever has more clinic blocks, or Clinic_Data more
+    categories, than the list has colours.
 - **Report**: unsatisfied and deferred requests, conflicts, and solver notes.
 - **Changes**: what a same-day re-solve moved, written only when the day was already
   published. See [Same-day changes](same-day.md).

@@ -20,13 +20,7 @@ def publish(source: Source, config: Config, dataset: Dataset, result: Result) ->
     source.write(PUBLISHED, config.tabs["staff_view"], view)
     clinics = clinic_view(dataset, result.assignments, config.remainder)
     source.write(PUBLISHED, config.tabs["clinic_view"], clinics.rows)
-    source.style(
-        PUBLISHED,
-        config.tabs["clinic_view"],
-        clinics.title_span,
-        clinics.bold_rows,
-        clinics.freeze_rows,
-    )
+    source.style(PUBLISHED, config.tabs["clinic_view"], clinics)
     source.write(PUBLISHED, config.tabs["report"], report(result))
     if dataset.baseline is not None:  # a same-day re-solve, so say what moved
         source.write(PUBLISHED, config.tabs["changes"], changes_view(dataset, result))

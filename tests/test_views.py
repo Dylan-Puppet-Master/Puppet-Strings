@@ -2,6 +2,7 @@ from datetime import date, time
 
 from puppet_strings.config import Config
 from puppet_strings.model import Assignment, Priority
+from puppet_strings.publish.palette import BLOCK_COLOURS, CATEGORY_COLOURS, colour
 from puppet_strings.publish.views import clinic_view, report, staff_view
 from puppet_strings.publish.writer import is_published, publish
 from puppet_strings.sheets.source import CsvSource
@@ -93,6 +94,41 @@ def test_clinic_view(dataset):
     assert "Rob" not in [r[1] for r in table[free:]] and "Vic" in [r[1] for r in table[free:]]
     assert set(view.bold_rows) >= {0, 1, zip_line, smith, hour, breaks, free}
     assert labels.index("Archery 1 & 2") < zip_line < labels.index("Canoe 1 & 2")
+
+
+def test_clinic_view_colours_each_block_column(dataset):
+    view = clinic_view(dataset, rows(dataset))
+    colours = {(f.row, f.column): f.colour for f in view.fills}
+    assert len(colours) == len(view.fills)  # one fill per cell, never two
+    headings = [colours[(1, c)] for c in range(1, 5)]
+    assert headings == list(BLOCK_COLOURS[:4])  # the heading row is the legend
+    labels = [row[0] if row else "" for row in view.rows]
+    smith = labels.index("Blacksmithing (DBL)")
+    assert view.rows[smith][1:] == ["Alexis", "Alexis", "", ""]
+    assert colours[(smith, 1)] == BLOCK_COLOURS[0]  # a name takes its column's colour
+    assert colours[(smith, 2)] == BLOCK_COLOURS[1]
+    assert (smith, 3) not in colours  # and an empty cell stays white
+    pole = labels.index("Pole Course Explore Level 1 & 2 (DBL)")
+    assert not [c for c in range(1, 5) if (pole, c) in colours]  # offered, nobody on it
+
+
+def test_clinic_view_colours_each_category(dataset):
+    view = clinic_view(dataset, rows(dataset))
+    colours = {(f.row, f.column): f.colour for f in view.fills}
+    labels = [row[0] if row else "" for row in view.rows]
+    weapons = [labels.index("Archery 1 & 2"), labels.index("Riflery")]
+    arts = [labels.index("Candle Making"), labels.index("Blacksmithing (DBL)")]
+    assert {colours[(r, 0)] for r in weapons} == {CATEGORY_COLOURS[0]}
+    assert {colours[(r, 0)] for r in arts} == {CATEGORY_COLOURS[1]}
+    zip_line = labels.index("Gravity Zip Line")
+    shadow = labels.index("Shadow")
+    assert colours[(shadow, 0)] == colours[(zip_line, 0)]  # a trainee row is in the group
+    assert (labels.index("DYOW/WPs"), 0) not in colours  # and nothing else is
+
+
+def test_colour_wraps_round_when_a_palette_runs_out():
+    assert colour(BLOCK_COLOURS, len(BLOCK_COLOURS)) == BLOCK_COLOURS[0]
+    assert colour(CATEGORY_COLOURS, len(CATEGORY_COLOURS) + 1) == CATEGORY_COLOURS[1]
 
 
 def test_report():
