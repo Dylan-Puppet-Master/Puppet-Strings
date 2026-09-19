@@ -764,7 +764,7 @@ def test_saving_says_so_and_then_says_it_is_done(window):
     editor.save_button.click()
     assert editor.save_button.text() == "Save"  # back to itself once the write is done
     assert editor.status.text().startswith("✓ Saved dylan-s-day-off at ")
-    assert "color: #1b6f3b" in editor.status.styleSheet()
+    assert f"color: {palette.GOOD}" in editor.status.styleSheet()
     assert editor.save_button.isEnabled()
     editor.description_edit.setText("changed")  # editing clears the confirmation
     assert editor.validate() and editor.status.text() == "Valid"
@@ -779,7 +779,7 @@ def test_a_save_that_is_called_off_leaves_the_editor_alone(window, monkeypatch):
     editor.save_button.click()
     assert editor.save_button.text() == "Save" and editor.save_button.isEnabled()
     assert editor.status.text() == "Not saved; still editing"
-    assert "color: #6b6b6b" in editor.status.styleSheet()
+    assert f"color: {palette.QUIET}" in editor.status.styleSheet()
 
 
 def test_saving_shows_a_conflict_in_the_confirmation(window):
@@ -916,14 +916,14 @@ def test_the_on_date_filter_follows_the_target_date(window):
 
 
 def test_a_shaded_calendar_day_says_what_to_write_on_it(window):
-    """A light shading with no text colour is white on near-white under a dark theme."""
+    """A shaded cell with no text colour of its own is written in the palette's ink."""
     shading = window.calendar.dateTextFormat(QDate(2026, 9, 16))
     assert shading.background().color().name() == palette.CAMP_DAY
     assert shading.foreground().color().name() == palette.INK
 
 
 def test_a_conflict_heading_says_what_to_write_on_it(app):
-    """Same trap as the calendar: a shaded heading must carry its own text colour."""
+    """Same as the calendar: a shaded heading must carry its own text colour."""
     from datetime import date as _date
 
     from puppet_strings.app.conflicts import Conflict
@@ -936,3 +936,20 @@ def test_a_conflict_heading_says_what_to_write_on_it(app):
     assert heading.foreground(0).color().name() == palette.BAD
     assert heading.foreground(1).color().name() == palette.INK
     assert heading.foreground(2).color().name() == palette.INK
+
+
+def test_every_shading_is_a_dark_one_that_ink_reads_on(app):
+    """The window is dark, so a shading that drifts light would be white on near-white."""
+    from PySide6.QtGui import QColor, QPalette
+
+    ink = QColor(palette.INK).lightness()
+    for shading in (
+        palette.WINDOW,
+        palette.SURFACE,
+        palette.SUNKEN,
+        palette.CAMP_DAY,
+        palette.CLASH,
+    ):
+        assert QColor(shading).lightness() < ink / 2
+    palette.apply(app)
+    assert app.palette().color(QPalette.Window).lightness() < 128

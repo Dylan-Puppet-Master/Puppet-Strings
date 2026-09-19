@@ -16,7 +16,9 @@ from puppet_strings.app import palette
 from puppet_strings.model import Dataset
 
 CAMP_DAY = QColor(palette.CAMP_DAY)
-INK = QColor(palette.INK)  # a light shading needs its own text colour, or a dark theme wins
+TEXT = QColor(palette.TEXT)
+QUIET = QColor(palette.QUIET)
+INK = QColor(palette.INK)  # a shaded cell needs its own text colour; the palette is not asked
 ROWS = range(1, 7)  # row 0 of the grid holds the weekday names
 
 
@@ -55,9 +57,25 @@ class SessionCalendar(QCalendarWidget):
         self.setVerticalHeaderFormat(QCalendarWidget.ISOWeekNumbers)  # keeps the column
         view = self.findChild(QTableView, "qt_calendar_calendarview")
         view.setItemDelegateForColumn(0, WeekLabel(self))
+        self._even_out_the_week()
         self.view = view
         self.currentPageChanged.connect(lambda *_: view.viewport().update())
         self.clicked.connect(lambda day: self.picked.emit(day.toPython()))
+
+    def _even_out_the_week(self) -> None:
+        """Write every weekday in the same ink, and the column of names in a quieter one.
+
+        Qt paints Saturday and Sunday red, which on a dark window reads as an error rather
+        than a weekend and collides with the red the conflicts pane uses. Camp runs seven
+        days a week anyway: it is the shading that says which days are camp days.
+        """
+        day = QTextCharFormat()
+        day.setForeground(TEXT)
+        for weekday in Qt.DayOfWeek:
+            self.setWeekdayTextFormat(weekday, day)
+        heading = QTextCharFormat()
+        heading.setForeground(QUIET)
+        self.setHeaderTextFormat(heading)
 
     def show_dataset(self, dataset: Dataset | None) -> None:
         """Shade the dates on the Calendar sheet and label their weeks.
@@ -71,7 +89,7 @@ class SessionCalendar(QCalendarWidget):
         self.days = {d: (day.session, day.week) for d, day in dataset.calendar.items()}
         camp_day = QTextCharFormat()
         camp_day.setBackground(CAMP_DAY)
-        camp_day.setForeground(INK)  # the shading is a light one, so say what to write on it
+        camp_day.setForeground(INK)  # a cell with a colour of its own says what to write on it
         for day in dataset.calendar:
             self.setDateTextFormat(QDate(day), camp_day)
         self.setSelectedDate(QDate(dataset.target))

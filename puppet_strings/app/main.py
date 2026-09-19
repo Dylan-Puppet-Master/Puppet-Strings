@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from puppet_strings.app import palette
 from puppet_strings.app.busy import BusyDialog
 from puppet_strings.app.calendar_pane import SessionCalendar
 from puppet_strings.app.configure import ConfigureDialog
@@ -56,6 +57,7 @@ def run_app(config: Config, fixtures: Path | None) -> int:
     window does: there is nothing to show until there is an account to read the sheets as.
     """
     app = QApplication.instance() or QApplication(sys.argv)
+    palette.apply(app)  # the window is a dark one whatever the desktop theme is
     if fixtures:
         store = RequestStore(CsvSource(fixtures), config)
     else:

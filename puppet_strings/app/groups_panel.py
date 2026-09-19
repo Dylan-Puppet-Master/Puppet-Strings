@@ -1,6 +1,7 @@
 """The groups pane: switch between groups of requests, and make new ones."""
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
@@ -12,6 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from puppet_strings.app import palette
 from puppet_strings.app.groups import ALL, DEFAULT_GROUPS, UNGROUPED
 from puppet_strings.app.store import RequestStore
 
@@ -70,7 +72,7 @@ class GroupsPane(QWidget):
         item = QListWidgetItem(f"{name}  ({count})")
         item.setData(Qt.UserRole, name)
         if name in (ALL, UNGROUPED):
-            item.setForeground(Qt.darkGray)
+            item.setForeground(QColor(palette.QUIET))
         self.list.addItem(item)
 
     def _row_of(self, name: str) -> int:
