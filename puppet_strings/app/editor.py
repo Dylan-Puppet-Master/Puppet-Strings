@@ -263,7 +263,8 @@ class RequestEditor(QWidget):
             chosen = special_tab(self.dataset.this_span)
         self.home_box.blockSignals(True)
         self.home_box.clear()
-        self.home_box.addItems([t for t in tabs if t != chosen] + ([chosen] if chosen else []))
+        extra = [chosen] if chosen and chosen not in tabs else []
+        self.home_box.addItems(list(tabs) + extra)
         self.home_box.setCurrentText(chosen)
         self.home_box.blockSignals(False)
 

@@ -966,3 +966,20 @@ def test_every_shading_is_a_dark_one_that_ink_reads_on(app):
         assert QColor(shading).lightness() < ink / 2
     palette.apply(app)
     assert app.palette().color(QPalette.Window).lightness() < 128
+
+
+def test_the_editor_keeps_a_request_on_its_own_tab(window):
+    """The tab a request is on is when it applies, so editing one must not move it."""
+    editor = window.editor
+    editor.show_request(window.model.request("breaks"))
+    assert editor.home_box.currentText() == "Season Requests"
+    assert [editor.home_box.itemText(i) for i in range(editor.home_box.count())] == [
+        "Season Requests",
+        "S1 Clinics",
+        "S1 Special",
+    ]
+    editor.save_button.click()
+    season = window.store.source.read("requests", "Season Requests")
+    assert any(row[0] == "breaks" for row in season)  # written back where it was
+    editor.clear()
+    assert editor.home_box.currentText() == "S1 Special"  # a new one is this session's
