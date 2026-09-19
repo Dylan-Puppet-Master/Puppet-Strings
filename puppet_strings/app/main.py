@@ -77,6 +77,32 @@ class LoadWorker(QThread):
         self.done.emit()
 
 
+class Worker(QThread):
+    """Runs one job off the UI thread, so the window keeps painting while it runs.
+
+    A job that blocks the UI thread leaves the progress panel unpainted and its bar
+    frozen, which looks like a hung window rather than a busy one.
+    """
+
+    done = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, job) -> None:
+        super().__init__()
+        self.job = job
+
+    def run(self) -> None:
+        """Do the job and report what it returned, or the error text."""
+        try:
+            result = self.job()
+        except LoadError as e:
+            self.failed.emit(str(e))
+        except Exception:  # noqa: BLE001 - shown to the user, never swallowed
+            self.failed.emit(traceback.format_exc())
+        else:
+            self.done.emit(result)
+
+
 class SolveWorker(QThread):
     """Runs the solver off the UI thread. The solver is imported on first use, not at startup."""
 
@@ -117,6 +143,7 @@ class MainWindow(QMainWindow):
         self.busy: BusyDialog | None = None
         self.progress: BusyDialog | None = None  # for work that cannot be cancelled
         self.loader: LoadWorker | None = None
+        self.offerings: Worker | None = None
         self.reload_requested = False
         self.setWindowTitle("Puppet Strings")
         self.resize(1300, 800)
@@ -429,16 +456,38 @@ class MainWindow(QMainWindow):
             self.reload()  # standing feeds eligibility, so read everything again
 
     def load_offerings(self) -> None:
-        """Add the Offerings tab's clinics to the Requests sheet as generated requests."""
-        if self.store.dataset is None:
+        """Add the Offerings tab's clinics to the Requests sheet, in the background.
+
+        The write goes out to the sheet, so it runs on a worker like the other slow jobs:
+        on the UI thread the progress panel would sit there unpainted until it finished.
+        """
+        if self.store.dataset is None or self.offerings is not None:
             return
         self.start_progress(f"Loading the offerings for {self.target}…")
-        try:
-            count = self.store.load_offerings()
-        finally:
-            self.end_progress()
+        self.offerings = Worker(self.store.load_offerings)
+        self.offerings.done.connect(self._offerings_loaded)
+        self.offerings.failed.connect(self._offerings_failed)
+        self.offerings.finished.connect(self._offerings_finished)
+        self.offerings.start()
+
+    def wait_for_offerings(self) -> None:
+        """Block until the offerings have been written (used by tests)."""
+        while self.offerings is not None:
+            self.offerings.wait()
+            QApplication.processEvents()
+
+    def _offerings_loaded(self, count: int) -> None:
+        self.end_progress()
         self._requests_changed()
         self.status_label.setText(f"  Loaded {count} offerings for {self.target}")
+
+    def _offerings_failed(self, message: str) -> None:
+        self.end_progress()
+        self.status_label.setText("")
+        QMessageBox.critical(self, "Could not load the offerings", message)
+
+    def _offerings_finished(self) -> None:
+        self.offerings = None
 
     def insert_date(self, day: date) -> None:
         """Put a clicked calendar date into the Skedge editor at the cursor."""

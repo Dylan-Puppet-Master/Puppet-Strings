@@ -256,12 +256,14 @@ def test_load_offerings_mirrors_the_offerings_tab(window):
 
     before = window.model.rowCount()
     window.load_offerings()
+    window.wait_for_offerings()
     assert window.model.rowCount() == before
     assert "Loaded 24 offerings" in window.status_label.text()
     # a clinic removed from the Offerings tab disappears on the next load
     trimmed = [o for o in window.store.dataset.offerings if o.activity != "riflery"]
     window.store.dataset = replace(window.store.dataset, offerings=tuple(trimmed))
     window.load_offerings()
+    window.wait_for_offerings()
     assert window.model.rowCount() == before - 1
     assert not [r for r in window.store.requests if "riflery" in r.id]
     generated = [r for r in window.store.requests if "generated" in r.tags]
@@ -300,6 +302,7 @@ def test_solve_uses_requests_saved_since_the_last_reload(app, tmp_path):
     window = make_window(copy)
     assert not window.store.offerings_loaded
     window.load_offerings()  # no Reload in between
+    window.wait_for_offerings()
     assert window.store.offerings_loaded
     results = []
     window.run_solve()
@@ -799,12 +802,37 @@ def test_a_panel_that_cannot_be_cancelled_ignores_escape(window):
     window.wait_for_load()
 
 
-def test_loading_offerings_puts_up_a_panel(window):
-    seen = []
-    original = window.store.load_offerings
-    monkey = lambda: (seen.append(window.progress.label.text()), original())[1]  # noqa: E731
-    window.store.load_offerings = monkey
+def test_loading_offerings_puts_up_a_panel_and_keeps_the_window_painting(window):
+    """The panel goes up before the work starts, and the work runs off the UI thread."""
     window.load_offerings()
-    assert seen == ["Loading the offerings for 2026-09-16…"]
-    assert window.progress is None
+    assert window.progress is not None  # up while the sheet is being written
+    assert window.progress.label.text() == "Loading the offerings for 2026-09-16…"
+    assert not window.progress.cancel_button.isVisible()
+    window.wait_for_offerings()
+    assert window.progress is None and window.offerings is None
     assert "Loaded 24 offerings" in window.status_label.text()
+
+
+def test_a_second_click_while_the_offerings_load_does_nothing(window):
+    window.load_offerings()
+    first = window.offerings
+    window.load_offerings()
+    assert window.offerings is first
+    window.wait_for_offerings()
+    assert "Loaded 24 offerings" in window.status_label.text()
+
+
+def test_an_offerings_load_that_fails_says_so(window, monkeypatch):
+    from puppet_strings.sheets.source import LoadError
+
+    shown = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda _w, _t, text: shown.append(text))
+
+    def refuse():
+        raise LoadError("Offerings: no tab")
+
+    monkeypatch.setattr(window.store, "load_offerings", refuse)
+    window.load_offerings()
+    window.wait_for_offerings()
+    assert shown == ["Offerings: no tab"]
+    assert window.progress is None

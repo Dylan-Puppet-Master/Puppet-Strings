@@ -9,7 +9,8 @@ puppet-strings app
 **Toolbar.** Pick the target date (tomorrow by default). **Reload** reads every sheet again.
 Reading the sheets and loading the offerings both put up a progress panel, the one the
 solver uses, without a Cancel button: neither can usefully be stopped part-way, but both
-take long enough over Google Sheets to be worth saying so.
+take long enough over Google Sheets to be worth saying so. Both run off the window's own
+thread, so the panel keeps painting and the window stays alive while they work.
 **Load offerings** turns the Offerings tab into one `CLINIC` request per offered clinic,
 tagged `generated`, and saves them to the Requests sheet. Loading first removes every
 generated request for the target date, so the sheet mirrors the Offerings tab: a clinic
