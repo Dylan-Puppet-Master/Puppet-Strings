@@ -17,7 +17,13 @@ from puppet_strings.sheets.skills import (
     parse_skills,
     trainers,
 )
-from puppet_strings.sheets.source import LoadError, parse_time
+from puppet_strings.sheets.source import (
+    DAY_FIRST,
+    MONTH_FIRST,
+    LoadError,
+    parse_date,
+    parse_time,
+)
 
 _KNOWN = {"canoe": "Canoe"}  # skills the Skills tab of a hand-built table has columns for
 
@@ -421,3 +427,67 @@ def test_the_solvers_own_priority_cannot_be_written_on_the_sheet():
     with pytest.raises(LoadError, match="STABILITY is the solver's own"):
         parse_requests([header, row])
     assert parse_requests([header, [*row[:3], "HIGH", *row[4:]]])[0].priority.value == "HIGH"
+
+
+@pytest.mark.parametrize(
+    ("written", "expected"),
+    [
+        ("2026-06-14", date(2026, 6, 14)),  # what the sheet holds underneath
+        ("2026/06/14", date(2026, 6, 14)),
+        ("6/14/2026", date(2026, 6, 14)),  # a date column in a sheet set to the US
+        ("06/14/2026", date(2026, 6, 14)),
+        ("6/14/26", date(2026, 6, 14)),
+        ("14/6/2026", date(2026, 6, 14)),  # day first, and unambiguous, so it is read so
+        ("14 Jun 2026", date(2026, 6, 14)),
+        ("14 June 2026", date(2026, 6, 14)),
+        ("June 14, 2026", date(2026, 6, 14)),
+        ("Sunday, June 14, 2026", date(2026, 6, 14)),
+        ("14-Jun-2026", date(2026, 6, 14)),
+        ("6/14/2026 0:00:00", date(2026, 6, 14)),  # a date cell carrying a midnight
+        ("6/14/2026 12:00 AM", date(2026, 6, 14)),
+        ("46187", date(2026, 6, 14)),  # an unformatted date cell, as its serial number
+        ("  2026-06-14  ", date(2026, 6, 14)),
+    ],
+)
+def test_a_date_is_read_however_the_sheet_writes_it(written, expected):
+    assert parse_date(written, "Calendar") == expected
+
+
+def test_an_ambiguous_numeric_date_follows_the_declared_order():
+    """6/7/2026 is two different days, and only the sheet's own locale says which."""
+    assert parse_date("6/7/2026", "Calendar", MONTH_FIRST) == date(2026, 6, 7)
+    assert parse_date("6/7/2026", "Calendar", DAY_FIRST) == date(2026, 7, 6)
+    # one that cannot be read both ways is read the same whichever order is declared
+    for order in (MONTH_FIRST, DAY_FIRST):
+        assert parse_date("14/6/2026", "Calendar", order) == date(2026, 6, 14)
+
+
+@pytest.mark.parametrize(
+    "written", ["", "   ", "the fourteenth", "2026-13-01", "6/31/2026", "20260614", "0"]
+)
+def test_a_date_that_is_not_a_date_says_so(written):
+    with pytest.raises(LoadError, match="Calendar"):
+        parse_date(written, "Calendar")
+
+
+def test_a_calendar_formatted_as_dates_loads():
+    """A Calendar whose date columns are real date cells, displayed as the sheet shows them."""
+    table = [
+        ["name", "start date", "end date", "program type"],
+        ["Session 1", "6/14/2026", "6/27/2026", "main season"],
+        ["Family Camp", "September 1, 2026", "September 5, 2026", "other"],
+    ]
+    first, other = parse_calendar(table)
+    assert (first.start, first.end) == (date(2026, 6, 14), date(2026, 6, 27))
+    assert (other.start, other.end) == (date(2026, 9, 1), date(2026, 9, 5))
+
+
+def test_the_date_order_setting_is_checked(tmp_path):
+    from puppet_strings.config import load_config
+
+    path = tmp_path / "config.toml"
+    path.write_text('[day]\ndate_order = "ymd"\n')
+    with pytest.raises(ValueError, match="date_order must be one of"):
+        load_config(path)
+    path.write_text('[day]\ndate_order = "dmy"\n')
+    assert load_config(path).date_order == "dmy"

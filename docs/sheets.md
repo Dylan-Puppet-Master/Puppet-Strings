@@ -182,7 +182,7 @@ not fourteen.
 | Column | Meaning |
 |---|---|
 | `name` | What the span is called. A `main season` row is reached by its number rather than this name, but the name still has to be there and has to be unique. |
-| `start date`, `end date` | `YYYY-MM-DD`, both included. Two rows may not cover the same day. |
+| `start date`, `end date` | Both included. Two rows may not cover the same day. Format the column as a date and write it however you like — see below. |
 | `program type` | `main season` or `other`, matched against each block's `program_type`. |
 
 Example:
@@ -197,6 +197,16 @@ Example:
 Skedge: the first is `dates.session.one.all`, the second `dates.session.two.all`. Anything
 else is reached by its name, as `dates.other.family_camp.all`. Inserting a main season row
 renumbers the ones after it, so a request naming `dates.session.four` follows the sheet.
+
+**Dates may be written however the sheet shows them.** Google Sheets hands the program a
+date cell as whatever it *displays*, so a column formatted as a date arrives as
+`6/14/2026`, `14 June 2026` or `Sunday, June 14, 2026` depending on the sheet's locale and
+format. All of those are read, as is plain `2026-06-14` typed as text, and an unformatted
+cell's serial number. The one thing that cannot be worked out is a numeric date whose first
+two parts are both twelve or less: `6/7/2026` is the 7th of June on a sheet set to the
+United States and the 6th of July on most others. That is what `date_order` in
+`config.toml` is for — `mdy` by default, `dmy` for the rest of the world — and it is only
+consulted for dates that could be read both ways.
 
 **Weeks are not written down.** A span's week 1 is its first seven days, week 2 the next
 seven, and so on, with a short week at the end if it does not divide evenly. A row that

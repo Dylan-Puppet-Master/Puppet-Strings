@@ -7,7 +7,7 @@ from datetime import time
 from pathlib import Path
 
 from puppet_strings.settings import load_settings
-from puppet_strings.sheets.source import parse_time
+from puppet_strings.sheets.source import DATE_ORDERS, MONTH_FIRST, parse_time
 
 DEFAULT_PATH = Path("~/.config/puppet_strings/config.toml")
 DEFAULT_TOKEN = Path("~/.config/puppet_strings/token.json")
@@ -45,6 +45,7 @@ class Config:
     client_secrets: Path = DEFAULT_CLIENT  # the OAuth client to sign in with
     token: Path = DEFAULT_TOKEN  # where the signed-in account is remembered
     midday: time = time(12, 0)
+    date_order: str = MONTH_FIRST  # how to read 6/7/2026 on a sheet that writes dates so
     remainder: str = DEFAULT_REMAINDER
     time_limit_seconds: float = 30.0
     tidy_seconds: float = 2.0
@@ -66,6 +67,7 @@ def load_config(path: Path | None = None) -> Config:
     data = tomllib.loads(path.read_text())
     solver = data.get("solver", {})
     auth = data.get("auth", {})
+    day = data.get("day", {})
     return Config(
         sheets={**data.get("sheets", {}), **chosen.ids("sheets")},
         folders={**data.get("folders", {}), **chosen.ids("folders")},
@@ -73,10 +75,18 @@ def load_config(path: Path | None = None) -> Config:
         credentials=Path(auth.get("credentials", Config.credentials)).expanduser(),
         client_secrets=Path(auth.get("client_secrets", Config.client_secrets)).expanduser(),
         token=Path(auth.get("token", Config.token)).expanduser(),
-        midday=parse_time(data.get("day", {}).get("midday", "12:00"), str(path)),
+        midday=parse_time(day.get("midday", "12:00"), str(path)),
+        date_order=_date_order(day.get("date_order", MONTH_FIRST), str(path)),
         remainder=data.get("views", {}).get("remainder", DEFAULT_REMAINDER),
         time_limit_seconds=solver.get("time_limit_seconds", Config.time_limit_seconds),
         tidy_seconds=solver.get("tidy_seconds", Config.tidy_seconds),
         workers=solver.get("workers", Config.workers),
         random_seed=solver.get("random_seed", Config.random_seed),
     )
+
+
+def _date_order(value: str, where: str) -> str:
+    """Which way round a numeric date is written, checked so a typo is not a silent month."""
+    if value not in DATE_ORDERS:
+        raise ValueError(f"{where}: date_order must be one of {', '.join(DATE_ORDERS)}")
+    return value

@@ -97,6 +97,7 @@ remainder = "DYOW/WPs"    # label for the unused part of a partly used block
 
 [day]
 midday = "12:00"          # where morning ends, for a half-day rest; 12:00 or 12 PM
+date_order = "mdy"        # how to read 6/7/2026 on the Calendar: "mdy" or "dmy"
 ```
 
 A `[sheets]` table of spreadsheet ids still works, for an install made before the

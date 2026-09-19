@@ -20,13 +20,24 @@ from puppet_strings.model import (
     Span,
 )
 from puppet_strings.names import normalize
-from puppet_strings.sheets.source import LoadError, Table, header_rows
+from puppet_strings.sheets.source import (
+    MONTH_FIRST,
+    LoadError,
+    Table,
+    header_rows,
+    parse_date,
+)
 
 COLUMNS = ("name", "start date", "end date", "program type")
 
 
-def parse_calendar(table: Table) -> tuple[Span, ...]:
-    """The Calendar sheet's spans, in sheet order."""
+def parse_calendar(table: Table, order: str = MONTH_FIRST) -> tuple[Span, ...]:
+    """The Calendar sheet's spans, in sheet order.
+
+    `order` is how to read a numeric date whose day and month could be either way round;
+    see `source.parse_date`. A column formatted as a date in Google Sheets reads back as
+    whatever it displays, so this is the one thing about it that has to be declared.
+    """
     where = "Calendar"
     rows = header_rows(table, COLUMNS, where)
     spans: list[Span] = []
@@ -39,8 +50,8 @@ def parse_calendar(table: Table) -> tuple[Span, ...]:
         if program not in PROGRAM_TYPES:
             allowed = ", ".join(p.replace("_", " ") for p in PROGRAM_TYPES)
             raise LoadError(f"{cell}: program type must be one of {allowed}")
-        start = parse_date(row["start date"], f"{cell}: start date")
-        end = parse_date(row["end date"], f"{cell}: end date")
+        start = parse_date(row["start date"], f"{cell}: start date", order)
+        end = parse_date(row["end date"], f"{cell}: end date", order)
         if end < start:
             raise LoadError(f"{cell}: end date {end} is before start date {start}")
         if program == MAIN_SEASON:
@@ -66,14 +77,6 @@ def calendar_days(spans: tuple[Span, ...]) -> dict[date, CalendarDay]:
         for day in span.dates:
             days[day] = span.day(day)
     return dict(sorted(days.items()))
-
-
-def parse_date(text: str, where: str) -> date:
-    """An ISO date cell."""
-    try:
-        return date.fromisoformat(text)
-    except ValueError as e:
-        raise LoadError(f"{where}: date '{text}' must be YYYY-MM-DD") from e
 
 
 def _check(spans: list[Span], where: str) -> None:

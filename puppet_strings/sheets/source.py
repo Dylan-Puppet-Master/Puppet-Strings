@@ -8,7 +8,7 @@ import csv
 import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime, time
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Protocol
 
@@ -311,6 +311,100 @@ def parse_time(text: str, where: str) -> time:
         except ValueError:
             continue
     raise LoadError(f"{where}: time '{text}' must look like 8:30, 08:30 or 8:30 AM")
+
+
+# How a date may be written. A Google Sheets cell formatted as a date is read back as
+# whatever it *displays*, which depends on the sheet's locale and the format chosen, so a
+# column of real dates arrives as "6/14/2026", "14 Jun 2026" or "Sunday, June 14, 2026"
+# rather than the ISO the sheet holds underneath.
+DATE_FORMATS = (
+    "%Y-%m-%d",
+    "%Y/%m/%d",
+    "%d %b %Y",
+    "%d %B %Y",
+    "%b %d %Y",
+    "%B %d %Y",
+    "%d-%b-%Y",
+    "%d-%B-%Y",
+    "%a %b %d %Y",
+    "%A %B %d %Y",
+)
+
+MONTH_FIRST = "mdy"  # 6/14/2026 is 14 June, as a sheet in the United States writes it
+DAY_FIRST = "dmy"  # 14/6/2026 is 14 June, as most of the rest of the world writes it
+DATE_ORDERS = (MONTH_FIRST, DAY_FIRST)
+
+# A date cell may carry a time it does not need; "6/14/2026 0:00:00" is still a date.
+_TIME_TAIL = re.compile(r"[ \t]+\d{1,2}:\d{2}(:\d{2})?([ \t]*[AaPp]\.?[Mm]\.?)?$")
+_PUNCTUATION = re.compile(r"[,.]")
+_NUMERIC = re.compile(r"^(\d{1,4})[/\-.](\d{1,2})[/\-.](\d{1,4})$")
+
+# Google Sheets counts days from 1899-12-30, which is what an unformatted date cell holds.
+SHEETS_EPOCH = date(1899, 12, 30)
+MAX_SERIAL = 2958465  # 9999-12-31, past which a bare number is not a date
+
+
+def parse_date(text: str, where: str, order: str = MONTH_FIRST) -> date:
+    """A date cell, however the sheet happens to write it.
+
+    `order` decides the one case nothing else can: a numeric date whose first two parts are
+    both twelve or less, where 6/7/2026 is the sixth of July in one country and the seventh
+    of June in another. Every other spelling says which it is and is read whatever `order`
+    says.
+    """
+    cleaned = _TIME_TAIL.sub("", text.strip())
+    if not cleaned:
+        raise LoadError(f"{where}: no date")
+    serial = _serial(cleaned)
+    if serial is not None:
+        return serial
+    numeric = _numeric_date(cleaned, order, where)
+    if numeric is not None:
+        return numeric
+    plain = " ".join(_PUNCTUATION.sub(" ", cleaned).split())
+    for pattern in DATE_FORMATS:
+        try:
+            return datetime.strptime(plain, pattern).date()
+        except ValueError:
+            continue
+    raise LoadError(
+        f"{where}: date '{text}' must be YYYY-MM-DD, or a date the sheet is formatting, "
+        "such as 6/14/2026 or 14 June 2026"
+    )
+
+
+def _serial(text: str) -> date | None:
+    """A Google Sheets date serial, which is what an unformatted date cell reads back as."""
+    if not text.isdigit():
+        return None
+    number = int(text)
+    if not 1 <= number <= MAX_SERIAL:
+        return None
+    return SHEETS_EPOCH + timedelta(days=number)
+
+
+def _numeric_date(text: str, order: str, where: str) -> date | None:
+    """A date written in numbers, or None if it is not written that way at all."""
+    match = _NUMERIC.match(text)
+    if not match:
+        return None
+    first, second, third = (int(part) for part in match.groups())
+    if len(match.group(1)) == 4:  # 2026/06/14, which says what it is
+        return _date(first, second, third, where, text)
+    year = third if len(match.group(3)) == 4 else 2000 + third
+    if first > 12:  # 14/6/2026 can only be day first
+        return _date(year, second, first, where, text)
+    if second > 12:  # 6/14/2026 can only be month first
+        return _date(year, first, second, where, text)
+    month, day = (first, second) if order == MONTH_FIRST else (second, first)
+    return _date(year, month, day, where, text)
+
+
+def _date(year: int, month: int, day: int, where: str, text: str) -> date:
+    try:
+        return date(year, month, day)
+    except ValueError as e:
+        raise LoadError(f"{where}: date '{text}' is not a real date") from e
 
 
 def split_list(value: str) -> list[str]:

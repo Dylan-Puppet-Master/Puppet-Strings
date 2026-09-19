@@ -63,7 +63,7 @@ def _build(source: Source, config: Config, target: date, tabs, warnings: list[st
     blocks = parse_blocks(config_tables[tabs["blocks"]])
     categories = {c for b in blocks.values() for c in b.categories} - {ALL_BLOCKS}
     _reserve("block", categories, (ALL_BLOCKS, *blocks))
-    spans = parse_calendar(config_tables[tabs["calendar"]])
+    spans = parse_calendar(config_tables[tabs["calendar"]], config.date_order)
     calendar = calendar_days(spans)
     if target not in calendar:
         raise LoadError(f"Calendar: {target} is not a camp day")

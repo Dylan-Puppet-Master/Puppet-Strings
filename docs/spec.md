@@ -194,7 +194,9 @@ without naming any of them.
 ### 5.1 Dates
 
 Date names are nested spans. A **span** is one row of the Calendar sheet: a run of days
-from its `start date` to its `end date`, running one `program type`. Every span carries the
+from its `start date` to its `end date`, running one `program type`. A date cell is read
+however the sheet displays it; a numeric date that could be read both ways follows
+`date_order` in `config.toml`. Every span carries the
 same names, and a span's weeks are its days seven at a time from the start.
 
 | Span | Kind | Covers |
