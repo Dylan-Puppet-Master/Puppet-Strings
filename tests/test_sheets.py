@@ -10,6 +10,7 @@ from puppet_strings.sheets.clinic_data import parse_clinics
 from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import assignment_rows, parse_published
 from puppet_strings.sheets.requests import (
+    COLUMNS,
     parse_request_tabs,
     parse_requests,
     request_rows,
@@ -597,3 +598,30 @@ def test_somebody_in_no_category_is_away(fixtures_copy):
     assert loaded.staff["alan"].resting_blocks == {b.id for b in loaded.blocks_on(loaded.target)}
     assert not loaded.holds("alan", loaded.target, "clinic_1")
     assert any("in no category this span, so they are away" in w for w in loaded.warnings)
+
+
+def test_split_requests_reads_an_id_for_the_tab_it_belongs_on(tmp_path):
+    """The old tab's ids say where each row goes: a date, a span's name, or neither."""
+    import shutil
+
+    from puppet_strings.sheets.requests import split_requests
+    from puppet_strings.sheets.source import CsvSource
+    from tests.conftest import FIXTURES
+
+    copy = tmp_path / "fixtures"
+    shutil.copytree(FIXTURES, copy)
+    source = CsvSource(copy)
+    spans = parse_calendar(source.read("config", "Calendar"))
+    rows = [
+        list(COLUMNS),
+        ["offering:2026-09-30:riflery:clinic_1", "", "REQUEST staff.dylan", "CLINIC", "", "", ""],
+        ["session_2-7", "", "REQUEST staff.dylan", "HIGH", "1", "", ""],
+        ["breaks", "", "REQUEST staff.dylan", "HIGH", "1", "", ""],
+    ]
+    source.write("config", "Requests", rows)
+    assert split_requests(source, "root", "Requests", spans, 2026) == {
+        "Season Requests": 1,  # nothing in the id says a span, so every load reads it
+        "S2 Clinics": 1,  # 2026-09-30 is in session 2
+        "S2 Special": 1,  # the id starts with that span's own id
+    }
+    assert [r[0] for r in source.read("requests", "S2 Special")][1:] == ["session_2-7"]

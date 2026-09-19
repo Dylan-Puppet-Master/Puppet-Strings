@@ -179,14 +179,42 @@ def write_requests(source: Source, requests: tuple[Request, ...], held: set[str]
 _GENERATED_ID = re.compile(r"^offering:(\d{4}-\d{2}-\d{2}):")
 
 
+def _split_to(request: Request, by_date: dict, spans) -> str:
+    """Which tab `split_requests` puts one old row on."""
+    generated = _GENERATED_ID.match(request.id)
+    if generated is not None:
+        span = by_date.get(date.fromisoformat(generated.group(1)))
+        if span is not None:
+            return clinics_tab(span)
+    named = _span_named(request.id, spans)
+    return special_tab(named) if named is not None else SEASON_TAB
+
+
+def _span_named(request_id: str, spans):
+    """The span an id begins with, longest first so `session_1` cannot beat `session_1_b`.
+
+    The id has to stop there or carry on with `-` or `_`, or `session_1` would claim
+    `session_10` as well.
+    """
+    for span in sorted(spans, key=lambda s: len(s.id), reverse=True):
+        rest = request_id[len(span.id) :]
+        if request_id.startswith(span.id) and (not rest or rest[0] in "-_"):
+            return span
+    return None
+
+
 def split_requests(source: Source, root: str, legacy: str, spans, year: int) -> dict[str, int]:
     """Make the Requests spreadsheet out of the old tab. Returns rows written per tab.
 
-    A generated request goes to the Clinics tab of the span holding the date in its id.
-    Everything else goes to Season Requests, which every load reads: a hand-written request
-    put on the wrong session's tab would quietly stop applying, and nobody would see it go.
-    Moving one to a session's Special tab afterwards is a cut and paste, and the app writes
-    new ones there itself.
+    An id says where its request goes, in one of two ways. A generated one names the date
+    it was made for — `offering:2026-07-08:archery_1_2:clinic_1` — and goes to the Clinics
+    tab of the span that date falls in. One that starts with a span's own id — `session_4_b-200`,
+    where `_b` is the span's second week — goes to that span's Special tab.
+
+    Anything else goes to Season Requests, which every load reads. That is the safe way to
+    be unsure: a request put on the wrong session's tab would quietly stop applying and
+    nobody would see it go, while one left on the season's tab is only read more often than
+    it needs to be. Moving it to a session afterwards is a cut and paste.
 
     The Config sheet's old tab is left exactly as it was, so this can be run twice, and a
     season that turns out to have been split wrong can be split again.
@@ -195,10 +223,7 @@ def split_requests(source: Source, root: str, legacy: str, spans, year: int) -> 
     requests = parse_requests(source.read("config", legacy), legacy)
     by_tab: dict[str, list[Request]] = {SEASON_TAB: []}
     for request in requests:
-        match = _GENERATED_ID.match(request.id)
-        span = by_date.get(date.fromisoformat(match.group(1))) if match else None
-        tab = clinics_tab(span) if span is not None else SEASON_TAB
-        by_tab.setdefault(tab, []).append(request)
+        by_tab.setdefault(_split_to(request, by_date, spans), []).append(request)
     source.name(REQUESTS_SHEET, source.create(root, (str(year),), REQUESTS_TITLE, [SEASON_TAB]))
     for tab, rows in by_tab.items():
         source.write(REQUESTS_SHEET, tab, request_rows(tuple(rows)))
