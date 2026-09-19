@@ -670,6 +670,16 @@ def test_calendar_labels_weeks_with_their_session(window):
     assert calendar.week_of_row(3) == (None, None)
 
 
+def test_the_calendar_starts_its_weeks_where_camp_does(window):
+    """Qt begins the week wherever the machine says; a row has to be one week of a span."""
+    from PySide6.QtCore import Qt
+
+    window.calendar.setFirstDayOfWeek(Qt.Monday)  # what a Monday-first locale hands it
+    window.calendar.show_dataset(window.store.dataset)
+    assert window.calendar.firstDayOfWeek() == Qt.Sunday  # session 1 starts Sunday 2026-09-13
+    assert window.calendar.row_start(3).toString("yyyy-MM-dd") == "2026-09-13"
+
+
 def test_the_calendar_is_numbered_even_when_the_load_fails(app, fixtures_copy, monkeypatch):
     """The Calendar sheet says which week of which session a date is; nothing else does."""
     monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: None)

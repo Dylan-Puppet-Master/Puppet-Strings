@@ -22,6 +22,14 @@ INK = QColor(palette.INK)  # a shaded cell needs its own text colour; the palett
 ROWS = range(1, 7)  # row 0 of the grid holds the weekday names
 
 
+def _span_start(calendar: dict, target: date | None) -> date | None:
+    """The first day of the span the target falls in, or of the earliest span there is."""
+    if not calendar:
+        return None
+    span = calendar[target].span if target in calendar else calendar[min(calendar)].span
+    return min((d for d, day in calendar.items() if day.span == span), default=None)
+
+
 class WeekLabel(QStyledItemDelegate):
     """Paints `S<session>` over `W<week>` in the calendar's left-hand column."""
 
@@ -96,6 +104,7 @@ class SessionCalendar(QCalendarWidget):
         """
         self.setDateTextFormat(QDate(), QTextCharFormat())  # clear old marks
         self.days = {d: (day.session, day.week) for d, day in calendar.items()}
+        self._start_weeks_where_camp_does(calendar, target)
         camp_day = QTextCharFormat()
         camp_day.setBackground(CAMP_DAY)
         camp_day.setForeground(INK)  # a cell with a colour of its own says what to write on it
@@ -105,6 +114,21 @@ class SessionCalendar(QCalendarWidget):
             self.setSelectedDate(QDate(target))
             self.setCurrentPage(target.year, target.month)
         self.view.viewport().update()
+
+    def _start_weeks_where_camp_does(self, calendar: dict, target: date | None) -> None:
+        """Begin each grid row on the weekday the span being looked at begins on.
+
+        A row is labelled with one session and week, so a row has to *be* one week of one
+        span. Left alone, Qt begins the week wherever the machine's locale says — Sunday
+        here, Monday on a great many others — and a grid whose rows straddle two camp weeks
+        has rows that are labelled right for six days out of seven.
+
+        Camp's own week is the one thing that settles it: a span runs seven days at a time
+        from its start date, so that start's weekday is where a row begins.
+        """
+        start = _span_start(calendar, target)
+        if start is not None:
+            self.setFirstDayOfWeek(Qt.DayOfWeek(start.weekday() + 1))  # Qt counts Monday as 1
 
     def week_of_row(self, row: int) -> tuple[int | None, int | None]:
         """The session and week the grid's row falls in, from its first camp day."""
