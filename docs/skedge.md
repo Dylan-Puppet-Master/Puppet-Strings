@@ -65,6 +65,10 @@ A name is either one thing or a set, and sets are always plural or collective
 A staff category holds only the people working on the day being scheduled. Someone resting
 all day is in no category, though their own name still works.
 
+`staff.all` is everyone the span's Staff Categories sheet names, not everyone on the Skills
+sheet. Skills keeps every person who has ever worked here; the Staff Categories sheet says
+who is here this span.
+
 There is no name for "anyone checked off on a skill". Asking for a skill is asking for
 somebody to do a thing that needs it, and the thing already says so: that is what an
 activity's positions are. See

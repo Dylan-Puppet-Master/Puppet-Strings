@@ -70,6 +70,13 @@ date being scheduled. A span with no `Staff Categories` spreadsheet is a load er
 the folder it looked in: loading with no categories at all would quietly drop every request
 that names one.
 
+**This sheet is also who is at camp.** `staff.all` is everyone it names, not everyone with a
+Skills row: the Skills sheet keeps every person who has ever worked here, including staff
+who have left and staff who come for one session. Somebody with a Skills row and no category
+is away that span, which is the same to the solver as resting all day — no category offers
+them and no position can be filled by them. Their name still resolves, so a request that
+names them is simply not met rather than an error, and the load says how many are away.
+
 ## Offerings (one per day, in the schedules tree)
 
 The grid you already fill in, now a tab of the day's own spreadsheet rather than one tab

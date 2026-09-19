@@ -558,3 +558,34 @@ def test_not_a_camp_day_is_still_a_load_error():
     from puppet_strings.sheets.source import NotACampDay
 
     assert issubclass(NotACampDay, LoadError)
+
+
+def test_staff_all_is_who_the_categories_sheet_names(dataset):
+    """The Skills sheet keeps everyone who ever worked here; the span says who is here now."""
+    assert dataset.staff_categories["all"] == set(dataset.staff)  # the fixture camp is whole
+
+
+def test_somebody_in_no_category_is_away(fixtures_copy):
+    import csv
+
+    from puppet_strings.config import Config
+    from puppet_strings.sheets.load import load_dataset
+    from puppet_strings.sheets.source import CsvSource
+
+    where = fixtures_copy / "root/2026/Main Season/Session 1/Staff Categories/Categories.csv"
+    rows = list(csv.reader(where.open(newline="")))
+    support = rows[0].index("support")
+    for row in rows[1:]:  # send everyone in `support` home, Alan among them
+        row[support] = ""
+    with where.open("w", newline="") as f:
+        csv.writer(f).writerows(rows)
+
+    config = Config(folders={"root": "root", "cabin_acts": "cabin_acts"})
+    loaded = load_dataset(CsvSource(fixtures_copy), config, date(2026, 9, 16))
+    assert "alan" in loaded.staff  # still a name, so a request naming him still resolves
+    assert "alan" not in loaded.staff_categories["all"]
+    assert "alan" not in loaded.staff_categories["clinic_trainers"]
+    # away is the same as resting all day, so no position can be filled by him
+    assert loaded.staff["alan"].resting_blocks == {b.id for b in loaded.blocks_on(loaded.target)}
+    assert not loaded.holds("alan", loaded.target, "clinic_1")
+    assert any("in no category this span, so they are away" in w for w in loaded.warnings)

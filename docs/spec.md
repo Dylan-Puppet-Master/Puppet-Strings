@@ -185,7 +185,9 @@ or a **set** (`staff.counselor`, `blocks.all`). Set names are plural or collecti
 no name that means "any one of": that is what `ANY_1_OF` is for.
 
 A staff category, and `staff.all`, hold only the people working on `dates.target`: someone
-resting all day is in no category, though their own name still resolves.
+resting all day is in no category, though their own name still resolves. `staff.all` is the
+union of the span's Staff Categories columns, not the Skills sheet's rows; a staff member in
+no category is away for that span and is treated as resting all day.
 
 A skill is not a name. What a skill may be asked for is a position on an activity, which
 carries the skill it needs, so `REQUEST <activity>` asks for people with those skills

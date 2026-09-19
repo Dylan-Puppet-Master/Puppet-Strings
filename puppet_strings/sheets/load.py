@@ -129,16 +129,34 @@ def _build(
             for i, a in today.items()
         },
     }
-    # someone resting the whole day is offered by no category, so nothing is asked of them
-    today_blocks = {b.id for b in blocks.values() if block_runs_on(b, calendar[target])}
-    working = frozenset(i for i, member in staff.items() if member.resting_blocks != today_blocks)
-
     span = next(s for s in spans if s.id == calendar[target].span)
     in_span = source.documents(ROOT, span_path(span))
     categories = parse_staff_categories(_categories_table(source, in_span, span), staff)
     _reserve("staff", categories, (ALL, CLINIC_TRAINERS, *staff))
-    named = {**categories, ALL: frozenset(staff), CLINIC_TRAINERS: trainers(staff)}
-    categories = named
+
+    # Who is at camp is what the span's Staff Categories sheet says, not who has a Skills
+    # row: the Skills sheet keeps everyone who ever worked here, including staff who have
+    # left and staff who only come for one session. Anybody it does not name is away, which
+    # is the same to the solver as resting all day -- no category offers them and no
+    # position can be filled by them.
+    today_blocks = {b.id for b in blocks.values() if block_runs_on(b, calendar[target])}
+    at_camp = frozenset().union(*categories.values()) if categories else frozenset(staff)
+    away = set(staff) - at_camp
+    staff = {
+        **staff,
+        **{i: replace(staff[i], resting_blocks=frozenset(today_blocks)) for i in away},
+    }
+    # `holds` asks the resting map rather than the staff member, so being away goes in both
+    for i in away:
+        resting.setdefault(target, {})[i] = frozenset(today_blocks)
+    if away:
+        warnings.append(
+            f"{len(away)} on the Skills sheet are in no category this span, so they are away"
+        )
+    # someone resting the whole day is offered by no category, so nothing is asked of them
+    working = frozenset(i for i, member in staff.items() if member.resting_blocks != today_blocks)
+    categories = {**categories, ALL: at_camp, CLINIC_TRAINERS: trainers(staff) & at_camp}
+    named = categories
     # a category never offers someone who is not working today
     staff_categories = {c: members & working for c, members in categories.items()}
     cabin_acts, cabin_warnings = cabin_act_activities(
