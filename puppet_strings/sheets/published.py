@@ -13,6 +13,26 @@ from puppet_strings.sheets.source import LoadError, Table, header_rows, parse_in
 COLUMNS = ("staff", "activity", "role", "block", "start", "minutes", "source")
 
 
+def _by_name(activities: Mapping[str, Activity], day: date) -> dict[str, str]:
+    """What each written activity name means on this date, the day's own meaning first.
+
+    A clinic's name is unique, but a cabin act's is its cabin and what it is doing — `M2 CA`
+    for one with no activity written — which is the same on every day that cabin runs one,
+    while its id carries the date. Reading a published day back by name alone would hand
+    every `M2 CA` in the season to whichever of them the dictionary happened to keep, and
+    the schedule a same-day change is held to would be about the wrong day.
+
+    An activity belonging to this day therefore wins the name. One belonging to no day is a
+    clinic, which any day may hold; one belonging to another day is a last resort, so a
+    board edited since the day was published still reads rather than failing the load.
+    """
+    names: dict[str, str] = {}
+    for activity in activities.values():
+        if activity.name not in names or activity.day == day:
+            names[activity.name] = activity.id
+    return names
+
+
 def parse_published(
     table: Table,
     day: date,
@@ -23,7 +43,7 @@ def parse_published(
     where = f"Published Schedules/{day.isoformat()}"
     rows = header_rows(table, COLUMNS, where)
     staff_ids = {s.name: s.id for s in staff.values()}
-    activity_ids = {a.name: a.id for a in activities.values()}
+    activity_ids = _by_name(activities, day)
     assignments = []
     for row in rows:
         cell = f"{where} row {row['staff']} / {row['activity']}"

@@ -678,3 +678,35 @@ def test_no_cabin_act_folder_is_no_cabin_acts_and_nothing_said(tmp_path):
     dataset = load_dataset(CsvSource(copy), CONFIG, TARGET)
     assert not any(a.category == "cabin_act" for a in dataset.activities.values())
     assert not any("cabin act" in w for w in dataset.warnings)
+
+
+def test_a_published_cabin_act_is_read_as_the_one_on_that_day():
+    """Two cabin acts share a name and differ by date, so the date has to break the tie."""
+    from datetime import date as _date
+
+    from puppet_strings.model import Activity, Staff
+    from puppet_strings.sheets.published import COLUMNS as PUBLISHED
+    from puppet_strings.sheets.published import parse_published
+
+    def act(day):
+        return Activity(
+            name="M2 CA",
+            id=f"cabin_act_m2_{day}",
+            category="cabin_act",
+            slots=0,
+            positions=(),
+            cabin="M2",
+            day=day,
+        )
+
+    monday, tuesday = _date(2026, 9, 14), _date(2026, 9, 15)
+    activities = {a.id: a for a in (act(monday), act(tuesday))}
+    staff = {"dylan": Staff(id="dylan", name="Dylan", ral=1, skills={})}
+    table = [
+        list(PUBLISHED),
+        ["Dylan", "M2 CA", "first", "cabin_act", "19:00", "60", "request"],
+    ]
+    (monday_row,) = parse_published(table, monday, staff, activities)
+    (tuesday_row,) = parse_published(table, tuesday, staff, activities)
+    assert monday_row.activity == f"cabin_act_m2_{monday}"
+    assert tuesday_row.activity == f"cabin_act_m2_{tuesday}"
