@@ -649,7 +649,9 @@ Recorded so the outline matches the code.
   positions the clinic wants are written down rather than implied by the structural
   constraints alone. `EACH_OF` gives each position its own choice of person and so its own
   copy; the copies cannot diverge, because filling one position of an instance fills them
-  all. The cost is that an unstaffable clinic is reported once per position.
+  all. A `Result` lists an outcome per copy (`<request id>[<key>]`); `publish.views.report`
+  collapses them to one row per request, keeping the failed copies' keys in the
+  description, so an unstaffable clinic is one row rather than one per position.
   Loading first removes the date's generated rows. The solver
   warns when no generated requests exist for the target date. Clinic instances come only
   from `TASK` statements; a `(DBL)` clinic asked for with `DURING ALL` of two blocks is

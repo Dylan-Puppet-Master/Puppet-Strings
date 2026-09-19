@@ -14,7 +14,7 @@ from puppet_strings.model import (
 )
 from puppet_strings.publish.palette import BLOCK_COLOURS, CATEGORY_COLOURS, colour
 from puppet_strings.sheets.source import Fill, Styled, Table
-from puppet_strings.solver.result import Result
+from puppet_strings.solver.result import RequestOutcome, Result
 
 AVAILABLE = "Available"
 FREE = "free"
@@ -227,7 +227,15 @@ def _timed(dataset: Dataset, a: Assignment) -> str:
 
 
 def report(result: Result) -> Table:
-    """Unsatisfied, deferred and inactive requests, conflicts, and the solver's notes."""
+    """Unsatisfied, deferred and inactive requests, conflicts, and the solver's notes.
+
+    One row per request, not per copy. `EACH_OF` splits a request into a copy per date,
+    per block or per clinic position, and a clinic nobody can staff fails every one of its
+    positions at once; three rows saying the same thing bury the rest of the report. The
+    `request` column names the request as the Requests sheet has it, so it can be looked
+    up, and the keys of the copies that failed follow the description, so a request that
+    failed on one Friday out of four still says which.
+    """
     rows: Table = [["status", "request", "priority", "description"]]
     listed = (
         ("unsatisfied", result.unsatisfied),
@@ -235,13 +243,65 @@ def report(result: Result) -> Table:
         ("inactive", result.inactive),
     )
     for status, outcomes in listed:
-        for outcome in outcomes:
-            rows.append([status, outcome.id, outcome.priority.value, outcome.description])
-    for request_id in result.conflicts:
-        rows.append(["conflict", request_id, "MUST_HAPPEN", "infeasible together"])
+        for outcome, keys in _per_request(outcomes):
+            rows.append(
+                [
+                    status,
+                    _request_of(outcome.id),
+                    outcome.priority.value,
+                    _and_keys(outcome.description, keys),
+                ]
+            )
+    for request_id, keys in _per_request_id(result.conflicts):
+        rows.append(["conflict", request_id, "MUST_HAPPEN", _and_keys("infeasible together", keys)])
     for note in result.notes:
         rows.append(["note", "", "", note])
     return rows
+
+
+def _per_request(
+    outcomes: tuple[RequestOutcome, ...],
+) -> list[tuple[RequestOutcome, list[str]]]:
+    """The outcomes one per request, in the order the requests first appear, with their keys."""
+    grouped: dict[str, tuple[RequestOutcome, list[str]]] = {}
+    for outcome in outcomes:
+        request_id, key = _split(outcome.id)
+        _, keys = grouped.setdefault(request_id, (outcome, []))
+        if key:
+            keys.append(key)
+    return list(grouped.values())
+
+
+def _per_request_id(ids: tuple[str, ...]) -> list[tuple[str, list[str]]]:
+    """The same, for conflicts, which are ids rather than outcomes."""
+    grouped: dict[str, list[str]] = {}
+    for copy_id in ids:
+        request_id, key = _split(copy_id)
+        keys = grouped.setdefault(request_id, [])
+        if key:
+            keys.append(key)
+    return list(grouped.items())
+
+
+def _split(copy_id: str) -> tuple[str, str]:
+    """A copy's id as the request it came from and the key of the copy, if it has one.
+
+    A copy is named `<request id>[<key>]`, and a key is the `EACH_OF` items that made it,
+    which can itself hold a comma: `weekly[2026-09-18, clinic_1]`.
+    """
+    if not copy_id.endswith("]") or "[" not in copy_id:
+        return copy_id, ""
+    request_id, key = copy_id[:-1].rsplit("[", 1)
+    return request_id, key
+
+
+def _request_of(copy_id: str) -> str:
+    return _split(copy_id)[0]
+
+
+def _and_keys(description: str, keys: list[str]) -> str:
+    """The description, then the copies it is about; `; ` because a key may hold a comma."""
+    return f"{description} ({'; '.join(keys)})" if keys else description
 
 
 def _label(block_id: str) -> str:

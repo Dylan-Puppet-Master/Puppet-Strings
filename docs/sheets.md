@@ -251,6 +251,9 @@ These tabs are overwritten on every publish:
     change a colour there and the next publish uses it. Colours are given out in sheet
     order and wrap round if a day ever has more clinic blocks, or Clinic_Data more
     categories, than the list has colours.
-- **Report**: unsatisfied and deferred requests, conflicts, and solver notes.
+- **Report**: unsatisfied and deferred requests, conflicts, and solver notes. One row per
+  request, not per `EACH_OF` copy: the `request` column is the id as the Requests sheet has
+  it, and where only some copies of a request went wrong, they are listed after the
+  description — `no break at lunch (2026-09-18)`.
 - **Changes**: what a same-day re-solve moved, written only when the day was already
   published. See [Same-day changes](same-day.md).

@@ -154,6 +154,49 @@ def test_report():
     ]
 
 
+def test_report_collapses_the_copies_of_one_request():
+    """A clinic nobody can staff fails every position at once: one row, not one each."""
+    clinic = "offering:2026-09-16:pole_course:clinic_1"
+    result = Result(
+        feasible=True,
+        unsatisfied=tuple(
+            RequestOutcome(f"{clinic}[{role}]", Priority.CLINIC, "Pole Course in clinic_1")
+            for role in ("first", "second", "third")
+        )
+        + (RequestOutcome("breaks", Priority.MEDIUM, "a break each"),),
+    )
+    assert report(result)[1:] == [
+        ["unsatisfied", clinic, "CLINIC", "Pole Course in clinic_1 (first; second; third)"],
+        ["unsatisfied", "breaks", "MEDIUM", "a break each"],
+    ]
+
+
+def test_report_says_which_copies_failed_when_only_some_did():
+    """Collapsing must not hide which Friday went wrong, so the keys follow the description."""
+    result = Result(
+        feasible=True,
+        unsatisfied=(RequestOutcome("fridays[2026-09-18]", Priority.HIGH, "no break at lunch"),),
+        deferred=(RequestOutcome("weekly[2026-09-18, clinic_1]", Priority.LOW, "tidy up"),),
+    )
+    assert report(result)[1:] == [
+        ["unsatisfied", "fridays", "HIGH", "no break at lunch (2026-09-18)"],
+        ["deferred", "weekly", "LOW", "tidy up (2026-09-18, clinic_1)"],
+    ]
+
+
+def test_report_leaves_an_id_that_only_looks_like_a_copy_alone():
+    result = Result(
+        feasible=True,
+        unsatisfied=(RequestOutcome("odd[name", Priority.LOW, "kept whole"),),
+        conflicts=("pin[dylan]", "pin[james]", "plain"),
+    )
+    assert report(result)[1:] == [
+        ["unsatisfied", "odd[name", "LOW", "kept whole"],
+        ["conflict", "pin", "MUST_HAPPEN", "infeasible together (dylan; james)"],
+        ["conflict", "plain", "MUST_HAPPEN", "infeasible together"],
+    ]
+
+
 def test_publish_round_trip(dataset, tmp_path):
     source = CsvSource(tmp_path)
     result = Result(feasible=True, assignments=rows(dataset))
