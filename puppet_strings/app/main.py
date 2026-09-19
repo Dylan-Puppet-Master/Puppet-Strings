@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
     QMessageBox,
+    QSizePolicy,
     QSplitter,
     QTableView,
     QToolBar,
@@ -27,6 +28,7 @@ from PySide6.QtWidgets import (
 
 from puppet_strings.app.busy import BusyDialog
 from puppet_strings.app.calendar_pane import SessionCalendar
+from puppet_strings.app.configure import ConfigureDialog
 from puppet_strings.app.conflicts import summary
 from puppet_strings.app.conflicts_panel import ConflictsPane
 from puppet_strings.app.editor import RequestEditor
@@ -38,19 +40,51 @@ from puppet_strings.app.requests_model import RequestFilter, RequestsModel
 from puppet_strings.app.same_day import SICKNESS, SLEEP, SameDayDialog
 from puppet_strings.app.schedule_dialog import ScheduleDialog
 from puppet_strings.app.store import RequestStore
-from puppet_strings.config import Config
+from puppet_strings.config import Config, load_config
+from puppet_strings.google_auth import AuthError
 from puppet_strings.model import WRITABLE_PRIORITIES
-from puppet_strings.sheets.source import CsvSource, LoadError, SheetsSource
+from puppet_strings.session import open_source
+from puppet_strings.sheets.source import CsvSource, LoadError
 
 
 def run_app(config: Config, fixtures: Path | None) -> int:
-    """Open the window and run until it closes."""
+    """Open the window and run until it closes.
+
+    A first run has nobody signed in to Google, so the Configure pane comes up before the
+    window does: there is nothing to show until there is an account to read the sheets as.
+    """
     app = QApplication.instance() or QApplication(sys.argv)
-    source = CsvSource(fixtures) if fixtures else SheetsSource(config.sheets, config.credentials)
-    window = MainWindow(RequestStore(source, config))
+    if fixtures:
+        store = RequestStore(CsvSource(fixtures), config)
+    else:
+        config, source = connect(config)
+        if source is None:
+            return 1
+        store = RequestStore(source, config)
+    window = MainWindow(store)
     window.show()
     window.reload()  # loads in the background; the window paints right away
     return app.exec()
+
+
+def connect(config: Config, parent=None) -> tuple[Config, object | None]:
+    """The sheets as whoever is signed in, asking them to sign in if nobody is.
+
+    Returns the config as it stands afterwards and the source, or None for the source if
+    the pane was closed without an account, which is the one case there is no going on from.
+    """
+    try:
+        return config, open_source(config, None)
+    except AuthError:
+        pass
+    dialog = ConfigureDialog(config, None, parent)
+    dialog.exec()
+    config = load_config()
+    try:
+        return config, open_source(config, None)
+    except AuthError as e:
+        QMessageBox.critical(parent, "Not signed in", str(e))
+        return config, None
 
 
 class LoadWorker(QThread):
@@ -220,6 +254,27 @@ class MainWindow(QMainWindow):
             action.setVisible(False)  # only while changing a day that is already out
         self.status_label = QLabel("")
         toolbar.addWidget(self.status_label)
+        spacer = QWidget()  # everything after this is pushed to the right-hand end
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        toolbar.addWidget(spacer)
+        toolbar.addAction("Configure", self.configure)
+
+    def configure(self) -> None:
+        """Choose the Google account and the sheets, then read everything again."""
+        if self.store.fixtures:
+            QMessageBox.information(
+                self, "Configure", "This window is reading CSV fixtures, not Google Sheets."
+            )
+            return
+        dialog = ConfigureDialog(self.store.config, self.store.credentials, self)
+        dialog.exec()
+        if not dialog.saved:
+            return
+        config, source = connect(load_config(), self)
+        if source is None:
+            return
+        self.store.reconnect(source, config)
+        self.reload()
 
     def _build_filters(self) -> QHBoxLayout:
         layout = QHBoxLayout()

@@ -13,7 +13,7 @@ from puppet_strings.names import normalize
 from puppet_strings.sheets.adjustments import adjustment_rows
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.requests import request_rows
-from puppet_strings.sheets.source import Source
+from puppet_strings.sheets.source import CsvSource, Source
 
 CONFIG_SHEET = "config"
 
@@ -41,6 +41,20 @@ class RequestStore:
         # A group lives on the requests in it, so one just made holds nothing yet and would
         # vanish on the next read. These keep it in the pane until something joins it.
         self.empty_groups: list[str] = []
+
+    @property
+    def fixtures(self) -> bool:
+        """Whether these are CSV files on disk rather than Google Sheets."""
+        return isinstance(self.source, CsvSource)
+
+    @property
+    def credentials(self) -> object | None:
+        """What the sheets are being read as, for the Configure pane to name."""
+        return getattr(self.source, "credentials", None)
+
+    def reconnect(self, source: Source, config: Config) -> None:
+        """Read different sheets from now on, the Configure pane having changed which."""
+        self.source, self.config = source, config
 
     def load(self, target: date) -> None:
         """Read every sheet for a target date. Raises LoadError."""
