@@ -10,6 +10,7 @@ from puppet_strings.model import Request
 
 CLASH = QColor(palette.BAD)
 SLOT = QColor(palette.CLASH)  # the heading's own background, so a group reads as one thing
+INK = QColor(palette.INK)  # what to write on that background, whatever the system theme is
 REASON = QColor(palette.QUIET)
 
 
@@ -52,7 +53,9 @@ def _group(conflict: Conflict, by_id: dict[str, Request]) -> QTreeWidgetItem:
     for column in range(3):
         heading.setFont(column, font if column == 0 else heading.font(column))
         heading.setBackground(column, QBrush(SLOT))
-    heading.setForeground(0, QBrush(CLASH))
+        # the shading is light, so every column says what to write on it rather than
+        # leaving the last two to the theme, which paints them white on a dark one
+        heading.setForeground(column, QBrush(CLASH if column == 0 else INK))
     for request_id in conflict.requests:
         request = by_id.get(request_id)
         priority = request.priority.value if request else ""

@@ -6,6 +6,11 @@ and `QUIET` for a note beside either. Keeping them here is what makes the red un
 editor and the red in the conflicts pane the same red.
 """
 
+# Every colour here is a light-theme colour, so anything painted with one of the shadings
+# below must be painted with INK as well. Qt takes the text colour from the system theme
+# otherwise, and on a dark theme that is white text on a near-white cell.
+INK = "#1f1f1f"  # what to write on any of the shadings
+
 GOOD = "#1b6f3b"  # valid, saved, a camp day
 BAD = "#b00020"  # an error, a contradiction
 QUIET = "#6b6b6b"  # a note, a reason, anything said in passing

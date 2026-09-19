@@ -226,10 +226,17 @@ def test_a_year_with_nothing_in_it_falls_back_to_the_root():
     assert "config" not in src.sheet_ids  # Config lives only inside 2027
 
 
-def test_config_toml_still_overrides_what_was_found():
-    src = sheets_source(TREE, sheet_ids={"skills": "pinned"})
+def test_what_is_found_wins_over_config_toml():
+    """A stale [sheets] line would otherwise pin every year to one season's sheets."""
+    src = sheets_source(TREE, sheet_ids={"skills": "stale"})
     src.discover("root", 2027)
-    assert src.sheet_ids["skills"] == "pinned"
+    assert src.sheet_ids["skills"] == "root/2027/Skills"
+
+
+def test_config_toml_fills_what_the_walk_cannot_find():
+    src = sheets_source(TREE, sheet_ids={"clinic_data": "pinned"})
+    src.discover("root", 2030)  # no such year, and Clinic_Data is only inside 2027
+    assert src.sheet_ids["clinic_data"] == "pinned"
 
 
 def test_discover_needs_a_root_folder():

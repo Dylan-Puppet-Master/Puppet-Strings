@@ -913,3 +913,26 @@ def test_the_on_date_filter_follows_the_target_date(window):
     window.date_filter.setDate(QDate(2026, 9, 21))
     assert window.date_edit.date() == QDate(2026, 9, 18)  # the target did not move
     assert window.target.isoformat() == "2026-09-18"
+
+
+def test_a_shaded_calendar_day_says_what_to_write_on_it(window):
+    """A light shading with no text colour is white on near-white under a dark theme."""
+    shading = window.calendar.dateTextFormat(QDate(2026, 9, 16))
+    assert shading.background().color().name() == palette.CAMP_DAY
+    assert shading.foreground().color().name() == palette.INK
+
+
+def test_a_conflict_heading_says_what_to_write_on_it(app):
+    """Same trap as the calendar: a shaded heading must carry its own text colour."""
+    from datetime import date as _date
+
+    from puppet_strings.app.conflicts import Conflict
+    from puppet_strings.app.conflicts_panel import _group
+
+    clash = Conflict("dylan", _date(2026, 9, 16), "clinic_1", ("both at once",), ("a", "b"))
+    heading = _group(clash, {})
+    for column in range(3):
+        assert heading.background(column).color().name() == palette.CLASH
+    assert heading.foreground(0).color().name() == palette.BAD
+    assert heading.foreground(1).color().name() == palette.INK
+    assert heading.foreground(2).color().name() == palette.INK

@@ -267,7 +267,12 @@ class SheetsSource:
 
         The root holds a folder per year, and a sheet is looked for in the year being
         scheduled before the root, so a season can keep its own copy of one sheet without
-        copying the rest. Anything already named in config.toml is left alone.
+        copying the rest.
+
+        What is found wins over a spreadsheet id written in config.toml. A `[sheets]` table
+        left over from before the folder was walked would otherwise pin every year to one
+        season's sheets, which is the whole year folder defeated by a stale line. config.toml
+        still supplies anything the walk does not find.
         """
         if root not in self.folder_ids:
             raise LoadError(f"{root}: no folder chosen; pick one in Configure")
@@ -277,7 +282,7 @@ class SheetsSource:
                 role = SHEET_ROLES.get(title.strip().lower())
                 if role is not None:
                     found[role] = key
-        self.sheet_ids = {**found, **self.sheet_ids}  # config.toml still overrides
+        self.sheet_ids = {**self.sheet_ids, **found}  # what is in the tree is the truth
 
     def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
         """Make a spreadsheet with these tabs at `root/<path>`, and the folders above it.

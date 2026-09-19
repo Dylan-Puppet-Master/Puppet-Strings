@@ -16,6 +16,7 @@ from puppet_strings.app import palette
 from puppet_strings.model import Dataset
 
 CAMP_DAY = QColor(palette.CAMP_DAY)
+INK = QColor(palette.INK)  # a light shading needs its own text colour, or a dark theme wins
 ROWS = range(1, 7)  # row 0 of the grid holds the weekday names
 
 
@@ -70,6 +71,7 @@ class SessionCalendar(QCalendarWidget):
         self.days = {d: (day.session, day.week) for d, day in dataset.calendar.items()}
         camp_day = QTextCharFormat()
         camp_day.setBackground(CAMP_DAY)
+        camp_day.setForeground(INK)  # the shading is a light one, so say what to write on it
         for day in dataset.calendar:
             self.setDateTextFormat(QDate(day), camp_day)
         self.setSelectedDate(QDate(dataset.target))
