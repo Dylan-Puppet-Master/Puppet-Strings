@@ -29,14 +29,16 @@ class WeekLabel(QStyledItemDelegate):
     def paint(self, painter, option, index) -> None:
         """Label the week this row shows; rows outside camp are left blank."""
         session, week = self.calendar.week_of_row(index.row())
-        if session is None:
+        if week is None:
             return
+        # A span that is not a numbered session has a week but no S to put above it.
+        label = f"S{session}\nW{week}" if session is not None else f"W{week}"
         painter.save()
         font = QFont(option.font)
         font.setPointSizeF(max(6.5, option.font.pointSizeF() - 1.5))
         painter.setFont(font)
         painter.setPen(option.palette.color(QPalette.Disabled, QPalette.Text))
-        painter.drawText(option.rect, Qt.AlignCenter, f"S{session}\nW{week}")
+        painter.drawText(option.rect, Qt.AlignCenter, label)
         painter.restore()
 
 

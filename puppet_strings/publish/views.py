@@ -172,9 +172,11 @@ def _block_fills(rows: Table, count: int) -> tuple[Fill, ...]:
 
 
 def _title(dataset: Dataset) -> str:
+    """Where the day sits: which day of its span, which span, and which weekday."""
     day = dataset.session_dates.index(dataset.target) + 1
     today = dataset.calendar[dataset.target]
-    return f"Day {day}, Session {today.session} Week {today.week} - {dataset.target:%A}"
+    span = dataset.this_span.name
+    return f"Day {day}, {span} Week {today.week} - {dataset.target:%A}"
 
 
 def _offered(dataset: Dataset) -> set[str]:

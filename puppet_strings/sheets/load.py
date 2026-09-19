@@ -6,13 +6,13 @@ from dataclasses import replace
 from datetime import date
 
 from puppet_strings.config import Config
-from puppet_strings.model import CalendarDay, Dataset
+from puppet_strings.model import Dataset, Span, block_runs_on
 from puppet_strings.names import normalize
 from puppet_strings.sheets import metrics as metrics_sheet
 from puppet_strings.sheets.adjustments import parse_adjustments, resting_blocks
 from puppet_strings.sheets.blocks import ALL_BLOCKS, block_categories, parse_blocks
 from puppet_strings.sheets.cabin_acts import cabin_act_activities, parse_board
-from puppet_strings.sheets.calendar import parse_calendar, parse_date
+from puppet_strings.sheets.calendar import calendar_days, parse_calendar, parse_date
 from puppet_strings.sheets.categories import parse_staff_categories
 from puppet_strings.sheets.clinic_data import parse_clinics
 from puppet_strings.sheets.offerings import parse_offerings
@@ -63,7 +63,8 @@ def _build(source: Source, config: Config, target: date, tabs, warnings: list[st
     blocks = parse_blocks(config_tables[tabs["blocks"]])
     categories = {c for b in blocks.values() for c in b.categories} - {ALL_BLOCKS}
     _reserve("block", categories, (ALL_BLOCKS, *blocks))
-    calendar = parse_calendar(config_tables[tabs["calendar"]])
+    spans = parse_calendar(config_tables[tabs["calendar"]])
+    calendar = calendar_days(spans)
     if target not in calendar:
         raise LoadError(f"Calendar: {target} is not a camp day")
 
@@ -74,8 +75,7 @@ def _build(source: Source, config: Config, target: date, tabs, warnings: list[st
     for a in adjustments:
         if a.date not in calendar:
             continue
-        day_type = calendar[a.date].day_type
-        on_day = [b for b in blocks.values() if day_type in b.day_types]
+        on_day = [b for b in blocks.values() if block_runs_on(b, calendar[a.date])]
         resting.setdefault(a.date, {})[a.staff] = resting_blocks(a, on_day, config.midday)
     today = {a.staff: a for a in adjustments if a.date == target}
     staff = {
@@ -86,7 +86,7 @@ def _build(source: Source, config: Config, target: date, tabs, warnings: list[st
         },
     }
     # someone resting the whole day is offered by no category, so nothing is asked of them
-    today_blocks = {b.id for b in blocks.values() if calendar[target].day_type in b.day_types}
+    today_blocks = {b.id for b in blocks.values() if block_runs_on(b, calendar[target])}
     working = frozenset(i for i, member in staff.items() if member.resting_blocks != today_blocks)
 
     categories = parse_staff_categories(
@@ -98,7 +98,7 @@ def _build(source: Source, config: Config, target: date, tabs, warnings: list[st
     # a category never offers someone who is not working today
     staff_categories = {c: members & working for c, members in categories.items()}
     cabin_acts, cabin_warnings = cabin_act_activities(
-        boards.result(), _weeks_by_weekday(calendar), staff, named, skills
+        boards.result(), _weeks_by_weekday(spans), staff, named, skills
     )
     warnings += cabin_warnings
     activities = {**clinics, **cabin_acts}
@@ -151,6 +151,7 @@ def _build(source: Source, config: Config, target: date, tabs, warnings: list[st
         blocks=blocks,
         block_categories=block_categories(blocks),
         calendar=calendar,
+        spans=spans,
         offerings=offerings,
         requests=requests,
         metrics=metrics,
@@ -182,11 +183,16 @@ def _cabin_act_boards(source: Source, config: Config) -> dict[str, tuple]:
     return {title: parse_board(table, title) for title, table in tables.items()}
 
 
-def _weeks_by_weekday(
-    calendar: dict[date, CalendarDay],
-) -> dict[tuple[int, int], dict[str, date]]:
-    """(session, week) -> that week's dates by weekday name, which is how a board finds a day."""
+def _weeks_by_weekday(spans: tuple[Span, ...]) -> dict[tuple[int, int], dict[str, date]]:
+    """(session, week) -> that week's dates by weekday name, which is how a board finds a day.
+
+    A cabin act sheet is titled by session and week, so only the numbered spans can hold
+    one; a span that is not a session has no session number to be titled after.
+    """
     weeks: dict[tuple[int, int], dict[str, date]] = {}
-    for day, entry in sorted(calendar.items()):
-        weeks.setdefault((entry.session, entry.week), {})[WEEKDAYS[day.weekday()]] = day
+    for span in spans:
+        if span.session is None:
+            continue
+        for day in span.dates:
+            weeks.setdefault((span.session, span.week_of(day)), {})[WEEKDAYS[day.weekday()]] = day
     return weeks

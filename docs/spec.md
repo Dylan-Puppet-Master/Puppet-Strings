@@ -52,7 +52,7 @@ Skedge has two statements and two ways of talking about assignments.
 |---|---|
 | Keyword | Upper case: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `GAP`, `TO`, `DO`, `DOING`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY_n_OF`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
 | Quantifier | `ALL_OF`, `EACH_OF`, and `ANY_n_OF` for any whole `n` from 1: `ANY_1_OF`, `ANY_3_OF` |
-| Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session.four.second_week.monday` |
+| Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session.four.week.two.monday` |
 | Variable, label | A bare identifier: `s`, `morning`. A label is followed by a colon. |
 | Quoted task | Single quotes, any text but a quote: `'archery maintenance'` |
 | Date | `2026-06-14` |
@@ -193,32 +193,37 @@ without naming any of them.
 
 ### 5.1 Dates
 
-Date names are nested spans: `date.<span>` is a set, and `date.<span>.<name>` is a name
-within it. Spans come from the Calendar sheet's `session` and `week` columns.
+Date names are nested spans. A **span** is one row of the Calendar sheet: a run of days
+from its `start date` to its `end date`, running one `program type`. Every span carries the
+same names, and a span's weeks are its days seven at a time from the start.
 
 | Span | Kind | Covers |
 |---|---|---|
 | `dates.target` | item | the date being scheduled |
-| `dates.season` | set | every date on the Calendar sheet |
-| `dates.session.one` … `dates.session.twenty` | set | every date of that numbered session |
-| `dates.session.this` | set | the session `dates.target` falls in |
-| `dates.session.<s>.first_week` … `dates.session.<s>.twentieth_week` | set | every date of that week of that session |
-| `dates.session.this.this_week` | set | the week `dates.target` falls in |
+| `dates.season.all` | set | every date the Calendar sheet covers |
+| `dates.session.one.all` … `dates.session.twenty.all` | set | a `main season` row, numbered in sheet order |
+| `dates.other.<name>.all` | set | any other row, by its `name` column normalized |
+| `dates.session.this.all` | set | the span `dates.target` falls in, numbered or not |
+| `dates.<span>.week.one.all` … `.week.twenty.all` | set | that week of that span |
+| `dates.session.this.week.this.all` | set | the week `dates.target` falls in |
 
-| Name within `dates.season` or a session | Kind | Holds |
+| Name within any span | Kind | Holds |
 |---|---|---|
+| `all` | set | every date of the span |
 | `mondays` … `sundays` | set | every date of the span falling on that weekday |
 | `first`, `last` | item | the span's first and last date |
-| `first_monday` … `twentieth_sunday`, `last_monday` … `last_sunday` | item | that occurrence within the span |
-| `first_mondays` … `last_sundays` | set, `dates.season` only | that occurrence within each session of the season |
 
 | Name within a week | Kind | Holds |
 |---|---|---|
+| `all` | set | every date of the week |
 | `monday` … `sunday` | item | that weekday of the week |
 | `first`, `last` | item | the week's first and last date |
 
-A name exists only if the span reaches that occurrence: `dates.session.two.second_week` is
-a name only when session 2 has a second week. Session and week numbers run from 1 to 20.
+A name exists only if the span reaches it: `dates.session.two.week.two.all` is a name only
+when session 2 runs to a second week. At most 20 main season rows and 20 weeks per span.
+
+There are no `first_monday` / `last_friday` names and no cross-session `first_mondays`
+sets. A week's weekday is how an occurrence is named.
 
 `roles.trainee` resolves per staff member from the Skills sheet: checked off or needing a
 scaffold becomes `scaffolded`, needing a shadow or no checkoff becomes `shadow`.

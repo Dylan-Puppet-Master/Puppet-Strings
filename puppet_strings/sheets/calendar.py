@@ -1,32 +1,71 @@
-"""Calendar: one row per camp day with its session, its week of that session, and day type."""
+"""Calendar: one row per span of days, with the programme it runs.
+
+Columns: `name`, `start date`, `end date`, `program type`. A row covers every day from its
+start to its end, so a fortnight is one row rather than fourteen.
+
+The main season rows are numbered in sheet order, and that number is what
+`dates.session.four` is named after; anything else is reached by its name, as
+`dates.other.family_camp`. Weeks are not written down: a span's week 1 is its first seven
+days, week 2 the next seven, which is why a row aligned to calendar weeks shows the week
+labels you would expect down the side of the calendar pane.
+"""
 
 from datetime import date
 
-from puppet_strings.model import MAX_COUNTED, CalendarDay
+from puppet_strings.model import (
+    MAIN_SEASON,
+    MAX_COUNTED,
+    PROGRAM_TYPES,
+    CalendarDay,
+    Span,
+)
 from puppet_strings.names import normalize
-from puppet_strings.sheets.source import LoadError, Table, header_rows, parse_int
+from puppet_strings.sheets.source import LoadError, Table, header_rows
 
-COLUMNS = ("date", "session", "week", "day_type")
+COLUMNS = ("name", "start date", "end date", "program type")
 
 
-def parse_calendar(table: Table) -> dict[date, CalendarDay]:
-    """Calendar days by date. Session and week are the numbers Skedge counts dates by."""
+def parse_calendar(table: Table) -> tuple[Span, ...]:
+    """The Calendar sheet's spans, in sheet order."""
     where = "Calendar"
     rows = header_rows(table, COLUMNS, where)
-    days = {}
+    spans: list[Span] = []
+    session = 0
     for row in rows:
-        cell = f"{where} row '{row['date']}'"
-        day = parse_date(row["date"], cell)
-        if day in days:
-            raise LoadError(f"{where}: {day} appears twice")
-        days[day] = CalendarDay(
-            date=day,
-            session=_counted(row["session"], "session", cell),
-            week=_counted(row["week"], "week", cell),
-            day_type=normalize(row["day_type"]),
+        cell = f"{where} row '{row['name']}'"
+        if not row["name"]:
+            raise LoadError(f"{where}: a row has no name")
+        program = normalize(row["program type"])
+        if program not in PROGRAM_TYPES:
+            allowed = ", ".join(p.replace("_", " ") for p in PROGRAM_TYPES)
+            raise LoadError(f"{cell}: program type must be one of {allowed}")
+        start = parse_date(row["start date"], f"{cell}: start date")
+        end = parse_date(row["end date"], f"{cell}: end date")
+        if end < start:
+            raise LoadError(f"{cell}: end date {end} is before start date {start}")
+        if program == MAIN_SEASON:
+            session += 1
+        spans.append(
+            Span(
+                name=row["name"],
+                id=normalize(row["name"]),
+                start=start,
+                end=end,
+                program_type=program,
+                session=session if program == MAIN_SEASON else None,
+            )
         )
-    _check_weeks(days, where)
-    return days
+    _check(spans, where)
+    return tuple(spans)
+
+
+def calendar_days(spans: tuple[Span, ...]) -> dict[date, CalendarDay]:
+    """Every camp day, read off the spans that cover it."""
+    days: dict[date, CalendarDay] = {}
+    for span in spans:
+        for day in span.dates:
+            days[day] = span.day(day)
+    return dict(sorted(days.items()))
 
 
 def parse_date(text: str, where: str) -> date:
@@ -37,24 +76,30 @@ def parse_date(text: str, where: str) -> date:
         raise LoadError(f"{where}: date '{text}' must be YYYY-MM-DD") from e
 
 
-def _counted(text: str, field: str, where: str) -> int:
-    """A session or week number: what `dates.session.four.second_week` is named after."""
-    number = parse_int(text, f"{where}: {field}")
-    if not 1 <= number <= MAX_COUNTED:
-        raise LoadError(f"{where}: {field} must be between 1 and {MAX_COUNTED}, not {number}")
-    return number
-
-
-def _check_weeks(days: dict[date, CalendarDay], where: str) -> None:
-    """A session's weeks run 1, 2, 3 … with none skipped, so every week has a name."""
-    weeks: dict[int, set[int]] = {}
-    for day in days.values():
-        weeks.setdefault(day.session, set()).add(day.week)
-    for session, numbers in sorted(weeks.items()):
-        expected = set(range(1, max(numbers) + 1))
-        missing = sorted(expected - numbers)
-        if missing:
+def _check(spans: list[Span], where: str) -> None:
+    """Names are unique, spans do not overlap, and nothing is counted past its name."""
+    seen: dict[str, Span] = {}
+    for span in spans:
+        if span.id in seen:
+            raise LoadError(f"{where}: two rows are both named '{span.name}'")
+        seen[span.id] = span
+    if len(seen) != len(spans):  # unreachable, but says what the ids are for
+        raise LoadError(f"{where}: every row needs a name of its own")
+    covered: dict[date, Span] = {}
+    for span in spans:
+        for day in span.dates:
+            if day in covered:
+                raise LoadError(
+                    f"{where}: {day} is in both '{covered[day].name}' and '{span.name}'; "
+                    "a day belongs to one row"
+                )
+            covered[day] = span
+    sessions = [s for s in spans if s.session is not None]
+    if len(sessions) > MAX_COUNTED:
+        raise LoadError(f"{where}: at most {MAX_COUNTED} main season rows are supported")
+    for span in spans:
+        if span.weeks > MAX_COUNTED:
             raise LoadError(
-                f"{where}: session {session} has a week {missing[0]} with no days; "
-                "number a session's weeks 1, 2, 3 … with none skipped"
+                f"{where} row '{span.name}': runs to {span.weeks} weeks; "
+                f"at most {MAX_COUNTED} are supported"
             )

@@ -12,7 +12,6 @@ from difflib import get_close_matches
 from puppet_strings.model import (
     CARDINAL_WORDS,
     LIFEGUARD_ROLES,
-    ORDINAL_WORDS,
     POSITION_ROLES,
     TRAINEE_ROLES,
     Dataset,
@@ -31,6 +30,10 @@ from puppet_strings.skedge.namespaces import (
     STAFF,
 )
 from puppet_strings.skedge.namespaces import ALL as ALL_NAME  # `all`, not the quantifier
+
+SESSION = "session"  # where a numbered main season span hangs in the `dates` tree
+OTHER = "other"  # where a span that is not a numbered session hangs
+WEEK = "week"
 
 Item = str | date
 
@@ -269,86 +272,76 @@ def _cabin_categories(cabin_acts: Mapping[str, object]) -> dict[str, frozenset[s
 
 
 def date_names(dataset: Dataset) -> dict[str, Named]:
-    """Every name in the `date` namespace.
+    """Every name in the `dates` namespace.
 
-    The tree is the Calendar sheet read out loud. `dates.season` is the whole season and
-    `dates.session.four` is session 4, whatever date is being scheduled; `dates.session.this`
-    is the session that date falls in. A session holds its weeks, a week holds its days:
+    The tree is the Calendar sheet read out loud, and every span in it carries exactly the
+    same names, so what can be said of one can be said of any other:
 
-        dates.session.four                     every date of session 4
-        dates.session.four.first_week          every date of its first week
-        dates.session.four.second_week.monday  one date
-        dates.session.four.second_monday       one date
-        dates.session.four.mondays             every Monday of the session
+        dates.season.all                     every camp day
+        dates.session.four.all               every date of session 4
+        dates.session.four.mondays           every Monday of it
+        dates.session.four.week.two.all      every date of its second week
+        dates.session.four.week.two.monday   one date
+        dates.other.family_camp.all          a span that is not a numbered session
 
-    Every span (the season, a session, a week) carries the same names, so what can be said
-    of one can be said of the others.
+    `this` is the span the target date falls in, and `week.this` the week inside it, so a
+    request written with them says the same thing whenever it is solved. Nothing here
+    depends on which date is being scheduled except `target` and the two `this` names: the
+    vocabulary is the same on every day of the season.
     """
     names = {"target": Named(frozenset({dataset.target}), True)}
     _add(names, "season", _span_names(dataset.season_dates))
-    for number, dates in dataset.sessions.items():
-        _add(names, f"session.{CARDINAL_WORDS[number - 1]}", _session_names(dataset, number, dates))
-        if number == dataset.session:
-            _add(names, "session.this", _session_names(dataset, number, dates, this=True))
-    names.update(_season_occurrences(dataset))
+    for span in dataset.spans:
+        _add(names, _span_path(span), _one_span(dataset, span))
+    _add(names, f"{SESSION}.this", _one_span(dataset, dataset.this_span, this=True))
     return names
 
 
-def _session_names(
-    dataset: Dataset, number: int, dates: tuple[date, ...], this: bool = False
-) -> dict[str, Named]:
-    """One session's own names, with its weeks nested underneath.
+def _span_path(span) -> str:
+    """Where a span hangs: a numbered session by its number, anything else by its name."""
+    if span.session is not None:
+        return f"{SESSION}.{CARDINAL_WORDS[span.session - 1]}"
+    return f"{OTHER}.{span.id}"
 
-    The session being scheduled is also `dates.session.this`, and only there does
-    `this_week` mean anything: the week the target date falls in.
-    """
-    names = _span_names(dates)
-    weeks = dataset.weeks(number)
-    for week, week_dates in weeks.items():
-        _add(names, f"{ORDINAL_WORDS[week - 1]}_week", _week_names(week_dates))
+
+def _one_span(dataset: Dataset, span, this: bool = False) -> dict[str, Named]:
+    """One span's own names, with its weeks nested underneath."""
+    weeks = dataset.span_weeks(span)
+    names = _span_names(dataset.span_dates(span))
+    for week, dates in weeks.items():
+        _add(names, f"{WEEK}.{CARDINAL_WORDS[week - 1]}", _week_names(dates))
     if this:
-        _add(names, "this_week", _week_names(weeks[dataset.calendar[dataset.target].week]))
+        _add(names, f"{WEEK}.this", _week_names(weeks[dataset.calendar[dataset.target].week]))
     return names
 
 
 def _span_names(dates: tuple[date, ...]) -> dict[str, Named]:
-    """The names any run of dates carries: the whole run, its ends, and its weekdays."""
-    names = {"": Named(frozenset(dates), False)}
+    """The names any run of dates carries: the whole run, its ends, and its weekdays.
+
+    There is no `first_monday` or `last_friday`. One of them meant a date and its plural
+    meant one date per session, a letter apart, and which of them existed depended on how
+    long the season happened to be. A week's weekday says the same thing and says it once.
+    """
+    names = {ALL_NAME: Named(frozenset(dates), False)}
     if not dates:
         return names
     names["first"], names["last"] = _one(dates[0]), _one(dates[-1])
     for weekday, days in _by_weekday(dates).items():
         names[f"{weekday}s"] = Named(frozenset(days), False)
-        for ordinal, day in zip(ORDINAL_WORDS, days, strict=False):
-            names[f"{ordinal}_{weekday}"] = _one(day)
-        names[f"last_{weekday}"] = _one(days[-1])
     return names
 
 
 def _week_names(dates: tuple[date, ...]) -> dict[str, Named]:
     """A week's names.
 
-    A week reaches each weekday at most once, so it needs none of the counting a longer
-    span does: `monday` is the one Monday there is.
+    A week reaches each weekday at most once, so `monday` is the one Monday there is.
     """
-    names = {"": Named(frozenset(dates), False)}
+    names = {ALL_NAME: Named(frozenset(dates), False)}
     if dates:
         names["first"], names["last"] = _one(dates[0]), _one(dates[-1])
     for weekday, days in _by_weekday(dates).items():
         names[weekday] = _one(days[0])
     return names
-
-
-def _season_occurrences(dataset: Dataset) -> dict[str, Named]:
-    """`dates.season.first_mondays`: one occurrence taken from every session at once."""
-    per_session = [_span_names(dates) for dates in dataset.sessions.values()]
-    wanted = {n for s in per_session for n, named in s.items() if named.single and "_" in n}
-    return {
-        f"season.{name}s": Named(
-            frozenset().union(*(s[name].items for s in per_session if name in s)), False
-        )
-        for name in wanted
-    }
 
 
 def _by_weekday(dates: tuple[date, ...]) -> dict[str, list[date]]:

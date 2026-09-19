@@ -65,7 +65,7 @@ def test_a_set_of_activities_lists_them(dataset):
     assert rows(found, "It holds")["M1 Lake Day"] == "2026-09-14"
 
 
-@pytest.mark.parametrize("name", ["dates.target", "dates.session.one", "roles.first"])
+@pytest.mark.parametrize("name", ["dates.target", "dates.session.one.all", "roles.first"])
 def test_dates_and_roles_open_nothing(dataset, name):
     assert details(name, dataset) is None
 

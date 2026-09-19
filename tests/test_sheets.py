@@ -5,7 +5,7 @@ import pytest
 from puppet_strings.model import Offering, SkillStatus
 from puppet_strings.names import normalize
 from puppet_strings.sheets.blocks import parse_blocks
-from puppet_strings.sheets.calendar import parse_calendar
+from puppet_strings.sheets.calendar import calendar_days, parse_calendar
 from puppet_strings.sheets.clinic_data import parse_clinics
 from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import assignment_rows, parse_published
@@ -184,7 +184,9 @@ def test_blocks(source):
     assert blocks["clinic_1"].start == time(9, 15)
     assert blocks["clinic_1"].minutes == 75
     assert blocks["lunch"].categories == {"all", "meals"}
-    assert blocks["lunch"].day_types == {"regular", "changeover"}
+    assert blocks["lunch"].day_types == {"weekday", "weekend"}
+    assert blocks["lunch"].program_types == {"main_season", "other"}
+    assert blocks["pack_out"].day_types == {"last_day"}
     assert blocks["clinic_1"].gap_to(blocks["clinic_4"]) == 315
     assert not blocks["clinic_1"].overlaps(blocks["clinic_2"])
     assert blocks["lunch"].overlaps(blocks["lunch"])
@@ -276,33 +278,71 @@ def test_published_round_trip(dataset, source):
 
 
 CALENDAR = [
-    ["date", "session", "week", "day_type"],
-    ["2026-09-13", "1", "1", "regular"],
-    ["2026-09-20", "1", "2", "changeover"],
-    ["2026-09-27", "2", "1", "regular"],
+    ["name", "start date", "end date", "program type"],
+    ["Session 1", "2026-09-13", "2026-09-26", "main season"],
+    ["Session 2", "2026-09-27", "2026-10-03", "main season"],
+    ["Family Camp", "2026-10-04", "2026-10-07", "other"],
 ]
 
 
-def test_calendar_numbers_sessions_and_weeks():
-    days = parse_calendar(CALENDAR)
-    first = days[date(2026, 9, 13)]
-    assert (first.session, first.week, first.day_type) == (1, 1, "regular")
-    assert days[date(2026, 9, 27)].session == 2
+def test_calendar_numbers_the_main_season_spans_in_sheet_order():
+    spans = parse_calendar(CALENDAR)
+    assert [s.id for s in spans] == ["session_1", "session_2", "family_camp"]
+    assert [s.session for s in spans] == [1, 2, None]  # only the main season is numbered
+    assert spans[0].start == date(2026, 9, 13) and spans[0].end == date(2026, 9, 26)
+
+
+def test_a_span_is_every_day_between_its_ends():
+    first, *_ = parse_calendar(CALENDAR)
+    assert len(first.dates) == 14
+    assert first.dates[0] == date(2026, 9, 13) and first.dates[-1] == date(2026, 9, 26)
+
+
+def test_weeks_are_seven_days_from_the_start():
+    first, _, other = parse_calendar(CALENDAR)
+    assert first.weeks == 2
+    assert first.week_of(date(2026, 9, 13)) == 1
+    assert first.week_of(date(2026, 9, 19)) == 1
+    assert first.week_of(date(2026, 9, 20)) == 2
+    assert other.weeks == 1  # a span shorter than a week is one week
+
+
+def test_a_day_knows_what_kinds_of_day_it_is():
+    days = calendar_days(parse_calendar(CALENDAR))
+    assert days[date(2026, 9, 13)].day_types == {"first_day", "weekend"}  # a Sunday start
+    assert days[date(2026, 9, 16)].day_types == {"weekday"}
+    assert days[date(2026, 9, 19)].day_types == {"weekend"}
+    assert days[date(2026, 9, 26)].day_types == {"last_day", "weekend"}
+    assert days[date(2026, 9, 16)].program_type == "main_season"
+    assert days[date(2026, 10, 5)].program_type == "other"
+
+
+def test_a_day_carries_its_span_session_and_week():
+    days = calendar_days(parse_calendar(CALENDAR))
+    assert days[date(2026, 9, 21)].span == "session_1"
+    assert (days[date(2026, 9, 21)].session, days[date(2026, 9, 21)].week) == (1, 2)
+    assert days[date(2026, 10, 5)].session is None
 
 
 @pytest.mark.parametrize(
     ("row", "message"),
     [
-        (["2026-10-04", "one", "1", "regular"], "expected a whole number"),
-        (["2026-10-04", "0", "1", "regular"], "session must be between 1 and 20"),
-        (["2026-10-04", "2", "21", "regular"], "week must be between 1 and 20"),
-        (["2026-09-13", "1", "1", "regular"], "appears twice"),
-        (["2026-10-04", "2", "3", "regular"], "session 2 has a week 2 with no days"),
+        (["Extra", "2026-10-08", "2026-10-07", "other"], "is before start date"),
+        (["Extra", "not a date", "2026-10-09", "other"], "must be YYYY-MM-DD"),
+        (["Extra", "2026-10-08", "2026-10-09", "shoulder"], "program type must be one of"),
+        (["Session 1", "2026-10-08", "2026-10-09", "main season"], "both named 'Session 1'"),
+        (["Extra", "2026-09-20", "2026-09-21", "other"], "is in both 'Session 1' and 'Extra'"),
+        (["Extra", "2026-10-08", "2027-04-08", "other"], "at most 20 are supported"),
     ],
 )
-def test_calendar_rejects_numbers_it_cannot_name(row, message):
+def test_calendar_rejects_a_span_it_cannot_read(row, message):
     with pytest.raises(LoadError, match=message):
         parse_calendar([*CALENDAR, row])
+
+
+def test_a_row_with_no_name_is_an_error():
+    with pytest.raises(LoadError, match="a row has no name"):
+        parse_calendar([CALENDAR[0], ["", "2026-10-08", "2026-10-09", "other"]])
 
 
 def test_dataset(dataset):
@@ -327,20 +367,19 @@ def test_dataset(dataset):
     assert len(dataset.session_dates) == 14  # a two-week session
     assert dataset.session == 1
     assert list(dataset.sessions) == [1, 2]
-    assert list(dataset.weeks(1)) == [1, 2]
-    assert dataset.weeks(1)[2][0] == date(2026, 9, 20)
+    assert dataset.this_span.id == "session_1"
+    assert list(dataset.span_weeks(dataset.sessions[1])) == [1, 2]
+    assert dataset.span_weeks(dataset.sessions[1])[2][0] == date(2026, 9, 20)
     assert dataset.week_dates == dataset.session_dates[:7]  # the target is in week 1
     assert [b.id for b in dataset.blocks_on(dataset.target)][:3] == [
         "breakfast",
         "clinic_1",
         "clinic_2",
     ]
-    assert [b.id for b in dataset.blocks_on(date(2026, 9, 19))] == [
-        "breakfast",
-        "lunch",
-        "playstation",
-        "pack_out",
-    ]
+    weekend = date(2026, 9, 19)  # a Saturday in the middle of the session
+    assert [b.id for b in dataset.blocks_on(weekend)] == ["breakfast", "lunch", "playstation"]
+    last = date(2026, 9, 26)  # the session's last day, which is when pack-out runs
+    assert "pack_out" in [b.id for b in dataset.blocks_on(last)]
     assert set(dataset.published) == {date(2026, 9, 14), date(2026, 9, 15)}
 
 

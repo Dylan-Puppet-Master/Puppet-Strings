@@ -138,57 +138,75 @@ One row per time block. Blocks are the units the solver assigns staff to.
 
 | Column | Meaning |
 |---|---|
-| `block_id` | The block's name, used in requests as `block.<block_id>`. |
+| `block_id` | The block's name, used in requests as `blocks.<block_id>`. |
 | `start`, `end` | The block's times, written any ordinary way: `8:30`, `08:30` and `8:30 AM` all mean the same thing. Blocks may overlap; the solver never gives one person two assignments that overlap in time. |
-| `day_types` | **Comma-separated.** The kinds of day this block exists on. Each date's kind comes from the Calendar sheet's `day_type` column. A block whose list does not include that day's type does not exist that day, so no request can select it. |
+| `day_types` | **Comma-separated**, from `first_day`, `last_day`, `weekday`, `weekend`. Which kinds of day the block exists on. |
+| `program_type` | **Comma-separated**, from `main season`, `other`. Which programmes it exists in. |
 | `categories` | **Comma-separated.** Groups of blocks a request can name at once: `blocks.any_clinic`, `blocks.meals`. `blocks.all` (every block) is built in and may not be used as a category name. |
 
-One block id is spoken for: `cabin_act` is the slot the [cabin act sheets](#cabin-act-sheets-the-cabin-acts-folder) are imported into, and importing them without it is an error.
+A block exists on a day when the day runs one of its programmes **and** is one of its kinds
+of day. Nothing writes a day's kinds down: a day is `weekday` or `weekend` by the calendar,
+and also `first_day` or `last_day` when it is one end of its Calendar row, so most days are
+two kinds at once.
+
+One block id is spoken for: `cabin_act` is the slot the
+[cabin act sheets](#cabin-act-sheets-the-cabin-acts-folder) are scheduled into.
 
 Example:
 
-| block_id | start | end | day_types | categories |
-|---|---|---|---|---|
-| clinic_1 | 09:15 | 10:30 | regular | any_clinic |
-| clinic_2 | 10:45 | 12:00 | regular | any_clinic |
-| lunch | 12:00 | 13:00 | regular, changeover | meals |
-| cabin_act | 13:00 | 14:00 | regular | |
-| pack_out | 09:15 | 11:00 | changeover | |
-| playstation | 17:00 | 18:00 | regular, changeover | |
+| block_id | start | end | day_types | program_type | categories |
+|---|---|---|---|---|---|
+| breakfast | 08:00 | 09:00 | weekday, weekend | main season, other | meals |
+| clinic_1 | 09:15 | 10:30 | weekday | main season | any_clinic |
+| cabin_act | 13:00 | 14:00 | weekday | main season | |
+| pack_out | 09:15 | 11:00 | last_day | main season | |
+| playstation | 17:00 | 18:00 | weekday, weekend | main season, other | |
 
-On a `regular` day the clinic blocks, lunch and playstation exist; on a `changeover` day
-only pack-out, lunch and playstation do.
+So the clinic blocks run Monday to Friday of a main season session; breakfast, lunch and
+playstation run every day of every programme; and pack-out runs only on the day a session
+ends. If every day has the same shape, write `weekday, weekend` on every block.
 
 Blocks are the real periods of the day, not 30-minute slices. A short task such as a
 break is written with `FOR 30m` and takes part of a block; the Staff View shows the rest
 of that block as `DYOW/WPs` ("do your own work or work projects"). See the
 [Skedge reference](skedge.md).
 
-If every day has the same shape, use one day type everywhere: `regular` on every block
-and on every Calendar row.
-
 Staff with no assignment in the `playstation` block are marked `Available` in the Staff
 View.
 
 ## Calendar (config spreadsheet)
 
-One row per camp day.
+One row per span of days: a session, or anything else camp runs. A fortnight is one row,
+not fourteen.
 
 | Column | Meaning |
 |---|---|
-| `date` | `YYYY-MM-DD`. |
-| `session` | Which session the day belongs to, as a number: `1`, `2`, `3` …. Session 4 is `dates.session.four` in a request. |
-| `week` | Which week **of that session** the day is in, as a number starting at `1` for each session. Week 2 of session 4 is `dates.session.four.second_week`. Number a session's weeks 1, 2, 3 … with none skipped. |
-| `day_type` | The kind of day, matched against each block's `day_types`. Any label you like; `regular` for an ordinary day. |
+| `name` | What the span is called. A `main season` row is reached by its number rather than this name, but the name still has to be there and has to be unique. |
+| `start date`, `end date` | `YYYY-MM-DD`, both included. Two rows may not cover the same day. |
+| `program type` | `main season` or `other`, matched against each block's `program_type`. |
 
-The two numbers are what the whole `date` namespace is built from, so they are worth
-getting right: a day's session and week decide which requests reach it. A week does not
-have to be seven days, and it does not have to start on a particular weekday — it is
-whatever run of days you number alike. The request manager's calendar shows each row's
-`S<session>` and `W<week>` down the left-hand side, so a mis-numbered day is easy to spot.
+Example:
 
-`dates.session.four.mondays` is every Monday of session 4, `dates.session.four.second_week.monday`
-is the one Monday of its second week, and `dates.season` is every date on the sheet. See
+| name | start date | end date | program type |
+|---|---|---|---|
+| Session 1 | 2026-06-14 | 2026-06-27 | main season |
+| Session 2 | 2026-06-28 | 2026-07-11 | main season |
+| Family Camp | 2026-09-01 | 2026-09-05 | other |
+
+**The main season rows are numbered in sheet order**, and that number is the name in
+Skedge: the first is `dates.session.one.all`, the second `dates.session.two.all`. Anything
+else is reached by its name, as `dates.other.family_camp.all`. Inserting a main season row
+renumbers the ones after it, so a request naming `dates.session.four` follows the sheet.
+
+**Weeks are not written down.** A span's week 1 is its first seven days, week 2 the next
+seven, and so on, with a short week at the end if it does not divide evenly. A row that
+starts on the day your weeks start therefore lines up with the calendar, and the request
+manager's calendar shows each row's `S<session>` and `W<week>` down the left-hand side, so
+you can see at a glance whether it does.
+
+`dates.session.four.mondays` is every Monday of session 4,
+`dates.session.four.week.two.monday` is the one Monday of its second week, and
+`dates.season.all` is every date the sheet covers. See
 [Dates](skedge.md#dates) for the full list of date names.
 
 ## Requests (config spreadsheet)

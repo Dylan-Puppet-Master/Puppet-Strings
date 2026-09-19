@@ -202,18 +202,26 @@ One row per time block, as in the proposal.
 
 ### 2.6 Calendar (new, read)
 
-One row per camp day. This is the "session calendar" the proposal names as the source of the `dates` namespace but does not define.
+One row per **span**: a run of days from `start date` to `end date` running one programme.
+This is the "session calendar" the proposal names as the source of the `dates` namespace
+but does not define.
 
 | Column | Type | Example |
 |---|---|---|
-| `date` | ISO date | `2026-09-16` |
-| `session` | whole number, 1-20 | `3` |
-| `week` | whole number, 1-20, counted within the session | `2` |
-| `day_type` | identifier | `regular` |
+| `name` | text, unique | `Session 1` |
+| `start date` | ISO date | `2026-06-14` |
+| `end date` | ISO date, on or after the start | `2026-06-27` |
+| `program type` | `main season` or `other` | `main season` |
 
-The two numbers are the whole of the `dates` namespace: `dates.session.three` is every date
-of session 3 and `dates.session.three.second_week` every date of its second week. See
-[Dates](skedge.md#dates); this table was rewritten on 2026-09-18 with that redesign (§11).
+Main season rows are numbered in sheet order, and that number is the name: session 3 is
+`dates.session.three.all` and its second week `dates.session.three.week.two.all`. Anything
+else is `dates.other.<name>.all`. Weeks are not written down — a span's week is its days
+seven at a time from the start — and nor are day types: a date is `weekday` or `weekend` by
+the calendar and `first_day` or `last_day` at the ends of its span, which is what the
+Blocks sheet's `day_types` and `program_type` columns are matched against.
+
+See [Dates](skedge.md#dates); this table was rewritten on 2026-09-18 with the date
+redesign (§11) and again on 2026-09-19 to spans.
 
 ### 2.7 Requests (new, read and written)
 
@@ -601,7 +609,7 @@ Recorded so the outline matches the code.
 - **Recurring dates and staff pairing** (Puppet Master, 2026-09-16), both inside the
   existing grammar. A weekday name now holds every such date of the session rather than
   only the target's week, so `ON EACH dates.monday` is a weekly request; ordinal names
-  (`dates.second_thursday`, `dates.last_friday`) are added to the `dates` namespace and exist
+  (`dates.second_thursday`, `dates.last_friday`) were added to the `dates` namespace and existed
   only when the session reaches them. For `FORBID`, `PREFER` and `AVOID`, an `ACROSS`
   alternative holding several staff (`{staff.a AND staff.b}`) matches them as a group: one
   match per instance, whose literal is the AND of each member's presence there, reified
@@ -676,9 +684,9 @@ Recorded so the outline matches the code.
 - **The `date` namespace is built from session and week numbers** (2026-09-18). The
   Calendar sheet's `session` column holds a number rather than a name, and a new `week`
   column numbers the days within each session. Every date name is then a span or a name
-  inside one: `dates.season`, `dates.session.four`, `dates.session.four.second_week`, and
-  `dates.session.four.second_week.monday`. `dates.session.this` is the session holding the
-  target date and `dates.session.this.this_week` the week; the old `dates.session.all`,
+  inside one: `dates.season.all`, `dates.session.four.all`, `dates.session.four.week.two.all`, and
+  `dates.session.four.week.two.monday`. `dates.session.this.all` is the session holding the
+  target date and `dates.session.this.week.this.all` the week; the old `dates.session.all`,
   `dates.season.all` and `date.<session name>.all` are gone. A span carries `first`,
   `last`, the weekday sets and the counted occurrences; a week, reaching each weekday
   once, carries the weekday as a single date. An unknown name now suggests the nearest

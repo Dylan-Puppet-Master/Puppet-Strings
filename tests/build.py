@@ -5,10 +5,12 @@ from datetime import date, time, timedelta
 
 from puppet_strings.generate import generated_requests
 from puppet_strings.model import (
+    MAIN_SEASON,
+    WEEKDAY,
+    WEEKEND,
     Activity,
     Assignment,
     Block,
-    CalendarDay,
     Dataset,
     Metric,
     Offering,
@@ -16,6 +18,7 @@ from puppet_strings.model import (
     Priority,
     Request,
     SkillStatus,
+    Span,
     Staff,
 )
 from puppet_strings.names import normalize
@@ -120,7 +123,8 @@ def dataset(
             name,
             time.fromisoformat(s),
             time.fromisoformat(e),
-            frozenset({"regular"}),
+            frozenset({WEEKDAY, WEEKEND}),
+            frozenset({MAIN_SEASON}),
             frozenset(c) | {"all"},
         )
         for name, (s, e, c) in blocks.items()
@@ -128,7 +132,14 @@ def dataset(
     categories_by_block = {c for b in block_objects.values() for c in b.categories}
     staff_by_id = {s.id: s for s in members}
     activity_by_id = {a.id: a for a in activities}
-    session = [target - timedelta(days=3) + timedelta(days=i) for i in range(7)]
+    span = Span(
+        name="Session 1",
+        id="session_1",
+        start=target - timedelta(days=3),
+        end=target + timedelta(days=3),
+        program_type=MAIN_SEASON,
+        session=1,
+    )
     rests = rests or {}
     if target in rests:
         staff_by_id = {
@@ -163,7 +174,8 @@ def dataset(
             c: frozenset(b.id for b in block_objects.values() if c in b.categories)
             for c in categories_by_block
         },
-        calendar={d: CalendarDay(d, session=1, week=1, day_type="regular") for d in session},
+        calendar={d: span.day(d) for d in span.dates},
+        spans=(span,),
         offerings=tuple(Offering(normalize(a), tuple(b)) for a, b in offerings),
         requests=tuple(requests),
         metrics=metrics or {},

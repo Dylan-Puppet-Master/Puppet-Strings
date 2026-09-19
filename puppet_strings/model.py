@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import date, time
+from datetime import date, time, timedelta
 from enum import Enum
 
 
@@ -179,12 +179,18 @@ class Activity:
 
 @dataclass(frozen=True)
 class Block:
-    """A time block from the Blocks sheet."""
+    """A time block from the Blocks sheet.
+
+    It exists on a day when the day's programme is one of `program_types` and the day is one
+    of the kinds in `day_types`: `weekday, weekend` is every day of a span, `first_day` only
+    the day it starts.
+    """
 
     id: str
     start: time
     end: time
     day_types: frozenset[str]
+    program_types: frozenset[str]
     categories: frozenset[str]
 
     @property
@@ -224,17 +230,83 @@ def minute_to_time(minute: int) -> time:
 
 @dataclass(frozen=True)
 class CalendarDay:
-    """One camp day from the Calendar sheet.
+    """One camp day, worked out from the span of the Calendar sheet that covers it.
 
-    `session` and `week` are the numbers written on the sheet: session 4, week 2 of that
-    session. They are what `dates.session.four.second_week` is built from, so a day belongs
-    to exactly one session and one week of it.
+    `day_types` are the kinds this day is, which is how the Blocks sheet says a block exists
+    on it: a day is `weekday` or `weekend` by the calendar, and also `first_day` or
+    `last_day` when it is one end of its span. A day is usually two of them.
     """
 
     date: date
-    session: int
-    week: int
-    day_type: str
+    span: str  # the id of the Calendar row covering it
+    session: int | None  # 1, 2, 3 … for a main season span, None for anything else
+    week: int  # which week of its span, counting seven days at a time from the start
+    day_types: frozenset[str]
+    program_type: str
+
+
+MAIN_SEASON = "main_season"
+OTHER_PROGRAM = "other"
+PROGRAM_TYPES = (MAIN_SEASON, OTHER_PROGRAM)
+
+FIRST_DAY = "first_day"
+LAST_DAY = "last_day"
+WEEKDAY = "weekday"
+WEEKEND = "weekend"
+DAY_TYPES = (FIRST_DAY, LAST_DAY, WEEKDAY, WEEKEND)
+
+DAYS_PER_WEEK = 7
+
+
+@dataclass(frozen=True)
+class Span:
+    """One row of the Calendar sheet: a named run of days running one programme.
+
+    A main season span is also numbered, in sheet order, which is what `dates.session.four`
+    is named after. Anything else is named only, and is reached as `dates.other.<name>`.
+    """
+
+    name: str
+    id: str
+    start: date
+    end: date
+    program_type: str
+    session: int | None = None
+
+    @property
+    def dates(self) -> tuple[date, ...]:
+        """Every day it covers, start and end included."""
+        length = (self.end - self.start).days + 1
+        return tuple(self.start + timedelta(days=i) for i in range(length))
+
+    def week_of(self, day: date) -> int:
+        """Which week of the span a day falls in, counting seven days from the start."""
+        return (day - self.start).days // DAYS_PER_WEEK + 1
+
+    @property
+    def weeks(self) -> int:
+        """How many weeks it runs to, the last one short if it does not divide evenly."""
+        return self.week_of(self.end)
+
+    def types_of(self, day: date) -> frozenset[str]:
+        """The kinds of day this one is."""
+        kinds = {WEEKDAY if day.weekday() < 5 else WEEKEND}
+        if day == self.start:
+            kinds.add(FIRST_DAY)
+        if day == self.end:
+            kinds.add(LAST_DAY)
+        return frozenset(kinds)
+
+    def day(self, day: date) -> "CalendarDay":
+        """How the span reads one of its days."""
+        return CalendarDay(
+            date=day,
+            span=self.id,
+            session=self.session,
+            week=self.week_of(day),
+            day_types=self.types_of(day),
+            program_type=self.program_type,
+        )
 
 
 class Priority(Enum):
@@ -403,6 +475,7 @@ class Dataset:
     blocks: Mapping[str, Block]
     block_categories: Mapping[str, frozenset[str]]
     calendar: Mapping[date, CalendarDay]
+    spans: tuple[Span, ...] = ()
     offerings: tuple[Offering, ...] = ()
     requests: tuple[Request, ...] = ()
     metrics: Mapping[str, Metric] = field(default_factory=dict)
@@ -419,19 +492,28 @@ class Dataset:
         return tuple(latest.values())
 
     @property
-    def session(self) -> int:
-        """The number of the session the target falls in."""
+    def session(self) -> int | None:
+        """The number of the session the target falls in, or None outside the main season."""
         return self.calendar[self.target].session
 
     @property
+    def this_span(self) -> Span:
+        """The Calendar row the target falls in, whatever programme it runs."""
+        return self.span(self.calendar[self.target].span)
+
+    def span(self, span_id: str) -> Span:
+        """One Calendar row by its id."""
+        return next(s for s in self.spans if s.id == span_id)
+
+    @property
     def session_dates(self) -> tuple[date, ...]:
-        """Dates of the session containing the target, in order."""
-        return self.sessions[self.session]
+        """Dates of the span containing the target, in order."""
+        return self.span_dates(self.this_span)
 
     @property
     def week_dates(self) -> tuple[date, ...]:
-        """Dates of the week of the session containing the target, in order."""
-        return self.weeks(self.session)[self.calendar[self.target].week]
+        """Dates of the week of the span containing the target, in order."""
+        return self.span_weeks(self.this_span)[self.calendar[self.target].week]
 
     @property
     def season_dates(self) -> tuple[date, ...]:
@@ -439,30 +521,33 @@ class Dataset:
         return tuple(sorted(self.calendar))
 
     @property
-    def sessions(self) -> dict[int, tuple[date, ...]]:
-        """Each session's dates in order, by session number, lowest number first."""
-        grouped: dict[int, list[date]] = {}
-        for day in self.season_dates:
-            grouped.setdefault(self.calendar[day].session, []).append(day)
-        return {session: tuple(grouped[session]) for session in sorted(grouped)}
+    def sessions(self) -> dict[int, Span]:
+        """Each main season span by its number, lowest first."""
+        return {s.session: s for s in self.spans if s.session is not None}
 
-    def weeks(self, session: int) -> dict[int, tuple[date, ...]]:
-        """One session's weeks in order, by week number."""
+    def span_dates(self, span: Span) -> tuple[date, ...]:
+        """One span's dates in order."""
+        return tuple(d for d in span.dates if d in self.calendar)
+
+    def span_weeks(self, span: Span) -> dict[int, tuple[date, ...]]:
+        """One span's weeks in order, by week number."""
         grouped: dict[int, list[date]] = {}
-        for day in self.sessions.get(session, ()):
-            grouped.setdefault(self.calendar[day].week, []).append(day)
+        for day in self.span_dates(span):
+            grouped.setdefault(span.week_of(day), []).append(day)
         return {week: tuple(grouped[week]) for week in sorted(grouped)}
 
     def blocks_on(self, day: date) -> tuple[Block, ...]:
         """Blocks that exist on a date, in Blocks sheet order."""
-        day_type = self.calendar[day].day_type
-        return tuple(b for b in self.blocks.values() if day_type in b.day_types)
+        entry = self.calendar[day]
+        return tuple(b for b in self.blocks.values() if block_runs_on(b, entry))
 
     def holds(self, staff_id: str, day: date, block_id: str) -> bool:
         """Whether a date can hold an assignment: the block exists and the person is not resting."""
-        if (
-            day not in self.calendar
-            or self.calendar[day].day_type not in self.blocks[block_id].day_types
-        ):
+        if day not in self.calendar or not block_runs_on(self.blocks[block_id], self.calendar[day]):
             return False
         return block_id not in self.resting.get(day, {}).get(staff_id, frozenset())
+
+
+def block_runs_on(block: Block, day: CalendarDay) -> bool:
+    """Whether a block exists on a day: its programme, and any one of the day's kinds."""
+    return day.program_type in block.program_types and bool(day.day_types & block.day_types)

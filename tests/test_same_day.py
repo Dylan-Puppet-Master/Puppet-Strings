@@ -173,9 +173,9 @@ def test_resting_covers_the_half_of_the_day_a_block_starts_in():
     from puppet_strings.sheets.adjustments import resting_blocks
 
     blocks = [
-        Block("clinic_1", time(9, 15), time(10, 30), frozenset(), frozenset()),
-        Block("lunch", time(12, 0), time(13, 0), frozenset(), frozenset()),
-        Block("clinic_3", time(14, 0), time(15, 15), frozenset(), frozenset()),
+        Block("clinic_1", time(9, 15), time(10, 30), frozenset(), frozenset(), frozenset()),
+        Block("lunch", time(12, 0), time(13, 0), frozenset(), frozenset(), frozenset()),
+        Block("clinic_3", time(14, 0), time(15, 15), frozenset(), frozenset(), frozenset()),
     ]
     midday = time(12, 0)
     morning = Adjustment(TARGET, "vic", Rest.MORNING)
