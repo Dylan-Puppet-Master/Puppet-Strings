@@ -14,6 +14,7 @@ existing install keeps running until it is switched over.
 """
 
 import json
+import os
 from pathlib import Path
 
 # Reading and writing the sheets, browsing Drive, making the schedule folders and the day
@@ -111,7 +112,15 @@ def service_account(credentials: Path) -> object | None:
 
 
 def _write(token: Path, credentials: object) -> None:
-    """Keep the token where only its owner can read it."""
+    """Keep the token where only its owner can read it.
+
+    The file is opened with its permissions rather than given them afterwards: it holds a
+    refresh token that stays good until somebody revokes it, and a `chmod` after the write
+    leaves it readable by anyone the umask allows for as long as the write takes. Opening
+    it this way means it is never, for an instant, a file another account could read.
+    """
     token.parent.mkdir(parents=True, exist_ok=True)
-    token.write_text(credentials.to_json())
-    token.chmod(0o600)
+    handle = os.open(token, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with open(handle, "w", encoding="utf-8") as f:
+        f.write(credentials.to_json())
+    token.chmod(0o600)  # O_CREAT leaves an existing file's own permissions alone

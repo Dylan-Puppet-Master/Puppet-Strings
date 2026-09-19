@@ -35,3 +35,24 @@ def test_no_config_file_still_reads_the_choices(tmp_path, monkeypatch):
     save_settings(Settings(folders={"cabin_acts": Chosen("f1", "Cabin Acts")}), chosen)
     monkeypatch.setenv("PUPPET_STRINGS_SETTINGS", str(chosen))
     assert load_config(tmp_path / "none.toml").folders == {"cabin_acts": "f1"}
+
+
+def test_the_token_is_never_readable_by_anybody_else(tmp_path):
+    """It holds a refresh token that is good until somebody revokes it."""
+    import os
+    import stat
+
+    from puppet_strings.google_auth import _write
+
+    class Credentials:
+        def to_json(self):
+            return '{"refresh_token": "secret"}'
+
+    token = tmp_path / "token.json"
+    umask = os.umask(0o000)  # the permissive umask the file has to survive
+    try:
+        _write(token, Credentials())
+    finally:
+        os.umask(umask)
+    assert stat.S_IMODE(token.stat().st_mode) == 0o600
+    assert token.read_text() == '{"refresh_token": "secret"}'
