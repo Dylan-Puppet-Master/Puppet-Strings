@@ -7,12 +7,14 @@ from pathlib import Path
 
 from puppet_strings.config import Config, load_config
 from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
+from puppet_strings.google_auth import AuthError
 from puppet_strings.model import Dataset
 from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
 from puppet_strings.publish.writer import is_published, publish
+from puppet_strings.session import open_source
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.requests import request_rows
-from puppet_strings.sheets.source import CsvSource, LoadError, SheetsSource, Source, Table
+from puppet_strings.sheets.source import CsvSource, LoadError, Source, Table
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
@@ -55,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
     target = args.date or default
     try:
         return _run(args, config, target)
-    except (LoadError, RequestError) as e:
+    except (LoadError, RequestError, AuthError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
@@ -65,7 +67,7 @@ def _run(args, config: Config, target: date) -> int:
         from puppet_strings.app.main import run_app
 
         return run_app(config, args.fixtures)
-    source = _source(args.fixtures, config)
+    source = open_source(config, args.fixtures)
     if args.command == "export-fixtures":
         return _export(source, args.folder)
     dataset = load_dataset(source, config, target)
@@ -85,12 +87,6 @@ def _run(args, config: Config, target: date) -> int:
     for adjustment in dataset.today_adjustments:
         print(f"today: {adjustment.describe(dataset.staff[adjustment.staff].name)}")
     return _solve(source, config, dataset, args)
-
-
-def _source(fixtures: Path | None, config: Config) -> Source:
-    if fixtures:
-        return CsvSource(fixtures)
-    return SheetsSource(config.sheets, config.credentials)
 
 
 def _export(source: Source, folder: Path) -> int:

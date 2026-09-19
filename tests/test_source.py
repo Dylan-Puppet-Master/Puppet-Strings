@@ -4,6 +4,7 @@ import pytest
 
 from puppet_strings.sheets.source import (
     _PLAIN,
+    CsvSource,
     Fill,
     LoadError,
     SheetsSource,
@@ -48,6 +49,7 @@ def source(monkeypatch):
     src.sheet_ids = {"config": "id"}
     src._open = {"config": spreadsheet}
     src._tabs = {}
+    src.folder_ids = {}
     return src, spreadsheet
 
 
@@ -65,7 +67,7 @@ def test_missing_tab_is_a_load_error(source):
     src, _ = source
     with pytest.raises(LoadError, match="no tab 'Nope'"):
         src.read("config", "Nope")
-    with pytest.raises(LoadError, match="no spreadsheet id"):
+    with pytest.raises(LoadError, match="no spreadsheet chosen"):
         src.read("published", "x")
 
 
@@ -134,3 +136,18 @@ def test_a_colour_becomes_the_fractions_the_api_wants():
     assert _rgb("#ffffff") == {"red": 1.0, "green": 1.0, "blue": 1.0}
     assert _rgb("#000000") == {"red": 0.0, "green": 0.0, "blue": 0.0}
     assert _rgb("#ff8000")["red"] == 1.0 and _rgb("#ff8000")["blue"] == 0.0
+
+
+def test_csv_group_lists_each_spreadsheet_in_a_folder(fixtures_copy):
+    src = CsvSource(fixtures_copy)
+    assert src.group("cabin_acts") == {
+        "Cabin Act Sorting - S1W1": "cabin_acts/Cabin Act Sorting - S1W1",
+        "Cabin Act Sorting - S2W1": "cabin_acts/Cabin Act Sorting - S2W1",
+    }
+    assert src.group("nothing_here") == {}
+
+
+def test_csv_read_group_reads_one_tab_of_each(fixtures_copy):
+    boards = CsvSource(fixtures_copy).read_group("cabin_acts", "Board")
+    assert set(boards) == {"Cabin Act Sorting - S1W1", "Cabin Act Sorting - S2W1"}
+    assert boards["Cabin Act Sorting - S2W1"][0][0] == "Cabin Act Sorting - S2W1"

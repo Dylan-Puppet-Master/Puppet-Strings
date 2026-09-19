@@ -5,12 +5,23 @@ Parsers never touch this module; they take tables.
 """
 
 import csv
+import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, time
 from pathlib import Path
 from typing import Protocol
 
 Table = list[list[str]]
+
+MAX_PARALLEL = 8  # requests in flight at once; Google starts refusing well above this
+
+_DRIVE_ID = re.compile(r"^[A-Za-z0-9_-]{20,}$")
+
+
+def _looks_like_id(name: str) -> bool:
+    """Whether a sheet name is a Drive id rather than a role nobody has chosen a sheet for."""
+    return bool(_DRIVE_ID.match(name))
 
 
 @dataclass(frozen=True)
@@ -53,6 +64,12 @@ class Source(Protocol):
     def read_many(self, sheet: str, tabs: list[str]) -> dict[str, Table]:
         """Several tabs of one spreadsheet, in as few requests as possible."""
 
+    def group(self, folder: str) -> dict[str, str]:
+        """Every spreadsheet in a named folder: its title -> a name `read` accepts."""
+
+    def read_group(self, folder: str, tab: str) -> dict[str, Table]:
+        """One tab of every spreadsheet in a folder, by spreadsheet title."""
+
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Replace a tab's contents, creating the tab if needed."""
 
@@ -85,6 +102,17 @@ class CsvSource:
         """Each tab's rows."""
         return {tab: self.read(sheet, tab) for tab in tabs}
 
+    def group(self, folder: str) -> dict[str, str]:
+        """Sub-folders of `<root>/<folder>`, each a spreadsheet of CSV files."""
+        base = self.root / folder
+        if not base.is_dir():
+            return {}
+        return {p.name: f"{folder}/{p.name}" for p in sorted(base.iterdir()) if p.is_dir()}
+
+    def read_group(self, folder: str, tab: str) -> dict[str, Table]:
+        """That tab of each spreadsheet in the folder."""
+        return {title: self.read(name, tab) for title, name in self.group(folder).items()}
+
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Write one CSV file."""
         path = self.root / sheet / f"{tab}.csv"
@@ -97,26 +125,66 @@ class CsvSource:
 
 
 class SheetsSource:
-    """Tables read from Google Sheets with a service account.
+    """Tables read from Google Sheets as whoever signed in.
 
     Every API call takes a noticeable fraction of a second, so tab lists are cached per
     spreadsheet and `read_many` fetches all the tabs it is asked for in one request.
+
+    A sheet is named either by its role — `config`, `skills` — or by its Drive id, which
+    is how a folder of sheets nobody named one at a time can still be read.
     """
 
-    def __init__(self, sheet_ids: dict[str, str], credentials: Path) -> None:
+    def __init__(
+        self,
+        sheet_ids: dict[str, str],
+        credentials: object,
+        folders: dict[str, str] | None = None,
+    ) -> None:
         import gspread
 
-        self.client = gspread.service_account(filename=str(credentials))
+        self.client = gspread.authorize(credentials)
+        self.credentials = credentials
         self.sheet_ids = sheet_ids
+        self.folder_ids = folders or {}
         self._open: dict[str, object] = {}
         self._tabs: dict[str, list[str]] = {}
+        self._drive = None
+
+    @property
+    def drive(self):
+        """Drive, opened on first use: most runs never browse or list a folder."""
+        from puppet_strings.drive import Drive
+
+        if self._drive is None:
+            self._drive = Drive(self.credentials)
+        return self._drive
 
     def _spreadsheet(self, sheet: str):
-        if sheet not in self.sheet_ids:
-            raise LoadError(f"{sheet}: no spreadsheet id in config.toml [sheets]")
+        key = self.sheet_ids.get(sheet, sheet)  # an unnamed sheet is named by its own id
+        if key == sheet and sheet not in self.sheet_ids and not _looks_like_id(sheet):
+            raise LoadError(f"{sheet}: no spreadsheet chosen; pick one in Configure")
         if sheet not in self._open:
-            self._open[sheet] = self.client.open_by_key(self.sheet_ids[sheet])
+            self._open[sheet] = self.client.open_by_key(key)
         return self._open[sheet]
+
+    def group(self, folder: str) -> dict[str, str]:
+        """Every spreadsheet in a chosen Drive folder, by title."""
+        if folder not in self.folder_ids:
+            raise LoadError(f"{folder}: no folder chosen; pick one in Configure")
+        return {f.name: f.id for f in self.drive.spreadsheets(self.folder_ids[folder])}
+
+    def read_group(self, folder: str, tab: str) -> dict[str, Table]:
+        """One tab of every spreadsheet in a folder, fetched all at once.
+
+        A season is a couple of dozen sheets and a request each would take the best part of
+        a minute, so they go out together and wait in parallel.
+        """
+        sheets = self.group(folder)
+        if not sheets:
+            return {}
+        with ThreadPoolExecutor(max_workers=min(len(sheets), MAX_PARALLEL)) as pool:
+            tables = pool.map(lambda key: self.read(key, tab), sheets.values())
+            return dict(zip(sheets, tables, strict=True))
 
     def tabs(self, sheet: str) -> list[str]:
         """Worksheet titles, fetched once per spreadsheet."""
