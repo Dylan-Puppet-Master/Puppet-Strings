@@ -3,6 +3,7 @@ breakfast,08:00,09:00,"regular, changeover",meals
 clinic_1,09:15,10:30,regular,any_clinic
 clinic_2,10:45,12:00,regular,any_clinic
 lunch,12:00,13:00,"regular, changeover",meals
+cabin_act,13:00,14:00,regular,
 clinic_3,14:00,15:15,regular,any_clinic
 clinic_4,15:45,17:00,regular,any_clinic
 playstation,17:00,18:00,"regular, changeover",

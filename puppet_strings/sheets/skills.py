@@ -45,6 +45,8 @@ class ClinicPositions:
 # Keyed by normalized clinic name, so Clinic_Data and Positions need not agree on case.
 PositionSkills = dict[str, ClinicPositions]
 
+SKILLS_PREFIX = "skills."  # what a skill is called in the `staff` namespace
+
 HEADER_ROWS = 3
 NAME_COLUMN = 0
 RAL_COLUMN = 1
@@ -138,3 +140,21 @@ def trainers(staff: dict[str, Staff]) -> frozenset[str]:
     return frozenset(
         s.id for s in staff.values() if any(status.can_scaffold for status in s.skills.values())
     )
+
+
+def skill_categories(
+    staff: dict[str, Staff], skills: Mapping[str, str]
+) -> dict[str, frozenset[str]]:
+    """`skills.<skill>` -> ids of everyone eligible on that skill.
+
+    These are what the cabin act sheets ask for by name: a hero wanted for LIFEGUARD is
+    anyone the Skills tab has checked off on the LIFEGUARD column. They live under their
+    own `skills.` prefix so that a skill can never collide with a Staff Categories column,
+    and so `puppet-strings names` lists them together.
+    """
+    return {
+        f"{SKILLS_PREFIX}{skill}": frozenset(
+            s.id for s in staff.values() if s.skills.get(skill, SkillStatus.NONE).eligible
+        )
+        for skill in skills
+    }

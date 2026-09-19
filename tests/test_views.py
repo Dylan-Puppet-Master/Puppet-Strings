@@ -43,6 +43,7 @@ def test_staff_view(dataset):
         "Clinic 1",
         "Clinic 2",
         "Lunch",
+        "Cabin Act",
         "Clinic 3",
         "Clinic 4",
         "Playstation",
@@ -66,7 +67,7 @@ def test_staff_view(dataset):
     )
     assert len(table) == 22
     custom = staff_view(dataset, rows(dataset), remainder="own work")
-    assert {row[0]: row for row in custom[1:]}["James"][5] == "own work, then break"
+    assert {row[0]: row for row in custom[1:]}["James"][6] == "own work, then break"
 
 
 def test_clinic_view(dataset):

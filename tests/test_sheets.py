@@ -2,7 +2,7 @@ from datetime import date, time
 
 import pytest
 
-from puppet_strings.model import Offering, SkillStatus
+from puppet_strings.model import Offering, Priority, Request, SkillStatus
 from puppet_strings.names import normalize
 from puppet_strings.sheets.blocks import parse_blocks
 from puppet_strings.sheets.calendar import parse_calendar
@@ -18,6 +18,7 @@ from puppet_strings.sheets.skills import (
     trainers,
 )
 from puppet_strings.sheets.source import LoadError, parse_time
+from puppet_strings.skedge.validate import validate_request
 
 _KNOWN = {"canoe": "Canoe"}  # skills the Skills tab of a hand-built table has columns for
 
@@ -381,3 +382,29 @@ def test_the_solvers_own_priority_cannot_be_written_on_the_sheet():
     with pytest.raises(LoadError, match="STABILITY is the solver's own"):
         parse_requests([header, row])
     assert parse_requests([header, [*row[:3], "HIGH", *row[4:]]])[0].priority.value == "HIGH"
+
+
+def test_skill_categories_hold_everyone_eligible(dataset):
+    lifeguards = dataset.staff_categories["skills.lifeguard"]
+    assert lifeguards
+    for staff_id, member in dataset.staff.items():
+        eligible = member.skills["lifeguard"].eligible
+        assert (staff_id in lifeguards) == (
+            eligible and staff_id in dataset.staff_categories["all"]
+        )
+
+
+def test_skill_categories_are_usable_in_skedge(dataset):
+    request = Request(
+        "lifeguard",
+        "",
+        "REQUEST ANY_1_OF staff.skills.lifeguard DO 'help P4 with CA' DURING block.cabin_act",
+        Priority.CLINIC,
+    )
+    assert validate_request(request, dataset) is not None
+
+
+def test_a_staff_category_wins_a_name_a_skill_shares(dataset):
+    # ropes_level_2 is a Staff Categories column; the LEVEL 2 skill column is its own name.
+    assert "skills.level_2" in dataset.staff_categories
+    assert "level_2" not in dataset.staff_categories

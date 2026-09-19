@@ -168,7 +168,7 @@ normalizes to a built-in name, are a load error.
 
 | Namespace | Holds | Built in |
 |---|---|---|
-| `staff` | Staff members, staff categories | `staff.all`, `staff.clinic_trainers` |
+| `staff` | Staff members, staff categories, skills as `staff.skills.<skill>` | `staff.all`, `staff.clinic_trainers` |
 | `activity` | Clinics, clinic categories | `activity.all` (every clinic) |
 | `block` | Blocks, block categories | `block.all` |
 | `date` | | `date.target`, and the scopes below |
@@ -181,6 +181,10 @@ no name that means "any one of": that is what `ANY_1_OF` is for.
 
 A staff category, and `staff.all`, hold only the people working on `date.target`: someone
 resting all day is in no category, though their own name still resolves.
+
+`staff.skills.<skill>` is one per column of the Skills tab, holding everyone whose status
+there is eligible (`checked off` or `trainer`). The `skills.` prefix keeps them apart from
+the Staff Categories columns, so the two can never collide.
 
 ### 5.1 Dates
 

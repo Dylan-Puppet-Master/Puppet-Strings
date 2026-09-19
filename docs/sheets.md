@@ -55,7 +55,8 @@ nothing matches stops loading with an error listing every one. None of them is r
 "anyone may facilitate" — that is what `Any` is for.
 
 The staff roster is the set of rows on the main tab, and `staff.all` names all of them.
-`staff.clinic_trainers` is everyone with at least one `Trainer` cell.
+`staff.clinic_trainers` is everyone with at least one `Trainer` cell. Each skill column is
+a category of its own, `staff.skills.<skill>`, holding everyone checked off on it.
 
 ## Staff Categories
 

@@ -17,6 +17,7 @@ from puppet_strings.model import (
     TRAINEE_ROLES,
     Dataset,
 )
+from puppet_strings.sheets.skills import SKILLS_PREFIX
 from puppet_strings.skedge import ast
 
 Item = str | date
@@ -341,6 +342,9 @@ def _note(namespace: str, name: str, named: Named) -> str:
         if name in LIFEGUARD_ROLES:
             return "extra lifeguard on a water clinic"
         return "trainee" if name in TRAINEE_ROLES + (TRAINEE,) else "clinic position"
+    if namespace == "staff" and name.startswith(SKILLS_PREFIX):
+        skill = name[len(SKILLS_PREFIX) :]
+        return f"checked off on {skill}, {len(named.items)} members"
     return f"category, {len(named.items)} members"
 
 

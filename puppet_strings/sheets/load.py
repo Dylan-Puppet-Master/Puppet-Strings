@@ -20,6 +20,7 @@ from puppet_strings.sheets.skills import (
     known_skills,
     parse_position_skills,
     parse_skills,
+    skill_categories,
     trainers,
 )
 from puppet_strings.sheets.source import LoadError, Source
@@ -81,7 +82,12 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
         source.read("staff_categories", tabs["staff_categories"]), staff
     )
     _reserve("staff", categories, (ALL, CLINIC_TRAINERS, *staff))
-    categories = {**categories, ALL: frozenset(staff), CLINIC_TRAINERS: trainers(staff)}
+    categories = {
+        **skill_categories(staff, skills),  # a Staff Categories column of that name wins
+        **categories,
+        ALL: frozenset(staff),
+        CLINIC_TRAINERS: trainers(staff),
+    }
     # a category never offers someone who is not working today
     staff_categories = {c: members & working for c, members in categories.items()}
     offerings, offering_warnings = parse_offerings(
