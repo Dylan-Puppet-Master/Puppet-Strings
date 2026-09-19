@@ -205,7 +205,7 @@ def test_publish_round_trip(dataset, tmp_path):
     assert not is_published(source, CONFIG, dataset)
     publish(source, CONFIG, dataset, result)
     assert is_published(source, CONFIG, dataset)
-    where = "schedules/2026/Main Season/Session 1/Wednesday_1"
+    where = "root/2026/Main Season/Session 1/Wednesday_1"
     assert set(source.tabs(where)) == {
         "Offerings",  # publishing a day nobody made yet makes it, grid and all
         "Assignments",
@@ -222,7 +222,7 @@ def test_a_day_sheet_is_made_with_its_tabs(dataset, tmp_path):
     """Load offerings makes the day a spreadsheet to fill in, before anything is solved."""
     source = CsvSource(tmp_path)
     day_sheet(source, CONFIG, dataset.this_span, dataset.target)
-    where = "schedules/2026/Main Season/Session 1/Wednesday_1"
+    where = "root/2026/Main Season/Session 1/Wednesday_1"
     assert set(source.tabs(where)) == {
         "Offerings",
         "Assignments",

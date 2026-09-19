@@ -16,6 +16,15 @@ Table = list[list[str]]
 
 MAX_PARALLEL = 8  # requests in flight at once; Google starts refusing well above this
 DEFAULT_TAB = "Sheet1"  # what Google calls the one tab a new spreadsheet comes with
+
+# What a spreadsheet has to be called in the Puppet Strings folder to be recognised, so that
+# choosing the root is the whole of the setup. Matched without regard to case.
+SHEET_ROLES = {
+    "clinic_data": "clinic_data",
+    "clinic_schedule": "clinic_schedule",
+    "skills": "skills",
+    "config": "config",
+}
 FOLDER_MIME = "application/vnd.google-apps.folder"
 
 _DRIVE_ID = re.compile(r"^[A-Za-z0-9_-]{20,}$")
@@ -86,6 +95,12 @@ class Source(Protocol):
     def documents(self, root: str, path: tuple[str, ...]) -> dict[str, str]:
         """Spreadsheets in `root/<path>`: title -> a name `read` accepts. Missing folder: {}."""
 
+    def subfolders(self, root: str, path: tuple[str, ...]) -> list[str]:
+        """Names of the folders directly in `root/<path>`. Missing folder: []."""
+
+    def discover(self, root: str, year: int) -> None:
+        """Find the named spreadsheets under the root folder. Sources that need no lookup pass."""
+
     def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
         """Make a spreadsheet with these tabs at `root/<path>`, and the folders above it."""
 
@@ -138,8 +153,14 @@ class CsvSource:
 
     def documents(self, root: str, path: tuple[str, ...]) -> dict[str, str]:
         """Sub-folders of `<root>/<path>`, each a spreadsheet of CSV files."""
-        inside = "/".join((root, *path))
-        return self.group(inside)
+        return self.group("/".join((root, *path)))
+
+    def subfolders(self, root: str, path: tuple[str, ...]) -> list[str]:
+        """Folders on disk are spreadsheets, so a CSV tree has no folders of folders."""
+        return sorted(self.group("/".join((root, *path))))
+
+    def discover(self, root: str, year: int) -> None:
+        """A CSV tree is addressed by folder name, so there is nothing to look up."""
 
     def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
         """Make the folders and an empty CSV file per tab."""
@@ -233,6 +254,30 @@ class SheetsSource:
         if folder is None:
             return {}
         return {f.name: f.id for f in self.drive.spreadsheets(folder)}
+
+    def subfolders(self, root: str, path: tuple[str, ...]) -> list[str]:
+        """Names of the folders directly in `root/<path>`."""
+        folder = self._walk(root, path, make=False)
+        if folder is None:
+            return []
+        return sorted(f.name for f in self.drive.listing(folder) if f.folder)
+
+    def discover(self, root: str, year: int) -> None:
+        """Learn where the named spreadsheets are, by walking the root and reading names.
+
+        The root holds a folder per year, and a sheet is looked for in the year being
+        scheduled before the root, so a season can keep its own copy of one sheet without
+        copying the rest. Anything already named in config.toml is left alone.
+        """
+        if root not in self.folder_ids:
+            raise LoadError(f"{root}: no folder chosen; pick one in Configure")
+        found: dict[str, str] = {}
+        for path in ((), (str(year),)):  # the year wins, so it is looked at second
+            for title, key in self.documents(root, path).items():
+                role = SHEET_ROLES.get(title.strip().lower())
+                if role is not None:
+                    found[role] = key
+        self.sheet_ids = {**found, **self.sheet_ids}  # config.toml still overrides
 
     def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
         """Make a spreadsheet with these tabs at `root/<path>`, and the folders above it.

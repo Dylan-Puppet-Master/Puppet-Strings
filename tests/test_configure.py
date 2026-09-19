@@ -114,32 +114,38 @@ def test_a_folder_that_cannot_be_listed_says_so(app):
     assert "Could not list" in found.listing.item(0).text()
 
 
+def test_the_pane_asks_for_two_folders_and_nothing_else(app, config):
+    """Everything inside the Puppet Strings folder is found by name, so nothing else is asked."""
+    dialog = ConfigureDialog(config, credentials=object())
+    assert sorted(dialog.rows) == [("folders", "cabin_acts"), ("folders", "root")]
+
+
 def test_the_pane_shows_what_is_chosen_and_saves_it(app, config):
     dialog = ConfigureDialog(config, credentials=object())
-    assert dialog.rows["sheets", "config"].text() == NOT_CHOSEN
-    dialog.choose("sheets", "config", Chosen("abc", "Puppet Strings Config"))
+    assert dialog.rows["folders", "root"].text() == NOT_CHOSEN
+    dialog.choose("folders", "root", Chosen("abc", "Puppet Strings"))
     dialog.choose("folders", "cabin_acts", Chosen("f2", "Cabin Act Testing"))
-    assert dialog.rows["sheets", "config"].text() == "Puppet Strings Config"
+    assert dialog.rows["folders", "root"].text() == "Puppet Strings"
     dialog.save()
     saved = load_settings()
-    assert saved.sheets["config"] == Chosen("abc", "Puppet Strings Config")
+    assert saved.folders["root"] == Chosen("abc", "Puppet Strings")
     assert saved.folders["cabin_acts"] == Chosen("f2", "Cabin Act Testing")
 
 
 def test_clearing_a_choice_forgets_it(app, config):
     dialog = ConfigureDialog(config, credentials=object())
-    dialog.choose("sheets", "skills", Chosen("abc", "Skills"))
-    dialog.clear("sheets", "skills")
-    assert dialog.rows["sheets", "skills"].text() == NOT_CHOSEN
+    dialog.choose("folders", "root", Chosen("abc", "Puppet Strings"))
+    dialog.clear("folders", "root")
+    assert dialog.rows["folders", "root"].text() == NOT_CHOSEN
     dialog.save()
-    assert "skills" not in load_settings().sheets
+    assert "root" not in load_settings().folders
 
 
 def test_nothing_is_written_until_save(app, config):
     dialog = ConfigureDialog(config, credentials=object())
-    dialog.choose("sheets", "skills", Chosen("abc", "Skills"))
+    dialog.choose("folders", "root", Chosen("abc", "Puppet Strings"))
     dialog.reject()
-    assert load_settings().sheets == {}
+    assert load_settings().folders == {}
 
 
 def test_the_pane_says_when_nobody_is_signed_in(app, config):

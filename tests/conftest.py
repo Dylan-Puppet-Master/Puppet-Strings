@@ -17,7 +17,7 @@ def source() -> CsvSource:
     return CsvSource(FIXTURES)
 
 
-CONFIG = Config(folders={"schedules": "schedules", "cabin_acts": "cabin_acts"})
+CONFIG = Config(folders={"root": "root", "cabin_acts": "cabin_acts"})
 
 
 @pytest.fixture

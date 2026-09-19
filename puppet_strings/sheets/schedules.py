@@ -1,15 +1,17 @@
 """Where a day's schedule lives in Drive, and what is in it.
 
-One folder tree under the root chosen in the Configure pane, which is how the Puppet Master
-keeps them:
+One folder tree under the Puppet Strings folder chosen in the Configure pane, which is how
+the Puppet Master keeps them. The root holds a folder per year:
 
-    2027/
-      Main Season/
-        Session 1/
-          Staff Categories        one spreadsheet, for that session's staff
-          Monday_1                one spreadsheet per day of the session
-          Tuesday_1
-          Monday_2                the second week's Monday
+    Puppet Strings/
+      2027/
+        Clinic_Data, Clinic_Schedule, Skills, Config   the season's reference sheets
+        Main Season/
+          Session 1/
+            Staff Categories      one spreadsheet, for that session's staff
+            Monday_1              one spreadsheet per day of the session
+            Tuesday_1
+            Monday_2              the second week's Monday
 
 The year is the span's own year, the programme is its `program type` and the folder under
 it is its `name`, all from the Calendar sheet, so nothing has to be written down twice. A
@@ -28,7 +30,7 @@ from datetime import date
 from puppet_strings.config import Config
 from puppet_strings.model import Span
 
-SCHEDULES = "schedules"  # the folder role the Configure pane fills in
+ROOT = "root"  # the one folder the Configure pane asks for: the Puppet Strings folder
 
 WEEKDAYS = (
     "Monday",

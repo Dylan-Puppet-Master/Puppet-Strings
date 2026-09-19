@@ -30,7 +30,7 @@ def test_solve_publishes_to_fixture_copy(tmp_path, capsys):
     shutil.copytree(FIXTURES, copy)
     args = ["--fixtures", str(copy), "--date", "2026-09-16", "solve", "--publish"]
     assert main(args) == 0
-    day = copy / "schedules" / "2026" / "Main Season" / "Session 1" / "Wednesday_1"
+    day = copy / "root" / "2026" / "Main Season" / "Session 1" / "Wednesday_1"
     assert (day / "Assignments.csv").exists() and (day / "Staff View.csv").exists()
     assert main(args) == 1
     assert "already published" in capsys.readouterr().err
@@ -94,6 +94,6 @@ def test_same_day_publishes_over_the_day_without_force(tmp_path, capsys):
     copy = published_copy(tmp_path)
     args = ["--fixtures", str(copy), "--date", "2026-09-16", "solve", "--same-day", "--publish"]
     assert main(args) == 0
-    day = copy / "schedules" / "2026" / "Main Season" / "Session 1" / "Wednesday_1"
+    day = copy / "root" / "2026" / "Main Season" / "Session 1" / "Wednesday_1"
     assert (day / "Changes.csv").exists()  # a re-solve says what moved, beside the views
     assert "published 2026-09-16" in capsys.readouterr().out

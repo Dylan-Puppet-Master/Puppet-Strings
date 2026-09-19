@@ -316,26 +316,35 @@ scale says "no opinion", and only the ratings you actually enter pull for or aga
 
 ## The schedules tree
 
-Published schedules, the days' Offerings grids and each span's staff all live in one folder
-tree, under the **Schedules** folder chosen in the Configure pane:
+Everything Puppet Strings reads lives in one folder, chosen in the Configure pane. Nothing
+else is configured: the folder is walked and things are recognised by their names.
 
 ```
-Schedules/
+Puppet Strings/
   2027/
+    Clinic_Data            the season's reference sheets, found by name
+    Clinic_Schedule
+    Skills
+    Config
     Main Season/
       Session 1/
-        Staff Categories      one spreadsheet, for that span's staff
-        Monday_1              one spreadsheet per day
+        Staff Categories   one spreadsheet, for that span's staff
+        Monday_1           one spreadsheet per day
         Tuesday_1
-        Monday_2              the second week's Monday
+        Monday_2           the second week's Monday
     Other/
       August Family Camp/
         Staff Categories
         Monday_1
 ```
 
-The year is the span's own, the programme is its `program type` and the folder under it is
-its `name`, all read off the [Calendar](#calendar-config-spreadsheet), so nothing is written
+The root holds a folder per year and the year is taken from the date being scheduled. A
+reference sheet is looked for in that year's folder first and at the root second, so a
+season can keep its own `Skills` without copying everything else, and sheets that never
+change can sit at the root.
+
+Under the year, the programme is the span's `program type` and the folder under it is its
+`name`, both read off the [Calendar](#calendar-config-spreadsheet), so nothing is written
 down twice. A day is named for its weekday and which week of its span it falls in, because a
 fortnight reaches Monday more than once.
 

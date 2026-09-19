@@ -14,18 +14,19 @@ from pathlib import Path
 
 DEFAULT_PATH = Path("~/.config/puppet_strings/settings.json")
 
-# Every spreadsheet the program reads, with what it is for, in the order the pane lists them.
-SHEETS = (
-    ("clinic_data", "Clinic Data", "Every clinic, its category and its positions"),
-    ("clinic_schedule", "Clinic Schedule", "The Offerings grid a new day is started from"),
-    ("skills", "Skills", "Who is checked off on what, and each position's skill"),
-    ("config", "Config", "Blocks, Calendar, Requests, Metrics and Adjustments"),
-)
+# Nothing but folders is asked for. What is inside the Puppet Strings folder is found by
+# name -- a spreadsheet called Skills is the Skills sheet, a folder called 2027 is that
+# year -- so setting up is choosing where to look, not listing what is there.
+SHEETS = ()
 
-# Folders rather than one sheet.
 FOLDERS = (
+    (
+        "root",
+        "Puppet Strings",
+        "Holds a folder per year, and the reference sheets named Clinic_Data, "
+        "Clinic_Schedule, Skills and Config",
+    ),
     ("cabin_acts", "Cabin Acts", "One cabin act sheet per session and week"),
-    ("schedules", "Schedules", "Holds a folder per year; the days and their staff live under it"),
 )
 
 

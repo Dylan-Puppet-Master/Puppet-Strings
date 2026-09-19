@@ -45,10 +45,10 @@ Create a **config spreadsheet** with tabs named `Blocks`, `Calendar`, `Requests`
 its own extra tab of ratings, as that page explains. The Blocks tab needs a `cabin_act`
 row, which is the slot the cabin act sheets are scheduled into.
 
-Then make an empty **Schedules** folder. Puppet Strings builds the year, programme and span
-folders inside it as it needs them; you put a `Staff Categories` spreadsheet in each span's
-folder, and **Load offerings** makes the day spreadsheets. See
-[the schedules tree](sheets.md#the-schedules-tree).
+Put it, and the other spreadsheets, in a **Puppet Strings** folder holding a folder per
+year. Puppet Strings builds the programme and span folders inside a year as it needs them;
+you put a `Staff Categories` spreadsheet in each span's folder, and **Load offerings** makes
+the day spreadsheets. See [the schedules tree](sheets.md#the-schedules-tree).
 
 ## 5. Sign in and choose the sheets
 
@@ -63,11 +63,13 @@ shared drive, the same three places Drive itself offers.
 
 | Row | What to pick |
 |---|---|
-| Clinic Data, Skills | The existing spreadsheets |
-| Clinic Schedule | The spreadsheet whose Offerings grid a new day is started from |
-| Config | The spreadsheet holding Blocks, Calendar, Requests, Metrics, Adjustments |
-| Cabin Acts | The **folder** holding one cabin act sheet per session and week |
-| Schedules | The **folder** holding a folder per year; see [the schedules tree](sheets.md#the-schedules-tree) |
+| Puppet Strings | The **folder** holding a folder per year; see [the schedules tree](sheets.md#the-schedules-tree) |
+| Cabin Acts | The **folder** holding one cabin act sheet per session and week, which somebody else keeps |
+
+Two folders is the whole of it. Inside the Puppet Strings folder everything is found by
+name — a spreadsheet called `Clinic_Data`, `Clinic_Schedule`, `Skills` or `Config` is that
+sheet, a folder called `2027` is that year — so renaming a sheet is how you move it, and
+nothing has to be re-chosen when you add next season.
 
 What you choose is kept in `~/.config/puppet_strings/settings.json`. **Configure** is on
 the right of the toolbar whenever you want to change a sheet, or sign in as a different

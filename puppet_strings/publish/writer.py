@@ -12,7 +12,7 @@ from puppet_strings.model import Dataset, Span
 from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
 from puppet_strings.sheets.published import assignment_rows
 from puppet_strings.sheets.schedules import (
-    SCHEDULES,
+    ROOT,
     day_tabs,
     day_title,
     offerings_template,
@@ -32,10 +32,10 @@ def day_sheet(source: Source, config: Config, span: Span, day: date) -> str:
     returned untouched, grid and all.
     """
     path, title = span_path(span), day_title(span, day)
-    found = source.documents(SCHEDULES, path)
+    found = source.documents(ROOT, path)
     if title in found:
         return found[title]
-    sheet = source.create(SCHEDULES, path, title, day_tabs(config))
+    sheet = source.create(ROOT, path, title, day_tabs(config))
     source.write(sheet, config.tabs["offerings"], _template(source, config, day))
     return sheet
 
@@ -79,7 +79,7 @@ def is_published(source: Source, config: Config, dataset: Dataset) -> bool:
     day nobody has scheduled yet.
     """
     span = dataset.this_span
-    found = source.documents(SCHEDULES, span_path(span))
+    found = source.documents(ROOT, span_path(span))
     title = day_title(span, dataset.target)
     if title not in found:
         return False

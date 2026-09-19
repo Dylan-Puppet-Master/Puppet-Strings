@@ -2,6 +2,7 @@
 
 import pytest
 
+from puppet_strings.drive import FOLDER_MIME, SHEET_MIME, DriveFile
 from puppet_strings.sheets.source import (
     _PLAIN,
     CsvSource,
@@ -151,3 +152,99 @@ def test_csv_read_group_reads_one_tab_of_each(fixtures_copy):
     boards = CsvSource(fixtures_copy).read_group("cabin_acts", "Board")
     assert set(boards) == {"Cabin Act Sorting - S1W1", "Cabin Act Sorting - S2W1"}
     assert boards["Cabin Act Sorting - S2W1"][0][0] == "Cabin Act Sorting - S2W1"
+
+
+class FakeDrive:
+    """A Drive of nested folders and spreadsheets, as name -> contents."""
+
+    def __init__(self, tree):
+        self.tree, self.ids, self.listed = tree, {}, []
+        self._register("root", tree)
+
+    def _register(self, key, node):
+        self.ids[key] = node
+        for name, child in node.items():
+            if isinstance(child, dict):
+                self._register(f"{key}/{name}", child)
+
+    def listing(self, place):
+        self.listed.append(place)
+        node = self.ids.get(place, {})
+        return [
+            DriveFile(f"{place}/{name}", name, FOLDER_MIME if isinstance(c, dict) else SHEET_MIME)
+            for name, c in node.items()
+        ]
+
+    def spreadsheets(self, folder_id):
+        return [f for f in self.listing(folder_id) if not f.folder]
+
+    def child(self, parent, name, mime):
+        return next((f for f in self.listing(parent) if f.name == name and f.mime == mime), None)
+
+
+def sheets_source(tree, **config):
+    src = SheetsSource.__new__(SheetsSource)
+    src.sheet_ids = config.get("sheet_ids", {})
+    src.folder_ids = {"root": "root"}
+    src._open, src._tabs = {}, {}
+    src._drive = FakeDrive(tree)
+    return src
+
+
+TREE = {
+    "Clinic_Schedule": "sheet",
+    "Skills": "sheet",
+    "2027": {
+        "Clinic_Data": "sheet",
+        "Skills": "sheet",
+        "Config": "sheet",
+        "Main Season": {"Session 1": {"Staff Categories": "sheet", "Monday_1": "sheet"}},
+    },
+}
+
+
+def test_discover_finds_the_sheets_by_name():
+    """Choosing the Puppet Strings folder is the whole of the setup."""
+    src = sheets_source(TREE)
+    src.discover("root", 2027)
+    assert set(src.sheet_ids) == {"clinic_data", "clinic_schedule", "skills", "config"}
+    assert src.sheet_ids["config"] == "root/2027/Config"
+    assert src.sheet_ids["clinic_schedule"] == "root/Clinic_Schedule"  # only at the root
+
+
+def test_the_year_wins_over_the_root():
+    """A season may keep its own copy of one sheet without copying the rest."""
+    src = sheets_source(TREE)
+    src.discover("root", 2027)
+    assert src.sheet_ids["skills"] == "root/2027/Skills"
+
+
+def test_a_year_with_nothing_in_it_falls_back_to_the_root():
+    src = sheets_source(TREE)
+    src.discover("root", 2030)  # no such year folder
+    assert src.sheet_ids["skills"] == "root/Skills"
+    assert "config" not in src.sheet_ids  # Config lives only inside 2027
+
+
+def test_config_toml_still_overrides_what_was_found():
+    src = sheets_source(TREE, sheet_ids={"skills": "pinned"})
+    src.discover("root", 2027)
+    assert src.sheet_ids["skills"] == "pinned"
+
+
+def test_discover_needs_a_root_folder():
+    src = sheets_source(TREE)
+    src.folder_ids = {}
+    with pytest.raises(LoadError, match="no folder chosen"):
+        src.discover("root", 2027)
+
+
+def test_the_tree_is_walked_for_a_span_and_its_days():
+    src = sheets_source(TREE)
+    assert src.subfolders("root", ()) == ["2027"]
+    assert src.subfolders("root", ("2027",)) == ["Main Season"]
+    assert src.documents("root", ("2027", "Main Season", "Session 1")) == {
+        "Staff Categories": "root/2027/Main Season/Session 1/Staff Categories",
+        "Monday_1": "root/2027/Main Season/Session 1/Monday_1",
+    }
+    assert src.documents("root", ("2028",)) == {}  # a year that is not there holds nothing

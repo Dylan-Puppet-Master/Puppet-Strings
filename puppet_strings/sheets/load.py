@@ -19,7 +19,7 @@ from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import parse_published
 from puppet_strings.sheets.requests import parse_requests
 from puppet_strings.sheets.schedules import (
-    SCHEDULES,
+    ROOT,
     STAFF_CATEGORIES,
     day_title,
     span_path,
@@ -55,6 +55,7 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
     """
     tabs = config.tabs
     warnings: list[str] = []
+    source.discover(ROOT, target.year)  # find the sheets by name before asking for any
     config_tables = _config_tables(source, config)
     spans = parse_calendar(config_tables[tabs["calendar"]], config.date_order)
     calendar = calendar_days(spans)
@@ -133,7 +134,7 @@ def _build(
     working = frozenset(i for i, member in staff.items() if member.resting_blocks != today_blocks)
 
     span = next(s for s in spans if s.id == calendar[target].span)
-    in_span = source.documents(SCHEDULES, span_path(span))
+    in_span = source.documents(ROOT, span_path(span))
     categories = parse_staff_categories(_categories_table(source, in_span, span), staff)
     _reserve("staff", categories, (ALL, CLINIC_TRAINERS, *staff))
     named = {**categories, ALL: frozenset(staff), CLINIC_TRAINERS: trainers(staff)}
@@ -261,7 +262,7 @@ def _published(source, config, spans, calendar, target, staff, activities):
         if day > target:
             break
         span = by_span[calendar[day].span]
-        for title, key in source.documents(SCHEDULES, span_path(span)).items():
+        for title, key in source.documents(ROOT, span_path(span)).items():
             if title == day_title(span, day):
                 wanted[day] = key
     tables = source.read_all(
