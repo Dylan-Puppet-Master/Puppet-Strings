@@ -124,9 +124,9 @@ The spreadsheet has one tab per category (Arts, Outdoor, Rolling, …) and one c
 | `Staff_Required` or `Staff_Requested` | int | Number of positions. Both header spellings exist and are accepted. |
 | `RAL_Required` | digit string | **One digit per position**, in position order: `53` means 1st needs RAL 5, 2nd needs RAL 3; `543` covers three positions. Exactly `Staff_Required` digits; any other length is a load error naming the row (the current sheet has four such rows to fix). |
 | `LG_Required` | int, optional | Lifeguards in addition to `Staff_Required`, each a position needing the `LIFEGUARD` skill at RAL 5. Blank means 0. |
-| `Category` | text, optional | Present on the combined tab; otherwise the tab name is used. Becomes `activity.<category>` (`activities.clinics.ropes`, `activities.clinics.arts`). |
+| `Category` | text, optional | Present on the combined tab; otherwise the tab name is used. Becomes `activities.clinics.<category>` (`activities.clinics.ropes`, `activities.clinics.arts`). |
 
-Built-in: `activities.clinics.any_clinic` = every row. Positions are `roles.first`, `roles.second`, `roles.third` for `Staff_Required` = 1, 2, 3, followed by `roles.lifeguard`, `roles.lifeguard_2` for `LG_Required` = 1, 2.
+Built-in: `activities.clinics.all` = every row. Positions are `roles.first`, `roles.second`, `roles.third` for `Staff_Required` = 1, 2, 3, followed by `roles.lifeguard`, `roles.lifeguard_2` for `LG_Required` = 1, 2.
 
 ### 2.2 Skills (existing, read)
 
@@ -202,7 +202,7 @@ One row per time block, as in the proposal.
 
 ### 2.6 Calendar (new, read)
 
-One row per camp day. This is the "session calendar" the proposal names as the source of the `date` namespace but does not define.
+One row per camp day. This is the "session calendar" the proposal names as the source of the `dates` namespace but does not define.
 
 | Column | Type | Example |
 |---|---|---|
@@ -211,7 +211,7 @@ One row per camp day. This is the "session calendar" the proposal names as the s
 | `week` | whole number, 1-20, counted within the session | `2` |
 | `day_type` | identifier | `regular` |
 
-The two numbers are the whole of the `date` namespace: `dates.session.three` is every date
+The two numbers are the whole of the `dates` namespace: `dates.session.three` is every date
 of session 3 and `dates.session.three.second_week` every date of its second week. See
 [Dates](skedge.md#dates); this table was rewritten on 2026-09-18 with that redesign (§11).
 
@@ -354,7 +354,7 @@ Dependencies: `ortools`, `lark`, `gspread`, `PySide6`. Development: `pytest`, `r
 - `free[s, d, b]`: true iff no `x` for `s` overlaps block `b` on `d`. Encoded as `free + sum(x overlapping b) == 1` when blocks in the overlap set are pairwise exclusive (always true after the no-double-booking constraint).
 - **No double booking**: for each staff and block, `sum(x[s, *, *, d, b]) <= 1`; for each pair of overlapping blocks, `sum over both <= 1`.
 - **One holder per position, one instance per block**: `sum_s x[s, a, p, d, b] <= 1` for every position `p`. (Implied by the proposal, stated here.)
-- **Offered clinics are staffed**: for each offering `(a, d, b)`, a generated `CLINIC` request `TASK activities.clinics.a DURING blocks.b ON d` with id `offering:<a>:<b>`.
+- **Offered clinics are staffed**: for each offering `(a, d, b)`, a generated `CLINIC` request `REQUEST activities.clinics.a DURING blocks.b ON d` with id `offering:<a>:<b>`.
 - **Lifeguards** are ordinary positions with skill `LIFEGUARD` and RAL 5, so eligibility (rule 2) covers them.
 - **Trainees**: `x[s, a, shadow, d, b] → filled[a, d, b]`, where `filled` is the AND of the position-filled literals. `x[s, a, scaffolded, d, b] → OR(x[t, a, p, d, b] for trainers t of p's skill)`. At most one trainee per instance.
 - **Past dates**: no variables. Lookups return Python `True`/`False`; compile functions fold constants.
@@ -582,7 +582,7 @@ Recorded so the outline matches the code.
 - **`EACH` copy keys** are the chosen items in source order, dates omitted:
   `counselor-hours[dylan]`.
 - **`GAP` compares block times only**; both tasks are assumed to be on the same date.
-- **Instances for hand-written `TASK activities.clinics.x`** are created for the target date if no
+- **Instances for hand-written `REQUEST activities.clinics.x`** are created for the target date if no
   offering exists in that block, so a request can run an unlisted clinic.
 - **Filter verbs (`FORBID`, plain `PREFER`/`AVOID`) look at the target date only.**
   `PER … BEYOND` windows include published past dates.
@@ -601,7 +601,7 @@ Recorded so the outline matches the code.
 - **Recurring dates and staff pairing** (Puppet Master, 2026-09-16), both inside the
   existing grammar. A weekday name now holds every such date of the session rather than
   only the target's week, so `ON EACH dates.monday` is a weekly request; ordinal names
-  (`dates.second_thursday`, `dates.last_friday`) are added to the `date` namespace and exist
+  (`dates.second_thursday`, `dates.last_friday`) are added to the `dates` namespace and exist
   only when the session reaches them. For `FORBID`, `PREFER` and `AVOID`, an `ACROSS`
   alternative holding several staff (`{staff.a AND staff.b}`) matches them as a group: one
   match per instance, whose literal is the AND of each member's presence there, reified
