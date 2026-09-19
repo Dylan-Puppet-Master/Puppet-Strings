@@ -735,3 +735,15 @@ Recorded so the outline matches the code.
   pass. The note for a tier that ran out of time says what it scored, the best it could not
   rule out, and the gap between them in requests, because the schedule is kept either way
   and the only question worth answering is how much might have been missed.
+- **Requests are their own spreadsheet, a tab per session** (Puppet Master, 2026-09-19).
+  One tab of the config spreadsheet held every request the season had ever made, and every
+  load read all of it: the 2026 season reached 2,024 rows, of which a day in session 4
+  needs 552. Requests are now a `Requests` spreadsheet beside Config and Skills, found by
+  name like the rest, holding `Season Requests` for what crosses sessions and two tabs per
+  span — `S4 Clinics` for what Load offerings writes, `S4 Special` for what was asked of
+  that session. A load reads three of them. Which tab a request is on is its `home`, read
+  off the tab it came from and written back to it rather than kept in a column, so moving
+  a request between sessions is a cut and paste; the editor's `on tab` box is how a new one
+  goes to the season's tab instead of the session's. `puppet-strings split-requests` makes
+  the spreadsheet out of the old tab, reading each id for the span it names and leaving
+  anything it cannot place on the season's tab, where every load goes on reading it.
