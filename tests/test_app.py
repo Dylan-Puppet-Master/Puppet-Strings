@@ -644,6 +644,19 @@ def test_calendar_labels_weeks_with_their_session(window):
     assert calendar.week_of_row(3) == (None, None)
 
 
+def test_the_calendar_is_numbered_even_when_the_load_fails(app, fixtures_copy, monkeypatch):
+    """The Calendar sheet says which week of which session a date is; nothing else does."""
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: None)
+    (fixtures_copy / "skills" / "Skills.csv").write_text("nonsense\n")
+    window = make_window(fixtures_copy)
+    assert window.store.dataset is None  # the load itself got nowhere
+    assert window.calendar.week_of_row(3) == (1, 1)  # the week of 2026-09-16, all the same
+    assert (
+        window.calendar.dateTextFormat(QDate(2026, 9, 16)).background().color().name()
+        == palette.CAMP_DAY
+    )
+
+
 # -- conflicts ------------------------------------------------------------------------------
 
 

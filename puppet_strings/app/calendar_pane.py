@@ -78,22 +78,32 @@ class SessionCalendar(QCalendarWidget):
         self.setHeaderTextFormat(heading)
 
     def show_dataset(self, dataset: Dataset | None) -> None:
-        """Shade the dates on the Calendar sheet and label their weeks.
+        """Shade the dates on the Calendar sheet and label their weeks."""
+        if dataset is None:
+            self.show_calendar({})
+            return
+        self.show_calendar(dataset.calendar, dataset.target)
+
+    def show_calendar(self, calendar: dict, target: date | None = None) -> None:
+        """Shade and number the days the Calendar sheet covers, and go to `target`.
+
+        This takes the Calendar sheet and nothing else, because the Calendar sheet and
+        nothing else is what the session and week numbers are: a season whose Skills tab
+        has a bad row still knows which week of which session it is in, and saying so is
+        the pane's whole job. A load that fails part way still calls this.
 
         Any date can still be picked; a date off the sheet is simply not a camp day.
         """
         self.setDateTextFormat(QDate(), QTextCharFormat())  # clear old marks
-        if dataset is None:
-            self.days = {}
-            return
-        self.days = {d: (day.session, day.week) for d, day in dataset.calendar.items()}
+        self.days = {d: (day.session, day.week) for d, day in calendar.items()}
         camp_day = QTextCharFormat()
         camp_day.setBackground(CAMP_DAY)
         camp_day.setForeground(INK)  # a cell with a colour of its own says what to write on it
-        for day in dataset.calendar:
+        for day in calendar:
             self.setDateTextFormat(QDate(day), camp_day)
-        self.setSelectedDate(QDate(dataset.target))
-        self.setCurrentPage(dataset.target.year, dataset.target.month)
+        if target is not None:
+            self.setSelectedDate(QDate(target))
+            self.setCurrentPage(target.year, target.month)
         self.view.viewport().update()
 
     def week_of_row(self, row: int) -> tuple[int | None, int | None]:

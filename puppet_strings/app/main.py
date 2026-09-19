@@ -2,6 +2,7 @@
 
 import sys
 import traceback
+from contextlib import suppress
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -97,6 +98,7 @@ class LoadWorker(QThread):
     done = Signal()
     failed = Signal(str)
     not_a_camp_day = Signal(str)
+    calendar = Signal(object)  # the Calendar sheet, read first and on its own
 
     def __init__(self, store: RequestStore, target: date) -> None:
         super().__init__()
@@ -104,7 +106,15 @@ class LoadWorker(QThread):
         self.target = target
 
     def run(self) -> None:
-        """Load and report success or the error text."""
+        """Load and report success or the error text.
+
+        The Calendar goes out first, so the calendar pane fills in whether or not the rest
+        of the sheets load: which week of which session a date is in is the Calendar sheet's
+        to say, and a Skills tab with a bad row has no business emptying it.
+        """
+        # whatever is wrong with the Calendar, the load below is what says so
+        with suppress(Exception):
+            self.calendar.emit(self.store.calendar(self.target))
         try:
             self.store.load(self.target)
         except NotACampDay as e:
@@ -425,6 +435,7 @@ class MainWindow(QMainWindow):
         self.start_progress(f"Reading the sheets for {self.target}…")
         self.loader = LoadWorker(self.store, self.target)
         self.loader.done.connect(self._loaded)
+        self.loader.calendar.connect(self._calendar_read)
         self.loader.failed.connect(self._load_failed)
         self.loader.not_a_camp_day.connect(self._not_a_camp_day)
         self.loader.finished.connect(self._load_finished)
@@ -456,6 +467,10 @@ class MainWindow(QMainWindow):
         if self.reload_requested:
             self.reload_requested = False
             self.reload()
+
+    def _calendar_read(self, calendar: dict) -> None:
+        """Number and shade the calendar as soon as the Calendar sheet itself is read."""
+        self.calendar.show_calendar(calendar, self.target)
 
     def _loaded(self) -> None:
         self.end_progress()

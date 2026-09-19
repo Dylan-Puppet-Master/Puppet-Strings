@@ -12,8 +12,10 @@ from puppet_strings.model import Adjustment, Dataset, Request, Rest
 from puppet_strings.names import normalize
 from puppet_strings.publish.writer import day_sheet
 from puppet_strings.sheets.adjustments import adjustment_rows
+from puppet_strings.sheets.calendar import calendar_days, parse_calendar
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.requests import clinics_tab, home_for, write_requests
+from puppet_strings.sheets.schedules import ROOT
 from puppet_strings.sheets.source import CsvSource, Source
 
 CONFIG_SHEET = "config"
@@ -57,6 +59,17 @@ class RequestStore:
     def reconnect(self, source: Source, config: Config) -> None:
         """Read different sheets from now on, the Configure pane having changed which."""
         self.source, self.config = source, config
+
+    def calendar(self, target: date) -> dict:
+        """The Calendar sheet on its own: every camp day, its span, session and week.
+
+        One tab, read without any of the rest, so the calendar pane can number its weeks
+        while the load that would fill it is still running — or after one has failed on a
+        sheet that has nothing to do with the calendar.
+        """
+        self.source.discover(ROOT, target.year)
+        table = self.source.read(CONFIG_SHEET, self.config.tabs["calendar"])
+        return calendar_days(parse_calendar(table, self.config.date_order))
 
     def load(self, target: date) -> None:
         """Read every sheet for a target date. Raises LoadError."""
