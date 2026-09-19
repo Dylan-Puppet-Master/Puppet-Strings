@@ -29,11 +29,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from puppet_strings import google_auth
+from puppet_strings import __version__, google_auth
 from puppet_strings.app.drive_browser import DriveBrowser
 from puppet_strings.config import Config
 from puppet_strings.drive import Drive
 from puppet_strings.settings import FOLDERS, Chosen, load_settings, save_settings
+from puppet_strings.update import UpdateError, download, install, latest_release
 
 NOT_CHOSEN = "not chosen"
 SIGNED_OUT = "Not signed in"
@@ -59,6 +60,28 @@ class _AccountWorker(QThread):
             self.failed.emit(str(e))
 
 
+class _Job(QThread):
+    """One update job off the UI thread, so the pane keeps painting while it runs."""
+
+    done = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, job) -> None:
+        super().__init__()
+        self.job = job
+
+    def run(self) -> None:
+        """Do the job and report what it returned, or why it did not happen."""
+        try:
+            result = self.job()
+        except UpdateError as e:
+            self.failed.emit(str(e))
+        except Exception as e:  # noqa: BLE001 - shown to the user, never swallowed
+            self.failed.emit(str(e))
+        else:
+            self.done.emit(result)
+
+
 class ConfigureDialog(QDialog):
     """Pick the Google account, the six spreadsheets, and the cabin act folder."""
 
@@ -69,6 +92,8 @@ class ConfigureDialog(QDialog):
         self.settings = load_settings()
         self.saved = False
         self.worker: _AccountWorker | None = None
+        self.updater: _Job | None = None
+        self.installer: _Job | None = None
         self.rows: dict[tuple[str, str], QLabel] = {}  # (kind, name) -> the label showing it
         self.setWindowTitle("Configure Puppet Strings")
         self.resize(760, 560)
@@ -89,6 +114,7 @@ class ConfigureDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.addWidget(self._account_box(client_button))
         layout.addWidget(self._chosen_box("Directories", "folders", FOLDERS))
+        layout.addWidget(self._updates_box())
         layout.addStretch(1)
         layout.addWidget(buttons)
         self.refresh_account()
@@ -102,6 +128,63 @@ class ConfigureDialog(QDialog):
         for button in (client_button, self.sign_in_button, self.sign_out_button):
             row.addWidget(button)
         return box
+
+    def _updates_box(self) -> QGroupBox:
+        """Which version this is, and a button to go and look for a newer one."""
+        box = QGroupBox("Version")
+        row = QHBoxLayout(box)
+        self.version_label = QLabel(f"Puppet Strings {__version__}")
+        self.updates_button = QPushButton("Check for updates")
+        self.updates_button.clicked.connect(self.check_for_updates)
+        row.addWidget(self.version_label, stretch=1)
+        row.addWidget(self.updates_button)
+        return box
+
+    # -- updates ------------------------------------------------------------------------
+
+    def check_for_updates(self) -> None:
+        """Ask GitHub for a newer release, and offer to put it in place if there is one."""
+        if self.updater is not None:
+            return
+        self.updates_button.setEnabled(False)
+        self.version_label.setText("Looking for a newer version…")
+        self.updater = _Job(lambda: latest_release(self.config.releases_url))
+        self.updater.done.connect(self._update_found)
+        self.updater.failed.connect(self._update_failed)
+        self.updater.finished.connect(self._update_finished)
+        self.updater.start()
+
+    def _update_found(self, release) -> None:
+        if release is None:
+            self.version_label.setText(f"Puppet Strings {__version__} is the newest version.")
+            return
+        self.version_label.setText(f"Puppet Strings {__version__} — {release.version} is out")
+        answer = QMessageBox.question(
+            self,
+            "Update available",
+            f"Puppet Strings {release.version} is out. You have {__version__}.\n\n"
+            f"{release.notes[:400]}\n\nDownload and install it now?",
+        )
+        if answer != QMessageBox.Yes:
+            return
+        self.updates_button.setEnabled(False)
+        self.version_label.setText(f"Downloading {release.version}…")
+        self.installer = _Job(lambda: install(download(release)))
+        self.installer.done.connect(self._installed)
+        self.installer.failed.connect(self._update_failed)
+        self.installer.finished.connect(self._update_finished)
+        self.installer.start()
+
+    def _installed(self, where) -> None:
+        self.version_label.setText(f"Installed. Restart Puppet Strings to use it. ({where})")
+
+    def _update_failed(self, why: str) -> None:
+        self.version_label.setText(f"Puppet Strings {__version__}")
+        QMessageBox.warning(self, "Updates", why)
+
+    def _update_finished(self) -> None:
+        self.updater = self.installer = None
+        self.updates_button.setEnabled(True)
 
     def _chosen_box(self, title: str, kind: str, entries: tuple) -> QGroupBox:
         box = QGroupBox(title)

@@ -38,10 +38,18 @@ class Chosen:
 
 @dataclass(frozen=True)
 class Settings:
-    """The choices made in the Configure pane."""
+    """The choices made in the app: the Configure pane's, and each group's own tab.
+
+    `group_tabs` is the Requests tab a new request in a group is written to, set by
+    right-clicking the group. It lives here rather than on the sheet because a group is
+    already nothing but a label its requests carry: there is no row anywhere to hang it on,
+    and inventing a tab of group settings to hold one default per group is a sheet to
+    maintain for a line of text.
+    """
 
     sheets: dict[str, Chosen] = field(default_factory=dict)
     folders: dict[str, Chosen] = field(default_factory=dict)
+    group_tabs: dict[str, str] = field(default_factory=dict)
 
     def ids(self, kind: str) -> dict[str, str]:
         """Just the ids of `sheets` or `folders`, which is what a Source wants."""
@@ -62,7 +70,16 @@ def load_settings(path: Path | None = None) -> Settings:
         data = json.loads(path.read_text())
     except (json.JSONDecodeError, OSError):
         return Settings()
-    return Settings(sheets=_chosen(data.get("sheets")), folders=_chosen(data.get("folders")))
+    tabs = data.get("group_tabs")
+    return Settings(
+        sheets=_chosen(data.get("sheets")),
+        folders=_chosen(data.get("folders")),
+        group_tabs={
+            str(group): str(tab)
+            for group, tab in (tabs.items() if isinstance(tabs, dict) else ())
+            if tab
+        },
+    )
 
 
 def save_settings(settings: Settings, path: Path | None = None) -> None:
@@ -76,6 +93,7 @@ def save_settings(settings: Settings, path: Path | None = None) -> None:
         }
         for kind in ("sheets", "folders")
     }
+    data["group_tabs"] = dict(settings.group_tabs)
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 

@@ -2,13 +2,14 @@
 
 from datetime import date
 
-from PySide6.QtCore import QAbstractTableModel, QSortFilterProxyModel, Qt
+from PySide6.QtCore import QAbstractTableModel, QMimeData, QSortFilterProxyModel, Qt
 
 from puppet_strings.app.groups import ALL, UNGROUPED, same_group
 from puppet_strings.app.store import RequestStore
 from puppet_strings.model import Request
 
-COLUMNS = ("id", "priority", "groups", "tags", "requester", "valid", "description")
+COLUMNS = ("id", "priority", "group", "tags", "requester", "valid", "description")
+REQUEST_IDS = "application/x-puppet-strings-requests"  # what a dragged row carries
 
 
 class RequestsModel(QAbstractTableModel):
@@ -50,7 +51,7 @@ class RequestsModel(QAbstractTableModel):
         return {
             "id": request.id,
             "priority": request.priority.value,
-            "groups": ", ".join(request.groups),
+            "group": request.group,
             "tags": ", ".join(request.tags),
             "requester": request.requester,
             "description": request.description,
@@ -60,6 +61,21 @@ class RequestsModel(QAbstractTableModel):
     def request(self, request_id: str) -> Request | None:
         """The request with this id."""
         return next((r for r in self.store.requests if r.id == request_id), None)
+
+    def flags(self, index):
+        """Rows can be picked up, which is how a request is moved to another group."""
+        return super().flags(index) | Qt.ItemIsDragEnabled
+
+    def mimeTypes(self) -> list[str]:  # noqa: N802
+        """A drag carries the ids of the requests picked up, and nothing else."""
+        return [REQUEST_IDS]
+
+    def mimeData(self, indexes):  # noqa: N802
+        """The ids of the rows being dragged, one per line."""
+        ids = dict.fromkeys(self.store.requests[i.row()].id for i in indexes if i.isValid())
+        data = QMimeData()
+        data.setData(REQUEST_IDS, "\n".join(ids).encode())
+        return data
 
 
 class RequestFilter(QSortFilterProxyModel):
@@ -88,8 +104,8 @@ class RequestFilter(QSortFilterProxyModel):
         if self.group == ALL:
             return True
         if self.group == UNGROUPED:
-            return not request.groups
-        return any(same_group(self.group, group) for group in request.groups)
+            return not request.group
+        return same_group(self.group, request.group)
 
     def filterAcceptsRow(self, row, parent) -> bool:  # noqa: N802
         """Whether the request at this source row passes every active filter."""

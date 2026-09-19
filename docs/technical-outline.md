@@ -747,3 +747,16 @@ Recorded so the outline matches the code.
   goes to the season's tab instead of the session's. `puppet-strings split-requests` makes
   the spreadsheet out of the old tab, reading each id for the span it names and leaving
   anything it cannot place on the season's tab, where every load goes on reading it.
+- **A request sits on one shelf, and its id is not its description** (Puppet Master,
+  2026-09-19). A request belonged to any number of groups, ticked off in the editor, which
+  made the editor and the pane two places to decide the same thing and made "which group is
+  this in" a list rather than an answer. A request now has one `group`, or none. It joins
+  the group the pane is showing when it is made, and it is moved by dragging its row onto
+  another group's label, so the pane is the only place a group is decided; the editor's
+  checklist is gone and a `group` line reports where it sits. Right-clicking a group sets
+  the Requests tab its *new* requests are written to, kept in settings.json because a group
+  is a label its requests carry and there is no row anywhere to hang a default on. The
+  sheet's `groups` column becomes `group`; an old one holding several is read as the first.
+  Ids are the next free number on the request's tab — `s4-1`, `season-2` — rather than a
+  slug of the description, because a description is for people, is allowed to be empty, and
+  gets rewritten the moment somebody words it better, none of which an id may do.

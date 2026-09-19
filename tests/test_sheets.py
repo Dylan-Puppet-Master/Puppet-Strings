@@ -218,12 +218,22 @@ def test_requests_round_trip(source):
     by_id = {r.id: r for r in requests}
     assert by_id["cabin-acts"].tags == ("cabin act",)
     assert requests[-1].tags == ("generated",)  # the Clinics tab is read after the season's
-    assert requests[0].groups == ("Special daily requests",)
-    assert requests[-1].groups == ()  # generated clinic requests are in no group
+    assert requests[0].group == "Special daily requests"
+    assert requests[-1].group == ""  # generated clinic requests are on no shelf
     assert requests[0].requester == "lucy"
     assert requests[1].requester == ""
     season = tuple(r for r in requests if r.home == "Season Requests")
     assert parse_requests(request_rows(season), "Season Requests") == season
+
+
+def test_a_sheet_with_the_old_groups_column_keeps_the_first_group():
+    """A request used to be on several shelves; the first of them is the one it is on."""
+    table = [
+        ["id", "description", "skedge", "priority", "weight", "groups", "created"],
+        ["x", "", "REQUEST staff.dylan FREE DURING blocks.clinic_1", "HIGH", "2", "A, B", ""],
+    ]
+    (request,) = parse_requests(table)
+    assert request.group == "A"
 
 
 def test_requests_read_a_sheet_written_before_groups_existed():
@@ -233,7 +243,7 @@ def test_requests_read_a_sheet_written_before_groups_existed():
         ["x", "", "REQUEST staff.dylan FREE DURING blocks.clinic_1", "HIGH", "2", ""],
     ]
     (request,) = parse_requests(table)
-    assert request.tags == () and request.groups == () and request.requester == ""
+    assert request.tags == () and request.group == "" and request.requester == ""
 
 
 def test_a_requester_is_normalized_like_any_other_name():

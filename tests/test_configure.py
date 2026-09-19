@@ -173,4 +173,6 @@ def test_the_pane_has_no_empty_spreadsheets_box(app, config):
     assert [box.title() for box in dialog.findChildren(QGroupBox)] == [
         "Google account",
         "Directories",
+        "Version",
     ]
+    assert dialog.updates_button.text() == "Check for updates"

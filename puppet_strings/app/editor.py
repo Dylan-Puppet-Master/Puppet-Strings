@@ -14,8 +14,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
     QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
@@ -23,7 +21,6 @@ from PySide6.QtWidgets import (
 )
 
 from puppet_strings.app import palette
-from puppet_strings.app.groups import same_group
 from puppet_strings.model import WRITABLE_PRIORITIES, Dataset, Priority, Request
 from puppet_strings.names import normalize
 from puppet_strings.sheets.requests import request_tabs, special_tab
@@ -130,40 +127,12 @@ class SkedgeEdit(QPlainTextEdit):
         self.setTextCursor(cursor)
 
 
-class GroupsEdit(QListWidget):
-    """The groups a request is in, as a tick against every group there is."""
-
-    changed = Signal()
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.setMaximumHeight(90)
-        self.setToolTip("Tick every group this request belongs to")
-        self.itemChanged.connect(lambda _: self.changed.emit())
-
-    def show_groups(self, groups: list[str], ticked: tuple[str, ...]) -> None:
-        """List every group, with the request's own ticked."""
-        self.blockSignals(True)
-        self.clear()
-        for group in groups:
-            item = QListWidgetItem(group)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            inside = any(same_group(group, g) for g in ticked)
-            item.setCheckState(Qt.Checked if inside else Qt.Unchecked)
-            self.addItem(item)
-        self.blockSignals(False)
-
-    def ticked(self) -> tuple[str, ...]:
-        """The groups ticked, in the order they are listed."""
-        rows = range(self.count())
-        return tuple(self.item(r).text() for r in rows if self.item(r).checkState() == Qt.Checked)
-
-
 class RequestEditor(QWidget):
     """Edits one request. Emits `saved(request, original_id)` and `deleted(request_id)`."""
 
     saved = Signal(object, object)
     deleted = Signal(str)
+    new_requested = Signal()  # the window knows which group a new request joins
 
     def __init__(self) -> None:
         super().__init__()
@@ -172,7 +141,7 @@ class RequestEditor(QWidget):
         self.original_id: str | None = None
         self.id_label = QLabel("")
         self.description_edit = QLineEdit()
-        self.description_edit.setPlaceholderText("what this request is for; the id is made from it")
+        self.description_edit.setPlaceholderText("what this request is for")
         self.priority_box = QComboBox()
         self.priority_box.addItems([p.value for p in WRITABLE_PRIORITIES])
         self.weight_box = QDoubleSpinBox()
@@ -183,7 +152,10 @@ class RequestEditor(QWidget):
         # Which tab of the Requests sheet it is written on, which is also which loads read
         # it: this span's Special tab unless it is something that holds all season.
         self.home_box = QComboBox()
-        self.groups_edit = GroupsEdit()
+        # The shelf the request sits on. It is shown, not chosen: a new request joins the
+        # group the pane is on, and an existing one is moved by dragging its row onto
+        # another group's label, which is one way of doing it rather than two.
+        self.group_label = QLabel("")
         self.requester_edit = QLineEdit()
         self.requester_edit.setPlaceholderText("who asked for this; a staff name")
         self.requester_names = QStringListModel([], self)
@@ -207,7 +179,7 @@ class RequestEditor(QWidget):
         form.addRow("weight", self.weight_box)
         form.addRow("tags", self.tags_edit)
         form.addRow("on tab", self.home_box)
-        form.addRow("groups", self.groups_edit)
+        form.addRow("group", self.group_label)
         form.addRow("requester", self.requester_edit)
         form.addRow("created", self.created_label)
         buttons = QHBoxLayout()
@@ -230,15 +202,14 @@ class RequestEditor(QWidget):
         self.requester_edit.textChanged.connect(self.timer.start)
         self.save_button.clicked.connect(self._save)
         self.delete_button.clicked.connect(self._delete)
-        self.new_button.clicked.connect(self.clear)
+        self.new_button.clicked.connect(self.new_requested.emit)
         self.clear()
 
     def set_dataset(self, dataset: Dataset | None, groups: list[str] | None = None) -> None:
-        """Names are validated and suggested against this dataset; groups fill the checklist."""
+        """Names are validated and suggested against this dataset."""
         self.dataset = dataset
         self._fill_homes(request_tabs(dataset.this_span) if dataset else ())
         self.groups = list(groups or [])
-        self.groups_edit.show_groups(self.groups, self.groups_edit.ticked())
         self.requester_names.setStringList(sorted(dataset.staff) if dataset else [])
         names = (
             []
@@ -277,17 +248,27 @@ class RequestEditor(QWidget):
         self.priority_box.setCurrentText(request.priority.value)
         self.weight_box.setValue(request.weight)
         self.tags_edit.setText(", ".join(request.tags))
-        self.groups_edit.show_groups(self.groups, request.groups)
+        self.show_group(request.group)
         self.requester_edit.setText(request.requester)
         self.created_label.setText(request.created.isoformat() if request.created else "")
         self.skedge_edit.setPlainText(request.skedge)
         self.delete_button.setEnabled(True)
         self.validate()
 
-    def clear(self) -> None:
-        """Start a new request, on this span's Special tab until it is said to be otherwise."""
-        self._fill_homes(request_tabs(self.dataset.this_span) if self.dataset else ())
-        if self.dataset is not None:
+    def show_group(self, group: str) -> None:
+        """Say which shelf the request is on, or that it is on none."""
+        self.group = group
+        self.group_label.setText(group or "none — drag the row onto a group to move it")
+
+    def clear(self, group: str = "", home: str = "") -> None:
+        """Start a new request, on the group being shown and that group's own tab.
+
+        `home` is the group's default tab when it has one; without it the request goes to
+        this span's Special tab, which is where a request asked for this session belongs.
+        """
+        self.show_group(group)
+        self._fill_homes(request_tabs(self.dataset.this_span) if self.dataset else (), home)
+        if self.dataset is not None and not home:
             self.home_box.setCurrentText(special_tab(self.dataset.this_span))
         self.original_id = None
         self.id_label.setText("(assigned on save)")
@@ -295,7 +276,6 @@ class RequestEditor(QWidget):
         self.priority_box.setCurrentText(Priority.MEDIUM.value)
         self.weight_box.setValue(1)
         self.tags_edit.clear()
-        self.groups_edit.show_groups(self.groups, ())
         self.requester_edit.clear()
         self.created_label.setText(date.today().isoformat())
         self.skedge_edit.setPlainText("")
@@ -313,7 +293,7 @@ class RequestEditor(QWidget):
             priority=priority,
             weight=1.0 if priority.hard else self.weight_box.value(),
             tags=tuple(t.strip() for t in self.tags_edit.text().split(",") if t.strip()),
-            groups=self.groups_edit.ticked(),
+            group=self.group,
             requester=normalize(self.requester_edit.text()),
             created=date.fromisoformat(created) if created else None,
             home=self.home_box.currentText(),
@@ -392,7 +372,7 @@ class RequestEditor(QWidget):
     def _delete(self) -> None:
         if self.original_id:
             self.deleted.emit(self.original_id)
-            self.clear()
+            self.new_requested.emit()
 
     def keyPressEvent(self, event) -> None:  # noqa: N802
         """Ctrl+S saves."""

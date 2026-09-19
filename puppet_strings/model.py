@@ -98,10 +98,10 @@ LIFEGUARD_ROLES = ("lifeguard", "lifeguard_2", "lifeguard_3")
 LIFEGUARD_SKILL = "lifeguard"  # the LIFEGUARD column on the Skills tab
 LIFEGUARD_RAL = 5
 
-# The groups the request manager sorts requests into to begin with. A group is a label on
-# a request, like a tag, so the ones the Puppet Master adds need nothing declared anywhere.
-# Requests made from the Offerings tab are in no group: the `generated` tag already tells
-# them apart, and a group they filled by the dozen buried everything else.
+# The groups the request manager sorts requests onto to begin with. A group is a label on
+# a request, so the ones the Puppet Master adds need nothing declared anywhere. Requests
+# made from the Offerings tab are on no shelf: the `generated` tag already tells them
+# apart, and a group they filled by the dozen buried everything else.
 DEFAULT_GROUPS = ("Special daily requests", "Special weekly requests")
 
 ANY_SKILL = "any"  # a Positions cell reading "Any" needs no checkoff
@@ -343,8 +343,12 @@ WRITABLE_PRIORITIES = tuple(p for p in Priority if p is not Priority.STABILITY)
 class Request:
     """One row of a Requests tab.
 
-    `groups` are the panes of the request manager a request shows up in; a request may be
-    in several or in none. `requester` is the staff id of whoever asked for it, or "".
+    `group` is the shelf of the request manager it sits on, or "" for none. A request is on
+    one shelf and no more, the way a piece of paper is in one folder. `requester` is the
+    staff id of whoever asked for it, or "".
+
+    `description` is for people and may be left empty; the id is what names the request
+    everywhere it is referred to, and is not made out of the description.
 
     `home` is the tab it is written on and was read from — a session's Clinics or Special
     tab, or the season's. It is not a column: the tab a row sits on is what says it, which
@@ -357,7 +361,7 @@ class Request:
     priority: Priority
     weight: float = 1.0
     tags: tuple[str, ...] = ()
-    groups: tuple[str, ...] = ()
+    group: str = ""
     requester: str = ""
     created: date | None = None
     home: str = ""

@@ -274,13 +274,13 @@ them by hand.
 
 | Column | Meaning |
 |---|---|
-| `id` | Unique and stable, in `kebab-case`. Appears in the solver's report. |
-| `description` | Plain language, for people. |
+| `id` | Unique and stable. The app gives a new request the next free number on its tab — `s4-1`, `season-2` — and never changes it; anything unique will do if you are writing rows by hand. Appears in the solver's report. |
+| `description` | Plain language, for people. May be left empty: the id is what names the request. |
 | `skedge` | The request itself; see the [Skedge reference](skedge.md). Multi-line cells are fine. |
 | `priority` | One of `MUST_HAPPEN`, `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. `STABILITY` is the solver's own during a [same-day change](same-day.md) and is refused here. |
 | `weight` | Blank (meaning 1) or a positive number. Not allowed with `MUST_HAPPEN`. |
 | `tags` | **Comma-separated.** Any labels you like, for filtering in the request manager. Requests made from the Offerings tab carry the tag `generated`. |
-| `groups` | **Comma-separated.** The [groups](app.md#groups) the request belongs to in the request manager, such as `Special daily requests`. A request may be in several groups or in none. Written in plain language, not `kebab-case`. |
+| `group` | The one [group](app.md#groups) the request is on in the request manager, such as `Special daily requests`, or blank for none. Written in plain language, not `kebab-case`. A sheet with an older `groups` column holding several is read as the first of them. |
 | `requester` | Who asked for this, as a staff name: `mary_kate`. Blank if it is nobody's in particular. A name that is not on the Skills sheet makes the request invalid, so a typo is caught rather than lost. |
 | `created` | `YYYY-MM-DD`, for the record. |
 

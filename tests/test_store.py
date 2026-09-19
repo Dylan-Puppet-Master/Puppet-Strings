@@ -1,16 +1,14 @@
 from puppet_strings.app.store import unique_id
 
 
-def test_unique_id_from_description():
-    assert unique_id("Dylan's day off", set()) == "dylan-s-day-off"
-    assert unique_id("Dylan's day off", {"dylan-s-day-off"}) == "dylan-s-day-off-2"
-    assert (
-        unique_id("Dylan's day off", {"dylan-s-day-off", "dylan-s-day-off-2"})
-        == "dylan-s-day-off-3"
-    )
-    assert unique_id("", set()) == "request"
-    assert unique_id("", {"request"}) == "request-2"
-    assert len(unique_id("x" * 100, set())) == 40
+def test_an_id_is_the_next_free_number_on_its_tab():
+    """Ids come from the tab, not the description, which may be empty and may change."""
+    assert unique_id("S4 Special", set()) == "s4-1"
+    assert unique_id("S4 Clinics", {"s4-1"}) == "s4-2"  # both of a span's tabs number as one
+    assert unique_id("S4 Special", {"s4-1", "s4-2"}) == "s4-3"
+    assert unique_id("S4 Special", {"s4-2"}) == "s4-1"  # a gap left by a deletion is reused
+    assert unique_id("Season Requests", set()) == "season-1"
+    assert unique_id("Season Requests", {"breaks", "s4-1"}) == "season-1"
 
 
 from datetime import date  # noqa: E402
@@ -50,34 +48,36 @@ def test_groups_start_with_the_defaults_and_keep_an_empty_one(fixtures_copy):
 
 def test_groups_made_of_requests_are_sorted_after_the_defaults(fixtures_copy):
     s = store(fixtures_copy)
-    s.set_group(["breaks"], "Zebra", member=True)
-    s.set_group(["breaks"], "apple", member=True)
+    s.set_group(["breaks"], "Zebra")
+    s.set_group(["counselor-hours"], "apple")
     assert s.groups == [*DEFAULT_GROUPS, "apple", "Zebra"]
     assert s.count("Zebra") == 1 and s.count("apple") == 1
 
 
-def test_a_request_keeps_its_other_groups(fixtures_copy):
+def test_a_request_is_on_one_shelf_and_moving_it_takes_it_off_the_last(fixtures_copy):
     s = store(fixtures_copy)
-    s.set_group(["breaks"], "Ropes rewrite", member=True)
     breaks = next(r for r in s.requests if r.id == "breaks")
-    assert breaks.groups == ("Special daily requests", "Ropes rewrite")
-    s.set_group(["breaks"], "ropes rewrite", member=False)  # spelled differently, same group
-    assert next(r for r in s.requests if r.id == "breaks").groups == ("Special daily requests",)
+    assert breaks.group == "Special daily requests"
+    s.set_group(["breaks"], "Ropes rewrite")
+    assert next(r for r in s.requests if r.id == "breaks").group == "Ropes rewrite"
+    assert s.count("Special daily requests") == 2  # it left the shelf it was on
+    s.set_group(["breaks"], "")  # dragged onto Ungrouped
+    assert next(r for r in s.requests if r.id == "breaks").group == ""
 
 
 def test_renaming_and_deleting_a_group_rewrite_the_sheet(fixtures_copy):
     s = store(fixtures_copy)
-    s.set_group(["breaks", "counselor-hours"], "Ropes rewrite", member=True)
+    s.set_group(["breaks", "counselor-hours"], "Ropes rewrite")
     assert s.rename_group("Ropes rewrite", "Ropes") == "Ropes"
     assert s.rename_group("Ropes", "Special daily requests") == ""  # a name already taken
     assert s.rename_group("Ropes", " ") == ""
     written = s.source.read("requests", "Season Requests")
-    column = written[0].index("groups")
+    column = written[0].index("group")
     row = next(r for r in written if r[0] == "breaks")
-    assert row[column] == "Special daily requests, Ropes"
+    assert row[column] == "Ropes"
     s.delete_group("ropes")
     assert "Ropes" not in s.groups
-    assert all("Ropes" not in r.groups for r in s.requests)
+    assert all(r.group != "Ropes" for r in s.requests)
 
 
 def test_a_request_saved_with_groups_and_a_requester_round_trips(fixtures_copy):
@@ -85,10 +85,10 @@ def test_a_request_saved_with_groups_and_a_requester_round_trips(fixtures_copy):
 
     s = store(fixtures_copy)
     original = next(r for r in s.requests if r.id == "breaks")
-    s.save(replace(original, groups=("Special daily requests",), requester="rob"), "breaks")
+    s.save(replace(original, group="Special daily requests", requester="rob"), "breaks")
     again = RequestStore(s.source, s.config)
     again.load(TARGET)
     saved = next(r for r in again.requests if r.id == "breaks")
-    assert saved.requester == "rob" and saved.groups == ("Special daily requests",)
+    assert saved.requester == "rob" and saved.group == "Special daily requests"
     assert again.facets["breaks"].valid
     assert again.facets["breaks"].covers(date(2026, 9, 16))

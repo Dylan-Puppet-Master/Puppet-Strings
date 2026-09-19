@@ -2,9 +2,11 @@
 
 from dataclasses import replace
 from datetime import date
+from itertools import count
 
 from puppet_strings.app.conflicts import Conflict, find_conflicts
 from puppet_strings.app.facets import Facets, resolve_request
+from puppet_strings.app.group_tabs import GroupTabs
 from puppet_strings.app.groups import DEFAULT_GROUPS, clean, same_group
 from puppet_strings.config import Config
 from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
@@ -14,21 +16,49 @@ from puppet_strings.publish.writer import day_sheet
 from puppet_strings.sheets.adjustments import adjustment_rows
 from puppet_strings.sheets.calendar import calendar_days, parse_calendar
 from puppet_strings.sheets.load import load_dataset
-from puppet_strings.sheets.requests import clinics_tab, home_for, write_requests
+from puppet_strings.sheets.requests import (
+    CLINICS_SUFFIX,
+    SEASON_TAB,
+    SPECIAL_SUFFIX,
+    clinics_tab,
+    home_for,
+    write_requests,
+)
 from puppet_strings.sheets.schedules import ROOT
 from puppet_strings.sheets.source import CsvSource, Source
 
 CONFIG_SHEET = "config"
 
 
-def unique_id(description: str, taken: set[str]) -> str:
-    """A readable id from the description: "Dylan's day off" -> dylan-s-day-off, -2, -3..."""
-    base = normalize(description)[:40].strip("_").replace("_", "-") or "request"
-    candidate, n = base, 1
-    while candidate in taken:
-        n += 1
-        candidate = f"{base}-{n}"
-    return candidate
+def unique_id(home: str, taken: set[str]) -> str:
+    """The next free id on a tab: `s4-1`, `s4-2`, `season-1`.
+
+    The id is not made out of the description any more. A description is for people, is
+    allowed to be empty, and gets rewritten the moment somebody words it better — none of
+    which an id may do, because it is what the solver's report and every other sheet call
+    the request by.
+
+    Numbering runs per tab because a load only ever reads three of them: the season's and
+    the two of the span being scheduled. An id carrying the tab it was made on can only
+    collide with the ids of that same tab, which is either loaded or is the season's, and
+    the season's is always loaded.
+    """
+    base = normalize(_label(home)).strip("_").replace("_", "-") or "request"
+    numbers = {int(i[len(base) + 1 :]) for i in taken if _numbered(i, base)}
+    return f"{base}-{next(n for n in count(1) if n not in numbers)}"
+
+
+def _label(home: str) -> str:
+    """What a tab's ids are named after: `S4 Special` and `S4 Clinics` are both `s4`."""
+    for suffix in (SPECIAL_SUFFIX, CLINICS_SUFFIX):
+        if home.endswith(suffix):
+            return home[: -len(suffix)]
+    return "season" if home == SEASON_TAB else home
+
+
+def _numbered(request_id: str, base: str) -> bool:
+    """Whether an id is one of this tab's numbered ones."""
+    return request_id.startswith(f"{base}-") and request_id[len(base) + 1 :].isdigit()
 
 
 class RequestStore:
@@ -45,6 +75,7 @@ class RequestStore:
         # vanish on the next read. These keep it in the pane until something joins it.
         self.empty_groups: list[str] = []
         self.held: set[str] = set()  # the Requests tabs the load read, home or not
+        self.group_tabs = GroupTabs()  # where each group's new requests are written
 
     @property
     def fixtures(self) -> bool:
@@ -106,7 +137,7 @@ class RequestStore:
             self.requests[ids.index(original_id)] = request
         else:
             if not request.id:
-                request = replace(request, id=unique_id(request.description, set(ids)))
+                request = replace(request, id=unique_id(request.home, set(ids)))
             self.requests.append(request)
         self._index(request)
         self._write()
@@ -198,14 +229,14 @@ class RequestStore:
         nothing has joined yet.
         """
         known = list(DEFAULT_GROUPS)
-        for name in [g for r in self.requests for g in r.groups] + self.empty_groups:
+        for name in [r.group for r in self.requests if r.group] + self.empty_groups:
             if not any(same_group(name, seen) for seen in known):
                 known.append(name)
         return known[: len(DEFAULT_GROUPS)] + sorted(known[len(DEFAULT_GROUPS) :], key=str.lower)
 
     def count(self, group: str) -> int:
-        """How many requests are in a group."""
-        return sum(1 for r in self.requests if any(same_group(group, g) for g in r.groups))
+        """How many requests are on a shelf."""
+        return sum(1 for r in self.requests if same_group(group, r.group))
 
     def add_group(self, name: str) -> str:
         """Make a group. Returns the name it settled on, or "" if it is not a new one."""
@@ -222,32 +253,27 @@ class RequestStore:
         if not new or new == old or any(same_group(new, known) for known in taken):
             return ""
         self.empty_groups = [new if same_group(old, g) else g for g in self.empty_groups]
-        self._regroup(lambda groups: tuple(new if same_group(old, g) else g for g in groups))
+        self.group_tabs.rename(old, new)
+        self._regroup(lambda group: new if same_group(old, group) else group)
         return new
 
     def delete_group(self, name: str) -> None:
-        """Remove a group from every request that is in it."""
+        """Take the shelf away; the requests that were on it stay, on none."""
         self.empty_groups = [g for g in self.empty_groups if not same_group(name, g)]
-        self._regroup(lambda groups: tuple(g for g in groups if not same_group(name, g)))
+        self.group_tabs.forget(name)
+        self._regroup(lambda group: "" if same_group(name, group) else group)
 
-    def set_group(self, request_ids: list[str], group: str, member: bool) -> None:
-        """Put requests into a group or take them out of it."""
+    def set_group(self, request_ids: list[str], group: str) -> None:
+        """Move requests onto a shelf, off whichever one they were on. "" takes them off."""
         wanted = set(request_ids)
-
-        def change(request: Request) -> tuple[str, ...]:
-            groups = tuple(g for g in request.groups if not same_group(group, g))
-            return groups + (group,) if member else groups
-
-        self.requests = [
-            replace(r, groups=change(r)) if r.id in wanted else r for r in self.requests
-        ]
-        if member:
+        self.requests = [replace(r, group=group) if r.id in wanted else r for r in self.requests]
+        if group:
             self.empty_groups = [g for g in self.empty_groups if not same_group(group, g)]
         self._write()
 
     def _regroup(self, change) -> None:
-        """Rewrite every request's groups, and the sheet, if anything moved."""
-        rewritten = [replace(r, groups=change(r.groups)) for r in self.requests]
+        """Rewrite every request's group, and the sheet, if anything moved."""
+        rewritten = [replace(r, group=change(r.group)) for r in self.requests]
         if rewritten != self.requests:
             self.requests = rewritten
             self._write()

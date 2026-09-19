@@ -45,12 +45,14 @@ COLUMNS = (
     "priority",
     "weight",
     "tags",
-    "groups",
+    "group",
     "requester",
     "created",
 )
-# tags, groups and requester may be left off a sheet written before they existed
-OPTIONAL = ("tags", "groups", "requester")
+# tags, group and requester may be left off a sheet written before they existed, and
+# `description` may be left empty on any row: it is for people, and the id is the name.
+OPTIONAL = ("tags", "group", "requester")
+LEGACY_GROUPS = "groups"  # the column when a request could be on more than one shelf
 REQUIRED = tuple(c for c in COLUMNS if c not in OPTIONAL)
 
 
@@ -145,7 +147,7 @@ def parse_requests(table: Table, where: str = "Requests", ids: set[str] | None =
                 priority=priority,
                 weight=weight,
                 tags=tuple(split_list(row.get("tags", ""))),
-                groups=tuple(split_list(row.get("groups", ""))),
+                group=_group(row),
                 requester=normalize(row.get("requester", "")),
                 created=created,
                 home=where,
@@ -244,12 +246,25 @@ def request_rows(requests: tuple[Request, ...]) -> Table:
                 r.priority.value,
                 weight,
                 ", ".join(r.tags),
-                ", ".join(r.groups),
+                r.group,
                 r.requester,
                 created,
             ]
         )
     return rows
+
+
+def _group(row: dict[str, str]) -> str:
+    """The one shelf a request sits on.
+
+    A sheet written when a request could be on several has a `groups` column holding a
+    comma-separated list; the first of them is the shelf now, and the rest are dropped,
+    which is the only answer that does not invent a second home for it.
+    """
+    if row.get("group"):
+        return row["group"].strip()
+    listed = split_list(row.get(LEGACY_GROUPS, ""))
+    return listed[0] if listed else ""
 
 
 def _weight(text: str, priority: Priority, where: str) -> float:

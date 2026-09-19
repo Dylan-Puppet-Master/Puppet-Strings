@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
-    QMenu,
     QMessageBox,
     QSizePolicy,
     QSplitter,
@@ -38,7 +37,7 @@ from puppet_strings.app.details import details, is_metric
 from puppet_strings.app.details_dialog import DetailsDialog, MetricDialog
 from puppet_strings.app.editor import RequestEditor
 from puppet_strings.app.facets import facets
-from puppet_strings.app.groups import ALL, same_group
+from puppet_strings.app.groups import ALL, UNGROUPED
 from puppet_strings.app.groups_panel import GroupsPane
 from puppet_strings.app.namespaces_panel import NamespacesPanel
 from puppet_strings.app.requests_model import RequestFilter, RequestsModel
@@ -211,12 +210,15 @@ class MainWindow(QMainWindow):
         self.table = QTableView()
         self.table.setModel(self.proxy)
         self.table.setSelectionBehavior(QTableView.SelectRows)
+        self.table.setDragEnabled(True)  # a row is dragged onto a group to move it there
+        self.table.setDragDropMode(QTableView.DragOnly)
         self.table.setSortingEnabled(True)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.selectionModel().currentRowChanged.connect(self._select)
         self.editor = RequestEditor()
         self.editor.saved.connect(self._saved)
         self.editor.deleted.connect(self._deleted)
+        self.editor.new_requested.connect(self.new_request)
         self.names = NamespacesPanel()
         self.names.picked.connect(self.editor.insert_name)
         self.names.inspected.connect(self.inspect_name)
@@ -224,10 +226,10 @@ class MainWindow(QMainWindow):
         self.calendar.picked.connect(self.insert_date)
         self.groups = GroupsPane(store)
         self.groups.chosen.connect(self._group_chosen)
+        self.groups.dropped.connect(self._set_group)
+        self.groups.retabbed.connect(lambda _: self.editor_new_if_empty())
         self.conflicts = ConflictsPane()
         self.conflicts.picked.connect(self.show_request)
-        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.table.customContextMenuRequested.connect(self._group_menu)
 
         self._build_toolbar()
         left = QWidget()
@@ -284,15 +286,17 @@ class MainWindow(QMainWindow):
         spacer = QWidget()  # everything after this is pushed to the right-hand end
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         toolbar.addWidget(spacer)
-        toolbar.addAction("Check for updates", self.check_for_updates)
         toolbar.addAction("Configure", self.configure)
 
     def check_for_updates(self, quietly: bool = False) -> None:
         """Ask GitHub whether a newer Puppet Strings has been published.
 
-        Quietly, on the first load: nothing is said unless there is something to say, and a
-        check that fails — no network, GitHub down — says nothing at all. Nobody opening
-        the window to schedule a day wants to be told about the state of the internet.
+        Only ever quietly here: **Check for updates** lives in the Configure pane, beside
+        the account and the folders, which is where everything else about this copy rather
+        than about today's schedule is. What is left here is the look on the first load,
+        which says nothing unless there is something to say — and nothing at all if the
+        check fails, because nobody opening the window to schedule a day wants to be told
+        about the state of the internet.
         """
         self.updater = Worker(lambda: latest_release(self.store.config.releases_url))
         self.updater.done.connect(lambda release: self._update_found(release, quietly))
@@ -412,34 +416,34 @@ class MainWindow(QMainWindow):
         chosen = "" if group == ALL else f" in {group}"
         self.status_label.setText(f"  {self.proxy.rowCount()} requests{chosen}")
 
-    def _group_menu(self, point) -> None:
-        """Right-click the table to put the rows picked into a group, or take them out."""
-        rows = self.table.selectionModel().selectedRows()
-        ids = [self.proxy.data(row, Qt.UserRole).id for row in rows]
-        if not ids:
-            return
-        picked = self._requests(ids)
-        menu = QMenu(self)
-        for group in self.store.groups:
-            # a group the whole selection is already in is one to take it out of
-            inside = all(any(same_group(group, g) for g in r.groups) for r in picked)
-            action = menu.addAction(f"Remove from {group}" if inside else f"Add to {group}")
-            action.triggered.connect(
-                lambda _=False, g=group, was=inside: self._set_group(ids, g, not was)
-            )
-        menu.exec(self.table.viewport().mapToGlobal(point))
-
     def _requests(self, ids: list[str]) -> list:
         """The requests with these ids."""
         wanted = set(ids)
         return [r for r in self.store.requests if r.id in wanted]
 
-    def _set_group(self, ids: list[str], group: str, member: bool) -> None:
-        """Move requests into a group or out of it, and say so."""
-        self.store.set_group(ids, group, member)
+    def _set_group(self, ids: list[str], group: str) -> None:
+        """Move requests onto the group they were dragged to, and say so.
+
+        `Ungrouped` is a shelf to drag onto like any other; what it means is off them all.
+        """
+        self.store.set_group(ids, "" if group == UNGROUPED else group)
         self._groups_changed()
-        moved = "into" if member else "out of"
-        self.status_label.setText(f"  Moved {len(ids)} request(s) {moved} {group}")
+        self.status_label.setText(f"  Moved {len(ids)} request(s) to {group}")
+
+    def editor_new_if_empty(self) -> None:
+        """Start a new request in the group being shown, if the editor is not on one.
+
+        A group's tab is what its *new* requests get, so changing it refreshes the blank
+        editor and leaves a request that is open alone.
+        """
+        if self.editor.original_id is None:
+            self.new_request()
+
+    def new_request(self) -> None:
+        """Start a request on the shelf being shown, written where that shelf says."""
+        group = self.groups.current
+        group = "" if group in (ALL, UNGROUPED) else group
+        self.editor.clear(group, self.store.group_tabs.of(group) if group else "")
 
     def _requests_changed(self) -> tuple:
         """The requests moved: the table, both panes and the filters all follow.
@@ -528,7 +532,7 @@ class MainWindow(QMainWindow):
             self.check_for_updates(quietly=True)
         dataset = self.store.dataset
         if self.editor.original_id and self.model.request(self.editor.original_id) is None:
-            self.editor.clear()  # the request shown was deleted on the sheet
+            self.new_request()  # the request shown was deleted on the sheet
         self.model.refresh()
         self.table.resizeColumnsToContents()
         self.editor.set_dataset(dataset, self.store.groups)
@@ -702,8 +706,10 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Solve failed", message)
 
     def _select(self, current, previous) -> None:
-        if current.isValid():
-            self.editor.show_request(self.proxy.data(current, Qt.UserRole))
+        """Open whatever row is now current; a row on its way out maps to nothing."""
+        request = self.proxy.data(current, Qt.UserRole) if current.isValid() else None
+        if request is not None:
+            self.editor.show_request(request)
 
     def _saved(self, request, original_id) -> None:
         """Write one request to the sheet, and leave the editor saying that it is written."""

@@ -72,20 +72,33 @@ requests are in each. Click one and the table shows only that group. `All reques
 group at all, which is how a request that has been forgotten about turns up.
 
 Two groups are always there — **Special daily requests** and **Special weekly
-requests** — and you make the rest. Requests made from the Offerings tab are in no group,
+requests** — and you make the rest. Requests made from the Offerings tab are on no shelf,
 so they sit under `Ungrouped`: there are dozens of them and the `generated` tag and the
 `CLINIC` priority already tell them apart. **New** asks for a name, **Rename**
 renames a group everywhere it is used, and **Delete** takes a group off its requests
 without deleting the requests themselves. The two default groups cannot be renamed or
 deleted.
 
-A request may belong to as many groups as you like, or to none; groups and tags are
-separate, so a request can be in the `Ropes rewrite` group and still be tagged `legal`.
-Put a request in a group either by ticking the group in the editor, or by selecting rows
-in the table and right-clicking: the menu offers every group, adding or removing the whole
-selection at once. Groups live in the `groups` column of the Requests sheet, so they are
-there again the next time the app opens. A group you have just made and put nothing in yet
-stays in the pane until you close the app.
+**A request sits on one shelf**, the way a piece of paper is in one folder, or on none.
+Groups and tags are separate, so a request in the `Ropes rewrite` group can still be
+tagged `legal`, and a request that is about several things is a job for tags.
+
+There are two ways a request gets its group, and no others:
+
+- **A new request joins the group being shown.** Pick the group first, then **New**.
+- **Drag its row onto a group's label to move it.** Select one row or several, drag them
+  across to the pane, and let go over the group they should be on; dropping them on
+  `Ungrouped` takes them off every shelf. The status line says how many moved.
+
+**Right-click a group** to choose the [Requests tab](sheets.md#requests-its-own-spreadsheet)
+its *new* requests are written to — a group of standing agreements can send its requests
+to `Season Requests` without your having to remember each time. Requests already written
+stay where they are: a request's tab is when it applies, and changing a group's default is
+not a reason to move them.
+
+The group lives in the `group` column of the Requests sheet, so it is there again the next
+time the app opens. A group you have just made and put nothing in yet stays in the pane
+until you close the app.
 
 **The table.** One row per request. Click a column heading to sort by it. Filters above
 it: free text over id, description, Skedge and requester; priority; tag; staff; activity;
@@ -125,18 +138,21 @@ itself, now that one request may hold several statements, and that shows up the 
 The pane is not a substitute for solving. It finds what is plain on paper; the solver
 finds the rest and names the requests it could not meet.
 
-**The editor.** One field per request column and a Skedge editor with highlighting. The
-**groups** field ticks off every group the request is in, and **requester** records who
-asked for it — type a staff name and it completes, the same names `staff.` gives you in
-the Skedge box. A requester who is not on the Skills sheet makes the request invalid, so a
-misremembered name is caught here rather than saved and forgotten. The
-id is made from the description on the first save (`Dylan's day off` becomes
-`dylan-s-day-off`, then `-2`, `-3` if taken) and never changes afterwards; it is what the
-solver's report refers to. The
+**The editor.** One field per request column and a Skedge editor with highlighting.
+**group** says which shelf the request is on and is not a field you fill in — the pane is
+where that is decided. **requester** records who asked for it — type a staff name and it
+completes, the same names `staff.` gives you in the Skedge box. A requester who is not on
+the Skills sheet makes the request invalid, so a misremembered name is caught here rather
+than saved and forgotten. **description** is for people and may be left empty.
+
+The id is given on the first save and never changes afterwards; it is what the solver's
+report refers to. It is the next free number on the tab the request is written to — `s4-1`,
+`s4-2`, `season-1` — and is **not** made out of the description, so rewording a request
+does not rename it and a request needs no description at all. The
 line under the editor says whether the request is valid, or shows the first error with its
 line and column. Save is enabled only for a valid request. Ctrl+S saves. While the write
 is going out to the sheet the button reads **Saving…**; when it lands, the line turns green
-and says `✓ Saved dylan-s-day-off at 14:32:05`, with the time, so a second save of the same
+and says `✓ Saved s1-12 at 14:32:05`, with the time, so a second save of the same
 request still visibly does something. The confirmation stays until the next edit, which
 validates the request again. **New** starts a
 fresh request; **Delete** removes the selected one. Every save rewrites the tabs the

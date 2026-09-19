@@ -95,24 +95,24 @@ def test_editor_validation_and_save(window):
     editor.tags_edit.setText("training, week 2")
     editor.save_button.click()
     assert window.model.rowCount() == 32
-    assert editor.id_label.text() == "dylan-s-day-off"
+    assert editor.id_label.text() == "s1-1"  # numbered on its tab, not made of the wording
     saved = window.store.source.read("requests", "S1 Special")  # a new request is this span's
-    row = next(r for r in saved if r[0] == "dylan-s-day-off")
+    row = next(r for r in saved if r[0] == "s1-1")
     assert row[saved[0].index("tags")] == "training, week 2"
     assert "week 2" in window.store.tags
     editor.description_edit.setText("Dylan's day off, changed")
     editor.save_button.click()
-    assert editor.id_label.text() == "dylan-s-day-off"  # editing keeps the id
+    assert editor.id_label.text() == "s1-1"  # rewording it keeps the id
     assert window.model.rowCount() == 32
     editor.clear()
-    editor.description_edit.setText("Dylan's day off")
     editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING blocks.clinic_1")
     editor.validate()  # the editor validates 300 ms after typing; tests cannot wait
     editor.save_button.click()
-    assert editor.id_label.text() == "dylan-s-day-off-2"
+    assert editor.id_label.text() == "s1-2"  # and a description is not needed at all
+    assert window.model.request("s1-2").description == ""
     editor.delete_button.click()
     assert window.model.rowCount() == 32
-    window._deleted("dylan-s-day-off")
+    window._deleted("s1-1")
     assert window.model.rowCount() == 31
 
 
@@ -492,39 +492,40 @@ def test_picking_a_group_filters_the_table(window):
     assert window.proxy.rowCount() == 31
 
 
-def test_making_a_group_and_putting_requests_in_it(window, monkeypatch):
+def test_making_a_group_and_dragging_requests_onto_it(window, monkeypatch):
     monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("Ropes rewrite", True))
     window.groups.new_group()
     assert group_rows(window)["Ropes rewrite"] == 0  # an empty group stays in the pane
     assert window.groups.current == "Ropes rewrite" and visible_ids(window) == set()
-    window._set_group(["dylan-off-ropes", "breaks"], "Ropes rewrite", member=True)
+    window.groups.dropped.emit(["dylan-off-ropes", "breaks"], "Ropes rewrite")
     assert group_rows(window)["Ropes rewrite"] == 2
     assert visible_ids(window) == {"dylan-off-ropes", "breaks"}
     saved = window.store.source.read("requests", "Season Requests")
     row = next(r for r in saved if r[0] == "dylan-off-ropes")
-    assert row[saved[0].index("groups")] == "Special weekly requests, Ropes rewrite"
-    window._set_group(["breaks"], "Ropes rewrite", member=False)
+    assert row[saved[0].index("group")] == "Ropes rewrite"  # one group, the one it moved to
+    assert group_rows(window)["Special weekly requests"] == 2  # it left the shelf it was on
+    window.groups.dropped.emit(["breaks"], UNGROUPED)  # dragged off every shelf
     assert group_rows(window)["Ropes rewrite"] == 1
-    assert group_rows(window)["Special daily requests"] == 3  # its other groups are untouched
+    assert next(r for r in window.store.requests if r.id == "breaks").group == ""
 
 
 def test_renaming_and_deleting_a_group(window, monkeypatch):
     names = iter([("Ropes rewrite", True), ("Ropes", True)])
     monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: next(names))
     window.groups.new_group()
-    window._set_group(["dylan-off-ropes", "breaks"], "Ropes rewrite", member=True)
+    window.groups.dropped.emit(["dylan-off-ropes", "breaks"], "Ropes rewrite")
     window.groups.rename_group()
     assert "Ropes rewrite" not in group_rows(window)
     assert group_rows(window)["Ropes"] == 2 and window.groups.current == "Ropes"
-    assert {r.id for r in window.store.requests if "Ropes" in r.groups} == {
+    assert {r.id for r in window.store.requests if r.group == "Ropes"} == {
         "dylan-off-ropes",
         "breaks",
     }
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
     window.groups.delete_group()
     assert "Ropes" not in group_rows(window)
-    assert window.model.rowCount() == 31  # the requests stay, in their other groups
-    assert group_rows(window)["Special weekly requests"] == 3
+    assert window.model.rowCount() == 31  # the requests stay, on no shelf
+    assert group_rows(window)[UNGROUPED] == 27
 
 
 def test_a_default_group_cannot_be_renamed_and_a_name_is_not_taken_twice(window, monkeypatch):
@@ -543,15 +544,39 @@ def test_a_default_group_cannot_be_renamed_and_a_name_is_not_taken_twice(window,
     assert len(group_rows(window)) == 4  # nothing added
 
 
-def test_the_editor_ticks_and_changes_groups(window):
+def test_the_editor_shows_a_group_but_does_not_choose_one(window):
+    """The pane is where a request's group is decided, so the editor only reports it."""
     editor = window.editor
     editor.show_request(window.model.request("dylan-off-ropes"))
-    assert editor.groups_edit.ticked() == ("Special weekly requests",)
-    editor.groups_edit.item(0).setCheckState(Qt.Checked)  # Special daily requests
-    assert editor.current().groups == ("Special daily requests", "Special weekly requests")
+    assert editor.group_label.text() == "Special weekly requests"
+    assert editor.current().group == "Special weekly requests"
     editor.save_button.click()
-    assert group_rows(window)["Special daily requests"] == 4
-    assert editor.groups_edit.ticked() == ("Special daily requests", "Special weekly requests")
+    assert group_rows(window)["Special weekly requests"] == 3  # saving does not move it
+    assert not hasattr(editor, "groups_edit")
+
+
+def test_a_new_request_joins_the_group_being_shown(window):
+    pick_group(window, "Special weekly requests")
+    window.new_request()
+    assert window.editor.group_label.text() == "Special weekly requests"
+    window.editor.skedge_edit.setPlainText("REQUEST staff.dylan FREE DURING blocks.clinic_1")
+    window.editor.validate()
+    window.editor.save_button.click()
+    assert group_rows(window)["Special weekly requests"] == 4
+    pick_group(window, ALL)
+    window.new_request()
+    assert window.editor.group_label.text().startswith("none")  # ALL is not a shelf
+
+
+def test_a_group_can_say_which_tab_its_new_requests_go_to(window):
+    window.store.group_tabs.set("Special weekly requests", "Season Requests")
+    pick_group(window, "Special weekly requests")
+    window.new_request()
+    assert window.editor.home_box.currentText() == "Season Requests"
+    pick_group(window, "Special daily requests")
+    window.new_request()
+    assert window.editor.home_box.currentText() == "S1 Special"  # nothing said: this span's
+    window.store.group_tabs.set("Special weekly requests", "")
 
 
 # -- the requester ------------------------------------------------------------------------
@@ -606,12 +631,13 @@ def test_saving_a_request_outside_the_date_asks_first(window, monkeypatch):
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Save)
     editor.save_button.click()
     assert window.model.rowCount() == 32
-    assert window.model.request("elsewhere") is not None
+    saved = editor.original_id
+    assert window.model.request(saved) is not None
     window.date_check.setChecked(True)  # it does nothing on the date being scheduled
     window.date_filter.setDate(QDate(2026, 9, 16))
-    assert "elsewhere" not in visible_ids(window)
+    assert saved not in visible_ids(window)
     window.date_filter.setDate(QDate(2026, 9, 28))
-    assert "elsewhere" in visible_ids(window)
+    assert saved in visible_ids(window)
 
 
 def test_saving_a_request_about_this_date_asks_nothing(window, monkeypatch):
@@ -696,13 +722,13 @@ def test_the_conflicts_pane_starts_empty(window):
 
 
 def test_saving_a_contradiction_groups_it_in_the_pane(window):
-    save_request(window, "Dylan on riflery", PIN_RIFLERY)
+    riflery = save_request(window, "Dylan on riflery", PIN_RIFLERY)
     assert window.conflicts.topLevelItemCount() == 0
-    save_request(window, "Dylan is free", DYLAN_FREE, priority="HIGH")
+    free = save_request(window, "Dylan is free", DYLAN_FREE, priority="HIGH")
     assert "it conflicts with 1 other request(s)" in window.status_label.text()
     (heading, children) = tree_rows(window.conflicts)[0]
     assert heading == "dylan · Wed 2026-09-16 · clinic_1"
-    assert children[:2] == ["dylan-on-riflery", "dylan-is-free"]  # grouped under the collision
+    assert children[:2] == [riflery, free]  # grouped under the collision
     assert window.conflicts_dock.windowTitle() == "Conflicts (1)"
     heading = window.conflicts.topLevelItem(0)
     assert heading.text(2) == "must be free, and is asked to do riflery"
@@ -711,26 +737,30 @@ def test_saving_a_contradiction_groups_it_in_the_pane(window):
 
 def test_a_request_appears_under_every_collision_it_is_in(window, monkeypatch):
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Save)  # other dates
-    save_request(window, "Dylan is free", DYLAN_FREE)
-    save_request(window, "Dylan on riflery", PIN_RIFLERY)
-    save_request(window, "Friday riflery", PIN_RIFLERY.replace("dates.target", "2026-09-18"))
-    save_request(window, "Friday free", DYLAN_FREE.replace("dates.target", "2026-09-18"))
+    wednesday = [
+        save_request(window, "Dylan is free", DYLAN_FREE),
+        save_request(window, "Dylan on riflery", PIN_RIFLERY),
+    ]
+    friday = [
+        save_request(window, "Friday riflery", PIN_RIFLERY.replace("dates.target", "2026-09-18")),
+        save_request(window, "Friday free", DYLAN_FREE.replace("dates.target", "2026-09-18")),
+    ]
     rows = tree_rows(window.conflicts)
     assert [heading for heading, _ in rows] == [
         "dylan · Wed 2026-09-16 · clinic_1",
         "dylan · Fri 2026-09-18 · clinic_1",
     ]
     assert [sorted(c for c in children if c) for _, children in rows] == [
-        ["dylan-is-free", "dylan-on-riflery"],
-        ["friday-free", "friday-riflery"],
+        sorted(wednesday),
+        sorted(friday),
     ]
 
 
 def test_deleting_a_request_clears_its_conflict(window):
     save_request(window, "Dylan on riflery", PIN_RIFLERY)
-    save_request(window, "Dylan is free", DYLAN_FREE)
+    free = save_request(window, "Dylan is free", DYLAN_FREE)
     assert window.conflicts.topLevelItemCount() == 1
-    window.editor.show_request(window.model.request("dylan-is-free"))
+    window.editor.show_request(window.model.request(free))
     window.editor.delete_button.click()
     assert window.conflicts.topLevelItemCount() == 0
     assert window.conflicts_dock.windowTitle() == "Conflicts"
@@ -744,24 +774,24 @@ def conflict_child(window, request_id):
 
 
 def test_double_clicking_a_conflict_opens_that_request(window):
-    save_request(window, "Dylan on riflery", PIN_RIFLERY)
+    riflery = save_request(window, "Dylan on riflery", PIN_RIFLERY)
     save_request(window, "Dylan is free", DYLAN_FREE)
     window.editor.clear()
-    window.conflicts.itemDoubleClicked.emit(conflict_child(window, "dylan-on-riflery"), 0)
-    assert window.editor.original_id == "dylan-on-riflery"
+    window.conflicts.itemDoubleClicked.emit(conflict_child(window, riflery), 0)
+    assert window.editor.original_id == riflery
     heading = window.conflicts.topLevelItem(0)
     window.conflicts.itemDoubleClicked.emit(heading, 0)  # the heading is not a request
-    assert window.editor.original_id == "dylan-on-riflery"
+    assert window.editor.original_id == riflery
 
 
 def test_a_conflicting_request_opens_even_when_the_group_hides_it(window):
     save_request(window, "Dylan on riflery", PIN_RIFLERY)
-    save_request(window, "Dylan is free", DYLAN_FREE)
+    free = save_request(window, "Dylan is free", DYLAN_FREE)
     pick_group(window, "Special daily requests")
-    assert "dylan-is-free" not in visible_ids(window)
+    assert free not in visible_ids(window)
     window.editor.clear()
-    window.conflicts.itemDoubleClicked.emit(conflict_child(window, "dylan-is-free"), 0)
-    assert window.editor.original_id == "dylan-is-free"
+    window.conflicts.itemDoubleClicked.emit(conflict_child(window, free), 0)
+    assert window.editor.original_id == free
 
 
 # -- saying what the window is doing ---------------------------------------------------------
@@ -776,7 +806,7 @@ def test_saving_says_so_and_then_says_it_is_done(window):
     assert editor.save_button.text() == "Save"
     editor.save_button.click()
     assert editor.save_button.text() == "Save"  # back to itself once the write is done
-    assert editor.status.text().startswith("✓ Saved dylan-s-day-off at ")
+    assert editor.status.text().startswith("✓ Saved s1-1 at ")
     assert f"color: {palette.GOOD}" in editor.status.styleSheet()
     assert editor.save_button.isEnabled()
     editor.description_edit.setText("changed")  # editing clears the confirmation
