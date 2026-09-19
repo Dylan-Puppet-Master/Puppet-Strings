@@ -16,7 +16,7 @@ solver uses, without a Cancel button: neither can usefully be stopped part-way, 
 take long enough over Google Sheets to be worth saying so. Both run off the window's own
 thread, so the panel keeps painting and the window stays alive while they work.
 **Load offerings** turns the Offerings tab into one `CLINIC` request per offered clinic,
-tagged `generated`, and saves them to the Requests sheet. Such a request names every
+tagged `generated`, and saves them to the session's `Clinics` tab. Such a request names every
 position on Clinic_Data, so a clinic wanting a facilitator, a second and a lifeguard
 reads:
 
@@ -139,7 +139,9 @@ is going out to the sheet the button reads **Saving…**; when it lands, the lin
 and says `✓ Saved dylan-s-day-off at 14:32:05`, with the time, so a second save of the same
 request still visibly does something. The confirmation stays until the next edit, which
 validates the request again. **New** starts a
-fresh request; **Delete** removes the selected one. Every save rewrites the Requests tab.
+fresh request; **Delete** removes the selected one. Every save rewrites the tabs the
+requests on screen came off, which the **on tab** box is what chooses between: this
+session's `Special` tab, or `Season Requests` for something that holds all season.
 
 **Name completion.** Type a namespace and a dot in the Skedge box, such as `staff.`, and a
 list of names appears and narrows as you keep typing.

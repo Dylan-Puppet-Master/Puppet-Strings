@@ -238,10 +238,39 @@ you can see at a glance whether it does.
 `dates.season.all` is every date the sheet covers. See
 [Dates](skedge.md#dates) for the full list of date names.
 
-## Requests (config spreadsheet)
+## Requests (its own spreadsheet)
 
-One row per request. The request manager edits this tab for you; you can also edit it by
-hand.
+A spreadsheet called **Requests**, beside Config and Skills in the Puppet Strings folder.
+One row per request, and a tab per session, because one tab of everything meant reading
+the whole season to schedule one day.
+
+| Tab | What is on it |
+|---|---|
+| `Season Requests` | What holds all season or crosses sessions: the legal limits, the standing agreements. **Every** load reads it. |
+| `S1 Clinics` | The clinic requests **Load offerings** writes for session 1's days. Reloading a day throws that day's away and writes them again, so nothing here is worth editing by hand. |
+| `S1 Special` | What was asked of session 1 in particular. |
+
+A load reads three tabs: the season's, and the two of the session the target date falls
+in. A span on the Calendar sheet that is not a numbered session is labelled by its own
+name instead — a `Staff Week` row gets `Staff Week Clinics` and `Staff Week Special`.
+
+Which tab a request is on is what says when it applies, so **moving a request between
+sessions is a cut and paste**. The request manager writes a new request to the session's
+Special tab; its **on tab** box is how to put one on `Season Requests` instead.
+
+If your requests are still one `Requests` tab of the config spreadsheet, run
+
+```
+puppet-strings split-requests
+```
+
+once. It builds the Requests spreadsheet out of that tab: the generated clinic requests go
+to the Clinics tab of whichever session holds the date in their id, and everything else to
+`Season Requests`, where every load will go on reading it. The old tab is left alone, so
+you can check the result before deleting it.
+
+Every tab has these columns. The request manager edits them for you; you can also edit
+them by hand.
 
 | Column | Meaning |
 |---|---|
@@ -333,6 +362,7 @@ Puppet Strings/
     Clinic_Schedule
     Skills
     Config
+    Requests               a tab per session; see above
     Main Season/
       Session 1/
         Staff Categories   one spreadsheet, for that span's staff

@@ -23,7 +23,7 @@ DEFAULT_TABS = {
     "blocks": "Blocks",
     "calendar": "Calendar",
     "cabin_act_board": "Board",  # of a cabin act sheet; its Support Requests tab is not read
-    "requests": "Requests",
+    "requests": "Requests",  # the old one-tab Requests, read only by split-requests
     "metrics": "Metrics",
     "adjustments": "Adjustments",
     "assignments": "Assignments",  # the rows a solve is read back from

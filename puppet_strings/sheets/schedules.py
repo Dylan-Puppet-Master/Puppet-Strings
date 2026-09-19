@@ -5,7 +5,8 @@ the Puppet Master keeps them. The root holds a folder per year:
 
     Puppet Strings/
       2027/
-        Clinic_Data, Clinic_Schedule, Skills, Config   the season's reference sheets
+        Clinic_Data, Clinic_Schedule, Skills,          the season's reference sheets
+        Config, Requests
         Main Season/
           Session 1/
             Staff Categories      one spreadsheet, for that session's staff
