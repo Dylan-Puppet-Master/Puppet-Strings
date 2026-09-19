@@ -10,7 +10,7 @@ from puppet_strings.generate import generated_requests, has_offerings_loaded, me
 from puppet_strings.google_auth import AuthError
 from puppet_strings.model import Dataset
 from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
-from puppet_strings.publish.writer import is_published, publish
+from puppet_strings.publish.writer import day_sheet, is_published, publish
 from puppet_strings.session import open_source
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.requests import request_rows
@@ -20,7 +20,7 @@ from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.solve import RequestError, solve
 
-SHEETS = ("clinic_data", "clinic_schedule", "skills", "staff_categories", "config", "published")
+SHEETS = ("clinic_data", "clinic_schedule", "skills", "config")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -107,6 +107,7 @@ def _names(dataset: Dataset) -> int:
 
 
 def _load_offerings(source: Source, config: Config, dataset: Dataset) -> int:
+    day_sheet(source, config, dataset.this_span, dataset.target)  # made if it is not there yet
     generated = generated_requests(dataset)
     merged = merge(list(dataset.requests), generated, dataset.target)
     source.write("config", config.tabs["requests"], request_rows(tuple(merged)))
@@ -143,7 +144,7 @@ def _solve(source: Source, config: Config, dataset: Dataset, args) -> int:
         _print_table(changes_view(dataset, result))
     if not args.publish:
         return 0
-    if is_published(source, dataset) and not (args.force or args.same_day):
+    if is_published(source, config, dataset) and not (args.force or args.same_day):
         print(f"{dataset.target} is already published; use --force to overwrite", file=sys.stderr)
         return 1
     publish(source, config, dataset, result)

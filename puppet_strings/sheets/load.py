@@ -12,12 +12,18 @@ from puppet_strings.sheets import metrics as metrics_sheet
 from puppet_strings.sheets.adjustments import parse_adjustments, resting_blocks
 from puppet_strings.sheets.blocks import ALL_BLOCKS, block_categories, parse_blocks
 from puppet_strings.sheets.cabin_acts import cabin_act_activities, parse_board
-from puppet_strings.sheets.calendar import calendar_days, parse_calendar, parse_date
+from puppet_strings.sheets.calendar import calendar_days, parse_calendar
 from puppet_strings.sheets.categories import parse_staff_categories
 from puppet_strings.sheets.clinic_data import parse_clinics
 from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import parse_published
 from puppet_strings.sheets.requests import parse_requests
+from puppet_strings.sheets.schedules import (
+    SCHEDULES,
+    STAFF_CATEGORIES,
+    day_title,
+    span_path,
+)
 from puppet_strings.sheets.skills import (
     known_skills,
     parse_position_skills,
@@ -28,6 +34,7 @@ from puppet_strings.sheets.source import LoadError, NotACampDay, Source
 
 ADJUSTMENT_HEADER = ("date", "staff", "resting", "RAL_penalty", "note")
 ALL = "all"
+STAFF_CATEGORIES_TAB = "Categories"  # the one tab of a span's Staff Categories spreadsheet
 CLINIC_TRAINERS = "clinic_trainers"
 
 
@@ -125,9 +132,9 @@ def _build(
     today_blocks = {b.id for b in blocks.values() if block_runs_on(b, calendar[target])}
     working = frozenset(i for i, member in staff.items() if member.resting_blocks != today_blocks)
 
-    categories = parse_staff_categories(
-        source.read("staff_categories", tabs["staff_categories"]), staff
-    )
+    span = next(s for s in spans if s.id == calendar[target].span)
+    in_span = source.documents(SCHEDULES, span_path(span))
+    categories = parse_staff_categories(_categories_table(source, in_span, span), staff)
     _reserve("staff", categories, (ALL, CLINIC_TRAINERS, *staff))
     named = {**categories, ALL: frozenset(staff), CLINIC_TRAINERS: trainers(staff)}
     categories = named
@@ -138,13 +145,21 @@ def _build(
     )
     warnings += cabin_warnings
     activities = {**clinics, **cabin_acts}
-    offerings, offering_warnings = parse_offerings(
-        source.read("clinic_schedule", tabs["offerings"]),
-        clinics,
-        set(blocks),
-        target.strftime("%A"),
-    )
-    warnings += offering_warnings
+    today = day_title(span, target)
+    if today in in_span:
+        offerings, offering_warnings = parse_offerings(
+            source.read(in_span[today], tabs["offerings"]),
+            clinics,
+            set(blocks),
+            target.strftime("%A"),
+        )
+        warnings += offering_warnings
+    else:
+        offerings = ()
+        warnings.append(
+            f"{'/'.join(span_path(span))}: no '{today}' sheet yet, so nothing is offered; "
+            "Load offerings makes one"
+        )
     requests = parse_requests(config_tables[tabs["requests"]])
 
     # Only the clinics have categories; a cabin act is found by its cabin, not by a heading.
@@ -164,18 +179,7 @@ def _build(
         m.name: metrics_sheet.parse_metric(m, metric_tables[tab_of[m.name]], to_id) for m in index
     }
 
-    days = {}
-    for tab in source.tabs("published"):
-        try:
-            day = parse_date(tab, "Published Schedules")
-        except LoadError:
-            continue
-        if day == target or (day < target and day in calendar):
-            days[tab] = day
-    schedules = {
-        days[tab]: parse_published(table, days[tab], staff, activities)
-        for tab, table in source.read_many("published", list(days)).items()
-    }
+    schedules = _published(source, config, spans, calendar, target, staff, activities)
     baseline = schedules.pop(target, None)  # the target's own schedule is what to hold to
 
     return Dataset(
@@ -232,3 +236,41 @@ def _weeks_by_weekday(spans: tuple[Span, ...]) -> dict[tuple[int, int], dict[str
         for day in span.dates:
             weeks.setdefault((span.session, span.week_of(day)), {})[WEEKDAYS[day.weekday()]] = day
     return weeks
+
+
+def _categories_table(source: Source, in_span: dict[str, str], span: Span) -> list[list[str]]:
+    """The span's own Staff Categories sheet. Who is on staff is a thing a session decides."""
+    if STAFF_CATEGORIES not in in_span:
+        raise LoadError(
+            f"{'/'.join(span_path(span))}: no '{STAFF_CATEGORIES}' spreadsheet. "
+            "Every span keeps its own, because who is on staff changes between them."
+        )
+    return source.read(in_span[STAFF_CATEGORIES], STAFF_CATEGORIES_TAB)
+
+
+def _published(source, config, spans, calendar, target, staff, activities):
+    """Every published day up to and including the target, read from its own spreadsheet.
+
+    A past day is a fact the target is scheduled around, so the assignment rows are what is
+    read: the three views beside them are for people. Days are spread over a spreadsheet
+    each, so they are fetched in parallel.
+    """
+    wanted: dict[date, str] = {}
+    by_span = {s.id: s for s in spans}
+    for day in sorted(calendar):
+        if day > target:
+            break
+        span = by_span[calendar[day].span]
+        for title, key in source.documents(SCHEDULES, span_path(span)).items():
+            if title == day_title(span, day):
+                wanted[day] = key
+    tables = source.read_all(
+        {day.isoformat(): key for day, key in wanted.items()}, config.tabs["assignments"]
+    )
+    found = {}
+    for day in wanted:
+        table = tables[day.isoformat()]
+        if not table:
+            continue  # the sheet is there but the day has not been solved
+        found[day] = parse_published(table, day, staff, activities)
+    return found

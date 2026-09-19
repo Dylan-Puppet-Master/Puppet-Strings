@@ -1,12 +1,12 @@
-from datetime import date, time
+from datetime import time
 
-from puppet_strings.config import Config
 from puppet_strings.model import Assignment, Priority
 from puppet_strings.publish.palette import BLOCK_COLOURS, CATEGORY_COLOURS, colour
 from puppet_strings.publish.views import clinic_view, report, staff_view
-from puppet_strings.publish.writer import is_published, publish
+from puppet_strings.publish.writer import day_sheet, is_published, publish
 from puppet_strings.sheets.source import CsvSource
 from puppet_strings.solver.result import RequestOutcome, Result
+from tests.conftest import CONFIG
 
 
 def rows(dataset):
@@ -199,22 +199,36 @@ def test_report_leaves_an_id_that_only_looks_like_a_copy_alone():
 
 
 def test_publish_round_trip(dataset, tmp_path):
+    """A solved day is written into its own spreadsheet in the schedules tree."""
     source = CsvSource(tmp_path)
     result = Result(feasible=True, assignments=rows(dataset))
-    publish(source, Config(), dataset, result)
-    assert is_published(source, dataset)
-    assert set(source.tabs("published")) == {"2026-09-16", "Staff View", "Clinic View", "Report"}
-    tab = source.read("published", "2026-09-16")
+    assert not is_published(source, CONFIG, dataset)
+    publish(source, CONFIG, dataset, result)
+    assert is_published(source, CONFIG, dataset)
+    where = "schedules/2026/Main Season/Session 1/Wednesday_1"
+    assert set(source.tabs(where)) == {
+        "Offerings",  # publishing a day nobody made yet makes it, grid and all
+        "Assignments",
+        "Staff View",
+        "Clinic View",
+        "Report",
+    }
+    tab = source.read(where, "Assignments")
     assert tab[0] == ["staff", "activity", "role", "block", "start", "minutes", "source"]
     assert ["Alexis", "Blacksmithing (DBL)", "first", "clinic_1", "09:15", "75", "offering"] in tab
-    assert [
-        "Dylan",
-        "'counselor hour'",
-        "",
-        "clinic_2",
-        "10:45",
-        "60",
-        "counselor-hours[dylan]",
-    ] in tab
-    assert source.read("published", "Staff View")[0][0] == "Staff"
-    assert date.fromisoformat(source.tabs("published")[0])
+
+
+def test_a_day_sheet_is_made_with_its_tabs(dataset, tmp_path):
+    """Load offerings makes the day a spreadsheet to fill in, before anything is solved."""
+    source = CsvSource(tmp_path)
+    day_sheet(source, CONFIG, dataset.this_span, dataset.target)
+    where = "schedules/2026/Main Season/Session 1/Wednesday_1"
+    assert set(source.tabs(where)) == {
+        "Offerings",
+        "Assignments",
+        "Staff View",
+        "Clinic View",
+        "Report",
+    }
+    assert source.read(where, "Offerings") == []  # a grid to fill in
+    assert not is_published(source, CONFIG, dataset)  # made is not solved

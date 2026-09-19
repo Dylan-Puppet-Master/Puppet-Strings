@@ -10,6 +10,7 @@ from puppet_strings.config import Config
 from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
 from puppet_strings.model import Adjustment, Dataset, Request, Rest
 from puppet_strings.names import normalize
+from puppet_strings.publish.writer import day_sheet
 from puppet_strings.sheets.adjustments import adjustment_rows
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.requests import request_rows
@@ -94,7 +95,13 @@ class RequestStore:
         return request
 
     def load_offerings(self) -> int:
-        """Replace the date's generated requests with the Offerings tab's. Returns how many."""
+        """Replace the date's generated requests with the Offerings tab's. Returns how many.
+
+        The day's spreadsheet is made first if it is not there yet, with the Offerings grid
+        to fill in and the views a solve will write, so a new day is one click from being
+        ready rather than a folder to go and build by hand.
+        """
+        day_sheet(self.source, self.config, self.dataset.this_span, self.dataset.target)
         generated = generated_requests(self.dataset)
         self.requests = merge(self.requests, generated, self.dataset.target)
         self._reindex(generated)

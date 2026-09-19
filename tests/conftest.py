@@ -17,9 +17,12 @@ def source() -> CsvSource:
     return CsvSource(FIXTURES)
 
 
+CONFIG = Config(folders={"schedules": "schedules", "cabin_acts": "cabin_acts"})
+
+
 @pytest.fixture
 def dataset(source):
-    return load_dataset(source, Config(), TARGET)
+    return load_dataset(source, CONFIG, TARGET)
 
 
 @pytest.fixture

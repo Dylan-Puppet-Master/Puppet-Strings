@@ -17,15 +17,16 @@ DEFAULT_PATH = Path("~/.config/puppet_strings/settings.json")
 # Every spreadsheet the program reads, with what it is for, in the order the pane lists them.
 SHEETS = (
     ("clinic_data", "Clinic Data", "Every clinic, its category and its positions"),
-    ("clinic_schedule", "Clinic Schedule", "The Offerings grid of what runs when"),
+    ("clinic_schedule", "Clinic Schedule", "The Offerings grid a new day is started from"),
     ("skills", "Skills", "Who is checked off on what, and each position's skill"),
-    ("staff_categories", "Staff Categories", "One column per category of staff"),
     ("config", "Config", "Blocks, Calendar, Requests, Metrics and Adjustments"),
-    ("published", "Published Schedules", "One tab per published day"),
 )
 
-# Folders of sheets rather than one sheet: every spreadsheet inside is read.
-FOLDERS = (("cabin_acts", "Cabin Acts", "One cabin act sheet per session and week"),)
+# Folders rather than one sheet.
+FOLDERS = (
+    ("cabin_acts", "Cabin Acts", "One cabin act sheet per session and week"),
+    ("schedules", "Schedules", "Holds a folder per year; the days and their staff live under it"),
+)
 
 
 @dataclass(frozen=True)

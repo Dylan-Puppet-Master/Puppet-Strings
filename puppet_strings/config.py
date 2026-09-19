@@ -20,13 +20,13 @@ DEFAULT_TABS = {
     "offerings": "Offerings",
     "skills": "Skills",
     "position_skills": "Positions",
-    "staff_categories": "Categories",
     "blocks": "Blocks",
     "calendar": "Calendar",
     "cabin_act_board": "Board",  # of a cabin act sheet; its Support Requests tab is not read
     "requests": "Requests",
     "metrics": "Metrics",
     "adjustments": "Adjustments",
+    "assignments": "Assignments",  # the rows a solve is read back from
     "staff_view": "Staff View",
     "clinic_view": "Clinic View",
     "report": "Report",

@@ -1,0 +1,6 @@
+staff,activity,role,block,start,minutes,source
+Dylan,Archery 1 & 2,first,clinic_1,09:15,75,offering
+Dylan,'counselor hour',,clinic_2,10:45,60,counselor-hours[dylan]
+Mogee,Candle Making,first,clinic_2,10:45,75,offering
+Rob,Gravity Zip Line,first,clinic_3,14:00,75,offering
+James,Gravity Zip Line,second,clinic_3,14:00,75,offering

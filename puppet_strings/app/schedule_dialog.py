@@ -48,7 +48,7 @@ class ScheduleDialog(QDialog):
         layout.addWidget(buttons)
 
     def _publish(self) -> None:
-        if is_published(self.source, self.dataset):
+        if is_published(self.source, self.config, self.dataset):
             answer = QMessageBox.question(
                 self, "Already published", f"{self.dataset.target} is published. Overwrite?"
             )
