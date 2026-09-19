@@ -112,7 +112,9 @@ def unproven(score, bound, seconds=30):
 
 def test_an_unproven_tier_says_how_much_was_left_on_the_table():
     note = unproven(42000, 48500.0)
-    assert note.startswith("tier MEDIUM: could not prove this schedule optimal in 30s; it is kept")
+    assert note.startswith(
+        "tier MEDIUM: could not prove this schedule optimal within the solve's 30s; it is kept"
+    )
     assert "It scores 42.0" in note and "somewhere up to 48.5" in note
     assert "at most 6.5 more requests' worth" in note
     assert "Raise time_limit_seconds" in note
@@ -141,3 +143,54 @@ def test_a_timed_out_tier_carries_that_note(monkeypatch):
     result = solve(build(), CONFIG)
     assert result.feasible
     assert any("could not prove this schedule optimal" in note for note in result.notes)
+
+
+def test_the_budget_is_for_the_whole_solve_not_each_pass(monkeypatch):
+    """Every pass asks the clock what is left, so the passes share one budget."""
+    asked = []
+    real = cp_model.CpSolver.Solve
+
+    def note_the_limit(self, model, *args, **kwargs):
+        asked.append(self.parameters.max_time_in_seconds)
+        return real(self, model, *args, **kwargs)
+
+    monkeypatch.setattr(cp_model.CpSolver, "Solve", note_the_limit)
+    result = solve(build(), Config(time_limit_seconds=10, tidy_seconds=2, workers=4))
+    assert result.feasible
+    assert len(asked) > 2
+    # the first pass gets the budget less what is held back for the placement pass
+    assert 7.5 < asked[0] <= 8
+    assert asked[1] <= asked[0]  # and each pass after it gets less than the one before
+    assert asked[-1] <= 2  # the placement pass gets tidy_seconds at most
+    assert all(limit <= 8 for limit in asked[:-1])
+
+
+def test_a_deadline_hands_out_what_is_left_and_no_more():
+    from puppet_strings.solver.tiers import Deadline
+
+    solver = cp_model.CpSolver()
+    deadline = Deadline(30)
+    given = deadline.give(solver)
+    assert 29 < given <= 30
+    assert solver.parameters.max_time_in_seconds == given  # what it returns is what it set
+    assert 27 < deadline.give(solver, holding_back=2) <= 28
+    spent = Deadline(30, started=deadline.started - 40)
+    assert spent.remaining == 0  # never negative, however long ago the budget ran out
+    assert spent.give(solver) == 0
+
+
+def test_a_tier_with_no_budget_left_keeps_the_schedule_and_says_so(monkeypatch):
+    """A tier reached after the clock has run out is skipped, not given a zero-second pass."""
+    from puppet_strings.solver import tiers
+
+    real = tiers.Deadline.remaining.fget
+    calls = []
+
+    def running_out(self):
+        calls.append(None)
+        return real(self) if len(calls) <= 1 else 0.0  # only the first pass gets any time
+
+    monkeypatch.setattr(tiers.Deadline, "remaining", property(running_out))
+    result = solve(build(), CONFIG)
+    assert result.feasible and result.assignments
+    assert any("budget was spent before this tier ran" in note for note in result.notes)

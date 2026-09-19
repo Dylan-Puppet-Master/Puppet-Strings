@@ -93,7 +93,8 @@ so rather than failing the solve:
 | Note | Means |
 |---|---|
 | tier X: could not prove this schedule optimal | The schedule stands; the solver simply ran out of time proving that no better one exists. The note says how much better one could have been. |
-| tier X: ran out of time without a schedule of its own | That tier found nothing new; the schedule from the tier before stands. |
+| tier X: ran out of the budget without a schedule of its own | That tier found nothing new; the schedule from the tier before stands. |
+| tier X: the budget was spent before this tier ran | An earlier tier used the time up. The schedule stands, but this tier never got to improve it. |
 | placement pass ran out of time | A task shorter than its block may sit later in it than it needs to. |
 
 The first of those is the common one, and it is worth reading rather than worrying about.
@@ -114,8 +115,13 @@ found in the first seconds and the rest of the time goes on the proof, so the sa
 with more time frequently reports the same score, now proven. The way to find out is to
 raise `time_limit_seconds` once and compare the scores.
 
-Raise `time_limit_seconds` in `config.toml` if the tier notes appear often, or
-`tidy_seconds` for the last one. Each tier gets that budget of its own, so a day's solve
-can take the limit several times over. If even the first pass
+`time_limit_seconds` is the budget for the **whole solve**, not for each pass: one clock
+starts when the solve does and every pass — building the model, the feasibility check, and
+each tier — takes what is left of it. So a solve takes about as long as the setting says,
+whatever the requests ask for, and raising it gives the time to whichever pass needs it.
+
+`tidy_seconds` is held back from that budget for the placement pass, so a slow tier cannot
+leave the day's partial tasks sitting wherever they happened to land. Raise
+`time_limit_seconds` if the tier notes appear often, and `tidy_seconds` for the last one. If even the first pass
 finds nothing in that time, the solve stops and says so, since there is no schedule to
 fall back on.

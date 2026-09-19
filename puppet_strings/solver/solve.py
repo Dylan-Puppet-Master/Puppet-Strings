@@ -11,7 +11,7 @@ from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.compile import SCALE, Compiled, Compiler
 from puppet_strings.solver.result import Change, RequestOutcome, Result
 from puppet_strings.solver.structural import add_structural_constraints
-from puppet_strings.solver.tiers import Cancel, Cancelled, solve_tiers
+from puppet_strings.solver.tiers import Cancel, Cancelled, Deadline, solve_tiers
 from puppet_strings.solver.variables import Slot, Variables
 
 __all__ = ["Cancel", "Cancelled", "RequestError", "solve"]  # Cancel and Cancelled live in tiers
@@ -37,9 +37,13 @@ def solve(
     With `same_day`, the schedule already published for that date is held together: keeping
     it matters more than anything but staffing the clinics, and the result lists what moved.
     Passing a `Cancel` lets another thread stop the solve, which raises `Cancelled`.
+
+    `time_limit_seconds` is the budget for all of this, building the model included, so a
+    solve takes about as long as the setting says however many tiers the requests use.
     """
     config = config or Config()
     cancel = cancel or Cancel()
+    deadline = Deadline(config.time_limit_seconds)
     model = cp_model.CpModel()
     variables = Variables(model, dataset)
     compiler = Compiler(model, variables, dataset)
@@ -72,7 +76,9 @@ def solve(
     placement = [
         iv.start - iv.block.start_minute for iv in variables.intervals.values() if iv.partial
     ]
-    outcome = solve_tiers(model, compiler.terms, list(unique.values()), placement, config, cancel)
+    outcome = solve_tiers(
+        model, compiler.terms, list(unique.values()), placement, config, cancel, deadline
+    )
     if not outcome.feasible:
         conflicts = tuple(
             compiler.compiled[i].id

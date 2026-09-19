@@ -67,7 +67,7 @@ staff_categories = "Categories"   # Staff Categories
 credentials = "~/.config/puppet_strings/service_account.json"
 
 [solver]
-time_limit_seconds = 30   # per priority tier
+time_limit_seconds = 30   # the whole solve, not each tier
 tidy_seconds = 2          # the cosmetic pass, which only neatens a working schedule
 workers = 8
 

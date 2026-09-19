@@ -66,7 +66,7 @@ mode        = "service_account"   # or "oauth"
 credentials = "~/.config/puppet_strings/service_account.json"
 
 [solver]
-time_limit_seconds = 30   # per priority tier
+time_limit_seconds = 30   # the whole solve, not each tier
 workers            = 8
 random_seed        = 0
 ```
@@ -390,7 +390,7 @@ Every request `q` gets `sat[q]`. `MUST_HAPPEN`: `sat[q]` is added with `model.Ad
 
 ### 4.4 Tiers
 
-Tier expressions are integer linear sums. Solve order: `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. After each tier: read the objective value `v`, add `tier_expr >= v`, clear the objective, set the next. `MUST_HAPPEN` requests never appear in an objective. Each tier gets `time_limit_seconds`; if a tier ends at the limit without proving optimality, its best found value becomes the bound and the report says so. `num_workers` and `random_seed` are fixed for reproducible output.
+Tier expressions are integer linear sums. Solve order: `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. After each tier: read the objective value `v`, add `tier_expr >= v`, clear the objective, set the next. `MUST_HAPPEN` requests never appear in an objective. One clock covers the whole solve (see §11): each pass takes what is left of `time_limit_seconds`, less the `tidy_seconds` held back for the placement pass. If a tier ends at the limit without proving optimality, its best found value becomes the bound and the report says so, with the gap it could not close. `num_workers` and `random_seed` are fixed for reproducible output.
 
 On `INFEASIBLE`, `solver.SufficientAssumptionsForInfeasibility()` returns the assumption indices; the report lists their request ids. An empty set means the structural constraints alone conflict (which the report says).
 
@@ -702,3 +702,11 @@ Recorded so the outline matches the code.
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
   leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
   is what keeps the pane quiet enough to be worth reading.
+- **One clock for the whole solve** (Puppet Master, 2026-09-18). `time_limit_seconds` used
+  to be handed to every pass, so a day with five tiers could take five times the setting.
+  A `Deadline` now starts in `solve()`, before the model is built, and each pass asks it
+  what is left; `tidy_seconds` is held back so the cosmetic placement pass still runs. A
+  tier reached with nothing left is skipped with a note rather than given a zero-second
+  pass. The note for a tier that ran out of time says what it scored, the best it could not
+  rule out, and the gap between them in requests, because the schedule is kept either way
+  and the only question worth answering is how much might have been missed.
