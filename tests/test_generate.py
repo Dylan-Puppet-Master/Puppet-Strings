@@ -11,9 +11,9 @@ def test_generated_requests_cover_every_offering(dataset):
     double = next(r for r in generated if "pole_course" in r.id)
     assert double.id == "offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1"
     assert double.skedge == (
-        "REQUEST ANY_1_OF staff.all DO activity.pole_course_explore_level_1_2_dbl "
-        "AS_ROLE EACH_OF {role.first + role.second + role.third} "
-        "DURING ALL_OF {block.clinic_1 + block.clinic_2} ON 2026-09-16"
+        "REQUEST ANY_1_OF staff.all DO activities.clinics.pole_course_explore_level_1_2_dbl "
+        "AS_ROLE EACH_OF {roles.first + roles.second + roles.third} "
+        "DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2} ON 2026-09-16"
     )
     assert double.priority is Priority.CLINIC and double.tags == ("generated",)
     assert double.created == date(2026, 9, 16)
@@ -24,17 +24,17 @@ def test_generated_requests_ask_for_every_position_by_role(dataset):
     by_id = {r.id: r for r in generated_requests(dataset)}
     two = by_id["offering:2026-09-16:gravity_zip_line:clinic_1"]
     assert two.skedge == (
-        "REQUEST ANY_1_OF staff.all DO activity.gravity_zip_line "
-        "AS_ROLE EACH_OF {role.first + role.second} DURING block.clinic_1 ON 2026-09-16"
+        "REQUEST ANY_1_OF staff.all DO activities.clinics.gravity_zip_line "
+        "AS_ROLE EACH_OF {roles.first + roles.second} DURING blocks.clinic_1 ON 2026-09-16"
     )
     water = by_id["offering:2026-09-16:canoe_1_2:clinic_1"]
-    assert "AS_ROLE EACH_OF {role.first + role.lifeguard}" in water.skedge
+    assert "AS_ROLE EACH_OF {roles.first + roles.lifeguard}" in water.skedge
 
 
 def test_one_position_takes_the_role_on_its_own(dataset):
     """A one-item set takes no quantifier, so EACH_OF over one role would be rejected."""
     one = {r.id: r for r in generated_requests(dataset)}["offering:2026-09-16:riflery:clinic_3"]
-    assert "AS_ROLE role.first DURING" in one.skedge and "EACH_OF {role" not in one.skedge
+    assert "AS_ROLE roles.first DURING" in one.skedge and "EACH_OF {role" not in one.skedge
 
 
 def test_each_position_is_its_own_choice_of_person(dataset):

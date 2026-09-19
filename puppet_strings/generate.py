@@ -3,7 +3,7 @@
 Each offered clinic instance becomes a CLINIC request tagged GENERATED_TAG, so the Puppet
 Master can see, edit or delete it before solving. The request names every position the
 clinic wants rather than asking for one person and leaving the skill matching to work the
-rest out: `AS_ROLE EACH_OF {role.first + role.second}`, facilitators first and then any
+rest out: `AS_ROLE EACH_OF {roles.first + roles.second}`, facilitators first and then any
 lifeguards. `EACH_OF` is what makes each position a separate choice of person; `ALL_OF`
 would ask one person to hold them all. A clinic still runs fully staffed or not at all,
 because filling one position of an instance fills them all (`solver.structural`).
@@ -23,7 +23,7 @@ def generated_requests(dataset: Dataset) -> list[Request]:
     target = dataset.target.isoformat()
     requests = []
     for offering in dataset.offerings:
-        blocks = " + ".join(f"block.{b}" for b in offering.blocks)
+        blocks = " + ".join(f"blocks.{b}" for b in offering.blocks)
         during = f"ALL_OF {{{blocks}}}" if len(offering.blocks) > 1 else blocks
         activity = dataset.activities[offering.activity]
         name = activity.name
@@ -49,9 +49,9 @@ def _skedge(activity: Activity, during: str, target: str) -> str:
     one-item set takes no quantifier. A clinic with no positions on Clinic_Data gets the
     roleless request it always got: asking for no role is still asking that it runs.
     """
-    head = f"REQUEST ANY_1_OF staff.all DO activity.{activity.id}"
+    head = f"REQUEST ANY_1_OF staff.all DO activities.clinics.{activity.id}"
     tail = f"DURING {during} ON {target}"
-    roles = [f"role.{p.role}" for p in activity.positions]
+    roles = [f"roles.{p.role}" for p in activity.positions]
     if not roles:
         return f"{head} {tail}"
     if len(roles) == 1:

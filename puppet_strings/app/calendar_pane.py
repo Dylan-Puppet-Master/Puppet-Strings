@@ -3,7 +3,7 @@
 Qt's calendar puts the ISO week of the year down the left-hand side, which is a number
 nobody at camp uses. The delegate below paints the Calendar sheet's own numbering there
 instead, so `S4 / W2` next to a row says that row is the second week of session 4 — the
-week `date.session.four.second_week` stands for.
+week `dates.session.four.second_week` stands for.
 """
 
 from datetime import date

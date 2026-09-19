@@ -96,7 +96,7 @@ def _request(
             )
             continue
         statements.append(
-            f"REQUEST {who} DO '{task}' DURING block.{CABIN_ACT_BLOCK} ON {day.isoformat()}"
+            f"REQUEST {who} DO '{task}' DURING blocks.{CABIN_ACT_BLOCK} ON {day.isoformat()}"
         )
     if not statements:
         return None, warnings

@@ -4,6 +4,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date
 
+from puppet_strings.skedge.namespaces import ACTIVITIES, BLOCKS, DATES, ROLES, STAFF
+
 ALL_OF = "ALL_OF"
 ANY_OF = "ANY_OF"
 EACH_OF = "EACH_OF"
@@ -33,7 +35,7 @@ class Pos:
 
 @dataclass(frozen=True)
 class Ref:
-    """A dotted name: `staff.rob`, `date.session.mondays`."""
+    """A dotted name: `staff.rob`, `dates.session.mondays`."""
 
     namespace: str
     name: str
@@ -58,7 +60,7 @@ class DateLiteral:
 
 @dataclass(frozen=True)
 class DateOffset:
-    """`date.target - 6d`."""
+    """`dates.target - 6d`."""
 
     base: "SetExpr"
     days: int
@@ -208,7 +210,7 @@ class Count:
 
 @dataclass(frozen=True)
 class Score:
-    """`PREFER <pattern> MAXIMIZE|MINIMIZE metric.x(args)`."""
+    """`PREFER <pattern> MAXIMIZE|MINIMIZE metrics.x(args)`."""
 
     pattern: Pattern
     maximize: bool
@@ -291,7 +293,7 @@ def patterns(line: Line) -> tuple[Pattern, ...]:
     return ()
 
 
-NAMESPACES = {During: "block", On: "date", AsRole: "role"}
+NAMESPACES = {During: BLOCKS, On: DATES, AsRole: ROLES}
 
 
 def selectors(line: Line) -> Iterator[tuple[str | None, Selector]]:
@@ -305,9 +307,9 @@ def selectors(line: Line) -> Iterator[tuple[str | None, Selector]]:
     for part in (line, *patterns(line)):
         if not isinstance(part, Requirement | Pattern):
             continue
-        yield "staff", part.who
+        yield STAFF, part.who
         if isinstance(part.what, Selector):
-            yield "activity", part.what
+            yield ACTIVITIES, part.what
         for c in part.clauses:
             if type(c) in NAMESPACES:
                 yield NAMESPACES[type(c)], c.selector

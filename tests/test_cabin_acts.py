@@ -68,9 +68,9 @@ def test_a_statement_per_hero_named(boards, dataset):
     monday = next(r for r in requests if r.id == "cabin_act:2026-09-14:m1")
     assert monday.description == "M1 cabin act: Lake Day"
     assert monday.skedge.splitlines() == [
-        "REQUEST staff.dylan DO 'help M1 with CA' DURING block.cabin_act ON 2026-09-14",
+        "REQUEST staff.dylan DO 'help M1 with CA' DURING blocks.cabin_act ON 2026-09-14",
         "REQUEST ANY_1_OF staff.skills.lifeguard DO 'LIFEGUARD with M1' "
-        "DURING block.cabin_act ON 2026-09-14",
+        "DURING blocks.cabin_act ON 2026-09-14",
     ]
 
 
@@ -103,7 +103,7 @@ def test_every_request_made_is_valid_skedge(boards, dataset):
 
 def test_merge_drops_every_old_cabin_act_whatever_its_date(boards, dataset):
     generated, _ = cabin_act_requests(boards, dataset)
-    kept = Request("mine", "", "REQUEST staff.dylan FREE DURING block.lunch", Priority.LOW)
+    kept = Request("mine", "", "REQUEST staff.dylan FREE DURING blocks.lunch", Priority.LOW)
     stale = Request("cabin_act:2020-01-01:z9", "", "", Priority.CLINIC, tags=(CABIN_ACT_TAG,))
     merged = merge([kept, stale], generated)
     assert kept in merged

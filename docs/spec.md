@@ -52,7 +52,7 @@ Skedge has two statements and two ways of talking about assignments.
 |---|---|
 | Keyword | Upper case: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `GAP`, `TO`, `DO`, `DOING`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY_n_OF`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
 | Quantifier | `ALL_OF`, `EACH_OF`, and `ANY_n_OF` for any whole `n` from 1: `ANY_1_OF`, `ANY_3_OF` |
-| Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `date.session.four.second_week.monday` |
+| Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session.four.second_week.monday` |
 | Variable, label | A bare identifier: `s`, `morning`. A label is followed by a colon. |
 | Quoted task | Single quotes, any text but a quote: `'archery maintenance'` |
 | Date | `2026-06-14` |
@@ -169,17 +169,21 @@ normalizes to a built-in name, are a load error.
 | Namespace | Holds | Built in |
 |---|---|---|
 | `staff` | Staff members, staff categories, skills as `staff.skills.<skill>` | `staff.all`, `staff.clinic_trainers` |
-| `activity` | Clinics, clinic categories | `activity.all` (every clinic) |
-| `block` | Blocks, block categories | `block.all` |
-| `date` | | `date.target`, and the scopes below |
-| `role` | | `role.first` … `role.sixth`, `role.lifeguard`, `role.lifeguard_2` …, `role.shadow`, `role.scaffolded`, `role.trainee` |
-| `metric` | The metrics on the Metrics tab | |
+| `activities` | Clinics under `clinics`, cabin acts under `cabin_acts` | `activities.all`, `activities.clinics.all`, `activities.cabin_acts.all` |
+| `blocks` | Blocks, block categories | `blocks.all` |
+| `dates` | | `dates.target`, and the scopes below |
+| `roles` | | `roles.first` … `roles.sixth`, `roles.lifeguard`, `roles.lifeguard_2` …, `roles.shadow`, `roles.scaffolded`, `roles.trainee` |
+| `metrics` | The metrics on the Metrics tab | |
 
-Every name is either an **item** (one thing: `staff.rob`, `block.clinic_1`, `date.target`)
-or a **set** (`staff.counselor`, `block.all`). Set names are plural or collective; there is
+A namespace is plural because it holds many names. `activities` has a branch per kind of
+activity, so `activities.clinics.archery_1_2` is a clinic and `activities.cabin_acts.p4`
+is a cabin act; only `activities.all` is both.
+
+Every name is either an **item** (one thing: `staff.rob`, `blocks.clinic_1`, `dates.target`)
+or a **set** (`staff.counselor`, `blocks.all`). Set names are plural or collective; there is
 no name that means "any one of": that is what `ANY_1_OF` is for.
 
-A staff category, and `staff.all`, hold only the people working on `date.target`: someone
+A staff category, and `staff.all`, hold only the people working on `dates.target`: someone
 resting all day is in no category, though their own name still resolves.
 
 `staff.skills.<skill>` is one per column of the Skills tab, holding everyone whose status
@@ -193,29 +197,29 @@ within it. Spans come from the Calendar sheet's `session` and `week` columns.
 
 | Span | Kind | Covers |
 |---|---|---|
-| `date.target` | item | the date being scheduled |
-| `date.season` | set | every date on the Calendar sheet |
-| `date.session.one` … `date.session.twenty` | set | every date of that numbered session |
-| `date.session.this` | set | the session `date.target` falls in |
-| `date.session.<s>.first_week` … `date.session.<s>.twentieth_week` | set | every date of that week of that session |
-| `date.session.this.this_week` | set | the week `date.target` falls in |
+| `dates.target` | item | the date being scheduled |
+| `dates.season` | set | every date on the Calendar sheet |
+| `dates.session.one` … `dates.session.twenty` | set | every date of that numbered session |
+| `dates.session.this` | set | the session `dates.target` falls in |
+| `dates.session.<s>.first_week` … `dates.session.<s>.twentieth_week` | set | every date of that week of that session |
+| `dates.session.this.this_week` | set | the week `dates.target` falls in |
 
-| Name within `date.season` or a session | Kind | Holds |
+| Name within `dates.season` or a session | Kind | Holds |
 |---|---|---|
 | `mondays` … `sundays` | set | every date of the span falling on that weekday |
 | `first`, `last` | item | the span's first and last date |
 | `first_monday` … `twentieth_sunday`, `last_monday` … `last_sunday` | item | that occurrence within the span |
-| `first_mondays` … `last_sundays` | set, `date.season` only | that occurrence within each session of the season |
+| `first_mondays` … `last_sundays` | set, `dates.season` only | that occurrence within each session of the season |
 
 | Name within a week | Kind | Holds |
 |---|---|---|
 | `monday` … `sunday` | item | that weekday of the week |
 | `first`, `last` | item | the week's first and last date |
 
-A name exists only if the span reaches that occurrence: `date.session.two.second_week` is
+A name exists only if the span reaches that occurrence: `dates.session.two.second_week` is
 a name only when session 2 has a second week. Session and week numbers run from 1 to 20.
 
-`role.trainee` resolves per staff member from the Skills sheet: checked off or needing a
+`roles.trainee` resolves per staff member from the Skills sheet: checked off or needing a
 scaffold becomes `scaffolded`, needing a shadow or no checkoff becomes `shadow`.
 
 `puppet-strings names` prints every name that currently exists.
@@ -250,10 +254,10 @@ Evaluation order is fixed:
 3. Every chosen staff member then does the chosen activity in **every** chosen block on
    **every** chosen date.
 
-So `ALL_OF {staff.lucy + staff.tom} DO … DURING ANY_1_OF block.all` puts Lucy and Tom in
+So `ALL_OF {staff.lucy + staff.tom} DO … DURING ANY_1_OF blocks.all` puts Lucy and Tom in
 the same block, because there is one block choice and both work it.
 
-A requirement never forbids. `ANY_1_OF {block.clinic_1 + block.clinic_2}` holds when the
+A requirement never forbids. `ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}` holds when the
 thing happens in at least one of them, and says nothing against both.
 
 The activity and `AS_ROLE` of a requirement take an item, `ANY_1_OF` or `EACH_OF`, since a
@@ -291,7 +295,7 @@ person, block or date.
 `<what>` is an activity or a `'quoted task'`. "Anything at all" is not a target: nothing to
 do is `FREE`, and something to do is `NOT FREE`.
 
-`DURING` is required in the positive forms. A missing `ON` is `ON date.target`, everywhere
+`DURING` is required in the positive forms. A missing `ON` is `ON dates.target`, everywhere
 in the language; it is the only default.
 
 Everything to the right of `NOT` is a pattern (§8): sets there are pools, `DURING` may be
@@ -352,12 +356,12 @@ next to each other in the Blocks sheet. `AT_LEAST` holds when some run reaches t
 | `REQUEST <requirement>` | when the requirement holds |
 | `REQUEST <amount> <pattern> [CONSECUTIVE]` | when the condition holds |
 | `PREFER <amount> <pattern> [CONSECUTIVE]` | by degree: the closer the matches are to the amount, the better |
-| `PREFER <pattern> MAXIMIZE metric.x(args)` | by degree: each match earns the metric's value |
-| `PREFER <pattern> MINIMIZE metric.x(args)` | by degree: each match costs the metric's value |
+| `PREFER <pattern> MAXIMIZE metrics.x(args)` | by degree: each match earns the metric's value |
+| `PREFER <pattern> MINIMIZE metrics.x(args)` | by degree: each match costs the metric's value |
 
 A `REQUEST` is all or nothing. To get partial credit from a `REQUEST`, split it with
 `EACH_OF`: each copy is then met or not on its own. That is how "avoid" is written:
-`REQUEST EACH_OF staff.office NOT DO 'break' DURING EACH_OF {block.breakfast + block.lunch}`
+`REQUEST EACH_OF staff.office NOT DO 'break' DURING EACH_OF {blocks.breakfast + blocks.lunch}`
 at a soft priority is one small request per person per block.
 
 `PREFER` takes patterns only. A soft wish that some requirement hold is a `REQUEST` at a
@@ -365,7 +369,7 @@ soft priority, so `PREFER <who> DO …` does not exist.
 
 ### 9.1 Metrics
 
-A metric call names its keys: `metric.preference(s, c)`. Each argument is an item or a
+A metric call names its keys: `metrics.preference(s, c)`. Each argument is an item or a
 variable bound by `EACH_OF`, and the arguments must agree in number and namespace with the
 metric's key columns on the Metrics tab. The value is normalized to 0–1 against the
 metric's declared scale. A key the metric has no row for takes the metric's default, which
@@ -463,7 +467,7 @@ These come from the sheets and are never written as requests.
 
 ## 14. Time horizon
 
-The solver schedules `date.target`.
+The solver schedules `dates.target`.
 
 - **Past dates** with a published schedule are facts. They cannot change, and they count
   exactly as today's assignments do, in every requirement, pattern, condition and amount.

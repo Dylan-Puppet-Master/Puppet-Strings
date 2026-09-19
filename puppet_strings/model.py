@@ -27,7 +27,7 @@ class SkillStatus(Enum):
 
     @property
     def trainee_role(self) -> str:
-        """The trainee role a `role.trainee` task resolves to for this status."""
+        """The trainee role a `roles.trainee` task resolves to for this status."""
         if self in (SkillStatus.NONE, SkillStatus.NEEDS_SHADOW):
             return SHADOW
         return SCAFFOLDED
@@ -148,6 +148,7 @@ class Activity:
     slots: int
     positions: tuple[Position, ...]
     double: bool = False
+    cabin: str = ""  # set on a cabin act; "" on a clinic. See `skedge.namespaces`.
 
     def position(self, role: str) -> Position | None:
         """The position with this role, if any."""
@@ -204,7 +205,7 @@ class CalendarDay:
     """One camp day from the Calendar sheet.
 
     `session` and `week` are the numbers written on the sheet: session 4, week 2 of that
-    session. They are what `date.session.four.second_week` is built from, so a day belongs
+    session. They are what `dates.session.four.second_week` is built from, so a day belongs
     to exactly one session and one week of it.
     """
 

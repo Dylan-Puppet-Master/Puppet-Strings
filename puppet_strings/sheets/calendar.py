@@ -38,7 +38,7 @@ def parse_date(text: str, where: str) -> date:
 
 
 def _counted(text: str, field: str, where: str) -> int:
-    """A session or week number: what `date.session.four.second_week` is named after."""
+    """A session or week number: what `dates.session.four.second_week` is named after."""
     number = parse_int(text, f"{where}: {field}")
     if not 1 <= number <= MAX_COUNTED:
         raise LoadError(f"{where}: {field} must be between 1 and {MAX_COUNTED}, not {number}")

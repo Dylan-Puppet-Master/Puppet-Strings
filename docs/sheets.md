@@ -3,7 +3,7 @@
 Every value the solver uses comes from a Google Sheet. Names become Skedge identifiers by
 this rule: trim, lowercase, replace each run of characters that are not letters or digits
 with one underscore, and drop underscores at the ends. `Archery 1 & 2` becomes
-`activity.archery_1_2`; `Cam VL` becomes `staff.cam_vl`. `puppet-strings names` prints
+`activities.clinics.archery_1_2`; `Cam VL` becomes `staff.cam_vl`. `puppet-strings names` prints
 the identifier for every sheet value.
 
 ## Clinic_Data
@@ -18,10 +18,10 @@ tabs are for people.
 | `Staff_Required` | Number of positions (1st, 2nd, 3rd). `Staff_Requested` is accepted too. |
 | `RAL_Required` | One digit per position, in order: `53` means the 1st needs RAL 5 and the 2nd RAL 3. The digit count must equal `Staff_Required`. |
 | `LG_Required` | Optional. Lifeguards **in addition to** `Staff_Required`. A water clinic with one facilitator and one lifeguard has `Staff_Required` 1 and `LG_Required` 1. Every lifeguard position needs the `LIFEGUARD` skill at RAL 5. |
-| `Category` | Becomes `activity.<category>`, for example `activity.ropes`. |
+| `Category` | Becomes `activity.<category>`, for example `activities.clinics.ropes`. |
 
-Built in: `activity.all` is every clinic. Positions are `role.first`, `role.second`,
-`role.third` for the facilitators, then `role.lifeguard`, `role.lifeguard_2` for the
+Built in: `activities.clinics.all` is every clinic. Positions are `roles.first`, `roles.second`,
+`roles.third` for the facilitators, then `roles.lifeguard`, `roles.lifeguard_2` for the
 lifeguards.
 
 ## Skills
@@ -33,7 +33,7 @@ RAL (its first number is read, so `4 (6/12)` is 4).
 
 Each cell says where that person stands on that skill:
 
-| Cell | Meaning | Can fill the position | `role.trainee` becomes |
+| Cell | Meaning | Can fill the position | `roles.trainee` becomes |
 |---|---|---|---|
 | `✓`, `WCF` | checked off | yes | scaffolded |
 | `Trainer` | checked off and may supervise a scaffold | yes | scaffolded |
@@ -130,7 +130,7 @@ One row per time block. Blocks are the units the solver assigns staff to.
 | `block_id` | The block's name, used in requests as `block.<block_id>`. |
 | `start`, `end` | The block's times, written any ordinary way: `8:30`, `08:30` and `8:30 AM` all mean the same thing. Blocks may overlap; the solver never gives one person two assignments that overlap in time. |
 | `day_types` | **Comma-separated.** The kinds of day this block exists on. Each date's kind comes from the Calendar sheet's `day_type` column. A block whose list does not include that day's type does not exist that day, so no request can select it. |
-| `categories` | **Comma-separated.** Groups of blocks a request can name at once: `block.any_clinic`, `block.meals`. `block.all` (every block) is built in and may not be used as a category name. |
+| `categories` | **Comma-separated.** Groups of blocks a request can name at once: `blocks.any_clinic`, `blocks.meals`. `blocks.all` (every block) is built in and may not be used as a category name. |
 
 One block id is spoken for: `cabin_act` is the slot the [cabin act sheets](#cabin-act-sheets-the-cabin-acts-folder) are imported into, and importing them without it is an error.
 
@@ -166,8 +166,8 @@ One row per camp day.
 | Column | Meaning |
 |---|---|
 | `date` | `YYYY-MM-DD`. |
-| `session` | Which session the day belongs to, as a number: `1`, `2`, `3` …. Session 4 is `date.session.four` in a request. |
-| `week` | Which week **of that session** the day is in, as a number starting at `1` for each session. Week 2 of session 4 is `date.session.four.second_week`. Number a session's weeks 1, 2, 3 … with none skipped. |
+| `session` | Which session the day belongs to, as a number: `1`, `2`, `3` …. Session 4 is `dates.session.four` in a request. |
+| `week` | Which week **of that session** the day is in, as a number starting at `1` for each session. Week 2 of session 4 is `dates.session.four.second_week`. Number a session's weeks 1, 2, 3 … with none skipped. |
 | `day_type` | The kind of day, matched against each block's `day_types`. Any label you like; `regular` for an ordinary day. |
 
 The two numbers are what the whole `date` namespace is built from, so they are worth
@@ -176,8 +176,8 @@ have to be seven days, and it does not have to start on a particular weekday —
 whatever run of days you number alike. The request manager's calendar shows each row's
 `S<session>` and `W<week>` down the left-hand side, so a mis-numbered day is easy to spot.
 
-`date.session.four.mondays` is every Monday of session 4, `date.session.four.second_week.monday`
-is the one Monday of its second week, and `date.season` is every date on the sheet. See
+`dates.session.four.mondays` is every Monday of session 4, `dates.session.four.second_week.monday`
+is the one Monday of its second week, and `dates.season` is every date on the sheet. See
 [Dates](skedge.md#dates) for the full list of date names.
 
 ## Requests (config spreadsheet)
@@ -212,8 +212,8 @@ lives here rather than in a request. The tab is optional; without it nobody is a
 
 A metric is a table of ratings the solver can score assignments with, such as how much
 each staff member prefers each clinic. A request uses it with `MAXIMIZE` or `MINIMIZE`,
-for example `PREFER EACH_OF s IN staff.all DOING EACH_OF c IN activity.all MAXIMIZE
-metric.preference(s, c)`.
+for example `PREFER EACH_OF s IN staff.all DOING EACH_OF c IN activities.clinics.all MAXIMIZE
+metrics.preference(s, c)`.
 
 Metrics take **two kinds of tab** in the config spreadsheet:
 
@@ -235,7 +235,7 @@ empty.
 
 | Column | What to put there |
 |---|---|
-| `metric` | A short name. It becomes `metric.enjoyment` in requests, and names the ratings tab `metric_enjoyment`. |
+| `metric` | A short name. It becomes `metrics.enjoyment` in requests, and names the ratings tab `metric_enjoyment`. |
 | `keys` | **Comma-separated.** What each rating is about. `staff, activity` means one rating per staff member per clinic. Choose from `staff`, `activity`, `role`, `date`, `block`. |
 | `scale_min`, `scale_max` | The lowest and highest rating you will ever enter. Ratings are converted to 0–1 against this scale, not against whatever ratings happen to exist, so adding a new rating never changes how the old ones weigh. |
 | `default` | Optional. What a pair with no row of its own is worth. Leave it blank and an unrated pair is worth `scale_min`, the bottom of the scale. Set it to the middle of the scale (3 of 1–5 above) and an unrated pair counts as ordinary rather than disliked. A default outside the scale is a load error. |

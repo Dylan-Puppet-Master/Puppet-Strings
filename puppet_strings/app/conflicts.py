@@ -6,8 +6,8 @@ paper: one person, one date, one block, and two requests asking for things that 
 both happen.
 
 Only *forced* statements are read — the ones that leave the solver no choice. `REQUEST
-staff.rob DO activity.ropes DURING block.clinic_1` claims Rob's clinic 1; `REQUEST
-ANY_1_OF staff.all DO …` and `DURING ANY_2_OF block.all` claim nothing in particular,
+staff.rob DO activities.clinics.ropes DURING blocks.clinic_1` claims Rob's clinic 1; `REQUEST
+ANY_1_OF staff.all DO …` and `DURING ANY_2_OF blocks.all` claim nothing in particular,
 because the solver picks, and picking around each other is its job, not a conflict. That
 keeps this quiet: what it reports is worth looking at.
 """

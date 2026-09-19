@@ -85,10 +85,10 @@ def test_editor_validation_and_save(window):
     editor = window.editor
     editor.clear()
     editor.description_edit.setText("Dylan's day off")
-    editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING block.nope")
+    editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING blocks.nope")
     assert not editor.validate()
-    assert "unknown block name 'nope'" in editor.status.text()
-    editor.skedge_edit.setPlainText("REQUEST EACH_OF staff.counselor DO 'x' DURING block.clinic_1")
+    assert "unknown name 'blocks.nope'" in editor.status.text()
+    editor.skedge_edit.setPlainText("REQUEST EACH_OF staff.counselor DO 'x' DURING blocks.clinic_1")
     assert editor.validate()
     assert "3 EACH_OF copies" in editor.status.text()
     editor.tags_edit.setText("training, week 2")
@@ -105,7 +105,7 @@ def test_editor_validation_and_save(window):
     assert window.model.rowCount() == 31
     editor.clear()
     editor.description_edit.setText("Dylan's day off")
-    editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING block.clinic_1")
+    editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING blocks.clinic_1")
     editor.validate()  # the editor validates 300 ms after typing; tests cannot wait
     editor.save_button.click()
     assert editor.id_label.text() == "dylan-s-day-off-2"
@@ -141,21 +141,21 @@ def test_completer_opens_after_a_namespace_and_a_dot(window):
     QTest.keyClicks(editor.skedge_edit, ".")
     assert editor.skedge_edit.completer.completionPrefix() == "staff."
     assert "staff.dylan" in completions(editor) and "staff.counselor" in completions(editor)
-    assert "activity.riflery" not in completions(editor)
+    assert "activities.clinics.riflery" not in completions(editor)
 
 
 def test_completer_narrows_as_the_name_is_typed(window):
     editor = window.editor
     editor.clear()
-    QTest.keyClicks(editor.skedge_edit, "DURING block.cl")
+    QTest.keyClicks(editor.skedge_edit, "DURING blocks.cl")
     assert completions(editor) == [
-        "block.clinic_1",
-        "block.clinic_2",
-        "block.clinic_3",
-        "block.clinic_4",
+        "blocks.clinic_1",
+        "blocks.clinic_2",
+        "blocks.clinic_3",
+        "blocks.clinic_4",
     ]
     QTest.keyClicks(editor.skedge_edit, "inic_3")
-    assert completions(editor) == ["block.clinic_3"]
+    assert completions(editor) == ["blocks.clinic_3"]
     QTest.keyClicks(editor.skedge_edit, "9")
     assert completions(editor) == []
     assert not editor.skedge_edit.completer.popup().isVisible()
@@ -164,10 +164,10 @@ def test_completer_narrows_as_the_name_is_typed(window):
 def test_choosing_a_completion_replaces_what_was_typed(window):
     editor = window.editor
     editor.clear()
-    QTest.keyClicks(editor.skedge_edit, "ON date.session.this.sec")
-    assert "date.session.this.second_thursday" in completions(editor)
-    editor.skedge_edit.completer.activated.emit("date.session.this.second_thursday")
-    assert editor.skedge_edit.toPlainText() == "ON date.session.this.second_thursday"
+    QTest.keyClicks(editor.skedge_edit, "ON dates.session.this.sec")
+    assert "dates.session.this.second_thursday" in completions(editor)
+    editor.skedge_edit.completer.activated.emit("dates.session.this.second_thursday")
+    assert editor.skedge_edit.toPlainText() == "ON dates.session.this.second_thursday"
 
 
 def test_completer_stays_shut_for_plain_words_and_dates(window):
@@ -194,13 +194,13 @@ def test_names_panel_lists_namespaces(window):
     names = window.names
     assert [names.topLevelItem(i).text(0) for i in range(names.topLevelItemCount())] == [
         "staff",
-        "activity",
-        "block",
-        "date",
-        "role",
-        "metric",
+        "activities",
+        "blocks",
+        "dates",
+        "roles",
+        "metrics",
     ]
-    assert names.topLevelItem(3).child(0).text(0).startswith("date.")
+    assert names.topLevelItem(3).child(0).text(0).startswith("dates.")
     staff = names.topLevelItem(0)
     assert any(staff.child(i).text(0) == "staff.cam_vl" for i in range(staff.childCount()))
     names.picked.emit("staff.dylan")
@@ -215,20 +215,20 @@ def test_names_panel_nests_dotted_names(window):
     dates = next(
         window.names.topLevelItem(i)
         for i in range(window.names.topLevelItemCount())
-        if window.names.topLevelItem(i).text(0) == "date"
+        if window.names.topLevelItem(i).text(0) == "dates"
     )
-    session = child(dates, "date.session")
+    session = child(dates, "dates.session")
     assert session.data(0, Qt.UserRole) is None  # only a step on the way to a name
-    one = child(session, "date.session.one")
-    assert one.data(0, Qt.UserRole) == "date.session.one" and one.text(1) == "14 dates"
-    week = child(one, "date.session.one.second_week")
-    monday = child(week, "date.session.one.second_week.monday")
+    one = child(session, "dates.session.one")
+    assert one.data(0, Qt.UserRole) == "dates.session.one" and one.text(1) == "14 dates"
+    week = child(one, "dates.session.one.second_week")
+    monday = child(week, "dates.session.one.second_week.monday")
     assert monday.text(1) == "2026-09-21 (Monday)"
     window.editor.clear()
     window.names.itemDoubleClicked.emit(session, 0)  # not a name: nothing is inserted
     assert window.editor.skedge_edit.toPlainText() == ""
     window.names.itemDoubleClicked.emit(monday, 0)
-    assert window.editor.skedge_edit.toPlainText() == "date.session.one.second_week.monday"
+    assert window.editor.skedge_edit.toPlainText() == "dates.session.one.second_week.monday"
 
 
 def test_calendar_click_inserts_a_date(window):
@@ -587,7 +587,7 @@ def test_saving_a_request_outside_the_date_asks_first(window, monkeypatch):
     )
     editor = write_request(
         window,
-        "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON ALL_OF date.session.two.first_week",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL_OF dates.session.two.first_week",
     )
     editor.save_button.click()
     assert asked and "does not cover 2026-09-16" in asked[0]
@@ -612,9 +612,9 @@ def test_saving_a_request_about_this_date_asks_nothing(window, monkeypatch):
         QMessageBox, "question", lambda *a, **k: pytest.fail("should not have asked")
     )
     for skedge in (
-        "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON date.target",
-        "REQUEST staff.dylan DO 'x' DURING block.clinic_1",  # no ON: every day
-        "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON ALL_OF date.session.one.first_week",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON dates.target",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1",  # no ON: every day
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL_OF dates.session.one.first_week",
     ):
         editor = write_request(window, skedge, description=f"ok {skedge[-6:]}")
         editor.save_button.click()
@@ -640,8 +640,10 @@ def test_calendar_labels_weeks_with_their_session(window):
 # -- conflicts ------------------------------------------------------------------------------
 
 
-PIN_RIFLERY = "REQUEST staff.dylan DO activity.riflery DURING block.clinic_1 ON date.target"
-DYLAN_FREE = "REQUEST staff.dylan FREE DURING block.clinic_1 ON date.target"
+PIN_RIFLERY = (
+    "REQUEST staff.dylan DO activities.clinics.riflery DURING blocks.clinic_1 ON dates.target"
+)
+DYLAN_FREE = "REQUEST staff.dylan FREE DURING blocks.clinic_1 ON dates.target"
 
 
 def save_request(window, description, skedge, priority="MUST_HAPPEN"):
@@ -691,8 +693,8 @@ def test_a_request_appears_under_every_collision_it_is_in(window, monkeypatch):
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Save)  # other dates
     save_request(window, "Dylan is free", DYLAN_FREE)
     save_request(window, "Dylan on riflery", PIN_RIFLERY)
-    save_request(window, "Friday riflery", PIN_RIFLERY.replace("date.target", "2026-09-18"))
-    save_request(window, "Friday free", DYLAN_FREE.replace("date.target", "2026-09-18"))
+    save_request(window, "Friday riflery", PIN_RIFLERY.replace("dates.target", "2026-09-18"))
+    save_request(window, "Friday free", DYLAN_FREE.replace("dates.target", "2026-09-18"))
     rows = tree_rows(window.conflicts)
     assert [heading for heading, _ in rows] == [
         "dylan · Wed 2026-09-16 · clinic_1",
@@ -749,7 +751,7 @@ def test_saving_says_so_and_then_says_it_is_done(window):
     editor = window.editor
     editor.clear()
     editor.description_edit.setText("Dylan's day off")
-    editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING block.clinic_1")
+    editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING blocks.clinic_1")
     assert editor.validate()
     assert editor.save_button.text() == "Save"
     editor.save_button.click()
@@ -765,7 +767,7 @@ def test_a_save_that_is_called_off_leaves_the_editor_alone(window, monkeypatch):
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Cancel)
     editor = write_request(
         window,
-        "REQUEST staff.dylan DO 'x' DURING block.clinic_1 ON ALL_OF date.session.two.first_week",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL_OF dates.session.two.first_week",
     )
     editor.save_button.click()
     assert editor.save_button.text() == "Save" and editor.save_button.isEnabled()

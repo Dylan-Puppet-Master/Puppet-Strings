@@ -10,8 +10,8 @@ def test_validate_and_names(capsys):
     assert main(["--fixtures", str(FIXTURES), "--date", "2026-09-16", "names"]) == 0
     out = capsys.readouterr().out
     assert "staff.cam_vl  (Cam VL)" in out
-    assert "activity.all  (category" in out
-    assert "block.meals" in out
+    assert "activities.clinics.all  (category" in out
+    assert "blocks.meals" in out
 
 
 def test_solve_prints_views_and_report(capsys):

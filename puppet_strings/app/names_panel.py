@@ -1,9 +1,9 @@
 """A tree of every valid Skedge name, by namespace. Double-click inserts into the editor.
 
-Names nest on their dots, so `date.session.four.second_week.monday` is five levels deep
-rather than one line among hundreds. A node that is a name in its own right — `date.session.four`
+Names nest on their dots, so `dates.session.four.second_week.monday` is five levels deep
+rather than one line among hundreds. A node that is a name in its own right — `dates.session.four`
 is a name as well as a parent — carries what it stands for beside it and can be inserted;
-a node that is only a step on the way to one, such as `date.session`, cannot.
+a node that is only a step on the way to one, such as `dates.session`, cannot.
 """
 
 from PySide6.QtCore import Qt, Signal

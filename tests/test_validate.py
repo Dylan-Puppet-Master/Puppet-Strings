@@ -9,7 +9,7 @@ def request(skedge, priority=Priority.HIGH, weight=1.0):
     return Request("t", "", skedge, priority, weight)
 
 
-DO = "REQUEST staff.dylan DO 'x' DURING block.clinic_1"
+DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
 
 
 @pytest.mark.parametrize(
@@ -23,35 +23,35 @@ DO = "REQUEST staff.dylan DO 'x' DURING block.clinic_1"
             1,
         ),
         (
-            "REQUEST staff.counselor DO 'x' DURING block.clinic_1",
+            "REQUEST staff.counselor DO 'x' DURING blocks.clinic_1",
             Priority.HIGH,
             "needs a quantifier: ALL_OF, ANY_n_OF or EACH_OF",
             1,
             9,
         ),
         (
-            "REQUEST ANY_1_OF staff.dylan DO 'x' DURING block.clinic_1",
+            "REQUEST ANY_1_OF staff.dylan DO 'x' DURING blocks.clinic_1",
             Priority.HIGH,
             "is one item and takes no quantifier",
             1,
             9,
         ),
         (
-            "REQUEST staff.dylan DO ALL_OF activity.all DURING block.clinic_1",
+            "REQUEST staff.dylan DO ALL_OF activities.clinics.all DURING blocks.clinic_1",
             Priority.HIGH,
             "one activity at a time",
             1,
             24,
         ),
         (
-            "REQUEST staff.dylan DO activity.riflery AS_ROLE ANY_2_OF {role.first + role.second} DURING block.clinic_1",
+            "REQUEST staff.dylan DO activities.clinics.riflery AS_ROLE ANY_2_OF {roles.first + roles.second} DURING blocks.clinic_1",
             Priority.HIGH,
             "one activity at a time",
             1,
-            49,
+            59,
         ),
         ("REQUEST staff.dylan DO 'x'", Priority.HIGH, "needs DURING", 1, 1),
-        (f"{DO} DURING block.clinic_2", Priority.HIGH, "DURING given twice", 1, 50),
+        (f"{DO} DURING blocks.clinic_2", Priority.HIGH, "DURING given twice", 1, 51),
         (
             f"IF staff.dylan FREE\nUNLESS staff.rob FREE\n{DO}",
             Priority.HIGH,
@@ -60,20 +60,20 @@ DO = "REQUEST staff.dylan DO 'x' DURING block.clinic_1"
             1,
         ),
         (
-            "REQUEST staff.dylan DO 'x' DURING block.nope",
+            "REQUEST staff.dylan DO 'x' DURING blocks.nope",
             Priority.HIGH,
-            "unknown block name 'nope'",
+            "unknown name 'blocks.nope'",
             1,
             35,
         ),
         (
             "REQUEST staff.dylan DO 'x' DURING staff.rob",
             Priority.HIGH,
-            "expected a block name",
+            "expected a name from blocks",
             1,
             35,
         ),
-        ("REQUEST s DO 'x' DURING block.clinic_1", Priority.HIGH, "unknown variable 's'", 1, 9),
+        ("REQUEST s DO 'x' DURING blocks.clinic_1", Priority.HIGH, "unknown variable 's'", 1, 9),
         (
             f"EACH_OF s IN staff.all\nEACH_OF s IN staff.all\n{DO}",
             Priority.HIGH,
@@ -84,44 +84,44 @@ DO = "REQUEST staff.dylan DO 'x' DURING block.clinic_1"
         (
             "EACH_OF s IN staff.all\nREQUEST s DO 'x' DURING s",
             Priority.HIGH,
-            "expected a block name, not 's'",
+            "expected a name from blocks, not 's'",
             2,
             25,
         ),
         (
-            "REQUEST staff.dylan DO 'x' DURING {block.clinic_1 + block.clinic_2 & block.meals}",
+            "REQUEST staff.dylan DO 'x' DURING {blocks.clinic_1 + blocks.clinic_2 & blocks.meals}",
             Priority.HIGH,
             "mixed set operators need parentheses",
             1,
-            68,
+            70,
         ),
         (
-            "REQUEST staff.dylan DO 'x' AS_ROLE role.first DURING block.clinic_1",
+            "REQUEST staff.dylan DO 'x' AS_ROLE roles.first DURING blocks.clinic_1",
             Priority.HIGH,
             "AS_ROLE needs an activity",
             1,
             28,
         ),
         (
-            "REQUEST staff.dylan FREE AS_ROLE role.first DURING block.clinic_1",
+            "REQUEST staff.dylan FREE AS_ROLE roles.first DURING blocks.clinic_1",
             Priority.HIGH,
             "AS_ROLE needs an activity",
             1,
             26,
         ),
         (
-            "REQUEST staff.dylan DO activity.riflery FOR 1h DURING block.clinic_1",
+            "REQUEST staff.dylan DO activities.clinics.riflery FOR 1h DURING blocks.clinic_1",
             Priority.HIGH,
             "FOR needs a quoted task",
             1,
-            41,
+            51,
         ),
         (
-            "REQUEST staff.dylan FREE DURING block.clinic_1 WITH staff.rob",
+            "REQUEST staff.dylan FREE DURING blocks.clinic_1 WITH staff.rob",
             Priority.HIGH,
             "FREE has no instance",
             1,
-            48,
+            49,
         ),
         (
             "REQUEST AT_LEAST 1 staff.all NOT FREE WITHOUT staff.rob",
@@ -140,25 +140,25 @@ DO = "REQUEST staff.dylan DO 'x' DURING block.clinic_1"
         ("REQUEST AT_MOST 0 staff.all DOING 'x'", Priority.HIGH, "write NOT DO", 1, 9),
         ("PREFER EXACTLY 0m staff.all DOING 'x'", Priority.HIGH, "write NOT DO", 1, 8),
         (
-            "PREFER EACH_OF s IN staff.all DOING activity.all MAXIMIZE metric.preference(s)",
+            "PREFER EACH_OF s IN staff.all DOING activities.clinics.all MAXIMIZE metrics.preference(s)",
             Priority.HIGH,
             "metric arguments do not match its keys",
             1,
             1,
         ),
         (
-            "PREFER staff.all DOING activity.all MAXIMIZE metric.preference(staff.counselor, activity.riflery)",
+            "PREFER staff.all DOING activities.clinics.all MAXIMIZE metrics.preference(staff.counselor, activities.clinics.riflery)",
             Priority.HIGH,
             "metric argument must be one item",
             1,
-            64,
+            75,
         ),
         (
-            "ANY_1_OF s IN staff.all\nPREFER s DOING activity.all MAXIMIZE metric.preference(s, activity.riflery)",
+            "ANY_1_OF s IN staff.all\nPREFER s DOING activities.clinics.all MAXIMIZE metrics.preference(s, activities.clinics.riflery)",
             Priority.HIGH,
             "metric argument must be one item",
             2,
-            56,
+            67,
         ),
         (
             "PREFER AT_MOST 1 staff.all DOING 'x'",
@@ -168,14 +168,14 @@ DO = "REQUEST staff.dylan DO 'x' DURING block.clinic_1"
             1,
         ),
         (
-            f"a: {DO}\nb: REQUEST staff.dylan DO 'y' DURING block.clinic_2\nGAP a TO b AT_LEAST 3",
+            f"a: {DO}\nb: REQUEST staff.dylan DO 'y' DURING blocks.clinic_2\nGAP a TO b AT_LEAST 3",
             Priority.HIGH,
             "GAP needs a duration",
             3,
             12,
         ),
         (
-            "a: REQUEST staff.dylan FREE DURING block.clinic_1",
+            "a: REQUEST staff.dylan FREE DURING blocks.clinic_1",
             Priority.HIGH,
             "only REQUEST … DO can be labeled",
             1,
@@ -195,19 +195,19 @@ DO = "REQUEST staff.dylan DO 'x' DURING block.clinic_1"
             Priority.HIGH,
             "date range ends before it starts",
             1,
-            61,
+            62,
         ),
-        (f"{DO} ON {{date.session.this - 1d}}", Priority.HIGH, "needs a single date here", 1, 54),
-        (f"{DO} ON 2026-13-01", Priority.HIGH, "invalid date", 1, 53),
+        (f"{DO} ON {{dates.session.this - 1d}}", Priority.HIGH, "needs a single date here", 1, 55),
+        (f"{DO} ON 2026-13-01", Priority.HIGH, "invalid date", 1, 54),
         (
-            "REQUEST staff.dylan DO 'x' DURING ANY_1_OF block.all ON date.session.this.third_thursday",
+            "REQUEST staff.dylan DO 'x' DURING ANY_1_OF blocks.all ON dates.session.this.third_thursday",
             Priority.HIGH,
-            "unknown date name 'session.this.third_thursday'",
+            "unknown name 'dates.session.this.third_thursday'",
             1,
-            57,
+            58,
         ),
         (
-            "ANY_1_OF b IN block.all\nREQUEST staff.dylan DO 'x' DURING {b + block.lunch}",
+            "ANY_1_OF b IN blocks.all\nREQUEST staff.dylan DO 'x' DURING {b + blocks.lunch}",
             Priority.HIGH,
             "must stand alone",
             2,
@@ -235,5 +235,5 @@ def test_fixture_requests_all_validate(dataset):
 
 
 def test_a_gap_may_be_zero(dataset):
-    text = f"a: {DO}\nb: REQUEST staff.dylan DO 'y' DURING block.clinic_2\nGAP a TO b AT_LEAST 0m"
+    text = f"a: {DO}\nb: REQUEST staff.dylan DO 'y' DURING blocks.clinic_2\nGAP a TO b AT_LEAST 0m"
     assert validate_request(request(text), dataset)

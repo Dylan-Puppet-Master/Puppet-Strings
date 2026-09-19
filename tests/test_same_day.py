@@ -43,7 +43,7 @@ def test_stability_beats_a_preference_but_not_a_clinic():
     members = [staff("Dylan", archery_1_2=OK), staff("Randy", archery_1_2=OK)]
     prefers_dylan = request(
         "likes-dylan",
-        "REQUEST staff.dylan DO activity.archery_1_2 DURING block.clinic_1",
+        "REQUEST staff.dylan DO activities.clinics.archery_1_2 DURING blocks.clinic_1",
         Priority.HIGH,
     )
     ds = day(

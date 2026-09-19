@@ -4,7 +4,7 @@ Names are looked up, set expressions evaluated, and `EACH_OF` expanded into inde
 copies of the declaration. A copy is what the solver compiles.
 """
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from difflib import get_close_matches
@@ -17,8 +17,21 @@ from puppet_strings.model import (
     TRAINEE_ROLES,
     Dataset,
 )
+from puppet_strings.names import normalize
 from puppet_strings.sheets.skills import SKILLS_PREFIX
 from puppet_strings.skedge import ast
+from puppet_strings.skedge.namespaces import (
+    ACTIVITIES,
+    BLOCKS,
+    CABIN_ACTS,
+    CLINICS,
+    DATES,
+    KEY_FIELDS,
+    METRICS,
+    ROLES,
+    STAFF,
+)
+from puppet_strings.skedge.namespaces import ALL as ALL_NAME  # `all`, not the quantifier
 
 Item = str | date
 
@@ -103,7 +116,7 @@ class Count:
 
 @dataclass(frozen=True)
 class Score:
-    """`PREFER <pattern> MAXIMIZE|MINIMIZE metric.x(args)`, with the arguments as a key."""
+    """`PREFER <pattern> MAXIMIZE|MINIMIZE metrics.x(args)`, with the arguments as a key."""
 
     pattern: Pattern
     maximize: bool
@@ -179,22 +192,24 @@ class _Names:
     def __init__(self, dataset: Dataset) -> None:
         roles = POSITION_ROLES + LIFEGUARD_ROLES + TRAINEE_ROLES + (TRAINEE,)
         self.spaces: dict[str, dict[str, Named]] = {
-            "staff": _members(dataset.staff, dataset.staff_categories),
-            "activity": _members(dataset.activities, dataset.activity_categories),
-            "block": _members(dataset.blocks, dataset.block_categories),
-            "date": date_names(dataset),
-            "role": {r: Named(frozenset({r}), True) for r in roles},
-            "metric": {m: Named(frozenset({m}), True) for m in dataset.metrics},
+            STAFF: _members(dataset.staff, dataset.staff_categories),
+            ACTIVITIES: activity_names(dataset),
+            BLOCKS: _members(dataset.blocks, dataset.block_categories),
+            DATES: date_names(dataset),
+            ROLES: {r: Named(frozenset({r}), True) for r in roles},
+            METRICS: {m: Named(frozenset({m}), True) for m in dataset.metrics},
         }
 
     def lookup(self, ref: ast.Ref, namespace: str) -> Named:
         if ref.namespace != namespace:
-            raise _error(f"expected a {namespace} name, not {ref.namespace}.{ref.name}", ref.pos)
+            raise _error(
+                f"expected a name from {namespace}, not {ref.namespace}.{ref.name}", ref.pos
+            )
         try:
             return self.spaces[namespace][ref.name]
         except KeyError:
             raise _error(
-                f"unknown {namespace} name '{ref.name}'{self._suggest(namespace, ref.name)}",
+                f"unknown name '{namespace}.{ref.name}'{self._suggest(namespace, ref.name)}",
                 ref.pos,
             ) from None
 
@@ -210,18 +225,53 @@ def _members(items, categories) -> dict[str, Named]:
     return {**single, **sets}
 
 
+def activity_names(dataset: Dataset) -> dict[str, Named]:
+    """Every name in the `activities` namespace.
+
+    Clinics and cabin acts are staffed the same way but are different things — one comes
+    from Clinic_Data and runs for whoever signs up, the other from the cabin act board and
+    belongs to one cabin on one day — so each has its own branch and neither can be picked
+    up by accident. `activities.all` is deliberately both: it is the only name that means
+    every activity there is.
+    """
+    clinics = {i: a for i, a in dataset.activities.items() if not a.cabin}
+    cabin_acts = {i: a for i, a in dataset.activities.items() if a.cabin}
+    names = {ALL_NAME: Named(frozenset(dataset.activities), False)}
+    _add(names, CLINICS, _branch(clinics, dataset.activity_categories))
+    _add(names, CABIN_ACTS, _branch(cabin_acts, _cabin_categories(cabin_acts)))
+    return names
+
+
+def _branch(items: Mapping[str, object], categories: Mapping[str, frozenset[str]]) -> dict:
+    """One branch of `activities`: its own `all`, each activity, and each category."""
+    return {ALL_NAME: Named(frozenset(items), False), **_members(items, categories)}
+
+
+def _cabin_categories(cabin_acts: Mapping[str, object]) -> dict[str, frozenset[str]]:
+    """`activities.cabin_acts.p4` is P4's act on every date the cabin act sheets cover."""
+    by_cabin: dict[str, set[str]] = {}
+    for activity_id, activity in cabin_acts.items():
+        by_cabin.setdefault(normalize(activity.cabin), set()).add(activity_id)
+    return {cabin: frozenset(ids) for cabin, ids in by_cabin.items()}
+
+
+def _branch_of(activity) -> str:
+    """Which branch of `activities` an activity is listed under."""
+    return CABIN_ACTS if activity.cabin else CLINICS
+
+
 def date_names(dataset: Dataset) -> dict[str, Named]:
     """Every name in the `date` namespace.
 
-    The tree is the Calendar sheet read out loud. `date.season` is the whole season and
-    `date.session.four` is session 4, whatever date is being scheduled; `date.session.this`
+    The tree is the Calendar sheet read out loud. `dates.season` is the whole season and
+    `dates.session.four` is session 4, whatever date is being scheduled; `dates.session.this`
     is the session that date falls in. A session holds its weeks, a week holds its days:
 
-        date.session.four                     every date of session 4
-        date.session.four.first_week          every date of its first week
-        date.session.four.second_week.monday  one date
-        date.session.four.second_monday       one date
-        date.session.four.mondays             every Monday of the session
+        dates.session.four                     every date of session 4
+        dates.session.four.first_week          every date of its first week
+        dates.session.four.second_week.monday  one date
+        dates.session.four.second_monday       one date
+        dates.session.four.mondays             every Monday of the session
 
     Every span (the season, a session, a week) carries the same names, so what can be said
     of one can be said of the others.
@@ -241,7 +291,7 @@ def _session_names(
 ) -> dict[str, Named]:
     """One session's own names, with its weeks nested underneath.
 
-    The session being scheduled is also `date.session.this`, and only there does
+    The session being scheduled is also `dates.session.this`, and only there does
     `this_week` mean anything: the week the target date falls in.
     """
     names = _span_names(dates)
@@ -282,7 +332,7 @@ def _week_names(dates: tuple[date, ...]) -> dict[str, Named]:
 
 
 def _season_occurrences(dataset: Dataset) -> dict[str, Named]:
-    """`date.season.first_mondays`: one occurrence taken from every session at once."""
+    """`dates.season.first_mondays`: one occurrence taken from every session at once."""
     per_session = [_span_names(dates) for dates in dataset.sessions.values()]
     wanted = {n for s in per_session for n, named in s.items() if named.single and "_" in n}
     return {
@@ -317,10 +367,10 @@ def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
     and accepted can never drift apart.
     """
     described = {
-        "staff": {i: s.name for i, s in dataset.staff.items()},
-        "activity": {i: a.name for i, a in dataset.activities.items()},
-        "block": {i: f"{b.start:%H:%M}-{b.end:%H:%M}" for i, b in dataset.blocks.items()},
-        "metric": {m: f"scale {v.scale_min:g}-{v.scale_max:g}" for m, v in dataset.metrics.items()},
+        STAFF: {i: s.name for i, s in dataset.staff.items()},
+        ACTIVITIES: {f"{_branch_of(a)}.{i}": a.name for i, a in dataset.activities.items()},
+        BLOCKS: {i: f"{b.start:%H:%M}-{b.end:%H:%M}" for i, b in dataset.blocks.items()},
+        METRICS: {m: f"scale {v.scale_min:g}-{v.scale_max:g}" for m, v in dataset.metrics.items()},
     }
     listing = {}
     for namespace, names in _Names(dataset).spaces.items():
@@ -333,16 +383,16 @@ def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
 
 
 def _note(namespace: str, name: str, named: Named) -> str:
-    if namespace == "date":
+    if namespace == DATES:
         if named.single:
             day = next(iter(named.items))
             return f"{day.isoformat()} ({day:%A})"
         return f"{len(named.items)} date" + ("" if len(named.items) == 1 else "s")
-    if namespace == "role":
+    if namespace == ROLES:
         if name in LIFEGUARD_ROLES:
             return "extra lifeguard on a water clinic"
         return "trainee" if name in TRAINEE_ROLES + (TRAINEE,) else "clinic position"
-    if namespace == "staff" and name.startswith(SKILLS_PREFIX):
+    if namespace == STAFF and name.startswith(SKILLS_PREFIX):
         skill = name[len(SKILLS_PREFIX) :]
         return f"checked off on {skill}, {len(named.items)} members"
     return f"category, {len(named.items)} members"
@@ -413,7 +463,7 @@ def _statement(statement: ast.Statement, scope: _Scope) -> Statement:
         )
     if isinstance(statement, ast.Score):
         return _score(statement, scope)
-    who = _choice(statement.who, "staff", scope, pool=False)
+    who = _choice(statement.who, STAFF, scope, pool=False)
     parts = _parts(statement.what, statement.clauses, scope, pool=statement.negated)
     if statement.negated:
         pool = Choice(who.items, POOL, pos=who.pos)
@@ -423,7 +473,7 @@ def _statement(statement: ast.Statement, scope: _Scope) -> Statement:
 
 
 def _pattern(pattern: ast.Pattern, scope: _Scope) -> Pattern:
-    who = _choice(pattern.who, "staff", scope, pool=True)
+    who = _choice(pattern.who, STAFF, scope, pool=True)
     parts = _parts(pattern.what, pattern.clauses, scope, pool=True)
     return Pattern(who, busy=pattern.busy, **parts, pos=pattern.pos)
 
@@ -438,10 +488,10 @@ def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, poo
     without = ast.clause(clauses, ast.Without)
     target = Choice((scope.dataset.target,), POOL if pool else ALL)
     return {
-        "what": _choice(what, "activity", scope, pool) if isinstance(what, ast.Selector) else what,
-        "during": _choice(during.selector, "block", scope, pool) if during else None,
-        "on": _choice(on.selector, "date", scope, pool) if on else target,
-        "role": _choice(role.selector, "role", scope, pool) if role else None,
+        "what": _choice(what, ACTIVITIES, scope, pool) if isinstance(what, ast.Selector) else what,
+        "during": _choice(during.selector, BLOCKS, scope, pool) if during else None,
+        "on": _choice(on.selector, DATES, scope, pool) if on else target,
+        "role": _choice(role.selector, ROLES, scope, pool) if role else None,
         "minutes": for_.minutes if for_ else None,
         "with_": _staff(with_.staff, scope) if with_ else None,
         "without": _staff(without.staff, scope) if without else None,
@@ -449,7 +499,7 @@ def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, poo
 
 
 def _staff(expr: ast.SetExpr, scope: _Scope) -> frozenset[str]:
-    items, _ = _evaluate(expr, "staff", scope)
+    items, _ = _evaluate(expr, STAFF, scope)
     return items
 
 
@@ -459,10 +509,10 @@ def _condition(condition: ast.Condition, scope: _Scope) -> Condition:
 
 
 def _score(statement: ast.Score, scope: _Scope) -> Score:
-    metric = next(iter(scope.names.lookup(statement.metric, "metric").items))
+    metric = next(iter(scope.names.lookup(statement.metric, METRICS).items))
     keys = scope.dataset.metrics[metric].keys
     args = [_argument(a, scope) for a in statement.args]
-    if tuple(namespace for _, namespace in args) != keys:
+    if tuple(KEY_FIELDS.get(namespace, namespace) for _, namespace in args) != keys:
         raise _error("metric arguments do not match its keys", statement.pos)
     key = tuple(item.isoformat() if isinstance(item, date) else item for item, _ in args)
     pattern = _pattern(statement.pattern, scope)
@@ -498,7 +548,7 @@ def _choice(selector: ast.Selector, namespace: str, scope: _Scope, pool: bool) -
         _expect(namespace, bound, expr)
         return replace(choice, kind=POOL if pool else ANY, pos=selector.pos)
     items, single = _evaluate(expr, namespace, scope)
-    if namespace == "date":
+    if namespace == DATES:
         items = frozenset(d for d in items if d in scope.dataset.calendar)
     if pool:
         return Choice(_sorted(items), POOL, pos=selector.pos)
@@ -527,8 +577,8 @@ def _evaluate(expr: ast.SetExpr, namespace: str, scope: _Scope) -> tuple[frozens
             raise _error(f"'{expr.name}' is chosen by the solver and must stand alone", expr.pos)
         raise _error(f"unknown variable '{expr.name}'", expr.pos)
     if isinstance(expr, ast.DateLiteral):
-        if namespace != "date":
-            raise _error(f"expected a {namespace} name, not a date", expr.pos)
+        if namespace != DATES:
+            raise _error(f"expected a name from {namespace}, not a date", expr.pos)
         return frozenset({expr.value}), True
     if isinstance(expr, ast.DateOffset):
         return frozenset({_one_date(expr.base, scope) + timedelta(days=expr.days)}), True
@@ -544,7 +594,7 @@ def _evaluate(expr: ast.SetExpr, namespace: str, scope: _Scope) -> tuple[frozens
 
 
 def _one_date(expr: ast.SetExpr, scope: _Scope) -> date:
-    items, single = _evaluate(expr, "date", scope)
+    items, single = _evaluate(expr, DATES, scope)
     if not single:
         raise _error("needs a single date here", expr.pos)
     return next(iter(items))
@@ -562,12 +612,12 @@ def _namespace_of(expr: ast.SetExpr, scope: _Scope) -> str:
         raise _error(f"unknown variable '{expr.name}'", expr.pos)
     if isinstance(expr, ast.SetOp):
         return _namespace_of(expr.left, scope)
-    return "date"
+    return DATES
 
 
 def _expect(namespace: str, actual: str, var: ast.Var) -> None:
     if namespace != actual:
-        raise _error(f"expected a {namespace} name, not '{var.name}'", var.pos)
+        raise _error(f"expected a name from {namespace}, not '{var.name}'", var.pos)
 
 
 def _sorted(items: frozenset[Item]) -> tuple[Item, ...]:

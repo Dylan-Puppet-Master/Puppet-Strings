@@ -17,12 +17,12 @@ position on Clinic_Data, so a clinic wanting a facilitator, a second and a lifeg
 reads:
 
 ```skedge
-REQUEST ANY_1_OF staff.all DO activity.canoe_1_2 AS_ROLE EACH_OF {role.first + role.second + role.lifeguard} DURING block.clinic_1 ON 2026-09-17
+REQUEST ANY_1_OF staff.all DO activities.clinics.canoe_1_2 AS_ROLE EACH_OF {roles.first + roles.second + roles.lifeguard} DURING blocks.clinic_1 ON 2026-09-17
 ```
 
 `EACH_OF` is what makes each position its own choice of person; `ALL_OF` would ask one
 person to hold all three. A clinic with one position names it on its own, `AS_ROLE
-role.first`, because a one-item set takes no quantifier. The clinic still runs fully
+roles.first`, because a one-item set takes no quantifier. The clinic still runs fully
 staffed or not at all — filling one position of an instance fills them all — but every
 position it wants is now written down rather than left to the skill matching.
 
@@ -41,8 +41,8 @@ cabin act becomes one `CLINIC` request tagged `generated` and `cabin act`, holdi
 statement per hero its HEROES cell names:
 
 ```skedge
-REQUEST staff.dylan DO 'help M1 with CA' DURING block.cabin_act ON 2026-09-14
-REQUEST ANY_1_OF staff.skills.lifeguard DO 'LIFEGUARD with M1' DURING block.cabin_act ON 2026-09-14
+REQUEST staff.dylan DO 'help M1 with CA' DURING blocks.cabin_act ON 2026-09-14
+REQUEST ANY_1_OF staff.skills.lifeguard DO 'LIFEGUARD with M1' DURING blocks.cabin_act ON 2026-09-14
 ```
 
 A statement each is what makes two heroes two people. A person asked for by name is there
@@ -103,15 +103,15 @@ both. Double-click one to open it in the editor.
 
 | What it catches | Example |
 |---|---|
-| Asked to work and to be free | `REQUEST staff.dylan DO activity.riflery DURING block.clinic_1` beside `REQUEST staff.dylan FREE DURING block.clinic_1` |
-| Asked to do something and told not to | the same, beside `REQUEST staff.dylan NOT DO activity.weapons` |
+| Asked to work and to be free | `REQUEST staff.dylan DO activities.clinics.riflery DURING blocks.clinic_1` beside `REQUEST staff.dylan FREE DURING blocks.clinic_1` |
+| Asked to do something and told not to | the same, beside `REQUEST staff.dylan NOT DO activities.clinics.weapons` |
 | Asked to be free and to be busy | `FREE` beside `NOT FREE` in one block |
 | Two things at once that do not fit | two `FOR` tasks whose minutes exceed the block, or two clinics in one block |
 
 ![The conflicts pane](img/conflicts.png)
 
 It reads only what is **settled**. `REQUEST ANY_1_OF staff.all DO …`, `DURING ANY_2_OF
-block.all` and every `PREFER` leave the solver room to move, and moving things around each
+blocks.all` and every `PREFER` leave the solver room to move, and moving things around each
 other is its job, so they are never reported. What is left is worth looking at: a request
 saved into a collision says so in the toolbar as it saves. A request can also contradict
 itself, now that one request may hold several statements, and that shows up the same way.
@@ -149,12 +149,12 @@ to insert it at the cursor.
 
 **Calendar.** Below the names, a calendar with camp days (the dates on the Calendar sheet)
 shaded. Down its left-hand side, each week is labelled with the session and week it is,
-`S4` over `W2`, taken from the Calendar sheet — the numbers `date.session.four.second_week`
+`S4` over `W2`, taken from the Calendar sheet — the numbers `dates.session.four.second_week`
 is built from, rather than the week of the year. Click any date to insert it into the
 Skedge editor at the cursor, as `2026-06-15`.
 
 **Saving a request about other dates.** A request does not have to be about the date being
-scheduled: `ON ALL_OF date.session.two.first_week` is a perfectly good request to write in
+scheduled: `ON ALL_OF dates.session.two.first_week` is a perfectly good request to write in
 the middle of session 1. It will do nothing to the schedule you are about to solve, though,
 which is easy to write by accident — a mistyped date, or `session.two` where you meant
 `session.this`. So saving such a request asks first, names the dates it *is* about, and

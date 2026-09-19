@@ -39,7 +39,7 @@ For an absence that is neither half a day nor all of it, write an ordinary reque
 instead, which can name the blocks:
 
 ```skedge
-REQUEST staff.dylan FREE DURING ALL_OF {block.clinic_3 + block.clinic_4} ON date.target
+REQUEST staff.dylan FREE DURING ALL_OF {blocks.clinic_3 + blocks.clinic_4} ON dates.target
 ```
 
 ## Re-solving

@@ -213,7 +213,7 @@ def test_requests_read_a_sheet_written_before_groups_existed():
     """The three newest columns are optional, so an older Requests tab still loads."""
     table = [
         ["id", "description", "skedge", "priority", "weight", "created"],
-        ["x", "", "REQUEST staff.dylan FREE DURING block.clinic_1", "HIGH", "2", ""],
+        ["x", "", "REQUEST staff.dylan FREE DURING blocks.clinic_1", "HIGH", "2", ""],
     ]
     (request,) = parse_requests(table)
     assert request.tags == () and request.groups == () and request.requester == ""
@@ -222,7 +222,7 @@ def test_requests_read_a_sheet_written_before_groups_existed():
 def test_a_requester_is_normalized_like_any_other_name():
     table = [
         ["id", "description", "skedge", "priority", "weight", "requester", "created"],
-        ["x", "", "REQUEST staff.dylan FREE DURING block.clinic_1", "HIGH", "", "Mary Kate", ""],
+        ["x", "", "REQUEST staff.dylan FREE DURING blocks.clinic_1", "HIGH", "", "Mary Kate", ""],
     ]
     assert parse_requests(table)[0].requester == "mary_kate"
 
@@ -230,7 +230,7 @@ def test_a_requester_is_normalized_like_any_other_name():
 def test_requests_reject_weight_on_hard():
     table = [
         ["id", "description", "skedge", "priority", "weight", "created"],
-        ["x", "", "REQUEST staff.dylan FREE DURING block.clinic_1", "MUST_HAPPEN", "2", ""],
+        ["x", "", "REQUEST staff.dylan FREE DURING blocks.clinic_1", "MUST_HAPPEN", "2", ""],
     ]
     with pytest.raises(LoadError, match="not allowed with MUST_HAPPEN"):
         parse_requests(table)
@@ -378,7 +378,7 @@ def test_blocks_accept_a_missing_leading_zero(source):
 
 def test_the_solvers_own_priority_cannot_be_written_on_the_sheet():
     header = ["id", "description", "skedge", "priority", "weight", "tags", "created"]
-    row = ["x", "", "REQUEST staff.dylan DO 'a' DURING block.clinic_1", "STABILITY", "", "", ""]
+    row = ["x", "", "REQUEST staff.dylan DO 'a' DURING blocks.clinic_1", "STABILITY", "", "", ""]
     with pytest.raises(LoadError, match="STABILITY is the solver's own"):
         parse_requests([header, row])
     assert parse_requests([header, [*row[:3], "HIGH", *row[4:]]])[0].priority.value == "HIGH"
@@ -398,7 +398,7 @@ def test_skill_categories_are_usable_in_skedge(dataset):
     request = Request(
         "lifeguard",
         "",
-        "REQUEST ANY_1_OF staff.skills.lifeguard DO 'help P4 with CA' DURING block.cabin_act",
+        "REQUEST ANY_1_OF staff.skills.lifeguard DO 'help P4 with CA' DURING blocks.cabin_act",
         Priority.CLINIC,
     )
     assert validate_request(request, dataset) is not None
