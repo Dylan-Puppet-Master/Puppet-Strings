@@ -47,6 +47,17 @@ def ids(outcomes):
     return [o.id for o in outcomes]
 
 
+def requests_of(outcomes):
+    """The requests behind the outcomes, once each.
+
+    A generated clinic request asks for each position separately (`AS_ROLE EACH_OF`), so
+    an unstaffable clinic is reported once per position, as `<id>[first]`, `<id>[second]`.
+    These tests are about which clinic could not be staffed, not about how many positions
+    it has.
+    """
+    return list(dict.fromkeys(o.id.split("[")[0] for o in outcomes))
+
+
 # -- clinics and structure -------------------------------------------------------------------
 
 
@@ -88,7 +99,11 @@ def test_unstaffable_clinic_is_reported_and_the_rest_is_scheduled():
     )
     result = run(ds)
     assert result.feasible
-    assert ids(result.unsatisfied) == ["offering:2026-09-16:muay_thai:clinic_2"]
+    assert requests_of(result.unsatisfied) == ["offering:2026-09-16:muay_thai:clinic_2"]
+    assert ids(result.unsatisfied) == [  # one line per position it asked for
+        "offering:2026-09-16:muay_thai:clinic_2[first]",
+        "offering:2026-09-16:muay_thai:clinic_2[second]",
+    ]
     assert result.unsatisfied[0].priority is Priority.CLINIC
     assert where(result, activity="archery_1_2")[0].staff == "dylan"
 
@@ -147,7 +162,7 @@ def test_pin_and_not_do():
     result = run(ds)
     assert where(result, activity="archery_1_2")[0].staff == "randy"
     assert not where(result, staff="dylan", activity="gravity_zip_line")
-    assert ids(result.unsatisfied) == ["offering:2026-09-16:gravity_zip_line:clinic_1"]
+    assert requests_of(result.unsatisfied) == ["offering:2026-09-16:gravity_zip_line:clinic_1"]
 
 
 def test_a_clinic_runs_only_where_a_request_names_it():
@@ -192,7 +207,7 @@ def test_lifeguard_is_an_extra_person_at_ral_5():
         [canoe],
         offerings=[("Canoe 1 & 2", ["clinic_1"])],
     )
-    assert ids(run(low_ral).unsatisfied) == ["offering:2026-09-16:canoe_1_2:clinic_1"]
+    assert requests_of(run(low_ral).unsatisfied) == ["offering:2026-09-16:canoe_1_2:clinic_1"]
     pinned = dataset(
         members,
         [canoe],
@@ -819,7 +834,7 @@ def test_not_do_with_keeps_two_staff_off_the_same_clinic():
         requests=[request("feud", feud, Priority.MUST_HAPPEN)],
     )
     result = run(only_two)
-    assert result.feasible and ids(result.unsatisfied) == [
+    assert result.feasible and requests_of(result.unsatisfied) == [
         "offering:2026-09-16:craft_fairy:clinic_1"
     ]
 

@@ -10,32 +10,41 @@ def test_generated_requests_cover_every_offering(dataset):
     assert len(generated) == len(dataset.offerings) == 24
     double = next(r for r in generated if "pole_course" in r.id)
     assert double.id == "offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1"
-    line = (
+    assert double.skedge == (
         "REQUEST ANY_1_OF staff.all DO activity.pole_course_explore_level_1_2_dbl "
-        "AS_ROLE role.{role} DURING ALL_OF {{block.clinic_1 + block.clinic_2}} ON 2026-09-16"
-    )
-    assert double.skedge == "\n".join(
-        line.format(role=role) for role in ("first", "second", "third")
+        "AS_ROLE EACH_OF {role.first + role.second + role.third} "
+        "DURING ALL_OF {block.clinic_1 + block.clinic_2} ON 2026-09-16"
     )
     assert double.priority is Priority.CLINIC and double.tags == ("generated",)
     assert double.created == date(2026, 9, 16)
 
 
 def test_generated_requests_ask_for_every_position_by_role(dataset):
-    """One line per position, facilitators first, then lifeguards."""
+    """Every position named, facilitators first, then lifeguards."""
     by_id = {r.id: r for r in generated_requests(dataset)}
     two = by_id["offering:2026-09-16:gravity_zip_line:clinic_1"]
-    assert two.skedge.split("\n") == [
-        "REQUEST ANY_1_OF staff.all DO activity.gravity_zip_line AS_ROLE role.first "
-        "DURING block.clinic_1 ON 2026-09-16",
-        "REQUEST ANY_1_OF staff.all DO activity.gravity_zip_line AS_ROLE role.second "
-        "DURING block.clinic_1 ON 2026-09-16",
-    ]
+    assert two.skedge == (
+        "REQUEST ANY_1_OF staff.all DO activity.gravity_zip_line "
+        "AS_ROLE EACH_OF {role.first + role.second} DURING block.clinic_1 ON 2026-09-16"
+    )
     water = by_id["offering:2026-09-16:canoe_1_2:clinic_1"]
-    assert [line.split("AS_ROLE ")[1].split(" ")[0] for line in water.skedge.split("\n")] == [
-        "role.first",
-        "role.lifeguard",
+    assert "AS_ROLE EACH_OF {role.first + role.lifeguard}" in water.skedge
+
+
+def test_one_position_takes_the_role_on_its_own(dataset):
+    """A one-item set takes no quantifier, so EACH_OF over one role would be rejected."""
+    one = {r.id: r for r in generated_requests(dataset)}["offering:2026-09-16:riflery:clinic_3"]
+    assert "AS_ROLE role.first DURING" in one.skedge and "EACH_OF {role" not in one.skedge
+
+
+def test_each_position_is_its_own_choice_of_person(dataset):
+    """EACH_OF splits into one copy per position; ALL_OF would want one person in both."""
+    two = {r.id: r for r in generated_requests(dataset)}[
+        "offering:2026-09-16:gravity_zip_line:clinic_1"
     ]
+    copies = validate_request(two, dataset)
+    assert [copy.key for copy in copies] == ["first", "second"]
+    assert [copy.statements[0].role.items for copy in copies] == [("first",), ("second",)]
 
 
 def test_every_generated_request_validates(dataset):

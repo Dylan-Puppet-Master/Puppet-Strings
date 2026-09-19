@@ -336,13 +336,13 @@ every example on this page against it.
 ### Clinic assignment
 
 Archery runs during clinic 2. **Load offerings** creates a request like this for every
-offered clinic, at `CLINIC` priority, tagged `generated`: one line per position on
-Clinic_Data, each naming the role it asks for. The lines of one request stand or fall
-together, so the clinic runs fully staffed or not at all.
+offered clinic, at `CLINIC` priority, tagged `generated`, naming every position on
+Clinic_Data. `EACH_OF` over the roles is what asks for a different person in each;
+`ALL_OF` would ask one person to hold both. The clinic runs fully staffed or not at all,
+so the positions stand together whichever way they are written.
 
 ```skedge
-REQUEST ANY_1_OF staff.all DO activity.archery_1_2 AS_ROLE role.first DURING block.clinic_2 ON 2026-09-16
-REQUEST ANY_1_OF staff.all DO activity.archery_1_2 AS_ROLE role.second DURING block.clinic_2 ON 2026-09-16
+REQUEST ANY_1_OF staff.all DO activity.archery_1_2 AS_ROLE EACH_OF {role.first + role.second} DURING block.clinic_2 ON 2026-09-16
 ```
 
 Priority `CLINIC`.

@@ -1,12 +1,14 @@
 """Turn the Offerings tab into requests on the Requests sheet.
 
 Each offered clinic instance becomes a CLINIC request tagged GENERATED_TAG, so the Puppet
-Master can see, edit or delete it before solving. The request asks for every position by
-name: one `REQUEST … AS_ROLE` line per position on Clinic_Data, facilitators first and
-then any lifeguards. The lines of one request stand or fall together, so a clinic still
-runs fully staffed or not at all, and now the request says so out loud instead of leaving
-it to the skill matching to work out. Loading again first removes every generated request
-for that date, so the Requests sheet mirrors the Offerings tab.
+Master can see, edit or delete it before solving. The request names every position the
+clinic wants rather than asking for one person and leaving the skill matching to work the
+rest out: `AS_ROLE EACH_OF {role.first + role.second}`, facilitators first and then any
+lifeguards. `EACH_OF` is what makes each position a separate choice of person; `ALL_OF`
+would ask one person to hold them all. A clinic still runs fully staffed or not at all,
+because filling one position of an instance fills them all (`solver.structural`).
+Loading again first removes every generated request for that date, so the Requests sheet
+mirrors the Offerings tab.
 """
 
 from datetime import date
@@ -40,16 +42,21 @@ def generated_requests(dataset: Dataset) -> list[Request]:
 
 
 def _skedge(activity: Activity, during: str, target: str) -> str:
-    """One REQUEST line per position of the clinic, each naming the role it asks for.
+    """One request naming every position of the clinic.
 
-    A clinic with no positions on Clinic_Data gets the one roleless line it always got;
-    asking for no role at all is still a request that the clinic runs.
+    Two or more positions take `EACH_OF` over the set of roles, which is how Skedge says
+    "each of these, chosen separately"; one position takes the role on its own, because a
+    one-item set takes no quantifier. A clinic with no positions on Clinic_Data gets the
+    roleless request it always got: asking for no role is still asking that it runs.
     """
     head = f"REQUEST ANY_1_OF staff.all DO activity.{activity.id}"
     tail = f"DURING {during} ON {target}"
-    if not activity.positions:
+    roles = [f"role.{p.role}" for p in activity.positions]
+    if not roles:
         return f"{head} {tail}"
-    return "\n".join(f"{head} AS_ROLE role.{p.role} {tail}" for p in activity.positions)
+    if len(roles) == 1:
+        return f"{head} AS_ROLE {roles[0]} {tail}"
+    return f"{head} AS_ROLE EACH_OF {{{' + '.join(roles)}}} {tail}"
 
 
 def merge(existing: list[Request], generated: list[Request], target: date) -> list[Request]:
