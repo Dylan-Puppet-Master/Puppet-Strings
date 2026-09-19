@@ -625,3 +625,23 @@ def test_split_requests_reads_an_id_for_the_tab_it_belongs_on(tmp_path):
         "S2 Special": 1,  # the id starts with that span's own id
     }
     assert [r[0] for r in source.read("requests", "S2 Special")][1:] == ["session_2-7"]
+
+
+def test_a_cabin_act_warns_only_when_a_hero_is_actually_dropped():
+    """Six heroes fill the six positions and nothing is lost; the seventh is what is lost."""
+    from datetime import date as _date
+
+    from puppet_strings.model import POSITION_ROLES
+    from puppet_strings.sheets.cabin_acts import CabinAct, _activity
+
+    categories = {f"hero_{i}": frozenset({"dylan"}) for i in range(8)}
+
+    def warnings_for(count: int) -> list[str]:
+        act = CabinAct("M2", "monday", "", tuple(f"hero_{i}" for i in range(count)))
+        activity, said = _activity(act, _date(2026, 9, 14), "Board", {}, categories, {})
+        assert len(activity.positions) == min(count, len(POSITION_ROLES))
+        return said
+
+    assert warnings_for(len(POSITION_ROLES)) == []
+    (told,) = warnings_for(len(POSITION_ROLES) + 1)
+    assert "asks for more heroes than positions" in told

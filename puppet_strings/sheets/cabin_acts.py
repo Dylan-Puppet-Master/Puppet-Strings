@@ -183,6 +183,12 @@ def _activity(
     """One cabin act as an activity, with a position per hero its HEROES cell names."""
     positions, warnings = [], []
     for hero in act.heroes:
+        # The check is before the hero rather than after the one before it: a board naming
+        # exactly as many heroes as there are positions fills them and drops nothing, and
+        # saying it asked for too many is a warning about a board that is perfectly fine.
+        if len(positions) == len(POSITION_ROLES):
+            warnings.append(f"{title}: {act.cabin} on {day} asks for more heroes than positions")
+            break
         position = _position(hero, POSITION_ROLES[len(positions)], staff, categories, skills)
         if position is None:
             warnings.append(
@@ -191,9 +197,6 @@ def _activity(
             )
             continue
         positions.append(position)
-        if len(positions) == len(POSITION_ROLES):
-            warnings.append(f"{title}: {act.cabin} on {day} asks for more heroes than positions")
-            break
     if not positions:  # an act nobody is asked for needs nobody scheduled
         return None, warnings
     return (
