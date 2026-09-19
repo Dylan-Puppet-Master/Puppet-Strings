@@ -69,6 +69,23 @@ def clinic(name, *positions, category="arts", lifeguards=0):
     )
 
 
+def cabin_act(cabin, name, *wants, category="cabin_act", day=TARGET):
+    """A cabin act. Each want is (the words asked for, the staff ids that answer to them)."""
+    roles = ("first", "second", "third")
+    positions = tuple(
+        Position(roles[i], None, 1, frozenset(who), wanted) for i, (wanted, who) in enumerate(wants)
+    )
+    return Activity(
+        name=name,
+        id=normalize(f"{cabin} {name} {day}"),
+        category=category,
+        slots=0,
+        positions=positions,
+        cabin=cabin,
+        day=day,
+    )
+
+
 def request(id, skedge, priority=Priority.HIGH, weight=1.0):
     return Request(id, id, skedge, priority, weight)
 

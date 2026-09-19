@@ -79,9 +79,7 @@ class Variables:
         for position in activity.positions:
             holders = instance.holders[position.role] = {}
             for member in self.dataset.staff.values():
-                if member.ral < position.ral or member.resting_blocks.intersection(blocks):
-                    continue
-                if not member.status(position.skill).eligible:
+                if member.resting_blocks.intersection(blocks) or not position.allows(member):
                     continue
                 var = self.model.NewBoolVar(f"x:{member.id}:{activity_id}:{position.role}")
                 holders[member.id] = var

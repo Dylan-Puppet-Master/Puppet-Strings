@@ -12,6 +12,7 @@ from tests.build import (
     SHADOW,
     TARGET,
     TRAINER,
+    cabin_act,
     clinic,
     dataset,
     preference,
@@ -1257,3 +1258,29 @@ def test_a_preference_cannot_ride_along_on_a_hard_request():
     )
     with pytest.raises(RequestError, match="PREFER needs a priority it can be weighed at"):
         run(ds)
+
+
+def test_a_position_may_name_one_person():
+    """A cabin act asks for Dylan by name: nobody else can hold that position."""
+    act = cabin_act("M1", "Lake Day", ("Dylan", {"dylan"}))
+    ds = dataset(
+        [staff("Dylan", archery_1_2=OK), staff("Rob", archery_1_2=OK)],
+        [ARCHERY, act],
+        requests=[request("act", "REQUEST activities.cabin_acts.m1 DURING blocks.clinic_1")],
+    )
+    result = run(ds)
+    assert result.feasible
+    assert [a.staff for a in result.assignments if a.activity == act.id] == ["dylan"]
+
+
+def test_a_position_may_name_a_category():
+    """Anyone in the category will do, but nobody outside it."""
+    act = cabin_act("M2", "Fort Building", ("VLs", {"rob", "vic"}))
+    ds = dataset(
+        [staff("Dylan", archery_1_2=OK), staff("Rob", archery_1_2=OK)],
+        [ARCHERY, act],
+        requests=[request("act", "REQUEST activities.cabin_acts.m2 DURING blocks.clinic_1")],
+    )
+    result = run(ds)
+    assert result.feasible
+    assert [a.staff for a in result.assignments if a.activity == act.id] == ["rob"]

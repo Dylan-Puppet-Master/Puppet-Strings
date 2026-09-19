@@ -127,11 +127,25 @@ class Staff:
 
 @dataclass(frozen=True)
 class Position:
-    """One staffing slot on a clinic."""
+    """One staffing slot on an activity, and who is allowed to hold it.
+
+    A clinic says who by the skill its position needs. A cabin act may instead ask for one
+    person by name, or for anyone in a category, so `who` narrows the field to those staff
+    ids; None means anyone the skill and RAL allow. `wanted` is the sheet's own words for
+    what was asked, which is what the app shows and what the ad hoc task is named after.
+    """
 
     role: str
     skill: str | None
     ral: int
+    who: frozenset[str] | None = None
+    wanted: str = ""
+
+    def allows(self, member: "Staff") -> bool:
+        """Whether one staff member may hold this position."""
+        if member.ral < self.ral or not member.status(self.skill).eligible:
+            return False
+        return self.who is None or member.id in self.who
 
 
 @dataclass(frozen=True)
@@ -148,7 +162,10 @@ class Activity:
     slots: int
     positions: tuple[Position, ...]
     double: bool = False
-    cabin: str = ""  # set on a cabin act; "" on a clinic. See `skedge.namespaces`.
+    # A cabin act belongs to one cabin on one day, so it carries both; a clinic carries
+    # neither and can run on any day it is offered.
+    cabin: str = ""
+    day: date | None = None
 
     def position(self, role: str) -> Position | None:
         """The position with this role, if any."""

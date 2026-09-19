@@ -506,10 +506,16 @@ def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, poo
     with_ = ast.clause(clauses, ast.With)
     without = ast.clause(clauses, ast.Without)
     target = Choice((scope.dataset.target,), POOL if pool else ALL)
+    # The dates come first: an activity that belongs to one day, such as a cabin act, is
+    # only the one the request is about, so `activities.cabin_acts.p4 ON <a date>` is one
+    # thing and needs no quantifier, while the same name over a week is five.
+    when = _choice(on.selector, DATES, scope, pool) if on else target
     return {
-        "what": _choice(what, ACTIVITIES, scope, pool) if isinstance(what, ast.Selector) else what,
+        "what": _choice(what, ACTIVITIES, scope, pool, when.items)
+        if isinstance(what, ast.Selector)
+        else what,
         "during": _choice(during.selector, BLOCKS, scope, pool) if during else None,
-        "on": _choice(on.selector, DATES, scope, pool) if on else target,
+        "on": when,
         "role": _choice(role.selector, ROLES, scope, pool) if role else None,
         "minutes": for_.minutes if for_ else None,
         "with_": _staff(with_.staff, scope) if with_ else None,
@@ -554,7 +560,13 @@ def _argument(arg: ast.Var | ast.Ref, scope: _Scope) -> tuple[Item, str]:
 # -- selectors and sets -----------------------------------------------------------------------
 
 
-def _choice(selector: ast.Selector, namespace: str, scope: _Scope, pool: bool) -> Choice:
+def _choice(
+    selector: ast.Selector,
+    namespace: str,
+    scope: _Scope,
+    pool: bool,
+    when: tuple[Item, ...] = (),
+) -> Choice:
     if selector.quantifier == ast.EACH_OF:
         return Choice((scope.each[selector.pos],), POOL if pool else ALL, pos=selector.pos)
     expr = selector.expr
@@ -569,6 +581,8 @@ def _choice(selector: ast.Selector, namespace: str, scope: _Scope, pool: bool) -
     items, single = _evaluate(expr, namespace, scope)
     if namespace == DATES:
         items = frozenset(d for d in items if d in scope.dataset.calendar)
+    if namespace == ACTIVITIES:
+        items, single = _on_those_days(items, single, when, scope)
     if pool:
         return Choice(_sorted(items), POOL, pos=selector.pos)
     if selector.quantifier is None:
@@ -580,6 +594,25 @@ def _choice(selector: ast.Selector, namespace: str, scope: _Scope, pool: bool) -
     if selector.quantifier == ast.ALL_OF:
         return Choice(_sorted(items), ALL, pos=selector.pos)
     return Choice(_sorted(items), ANY, selector.n, pos=selector.pos)
+
+
+def _on_those_days(
+    items: frozenset[Item], single: bool, when: tuple[Item, ...], scope: _Scope
+) -> tuple[frozenset[Item], bool]:
+    """Keep only the activities that exist on the dates the request is about.
+
+    A clinic belongs to no day and always survives. A cabin act belongs to one, so a name
+    that stands for a cabin's act all season, `activities.cabin_acts.p4`, comes down to the
+    one act on the day being asked about — and is then a single thing, which is why the
+    request needs no quantifier for it. A name holding both kinds stays a set.
+    """
+    dated = {i: scope.dataset.activities[i].day for i in items}
+    if not any(day is not None for day in dated.values()):
+        return items, single
+    kept = frozenset(i for i, day in dated.items() if day is None or day in when)
+    if all(day is not None for day in dated.values()):
+        return kept, len(kept) == 1
+    return kept, False
 
 
 def _evaluate(expr: ast.SetExpr, namespace: str, scope: _Scope) -> tuple[frozenset[Item], bool]:
