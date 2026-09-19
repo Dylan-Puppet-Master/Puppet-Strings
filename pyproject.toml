@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.5", "mkdocs-material>=9.5"]
+dev = ["pytest>=8", "ruff>=0.5", "mkdocs-material>=9.5", "pyinstaller>=6.6"]
 
 [project.scripts]
 puppet-strings = "puppet_strings.cli:main"

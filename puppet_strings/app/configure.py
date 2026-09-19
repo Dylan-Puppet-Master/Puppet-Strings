@@ -52,7 +52,7 @@ class _AccountWorker(QThread):
     def run(self) -> None:
         """Sign in and report the credentials, or why it did not happen."""
         try:
-            self.done.emit(google_auth.sign_in(self.config.client_secrets, self.config.token))
+            self.done.emit(google_auth.sign_in(self.config))
         except google_auth.AuthError as e:
             self.failed.emit(str(e))
         except Exception as e:  # noqa: BLE001 - shown to the user, never swallowed

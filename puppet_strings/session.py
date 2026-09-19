@@ -24,7 +24,7 @@ def credentials(config: Config, interactive: bool = False) -> object:
         raise google_auth.AuthError(
             "Nobody is signed in to Google. Open the app and sign in from Configure."
         )
-    return google_auth.sign_in(config.client_secrets, config.token)
+    return google_auth.sign_in(config)
 
 
 def open_source(config: Config, fixtures: Path | None, interactive: bool = False) -> Source:

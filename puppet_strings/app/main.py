@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from puppet_strings import __version__
 from puppet_strings.app import palette
 from puppet_strings.app.busy import BusyDialog
 from puppet_strings.app.calendar_pane import SessionCalendar
@@ -49,6 +50,7 @@ from puppet_strings.google_auth import AuthError
 from puppet_strings.model import WRITABLE_PRIORITIES
 from puppet_strings.session import open_source
 from puppet_strings.sheets.source import CsvSource, LoadError, NotACampDay
+from puppet_strings.update import UpdateError, download, install, latest_release
 
 
 def run_app(config: Config, fixtures: Path | None) -> int:
@@ -147,8 +149,8 @@ class Worker(QThread):
         """Do the job and report what it returned, or the error text."""
         try:
             result = self.job()
-        except LoadError as e:
-            self.failed.emit(str(e))
+        except (LoadError, UpdateError) as e:
+            self.failed.emit(str(e))  # these say what went wrong; a traceback would not
         except Exception:  # noqa: BLE001 - shown to the user, never swallowed
             self.failed.emit(traceback.format_exc())
         else:
@@ -196,6 +198,9 @@ class MainWindow(QMainWindow):
         self.progress: BusyDialog | None = None  # for work that cannot be cancelled
         self.loader: LoadWorker | None = None
         self.offerings: Worker | None = None
+        self.updater: Worker | None = None
+        self.installer: Worker | None = None
+        self.checked_for_updates = False
         self.reload_requested = False
         self.setWindowTitle("Puppet Strings")
         self.resize(1300, 800)
@@ -279,7 +284,48 @@ class MainWindow(QMainWindow):
         spacer = QWidget()  # everything after this is pushed to the right-hand end
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         toolbar.addWidget(spacer)
+        toolbar.addAction("Check for updates", self.check_for_updates)
         toolbar.addAction("Configure", self.configure)
+
+    def check_for_updates(self, quietly: bool = False) -> None:
+        """Ask GitHub whether a newer Puppet Strings has been published.
+
+        Quietly, on the first load: nothing is said unless there is something to say, and a
+        check that fails — no network, GitHub down — says nothing at all. Nobody opening
+        the window to schedule a day wants to be told about the state of the internet.
+        """
+        self.updater = Worker(lambda: latest_release(self.store.config.releases_url))
+        self.updater.done.connect(lambda release: self._update_found(release, quietly))
+        if not quietly:
+            self.updater.failed.connect(lambda why: QMessageBox.warning(self, "Updates", why))
+        self.updater.start()
+
+    def _update_found(self, release, quietly: bool) -> None:
+        """Offer the update, or say there is none if the Puppet Master asked."""
+        if release is None:
+            if not quietly:
+                QMessageBox.information(
+                    self, "Up to date", f"Puppet Strings {__version__} is the newest version."
+                )
+            return
+        answer = QMessageBox.question(
+            self,
+            "Update available",
+            f"Puppet Strings {release.version} is out. You have {__version__}.\n\n"
+            f"{release.notes[:400]}\n\nDownload and install it now?",
+        )
+        if answer != QMessageBox.Yes:
+            return
+        self.installer = Worker(lambda: install(download(release)))
+        self.installer.done.connect(
+            lambda where: QMessageBox.information(
+                self, "Update installed", f"Restart Puppet Strings to use it.\n\n{where}"
+            )
+        )
+        self.installer.failed.connect(lambda why: QMessageBox.warning(self, "Updates", why))
+        self.start_progress(f"Downloading {release.version}…")
+        self.installer.finished.connect(self.end_progress)
+        self.installer.start()
 
     def configure(self) -> None:
         """Choose the Google account and the sheets, then read everything again."""
@@ -474,6 +520,12 @@ class MainWindow(QMainWindow):
 
     def _loaded(self) -> None:
         self.end_progress()
+        if not self.checked_for_updates and getattr(sys, "frozen", False):
+            # Once a run, once something has loaded, and only in a copy that was downloaded:
+            # a checkout updates with git, so asking GitHub on its behalf is a request sent
+            # every time anybody opens the window to no possible end.
+            self.checked_for_updates = True
+            self.check_for_updates(quietly=True)
         dataset = self.store.dataset
         if self.editor.original_id and self.model.request(self.editor.original_id) is None:
             self.editor.clear()  # the request shown was deleted on the sheet

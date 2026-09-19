@@ -56,3 +56,14 @@ def test_the_token_is_never_readable_by_anybody_else(tmp_path):
         os.umask(umask)
     assert stat.S_IMODE(token.stat().st_mode) == 0o600
     assert token.read_text() == '{"refresh_token": "secret"}'
+
+
+def test_a_build_with_no_settings_reads_the_config_file_as_before():
+    """The repository's built_in.py is blank, so a checkout behaves as it always has."""
+    from puppet_strings.built_in import SETTINGS
+    from puppet_strings.config import DEFAULT_RELEASES, load_config
+
+    assert SETTINGS == {}
+    config = load_config()
+    assert config.client_id == "" and config.client_secret == ""
+    assert config.releases_url == DEFAULT_RELEASES

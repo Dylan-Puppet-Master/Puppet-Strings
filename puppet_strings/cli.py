@@ -5,6 +5,7 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+from puppet_strings import __version__
 from puppet_strings.config import Config, load_config
 from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
 from puppet_strings.google_auth import AuthError
@@ -33,7 +34,10 @@ def main(argv: list[str] | None = None) -> int:
         "--fixtures", type=Path, help="read CSV files from this folder instead of Google Sheets"
     )
     parser.add_argument("--date", type=date.fromisoformat, help="target date, default tomorrow")
-    commands = parser.add_subparsers(dest="command", required=True)
+    parser.add_argument("--version", action="version", version=__version__)
+    # Not required: a downloaded release is opened by double-clicking it, and what that
+    # should do is open the window, not print the usage of a command line nobody typed.
+    commands = parser.add_subparsers(dest="command")
     commands.add_parser("validate", help="check every request on the Requests sheet")
     commands.add_parser(
         "load-offerings", help="add the Offerings tab's clinics to the Requests sheet"
@@ -54,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     export = commands.add_parser("export-fixtures", help="download every tab as CSV")
     export.add_argument("folder", type=Path)
-    commands.add_parser("app", help="open the desktop request manager")
+    commands.add_parser("app", help="open the desktop request manager (the default)")
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
@@ -68,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run(args, config: Config, target: date) -> int:
-    if args.command == "app":
+    if args.command in (None, "app"):
         from puppet_strings.app.main import run_app
 
         return run_app(config, args.fixtures)

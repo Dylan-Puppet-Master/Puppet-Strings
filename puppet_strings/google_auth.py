@@ -64,24 +64,52 @@ def stored(token: Path) -> object | None:
     return credentials
 
 
-def sign_in(client_secrets: Path, token: Path) -> object:
-    """Open a browser for consent and remember the result. Raises AuthError."""
+def sign_in(config) -> object:
+    """Open a browser for consent and remember the result. Raises AuthError.
+
+    A downloaded release has camp's OAuth client built into it, so there is nothing to set
+    up. A source checkout has none, and falls back to the client JSON named in config.toml.
+    """
     from google.auth.exceptions import GoogleAuthError
     from google_auth_oauthlib.flow import InstalledAppFlow
 
-    client_secrets = client_secrets.expanduser()
-    if not client_secrets.exists():
-        raise AuthError(
-            f"No Google OAuth client at {client_secrets}. In the Google Cloud console make a "
-            "Desktop app OAuth client, download its JSON, and choose it in the Configure pane."
-        )
     try:
-        flow = InstalledAppFlow.from_client_secrets_file(str(client_secrets), list(SCOPES))
+        if config.client_id and config.client_secret:
+            flow = InstalledAppFlow.from_client_config(_client_config(config), list(SCOPES))
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                str(_client_file(config)), list(SCOPES)
+            )
         credentials = flow.run_local_server(port=0, prompt="consent")
     except (GoogleAuthError, ValueError, OSError) as e:
         raise AuthError(f"Could not sign in: {e}") from e
-    _write(token.expanduser(), credentials)
+    _write(config.token.expanduser(), credentials)
     return credentials
+
+
+def _client_file(config) -> Path:
+    """The OAuth client JSON, or an AuthError saying how to get one."""
+    client_secrets = config.client_secrets.expanduser()
+    if not client_secrets.exists():
+        raise AuthError(
+            f"No Google OAuth client at {client_secrets}. A downloaded release has camp's "
+            "built in; running from source, make a Desktop app OAuth client in the Google "
+            "Cloud console, download its JSON, and choose it in the Configure pane."
+        )
+    return client_secrets
+
+
+def _client_config(config) -> dict:
+    """The built-in client, shaped the way an installed-app flow wants it."""
+    return {
+        "installed": {
+            "client_id": config.client_id,
+            "client_secret": config.client_secret,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": ["http://localhost"],
+        }
+    }
 
 
 def sign_out(token: Path) -> None:

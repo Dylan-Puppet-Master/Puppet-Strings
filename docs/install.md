@@ -1,5 +1,51 @@
 # Install and set up
 
+## For the Puppet Master
+
+1. Download the file for your computer from the
+   [releases page](https://github.com/Dylan-Puppet-Master/Puppet-Strings/releases):
+   `puppet-strings-windows.exe`, `puppet-strings-macos` or `puppet-strings-linux`.
+2. Put it somewhere you will find it again, and open it. On macOS and Linux you may have
+   to mark it runnable first (`chmod +x puppet-strings-macos`).
+3. Sign in with the Google account that can open camp's sheets, and choose the **Puppet
+   Strings** folder in **Configure**. Puppet Strings remembers both.
+
+There is no config file to put anywhere and no OAuth client JSON to go and find:
+everything that is the same for everyone — the Google client, the update feed — is built
+into the file you downloaded, and what differs from one person to the next is your sign-in
+and your folder, which it remembers for you.
+
+**Check for updates** at the right-hand end of the toolbar asks GitHub whether a newer
+version is out and replaces the file you are running if you say yes; restart it afterwards.
+A downloaded copy also asks quietly the first time it loads a day, and says nothing unless
+there is something newer.
+
+## Building the releases, once
+
+Puppet Strings signs in as the person using it, which needs a Google OAuth client made
+once and built into the releases. Steps 3 and 4 below make one; then, in the GitHub
+repository under **Settings → Secrets and variables → Actions**, add `GOOGLE_CLIENT_ID`
+and `GOOGLE_CLIENT_SECRET`. `RELEASES_URL` is optional and only needed to point a build at
+a different repository's releases.
+
+Push a tag and the release is built for all three platforms with camp's settings inside:
+
+```
+git tag v0.2.0 && git push --tags
+```
+
+!!! note
+    A Google client secret for a desktop app is not confidential in the usual sense — it
+    ships inside every copy of every desktop program that signs in to Google, and Google
+    says as much. It is kept in a repository secret rather than in the code anyway,
+    because a published one lets someone put camp's name on a consent screen of their own.
+
+## Running from source
+
+The rest of this page is for working on Puppet Strings rather than using it. A checkout
+has no built-in client, so it reads `config.toml` and the OAuth client JSON as it always
+has, and it never checks for updates on its own — `git pull` is the update.
+
 ## 1. Python
 
 Puppet Strings needs Python 3.12 or newer. Check with:
@@ -94,6 +140,13 @@ cabin_act_board  = "Board"        # the tab of a cabin act sheet that is read
 [auth]
 client_secrets = "~/.config/puppet_strings/oauth_client.json"
 token          = "~/.config/puppet_strings/token.json"
+# A release has camp's OAuth client built in; these override it, and are how a checkout
+# signs in without a client JSON file.
+# client_id     = "..."
+# client_secret = "..."
+
+[updates]
+releases_url = "https://api.github.com/repos/Dylan-Puppet-Master/Puppet-Strings/releases/latest"
 
 [solver]
 time_limit_seconds = 30   # the whole solve, not each tier
