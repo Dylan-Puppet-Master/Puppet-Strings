@@ -6,16 +6,20 @@ from datetime import date
 from puppet_strings.app.conflicts import Conflict, find_conflicts
 from puppet_strings.app.facets import Facets, resolve_request
 from puppet_strings.app.groups import DEFAULT_GROUPS, clean, same_group
+from puppet_strings.cabin_acts import cabin_act_requests
+from puppet_strings.cabin_acts import merge as merge_cabin_acts
 from puppet_strings.config import Config
 from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
 from puppet_strings.model import Adjustment, Dataset, Request, Rest
 from puppet_strings.names import normalize
 from puppet_strings.sheets.adjustments import adjustment_rows
+from puppet_strings.sheets.cabin_acts import parse_board
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.requests import request_rows
 from puppet_strings.sheets.source import CsvSource, Source
 
 CONFIG_SHEET = "config"
+CABIN_ACTS_FOLDER = "cabin_acts"
 
 
 def unique_id(description: str, taken: set[str]) -> str:
@@ -97,13 +101,32 @@ class RequestStore:
         """Replace the date's generated requests with the Offerings tab's. Returns how many."""
         generated = generated_requests(self.dataset)
         self.requests = merge(self.requests, generated, self.dataset.target)
+        self._reindex(generated)
+        self._write()
+        return len(generated)
+
+    def import_cabin_acts(self) -> tuple[int, list[str]]:
+        """Replace every cabin act request with what the cabin act sheets now say.
+
+        Returns how many were made and anything the sheets could not be read straight from.
+        Each sheet's Board tab is fetched in parallel, so a season costs about one request.
+        """
+        tab = self.config.tabs["cabin_act_board"]
+        tables = self.source.read_group(CABIN_ACTS_FOLDER, tab)
+        boards = {title: parse_board(table, title) for title, table in tables.items()}
+        generated, warnings = cabin_act_requests(boards, self.dataset)
+        self.requests = merge_cabin_acts(self.requests, generated)
+        self._reindex(generated)
+        self._write()
+        return len(generated), warnings
+
+    def _reindex(self, added: list[Request]) -> None:
+        """Forget what the requests just dropped meant, and work out what the new ones do."""
         kept = {r.id for r in self.requests}
         self.facets = {i: f for i, f in self.facets.items() if i in kept}
         self.resolved = {i: c for i, c in self.resolved.items() if i in kept}
-        for request in generated:
+        for request in added:
             self._index(request)
-        self._write()
-        return len(generated)
 
     @property
     def current(self) -> Dataset:

@@ -178,6 +178,7 @@ class MainWindow(QMainWindow):
         self.progress: BusyDialog | None = None  # for work that cannot be cancelled
         self.loader: LoadWorker | None = None
         self.offerings: Worker | None = None
+        self.cabin_acts: Worker | None = None
         self.reload_requested = False
         self.setWindowTitle("Puppet Strings")
         self.resize(1300, 800)
@@ -242,6 +243,7 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self.date_edit)
         toolbar.addAction("Reload", self.reload)
         toolbar.addAction("Load offerings", self.load_offerings)
+        toolbar.addAction("Import cabin acts", self.import_cabin_acts)
         toolbar.addAction("Solve", self.run_solve)
         toolbar.addSeparator()
         self.same_day_action = toolbar.addAction("Same-day changes")
@@ -540,6 +542,44 @@ class MainWindow(QMainWindow):
 
     def _offerings_finished(self) -> None:
         self.offerings = None
+
+    def import_cabin_acts(self) -> None:
+        """Rebuild every cabin act request from the cabin act sheets, in the background.
+
+        Every sheet in the folder is read, not just the target date's week, so this says
+        the whole season at once and one click is enough after the sheets change.
+        """
+        if self.store.dataset is None or self.cabin_acts is not None:
+            return
+        self.start_progress("Reading the cabin act sheets…")
+        self.cabin_acts = Worker(self.store.import_cabin_acts)
+        self.cabin_acts.done.connect(self._cabin_acts_imported)
+        self.cabin_acts.failed.connect(self._cabin_acts_failed)
+        self.cabin_acts.finished.connect(self._cabin_acts_finished)
+        self.cabin_acts.start()
+
+    def wait_for_cabin_acts(self) -> None:
+        """Block until the cabin acts have been written (used by tests)."""
+        while self.cabin_acts is not None:
+            self.cabin_acts.wait()
+            QApplication.processEvents()
+
+    def _cabin_acts_imported(self, outcome) -> None:
+        count, warnings = outcome
+        self.end_progress()
+        self._requests_changed()
+        said = f"  Imported {count} cabin acts"
+        self.status_label.setText(". ".join([said, *warnings]))
+        if warnings:
+            QMessageBox.warning(self, "Some cabin acts were not imported", "\n".join(warnings))
+
+    def _cabin_acts_failed(self, message: str) -> None:
+        self.end_progress()
+        self.status_label.setText("")
+        QMessageBox.critical(self, "Could not import the cabin acts", message)
+
+    def _cabin_acts_finished(self) -> None:
+        self.cabin_acts = None
 
     def insert_date(self, day: date) -> None:
         """Put a clicked calendar date into the Skedge editor at the cursor."""

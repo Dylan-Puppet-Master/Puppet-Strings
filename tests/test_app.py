@@ -831,3 +831,38 @@ def test_an_offerings_load_that_fails_says_so(window, monkeypatch):
     window.wait_for_offerings()
     assert shown == ["Offerings: no tab"]
     assert window.progress is None
+
+
+def test_import_cabin_acts_mirrors_the_cabin_act_sheets(window, monkeypatch):
+    warned = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda _w, _t, text: warned.append(text))
+    before = window.model.rowCount()
+    window.import_cabin_acts()
+    window.wait_for_cabin_acts()
+    assert window.model.rowCount() == before + 4
+    assert "Imported 4 cabin acts" in window.status_label.text()
+    assert warned and "'Nobody At All'" in warned[0]
+    imported = [r for r in window.store.requests if "cabin act" in r.tags]
+    assert len(imported) == 4
+    assert all(r.priority.value == "CLINIC" for r in imported)
+    # a second import replaces them rather than adding another set
+    window.import_cabin_acts()
+    window.wait_for_cabin_acts()
+    assert window.model.rowCount() == before + 4
+
+
+def test_a_cabin_act_import_that_fails_says_so(window, monkeypatch):
+    from puppet_strings.sheets.source import LoadError
+
+    shown = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda _w, _t, text: shown.append(text))
+
+    def refuse():
+        raise LoadError("no folder chosen; pick one in Configure")
+
+    monkeypatch.setattr(window.store, "import_cabin_acts", refuse)
+    window.import_cabin_acts()
+    window.wait_for_cabin_acts()
+    assert window.status_label.text() == ""
+    assert shown == ["no folder chosen; pick one in Configure"]
+    assert window.progress is None

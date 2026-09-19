@@ -23,6 +23,7 @@ DEFAULT_TABS = {
     "staff_categories": "Categories",
     "blocks": "Blocks",
     "calendar": "Calendar",
+    "cabin_act_board": "Board",  # of a cabin act sheet; its Support Requests tab is not read
     "requests": "Requests",
     "metrics": "Metrics",
     "adjustments": "Adjustments",

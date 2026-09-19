@@ -5,6 +5,8 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+from puppet_strings.cabin_acts import cabin_act_requests
+from puppet_strings.cabin_acts import merge as merge_cabin_acts
 from puppet_strings.config import Config, load_config
 from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
 from puppet_strings.google_auth import AuthError
@@ -12,6 +14,7 @@ from puppet_strings.model import Dataset
 from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
 from puppet_strings.publish.writer import is_published, publish
 from puppet_strings.session import open_source
+from puppet_strings.sheets.cabin_acts import parse_board
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.requests import request_rows
 from puppet_strings.sheets.source import CsvSource, LoadError, Source, Table
@@ -21,6 +24,7 @@ from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.solve import RequestError, solve
 
 SHEETS = ("clinic_data", "clinic_schedule", "skills", "staff_categories", "config", "published")
+CABIN_ACTS_FOLDER = "cabin_acts"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -35,6 +39,9 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("validate", help="check every request on the Requests sheet")
     commands.add_parser(
         "load-offerings", help="add the Offerings tab's clinics to the Requests sheet"
+    )
+    commands.add_parser(
+        "import-cabin-acts", help="rebuild the cabin act requests from the cabin act sheets"
     )
     commands.add_parser("names", help="list every valid Skedge name")
     solve_parser = commands.add_parser("solve", help="build the schedule for the target date")
@@ -79,6 +86,8 @@ def _run(args, config: Config, target: date) -> int:
         return _validate(dataset)
     if args.command == "load-offerings":
         return _load_offerings(source, config, dataset)
+    if args.command == "import-cabin-acts":
+        return _import_cabin_acts(source, config, dataset)
     if args.same_day and dataset.baseline is None:
         print(f"error: {dataset.target} has no published schedule to change", file=sys.stderr)
         return 1
@@ -111,6 +120,19 @@ def _load_offerings(source: Source, config: Config, dataset: Dataset) -> int:
     merged = merge(list(dataset.requests), generated, dataset.target)
     source.write("config", config.tabs["requests"], request_rows(tuple(merged)))
     print(f"loaded {len(generated)} offerings for {dataset.target} into the Requests sheet")
+    return 0
+
+
+def _import_cabin_acts(source: Source, config: Config, dataset: Dataset) -> int:
+    """Read every cabin act sheet in the folder and rewrite the cabin act requests."""
+    tables = source.read_group(CABIN_ACTS_FOLDER, config.tabs["cabin_act_board"])
+    boards = {title: parse_board(table, title) for title, table in tables.items()}
+    generated, warnings = cabin_act_requests(boards, dataset)
+    for warning in warnings:
+        print(f"warning: {warning}")
+    merged = merge_cabin_acts(list(dataset.requests), generated)
+    source.write("config", config.tabs["requests"], request_rows(tuple(merged)))
+    print(f"imported {len(generated)} cabin acts from {len(boards)} sheet(s)")
     return 0
 
 
