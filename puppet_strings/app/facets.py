@@ -9,14 +9,11 @@ from puppet_strings.skedge.parser import parse
 from puppet_strings.skedge.resolve import Choice, Requirement
 from puppet_strings.skedge.validate import validate_request
 
-SCOPES = ("season", "session", "week", "day", "pin")
-
 
 @dataclass(frozen=True)
 class Facets:
     """Everything the filters need to know about one request."""
 
-    scope: str
     staff: frozenset[str]
     activities: frozenset[str]
     dates: frozenset[date]
@@ -51,7 +48,7 @@ def resolve_request(request: Request, dataset: Dataset) -> tuple[Facets, tuple]:
         declaration = parse(request.skedge)
         copies = validate_request(request, dataset)
     except ast.SkedgeError as e:
-        return Facets("season", frozenset(), frozenset(), frozenset(), str(e)), ()
+        return Facets(frozenset(), frozenset(), frozenset(), str(e)), ()
     staff: set[str] = set()
     activities: set[str] = set()
     dates: set[date] = set()
@@ -64,45 +61,14 @@ def resolve_request(request: Request, dataset: Dataset) -> tuple[Facets, tuple]:
                 activities |= set(part.what.items)
     if not _dated(declaration):  # no ON: the request applies on every day scheduled
         dates = set(dataset.calendar)
-    scope = _scope_of(declaration, request, dataset, dates)
-    return Facets(scope, frozenset(staff), frozenset(activities), frozenset(dates)), copies
+    return Facets(frozenset(staff), frozenset(activities), frozenset(dates)), copies
 
 
 def _dated(declaration: ast.Declaration) -> bool:
     """Whether the first statement says which dates it is about."""
-    part = _subject(declaration)
-    return part is not None and ast.clause(part.clauses, ast.On) is not None
-
-
-def _subject(declaration: ast.Declaration):
-    """The first statement's pattern, which is what the table describes the request by."""
     statements = declaration.statements
     if not statements:
-        return None
-    first = statements[0]
-    return first if isinstance(first, ast.Requirement) else first.pattern
-
-
-def _scope_of(
-    declaration: ast.Declaration, request: Request, dataset: Dataset, dates: set[date]
-) -> str:
-    """How long a request reaches, from the dates it resolved to.
-
-    season: every camp day. session: exactly one session's days. day: one day, or `pin`
-    when that day is pinned on one person and must happen. week: anything in between.
-    """
-    if not dates or dates == set(dataset.calendar):
-        return "season"
-    if any(dates == set(days) for days in dataset.sessions.values()):
-        return "session"
-    if len(dates) > 1:
-        return "week"
-    return "pin" if _is_pin(declaration, request) else "day"
-
-
-def _is_pin(declaration: ast.Declaration, request: Request) -> bool:
-    """A must-happen day for one named person: the strongest thing a request can say."""
-    part = _subject(declaration)
-    if not isinstance(part, ast.Requirement) or not request.priority.hard:
         return False
-    return isinstance(part.who.expr, ast.Ref) and part.who.quantifier is None
+    first = statements[0]
+    part = first if isinstance(first, ast.Requirement) else first.pattern
+    return ast.clause(part.clauses, ast.On) is not None

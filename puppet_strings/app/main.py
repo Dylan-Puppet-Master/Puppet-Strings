@@ -30,7 +30,7 @@ from puppet_strings.app.calendar_pane import SessionCalendar
 from puppet_strings.app.conflicts import summary
 from puppet_strings.app.conflicts_panel import ConflictsPane
 from puppet_strings.app.editor import RequestEditor
-from puppet_strings.app.facets import SCOPES, facets
+from puppet_strings.app.facets import facets
 from puppet_strings.app.groups import ALL, same_group
 from puppet_strings.app.groups_panel import GroupsPane
 from puppet_strings.app.names_panel import NamesPanel
@@ -226,7 +226,6 @@ class MainWindow(QMainWindow):
         self.text_filter = QLineEdit()
         self.text_filter.setPlaceholderText("search id, description, skedge")
         self.priority_filter = _combo(["any priority"] + [p.value for p in WRITABLE_PRIORITIES])
-        self.scope_filter = _combo(["any scope", *SCOPES])
         self.tag_filter = _combo(["any tag"])
         self.staff_filter = _combo(["any staff"])
         self.activity_filter = _combo(["any activity"])
@@ -236,7 +235,6 @@ class MainWindow(QMainWindow):
         self.date_filter.setCalendarPopup(True)
         combos = (
             self.priority_filter,
-            self.scope_filter,
             self.tag_filter,
             self.staff_filter,
             self.activity_filter,
@@ -257,7 +255,6 @@ class MainWindow(QMainWindow):
             group=self.groups.current,
             text=self.text_filter.text(),
             priority=_choice(self.priority_filter),
-            scope=_choice(self.scope_filter),
             tag=_choice(self.tag_filter),
             staff=_choice(self.staff_filter),
             activity=_choice(self.activity_filter),
@@ -550,7 +547,7 @@ class MainWindow(QMainWindow):
 
     def _saved(self, request, original_id) -> None:
         """Write one request to the sheet, and leave the editor saying that it is written."""
-        if not self._in_scope_or_agreed(request):
+        if not self._covers_or_agreed(request):
             self.editor.not_saved("Not saved; still editing")
             self.status_label.setText("  Not saved; still editing")
             return
@@ -565,7 +562,7 @@ class MainWindow(QMainWindow):
         self.editor.saved_as(saved, note)  # last, so nothing else overwrites the confirmation
         self.status_label.setText(f"  Saved {saved.id}{note}")
 
-    def _in_scope_or_agreed(self, request) -> bool:
+    def _covers_or_agreed(self, request) -> bool:
         """Warn before saving a request that says nothing about the date being scheduled.
 
         Such a request is perfectly good — it is about other dates — but it will vanish

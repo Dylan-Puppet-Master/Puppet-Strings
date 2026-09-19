@@ -60,17 +60,9 @@ there again the next time the app opens. A group you have just made and put noth
 stays in the pane until you close the app.
 
 **The table.** One row per request. Click a column heading to sort by it. Filters above
-it: free text over id, description, Skedge and requester; priority; scope; tag; staff;
-activity; and a date. These narrow whatever group is showing, so the group is the shelf
-and the filters are the search. The scope is derived from the dates a request resolves to:
-
-| Scope | The dates it reaches |
-|---|---|
-| season | every camp day: no `ON` clause, or `ON date.season` |
-| session | exactly one session, such as `ON date.session.four` |
-| week | more than one day but less than a session, such as a week, a range, or `date.session.four.mondays` |
-| day | one day |
-| pin | one day, one staff member, `MUST_HAPPEN` |
+it: free text over id, description, Skedge and requester; priority; tag; staff; activity;
+and a date. These narrow whatever group is showing, so the group is the shelf and the
+filters are the search. To ask how far a request reaches, filter by the date itself.
 
 The staff and activity filters use the names a request resolves to, so filtering by
 `dylan` finds requests written for `staff.counselor` as well.

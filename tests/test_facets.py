@@ -11,26 +11,11 @@ def req(skedge, priority=Priority.HIGH):
 DO = "REQUEST {who} DO 'a' DURING block.clinic_1"
 
 
-def test_scopes(dataset):
-    cases = {
-        DO.format(who="staff.dylan"): "season",
-        DO.format(who="staff.dylan") + " ON ALL_OF date.season": "season",
-        DO.format(who="staff.dylan") + " ON ALL_OF date.session.this": "session",
-        DO.format(who="staff.dylan") + " ON ANY_1_OF {(date.target - 6d) .. date.target}": "week",
-        DO.format(who="staff.dylan") + " ON EACH_OF date.session.this.fridays": "week",
-        DO.format(who="staff.dylan") + " ON 2026-09-16": "day",
-        DO.format(who="staff.dylan") + " ON date.target": "day",
-        "PREFER AT_MOST 8 EACH_OF staff.all DOING activity.all ON date.session.this": "session",
-    }
-    for skedge, expected in cases.items():
-        assert facets(req(skedge), dataset).scope == expected, skedge
-    pin = "REQUEST staff.dylan DO activity.riflery AS_ROLE role.first DURING block.clinic_1 ON 2026-09-16"
-    assert facets(req(pin, Priority.MUST_HAPPEN), dataset).scope == "pin"
-    assert facets(req(pin, Priority.HIGH), dataset).scope == "day"
-    each = DO.format(who="EACH_OF staff.counselor") + " ON 2026-09-16"
-    assert facets(req(each, Priority.MUST_HAPPEN), dataset).scope == "day"
-    forbid = "REQUEST staff.dylan NOT DO activity.ropes ON 2026-09-16"
-    assert facets(req(forbid, Priority.MUST_HAPPEN), dataset).scope == "pin"
+def test_a_request_about_no_calendar_date_covers_nothing(dataset):
+    """Off-calendar dates once read as "every day"; an empty date set is what it is."""
+    off = "REQUEST staff.dylan DO 'a' DURING block.clinic_1 ON 2026-11-17"
+    f = facets(req(off), dataset)
+    assert f.valid and f.dates == frozenset() and not f.covers(dataset.target)
 
 
 def test_facets_collect_staff_activities_dates(dataset):

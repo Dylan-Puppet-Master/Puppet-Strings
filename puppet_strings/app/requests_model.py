@@ -8,7 +8,7 @@ from puppet_strings.app.groups import ALL, UNGROUPED, same_group
 from puppet_strings.app.store import RequestStore
 from puppet_strings.model import Request
 
-COLUMNS = ("id", "priority", "scope", "groups", "tags", "requester", "valid", "description")
+COLUMNS = ("id", "priority", "groups", "tags", "requester", "valid", "description")
 
 
 class RequestsModel(QAbstractTableModel):
@@ -50,7 +50,6 @@ class RequestsModel(QAbstractTableModel):
         return {
             "id": request.id,
             "priority": request.priority.value,
-            "scope": facet.scope if facet else "",
             "groups": ", ".join(request.groups),
             "tags": ", ".join(request.tags),
             "requester": request.requester,
@@ -64,7 +63,7 @@ class RequestsModel(QAbstractTableModel):
 
 
 class RequestFilter(QSortFilterProxyModel):
-    """Filters by group, text, priority, scope, tag, staff, activity, and date."""
+    """Filters by group, text, priority, tag, staff, activity, and date."""
 
     def __init__(self, store: RequestStore) -> None:
         super().__init__()
@@ -72,7 +71,6 @@ class RequestFilter(QSortFilterProxyModel):
         self.text = ""
         self.group = ALL
         self.priority: str | None = None
-        self.scope: str | None = None
         self.tag: str | None = None
         self.staff: str | None = None
         self.activity: str | None = None
@@ -108,9 +106,7 @@ class RequestFilter(QSortFilterProxyModel):
         if self.tag and self.tag not in request.tags:
             return False
         if facet is None:
-            return not (self.scope or self.staff or self.activity or self.date)
-        if self.scope and facet.scope != self.scope:
-            return False
+            return not (self.staff or self.activity or self.date)
         if self.staff and self.staff not in facet.staff:
             return False
         if self.activity and self.activity not in facet.activities:

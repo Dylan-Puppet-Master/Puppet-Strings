@@ -64,11 +64,6 @@ def test_table_and_filters(window):
     window.priority_filter.setCurrentText("MUST_HAPPEN")
     assert window.proxy.rowCount() == 3
     window.priority_filter.setCurrentIndex(0)
-    window.scope_filter.setCurrentText("week")
-    assert visible_ids(window) == {"clinic-variety", "dylan-off-ropes"}
-    window.scope_filter.setCurrentText("day")
-    assert window.proxy.rowCount() == 24
-    window.scope_filter.setCurrentIndex(0)
     window.staff_filter.setCurrentText("dylan")
     ids = visible_ids(window)
     assert "breaks" not in ids and {"dylan-off-ropes", "counselor-hours"} <= ids

@@ -221,16 +221,6 @@ One row per request. Columns match the request fields.
 | `weight` | number | Blank means 1. Rejected with `MUST_HAPPEN`. |
 | `created` | ISO date | Set by the app on creation. |
 
-The desktop app's persistence filter derives a scope from the `ON` clause and does not store it:
-
-| Scope | Rule |
-|---|---|
-| `pin` | `MUST_HAPPEN`, one literal date, `ACROSS` one staff member |
-| `day` | otherwise, `ON` is one literal date |
-| `week` | otherwise, `ON` is a date range or uses `date.target` offsets or weekday names |
-| `session` | otherwise, `ON` is `date.session` |
-| `season` | no `ON` clause |
-
 ### 2.8 Metrics (new, read)
 
 An index tab `Metrics` plus one data tab per metric.
@@ -532,7 +522,7 @@ Assumptions added by this outline:
 16. **The staff roster** is the Skills main tab. Staff Categories members must appear there.
 17. **Category names** are used as-is: `staff.counselor`, `activity.ropes`. The proposal's `staff.counselors` and `activity.any_ropes` become whatever the sheets say; documentation examples will use the real names.
 18. **Activities are clinics only.** Clinic_Data lists no playstations or evening programs. `block.playstation` is just a block.
-19. **New sheets**: Blocks, Calendar, Requests, Metrics live in one new config spreadsheet; Published Schedules is a second new spreadsheet. `Calendar` is an addition beyond the proposal. Request scope is derived, not stored.
+19. **New sheets**: Blocks, Calendar, Requests, Metrics live in one new config spreadsheet; Published Schedules is a second new spreadsheet. `Calendar` is an addition beyond the proposal.
 20. **Metric misses** score the metric's `default` column, or `scale_min` when that column
     is blank, which is the original score-nothing behavior. Values and defaults outside the
     declared scale are load errors.
@@ -591,8 +581,12 @@ Recorded so the outline matches the code.
   `PER … BEYOND` windows include published past dates.
 - **Ad hoc task names are shared across requests**: two requests using `'break'` refer to
   the same activity.
-- **Request scope is derived** from the `ON` clause in the app (`app/facets.py`); nothing
-  is stored.
+- **Request scope is gone** (Puppet Master, 2026-09-18). The app used to label each
+  request season / session / week / day / pin, derived from the dates it resolved to. It
+  was never defined anywhere the Puppet Master could read, and a request naming a date the
+  Calendar sheet does not have resolved to no dates at all and so was labelled `season` —
+  the widest possible reach for a request that reaches nothing. The dates themselves are
+  still a facet (`app/facets.py`), and the date filter asks the same question honestly.
 - **Tab names are configurable** under `[tabs]` in `config.toml`, with defaults in
   `config.py`.
 - **Lifeguards are positions**, not a count over facilitators: `LG_Required` adds
