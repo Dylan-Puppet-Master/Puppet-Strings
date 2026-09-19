@@ -40,13 +40,15 @@ Puppet Strings is one Python package, `puppet_strings`, exposed two ways: a comm
 
 ### 1.2 Authentication
 
-Default: a **Google service account**.
+**OAuth as the Puppet Master.** Revised 2026-09-19; it was a service account until then.
 
-1. A one-time setup (documented step by step) creates a Google Cloud project, enables the Sheets and Drive APIs, creates a service account, and downloads its JSON key.
-2. Each spreadsheet is shared with the service account's email address (view for the four existing sheets, edit for Requests and Published Schedules).
-3. The key's path goes in the config file. gspread reads it with `gspread.service_account(filename=...)`.
+1. A one-time setup creates a Google Cloud project, enables the Sheets and Drive APIs, and downloads a Desktop app OAuth client JSON to `~/.config/puppet_strings/oauth_client.json`.
+2. The first run of the app opens a browser for consent and writes the token to `~/.config/puppet_strings/token.json`, mode 600. Every run afterwards refreshes it silently; the Configure pane signs in again as a different account, or signs out.
+3. `gspread.authorize(credentials)` reads the sheets, and the same credentials authorize a plain `AuthorizedSession` against Drive v3 `files.list` for browsing (`puppet_strings/drive.py`).
 
-Handover to the next Puppet Master is one file plus the sharing step. There is no browser consent flow and no token expiry. gspread's OAuth user flow (`gspread.oauth()`) is supported as an alternative through one config setting, for anyone who prefers not to manage a service account.
+Scopes: `spreadsheets`, `drive.metadata.readonly`, `userinfo.email`, `openid`.
+
+The service account is why this changed: it has no My Drive, nothing shared with it and no shared drives, so it could never back a Drive browser, and every new sheet had to be shared with an address nobody recognises. A service account key at `[auth] credentials` is still honoured when nobody is signed in, so an existing install keeps working.
 
 ### 1.3 Configuration
 
@@ -61,9 +63,14 @@ staff_categories = "1Z92mJG-AbXKBX_jq5DKztNLVDXPUyL-licZWGvkVPXs"
 config           = "<new spreadsheet: Blocks, Calendar, Requests, Metrics>"
 published        = "<new spreadsheet: one tab per published date>"
 
+# Chosen in the Configure pane and kept in settings.json instead, which wins over these.
+[folders]
+cabin_acts       = "<folder: one cabin act sheet per session and week>"
+
 [auth]
-mode        = "service_account"   # or "oauth"
-credentials = "~/.config/puppet_strings/service_account.json"
+client_secrets = "~/.config/puppet_strings/oauth_client.json"
+token          = "~/.config/puppet_strings/token.json"
+credentials    = "~/.config/puppet_strings/service_account.json"   # legacy fallback
 
 [solver]
 time_limit_seconds = 30   # the whole solve, not each tier
@@ -530,7 +537,7 @@ Assumptions added by this outline:
 22. **`GAP` labels** must be single-block `TASK`s on the same date.
 23. **`EACH` copies** each count as one satisfied request in their tier, and report as `id[item]`.
 24. **Ad hoc task names** are shared across requests: two requests using `'break'` refer to the same activity, so double-booking applies between them.
-25. **Authentication** is a service account only. Confirmed; the OAuth alternative is dropped to keep one code path.
+25. **Authentication** was a service account only. Superseded 2026-09-19: OAuth as the Puppet Master, because a service account cannot browse Drive and the Configure pane needs to.
 26. **The desktop app** is PySide6. Confirmed.
 27. **Views** are overwritten per publish; per-date tabs are the durable record.
 28. **Solver determinism**: fixed seed and worker count; tier time limits default to 30 seconds.
@@ -550,7 +557,7 @@ Answered 2026-09-15. Kept for the record.
 7. **Hand-written `CLINIC` priority**: unanswered; default kept (reserved for generated offerings).
 8. **Scope**: derived from the `ON` clause. Confirmed.
 9. **GUI toolkit**: PySide6. Confirmed.
-10. **Credentials**: service account. Confirmed.
+10. **Credentials**: service account. Superseded 2026-09-19 by signing in as the Puppet Master; see 1.2.
 
 Standing direction from the Puppet Master: the Google Sheets formats are not fixed. When the current layout would force convoluted parsing, change the sheet instead, and document the change. The code must be clear enough for the Puppet Master to update without an LLM.
 

@@ -27,6 +27,7 @@ cli.py and app/ (PySide6) drive the same functions.
 |---|---|
 | `puppet_strings/model.py` | Domain objects: Staff, Activity, Block, Request, Dataset, Assignment |
 | `puppet_strings/sheets/` | Reads every sheet into a Dataset; writes requests and published schedules |
+| `puppet_strings/drive.py`, `google_auth.py`, `settings.py` | Signing in to Google, browsing Drive, and which sheets were chosen |
 | `puppet_strings/skedge/` | The Skedge language: grammar, parser, name resolution, validation |
 | `puppet_strings/solver/` | Compiles requests to CP-SAT and solves tier by tier |
 | `puppet_strings/publish/` | Renders the staff view, clinic view and report |
@@ -43,9 +44,9 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-Then follow `docs/install.md` to create the Google service account, share the sheets
-with it, write `~/.config/puppet_strings/config.toml`, and create the Blocks, Calendar,
-Requests and Metrics tabs.
+Then follow `docs/install.md` to make the Google OAuth client, create the Blocks,
+Calendar, Requests and Metrics tabs, and open `puppet-strings app` to sign in and choose
+the spreadsheets from Drive.
 
 ## Use
 
@@ -53,6 +54,7 @@ Requests and Metrics tabs.
 puppet-strings names                     # every name you can write in a request
 puppet-strings validate                  # check every request on the sheet
 puppet-strings --date 2026-06-15 load-offerings   # Offerings tab -> requests tagged "generated"
+puppet-strings import-cabin-acts         # cabin act sheets -> requests tagged "cabin act"
 puppet-strings --date 2026-06-15 solve   # print tomorrow's schedule
 puppet-strings solve --publish           # and write it to Published Schedules
 puppet-strings solve --same-day          # re-solve a published day, moving as few people as it can

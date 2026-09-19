@@ -21,40 +21,59 @@ puppet-strings --help
 
 On Windows use `.venv\Scripts\activate`.
 
-## 3. Google Cloud service account
+## 3. Google OAuth client
 
-The tool reads and writes Google Sheets as a **service account**: a robot user with its
-own email address. Set it up once; hand the key file to the next Puppet Master.
+Puppet Strings reads and writes the sheets as **you**, signed in to your Google account,
+so a sheet you can open is a sheet it can open. Signing in needs an OAuth client, which is
+made once and handed to the next Puppet Master along with this repository.
 
 1. Open [console.cloud.google.com](https://console.cloud.google.com) and create a project
    named `Puppet Strings`.
 2. **APIs & Services → Library**: enable **Google Sheets API** and **Google Drive API**.
-3. **IAM & Admin → Service Accounts → Create service account**. Name it `puppet-strings`.
-   No roles are needed.
-4. Open the new account, **Keys → Add key → Create new key → JSON**. Save the download as
-   `~/.config/puppet_strings/service_account.json`.
-5. Open the JSON file and copy the `client_email` address. **Share** each spreadsheet with
-   that address:
+3. **APIs & Services → OAuth consent screen**: set it up as an **Internal** app if camp
+   has a Google Workspace, or **External** otherwise, and add yourself as a test user.
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID**, application
+   type **Desktop app**. Download the JSON and save it as
+   `~/.config/puppet_strings/oauth_client.json`.
 
-   | Spreadsheet | Access |
-   |---|---|
-   | Clinic_Data, Clinic_Schedule, Skills, Staff Categories | Viewer |
-   | The config spreadsheet (Blocks, Calendar, Requests, Metrics) | Editor |
-   | Published Schedules | Editor |
+Nothing needs sharing with anybody: you already have the sheets.
 
-## 4. Config file
+## 4. Create the two new spreadsheets
 
-Create `~/.config/puppet_strings/config.toml`:
+Create a **config spreadsheet** with tabs named `Blocks`, `Calendar`, `Requests`,
+`Metrics` and, when you want it, `Adjustments`, with the exact columns in [The sheets](sheets.md). Each metric you add later gets
+its own extra tab of ratings, as that page explains. The Blocks tab needs a `cabin_act`
+row, which is the slot the cabin act sheets are scheduled into. Create an empty
+**Published Schedules** spreadsheet. Choose both in the Configure pane.
+
+## 5. Sign in and choose the sheets
+
+```
+puppet-strings app
+```
+
+The first run has nobody signed in, so the **Configure** pane opens before the window
+does. Sign in — a browser opens and asks for consent once — and then use **Browse Drive…**
+beside each row to pick that sheet. The browser shows My Drive, Shared with me and every
+shared drive, the same three places Drive itself offers.
+
+| Row | What to pick |
+|---|---|
+| Clinic Data, Clinic Schedule, Skills, Staff Categories | The existing spreadsheets |
+| Config | The spreadsheet holding Blocks, Calendar, Requests, Metrics, Adjustments |
+| Published Schedules | An empty spreadsheet for the days you publish |
+| Cabin Acts | The **folder** holding one cabin act sheet per session and week |
+
+What you choose is kept in `~/.config/puppet_strings/settings.json`. **Configure** is on
+the right of the toolbar whenever you want to change a sheet, or sign in as a different
+account.
+
+## 6. config.toml, for everything else
+
+Everything else lives in `~/.config/puppet_strings/config.toml`, and every part of it has a
+default, so the file is only worth writing when you want to change something:
 
 ```toml
-[sheets]
-clinic_data      = "1bcCFIBqL77HbPiY1nOM2cqzZ0YC9fhRcdBi4TwZS0-E"
-clinic_schedule  = "1h_iOC7oqe43QFkpgoS-D-oFzP_r8G1EtDmrxvc83-o8"
-skills           = "1SAjIEMtNwdpDWcKkBp8wrEt9BjQJ6kaeHW00zJcBQPs"
-staff_categories = "1Z92mJG-AbXKBX_jq5DKztNLVDXPUyL-licZWGvkVPXs"
-config           = "<id of the config spreadsheet>"
-published        = "<id of the Published Schedules spreadsheet>"
-
 # Tab names inside each spreadsheet. Change these to match, or rename the tabs.
 [tabs]
 clinics          = "Clinics"      # Clinic_Data: the combined tab with a Category column
@@ -62,9 +81,11 @@ offerings        = "Offerings"    # Clinic_Schedule
 skills           = "Skills"       # Skills: the main tab
 position_skills  = "Positions"    # Skills: Clinic_Name | 1st | 2nd | 3rd
 staff_categories = "Categories"   # Staff Categories
+cabin_act_board  = "Board"        # the tab of a cabin act sheet that is read
 
 [auth]
-credentials = "~/.config/puppet_strings/service_account.json"
+client_secrets = "~/.config/puppet_strings/oauth_client.json"
+token          = "~/.config/puppet_strings/token.json"
 
 [solver]
 time_limit_seconds = 30   # the whole solve, not each tier
@@ -78,27 +99,28 @@ remainder = "DYOW/WPs"    # label for the unused part of a partly used block
 midday = "12:00"          # where morning ends, for a half-day rest; 12:00 or 12 PM
 ```
 
-A spreadsheet's id is the long string in its URL between `/d/` and `/edit`.
+A `[sheets]` table of spreadsheet ids still works, for an install made before the
+Configure pane existed, and what is chosen in the app wins over it.
 
-## 5. Create the two new spreadsheets
+An older install may instead have a service account key at
+`~/.config/puppet_strings/service_account.json`. That still works, and is used whenever
+nobody is signed in, but it cannot browse Drive, so moving over to signing in is worth
+doing.
 
-Create a **config spreadsheet** with tabs named `Blocks`, `Calendar`, `Requests`,
-`Metrics` and, when you want it, `Adjustments`, with the exact columns in [The sheets](sheets.md). Each metric you add later gets
-its own extra tab of ratings, as that page explains. Create an empty **Published
-Schedules** spreadsheet. Put both ids in `config.toml`.
-
-## 6. Check
+## 7. Check
 
 ```
 puppet-strings names
 puppet-strings validate
 puppet-strings --date 2026-06-15 load-offerings
+puppet-strings import-cabin-acts
 puppet-strings --date 2026-06-15 solve
 ```
 
 `names` lists every name you can use in a request. `validate` checks every request.
 `load-offerings` turns the Offerings tab into requests for that date, replacing ones
-loaded before. `solve` prints the
+loaded before. `import-cabin-acts` turns every cabin act sheet in the Cabin Acts folder
+into requests, replacing the ones imported before. `solve` prints the
 schedule for a date without publishing it. If any command reports a
 load error, it names the sheet, tab and row to fix.
 

@@ -79,6 +79,48 @@ A `(DBL)` clinic must appear in two adjacent clinic blocks; it becomes one insta
 the same staff in both. The tab has no date: the target date is the `--date` argument or
 the app's date picker. A weekday mismatch is a warning.
 
+## Cabin act sheets (the Cabin Acts folder)
+
+The cabin act block is a time campers may do anything in, and somebody other than the
+Puppet Master fills in what each cabin is doing and who they want along. There is one
+spreadsheet per session and week, all of them in one Drive folder chosen in the Configure
+pane, and the **Import cabin acts** button reads every one of them.
+
+The sheet's **title** says which week it is for: `S5W1` is session 5, week 1, matched
+anywhere in the title, so `Cabin Act Sorting - S5W1` works. Those two numbers and the
+weekday are looked up on the Calendar sheet to get the date, so nothing on the sheet has
+to carry one.
+
+Only the **Board** tab is read; the Support Requests tab says the same thing a second time
+and is ignored. Its layout:
+
+| Where | What |
+|---|---|
+| Row 1 | The sheet's title |
+| Row 2 | A weekday merged over its four columns, then the spare `Extra` columns |
+| Column A | The cabin, merged down its block of rows: `M1`, `P4`, `O2` |
+| Inside a cabin's block | A label column and a value column beside it, per weekday |
+
+The labels read are `Activity` and `HEROES`; everything else on the grid is for the people
+filling it in. Rows are found by their labels rather than by counting, so adding a row to
+the cabin block changes nothing. Only Monday to Friday are scheduled: the `Extra` columns
+are not days and are skipped.
+
+**HEROES** is a comma-separated list, and each item becomes its own statement in the
+request, so asking for two people asks for two people. An item is either:
+
+| Item | Becomes | The task reads |
+|---|---|---|
+| A staff member on the Skills sheet | `REQUEST staff.vic` | `help M2 with CA` |
+| A Staff Categories column | `REQUEST ANY_1_OF staff.village_hero` | `Village HERO with M2` |
+| A Skills column | `REQUEST ANY_1_OF staff.skills.lifeguard` | `LIFEGUARD with M2` |
+
+A person named is being asked for as themselves, so the task says they are there to help;
+anything else is being asked for what it can do, so the task says what that is. An item
+that is none of the three is a warning naming the cabin and the day, and the rest of that
+cabin act still imports. A cabin act with an empty HEROES cell asks nothing of anybody and
+makes no request.
+
 ## Blocks (config spreadsheet)
 
 One row per time block. Blocks are the units the solver assigns staff to.
@@ -90,6 +132,8 @@ One row per time block. Blocks are the units the solver assigns staff to.
 | `day_types` | **Comma-separated.** The kinds of day this block exists on. Each date's kind comes from the Calendar sheet's `day_type` column. A block whose list does not include that day's type does not exist that day, so no request can select it. |
 | `categories` | **Comma-separated.** Groups of blocks a request can name at once: `block.any_clinic`, `block.meals`. `block.all` (every block) is built in and may not be used as a category name. |
 
+One block id is spoken for: `cabin_act` is the slot the [cabin act sheets](#cabin-act-sheets-the-cabin-acts-folder) are imported into, and importing them without it is an error.
+
 Example:
 
 | block_id | start | end | day_types | categories |
@@ -97,6 +141,7 @@ Example:
 | clinic_1 | 09:15 | 10:30 | regular | any_clinic |
 | clinic_2 | 10:45 | 12:00 | regular | any_clinic |
 | lunch | 12:00 | 13:00 | regular, changeover | meals |
+| cabin_act | 13:00 | 14:00 | regular | |
 | pack_out | 09:15 | 11:00 | changeover | |
 | playstation | 17:00 | 18:00 | regular, changeover | |
 
