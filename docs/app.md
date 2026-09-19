@@ -143,11 +143,11 @@ right-click, to insert the highlighted name at the cursor.
 
 | Name | What opens |
 |---|---|
-| A staff member | What they are checked off on, and every category they are in |
+| A staff member | Where they stand on every skill they have a mark against — a tick for a checkoff, and otherwise the sheet's own word, `WCF` or `w/ scaf` — and every category they are in |
 | A staff category | Its members |
 | A clinic | What each position asks for, and everyone on the sheets who could hold it |
 | A cabin act | The same, for the day being scheduled, plus what the cabin act board wrote on its card. A cabin with nothing on that day says which days it does have |
-| A metric | Its table of ratings, which you can **edit**; Save writes it back to the metric tab |
+| A metric | Its table of ratings and what an unrated pairing is worth, both of which you can **edit**; Save writes the table to the metric tab and the default to the Metrics tab |
 | A date or a role | Nothing. A date's note is the date and a role is a word |
 
 Opening an activity is worth the habit now that a request for one names nobody: it is where

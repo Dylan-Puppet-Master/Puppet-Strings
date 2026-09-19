@@ -13,10 +13,11 @@ rather than reading.
 
 from dataclasses import dataclass
 
-from puppet_strings.model import Activity, Dataset, Staff
+from puppet_strings.model import Activity, Dataset, SkillStatus, Staff
 from puppet_strings.skedge.namespaces import ACTIVITIES, CABIN_ACTS, CLINICS, METRICS, STAFF
 
 NOBODY = "nobody on the sheets today"
+CHECKED = "✓"  # how the Skills tab writes a plain checkoff, and how it is shown back
 
 
 @dataclass(frozen=True)
@@ -69,9 +70,11 @@ def _staff(name: str, rest: str, dataset: Dataset) -> Details | None:
 
 
 def _member(name: str, member: Staff, dataset: Dataset) -> Details:
-    """One staff member: what they are checked off on, and what they are counted among."""
+    """One staff member: where they stand on every skill, and what they are counted among."""
     skills = tuple(
-        (skill, status.value) for skill, status in sorted(member.skills.items()) if status.eligible
+        (skill, _standing(member, skill))
+        for skill, status in sorted(member.skills.items())
+        if status is not SkillStatus.NONE
     )
     others = tuple(
         (f"{STAFF}.{category}", "")
@@ -82,10 +85,22 @@ def _member(name: str, member: Staff, dataset: Dataset) -> Details:
         title=name,
         subtitle=f"{member.name}, RAL {member.ral}",
         sections=(
-            Section("Checked off on", skills or (("nothing yet", ""),)),
+            Section("Skills", skills or (("nothing yet", ""),)),
             Section("In these categories", others),
         ),
     )
+
+
+def _standing(member: Staff, skill: str) -> str:
+    """Where a staff member stands on one skill, in the Skills tab's own word.
+
+    A plain checkoff is shown as the tick it is written as; everything else keeps the word
+    the sheet used, because `WCF` and `w/ scaf` say more than the status they map to.
+    """
+    word = member.written.get(skill, "").strip()
+    if not word or word == CHECKED:
+        return CHECKED if member.skills[skill].eligible else word
+    return word
 
 
 def _people(ids, dataset: Dataset) -> tuple[tuple[str, str], ...]:

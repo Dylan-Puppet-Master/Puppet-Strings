@@ -17,9 +17,17 @@ def rows(found, heading):
 def test_a_staff_member_shows_their_skills_and_categories(dataset):
     found = details("staff.dylan", dataset)
     assert found.subtitle == "Dylan, RAL 5"
-    assert rows(found, "Checked off on")["archery_1_2"] == "checked off"
+    assert rows(found, "Skills")["archery_1_2"] == "\u2713"
     assert "staff.counselor" in rows(found, "In these categories")
     assert "staff.director" not in rows(found, "In these categories")
+
+
+def test_a_skill_keeps_the_word_the_sheet_wrote(dataset):
+    """A tick shows as a tick; anything else keeps its own word, which says more."""
+    found = details("staff.paul", dataset)
+    assert rows(found, "Skills")["candle_making"] == "w/ shadow"
+    assert rows(found, "Skills")["any"] == "\u2713"
+    assert "riflery" not in rows(found, "Skills")  # nothing written, nothing shown
 
 
 def test_a_staff_category_shows_its_members(dataset):
@@ -115,3 +123,37 @@ def test_the_target_date_is_what_a_cabin_act_is_shown_for(source):
     found = details("activities.cabin_acts.p4", friday)
     assert found.subtitle == "P4 Tea Party on 2026-09-18"
     assert rows(found, "It asks for")["first: Sarah"] == "Sarah"
+
+
+def test_the_metric_default_is_editable(fixtures_copy):
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication
+
+    from puppet_strings.app.details_dialog import MetricDialog
+    from puppet_strings.config import Config
+    from puppet_strings.sheets.metrics import parse_metric_index
+    from puppet_strings.sheets.source import CsvSource
+
+    QApplication.instance() or QApplication([])
+    source = CsvSource(fixtures_copy)
+    dialog = MetricDialog(source, Config(), "preference")
+    assert dialog.default.value() == 3  # what the Metrics tab says now
+    assert (dialog.default.minimum(), dialog.default.maximum()) == (1, 5)  # its own scale
+    dialog.default.setValue(4)
+    dialog.save()
+    written = parse_metric_index(source.read("config", "Metrics"))
+    assert [m.default for m in written] == [4.0]
+
+
+def test_a_metric_default_cannot_leave_its_scale(fixtures_copy):
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication
+
+    from puppet_strings.app.details_dialog import MetricDialog
+    from puppet_strings.config import Config
+    from puppet_strings.sheets.source import CsvSource
+
+    QApplication.instance() or QApplication([])
+    dialog = MetricDialog(CsvSource(fixtures_copy), Config(), "preference")
+    dialog.default.setValue(99)
+    assert dialog.default.value() == 5

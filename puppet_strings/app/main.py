@@ -256,6 +256,9 @@ class MainWindow(QMainWindow):
         for action in (self.sleep_action, self.sickness_action):
             action.setVisible(False)  # only while changing a day that is already out
         self.status_label = QLabel("")
+        # It can run to a paragraph of warnings, and a label that insists on its full width
+        # pushes everything after it -- Configure included -- into the overflow menu.
+        self.status_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         toolbar.addWidget(self.status_label)
         spacer = QWidget()  # everything after this is pushed to the right-hand end
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -467,7 +470,12 @@ class MainWindow(QMainWindow):
             f"{dataset.target} is {state}",
             summary(found),
         ]
-        self.status_label.setText("  " + ". ".join(parts + today + list(dataset.warnings)))
+        self._say(". ".join(parts + today + list(dataset.warnings)))
+
+    def _say(self, message: str) -> None:
+        """Put a message in the toolbar, with the whole of it on the tooltip."""
+        self.status_label.setText(f"  {message}")
+        self.status_label.setToolTip(message)
 
     def _load_failed(self, message: str) -> None:
         self.end_progress()

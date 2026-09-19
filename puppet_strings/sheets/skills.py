@@ -63,7 +63,7 @@ def parse_skills(table: Table) -> tuple[dict[str, Staff], list[str]]:
         name = cells[NAME_COLUMN].strip() if cells else ""
         if not name:
             continue
-        skills = {}
+        skills, written = {}, {}
         for column, skill in skill_columns.items():
             text = cells[column].strip() if column < len(cells) else ""
             status = STATUS_WORDS.get(text.lower())
@@ -71,7 +71,14 @@ def parse_skills(table: Table) -> tuple[dict[str, Staff], list[str]]:
                 warnings.append(f"{where}: {name} / {skill}: unknown status '{text}' ignored")
                 status = SkillStatus.NONE
             skills[normalize(skill)] = status
-        member = Staff(name=name, id=normalize(name), ral=_ral(cells, name), skills=skills)
+            written[normalize(skill)] = text
+        member = Staff(
+            name=name,
+            id=normalize(name),
+            ral=_ral(cells, name),
+            skills=skills,
+            written=written,
+        )
         staff[member.id] = member
     check_unique(where, [s.name for s in staff.values()])
     return staff, warnings

@@ -117,6 +117,9 @@ class Staff:
     ral: int
     skills: Mapping[str, SkillStatus]
     resting_blocks: frozenset[str] = frozenset()
+    # The Skills tab's own word per skill, which says more than the status it maps to:
+    # `WCF` and `✓` are both checked off, and the sheet is where that distinction lives.
+    written: Mapping[str, str] = field(default_factory=dict)
 
     def status(self, skill: str | None) -> SkillStatus:
         """Status on a skill by normalized name; no skill counts as checked off."""

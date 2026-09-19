@@ -9,6 +9,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
+    QDoubleSpinBox,
+    QFormLayout,
     QHeaderView,
     QLabel,
     QMessageBox,
@@ -21,7 +23,7 @@ from PySide6.QtWidgets import (
 
 from puppet_strings.app.details import Details
 from puppet_strings.config import Config
-from puppet_strings.sheets.metrics import TAB_PREFIX
+from puppet_strings.sheets.metrics import INDEX_COLUMNS, TAB_PREFIX
 from puppet_strings.sheets.source import Source
 
 CONFIG_SHEET = "config"
@@ -71,7 +73,9 @@ class MetricDialog(QDialog):
         self.source, self.config, self.metric = source, config, metric
         self.tab = f"{TAB_PREFIX}{metric}"
         self.setWindowTitle(f"metrics.{metric}")
-        self.resize(620, 520)
+        self.resize(620, 560)
+        self.index = self.source.read(CONFIG_SHEET, config.tabs["metrics"])
+        self.default = self._default_box()
         table = self.source.read(CONFIG_SHEET, self.tab)
         self.header = table[0] if table else []
         body = table[1:]
@@ -87,10 +91,50 @@ class MetricDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.save)
         buttons.rejected.connect(self.reject)
+        form = QFormLayout()
+        form.addRow("Worth when nothing is written down", self.default)
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(f"<b>metrics.{metric}</b><br>{self.tab}, on the config sheet"))
         layout.addWidget(self.grid)
+        layout.addLayout(form)
         layout.addWidget(buttons)
+
+    def _default_box(self) -> QDoubleSpinBox:
+        """The metric's default, held between the ends of its own scale."""
+        row = self._index_row()
+        low, high = (_number(row.get(name)) for name in ("scale_min", "scale_max"))
+        box = QDoubleSpinBox()
+        box.setDecimals(2)
+        box.setRange(low, high)
+        box.setToolTip(f"What a pairing with no row is worth, between {low:g} and {high:g}")
+        box.setValue(_number(row.get("default")) if row.get("default") else low)
+        return box
+
+    def _index_row(self) -> dict[str, str]:
+        """The row on the Metrics index tab for this metric, as a dict."""
+        header = [c.strip() for c in self.index[0]] if self.index else []
+        for cells in self.index[1:]:
+            row = dict(zip(header, [*cells, *[""] * len(header)], strict=False))
+            if row.get("metric", "").strip() == self.metric:
+                return row
+        return {}
+
+    def index_rows(self) -> list[list[str]]:
+        """The Metrics index tab with this metric's default as the box now says.
+
+        A metric declared with no `default` column gets one, because a default it cannot be
+        given is no better than no box at all.
+        """
+        header = [c.strip() for c in self.index[0]] if self.index else list(INDEX_COLUMNS)
+        if "default" not in header:
+            header = [*header, "default"]
+        written = [header]
+        for cells in self.index[1:]:
+            row = [*cells, *[""] * (len(header) - len(cells))][: len(header)]
+            if row[header.index("metric")].strip() == self.metric:
+                row[header.index("default")] = _trim(self.default.value())
+            written.append(row)
+        return written
 
     def rows(self) -> list[list[str]]:
         """The header and every row with something written in it."""
@@ -105,10 +149,23 @@ class MetricDialog(QDialog):
         return [list(self.header), *written]
 
     def save(self) -> None:
-        """Write the tab back, and say so rather than closing on a silent failure."""
+        """Write the ratings and the default back, and say so rather than closing quietly."""
         try:
             self.source.write(CONFIG_SHEET, self.tab, self.rows())
+            self.source.write(CONFIG_SHEET, self.config.tabs["metrics"], self.index_rows())
         except Exception as e:  # noqa: BLE001 - shown to the user, never swallowed
             QMessageBox.critical(self, "Could not save the metric", str(e))
             return
         self.accept()
+
+
+def _number(text: str | None) -> float:
+    try:
+        return float(text or 0)
+    except ValueError:
+        return 0.0
+
+
+def _trim(value: float) -> str:
+    """A number as a sheet would write it: 3 rather than 3.0."""
+    return str(int(value)) if value == int(value) else str(value)

@@ -12,6 +12,7 @@ from puppet_strings.names import normalize
 from puppet_strings.sheets.source import LoadError, Table, header_rows, split_list
 
 KEY_FIELDS = ("staff", "activity", "role", "date", "block")
+INDEX_COLUMNS = ("metric", "keys", "scale_min", "scale_max", "default")
 TAB_PREFIX = "metric_"
 
 
