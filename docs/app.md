@@ -163,5 +163,5 @@ Skedge editor at the cursor, as `2026-06-15`.
 scheduled: `ON ALL_OF dates.session.two.week.one.all` is a perfectly good request to write in
 the middle of session 1. It will do nothing to the schedule you are about to solve, though,
 which is easy to write by accident — a mistyped date, or `session.two` where you meant
-`session.this`. So saving such a request asks first, names the dates it *is* about, and
+`session.one`. So saving such a request asks first, names the dates it *is* about, and
 lets you either save it anyway or go back to editing.

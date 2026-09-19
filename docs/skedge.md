@@ -59,7 +59,7 @@ Names are dotted, lowercase `snake_case`. Sheet values become identifiers by the
 | `metric` | Metric tables, such as `metrics.preference` |
 
 A name is either one thing or a set, and sets are always plural or collective
-(`blocks.all`, `dates.session.this.mondays`). There is no `blocks.any`: "any one block" is
+(`blocks.all`, `dates.session.one.mondays`). There is no `blocks.any`: "any one block" is
 `ANY_1_OF blocks.all`, so the choosing is always visible.
 
 A staff category holds only the people working on the day being scheduled. Someone resting
@@ -84,10 +84,12 @@ names, so what can be said of one can be said of any other.
 | A week of a span | `dates.session.four.week.two.all` | Every date of its second week. |
 
 Main season rows are numbered in sheet order and named by number in words — `one`, `two`,
-`three` … — and so are weeks. Any other row is named after its `name` column. The span
-holding the date being scheduled is also `dates.session.this.all`, and the week holding it
-is `dates.session.this.week.this.all`; `this` is the span being scheduled in, whether or
-not it is a numbered session.
+`three` … — and so are weeks. Any other row is named after its `name` column.
+
+**Every date name says which span it means.** There is no `this` session or `this` week: a
+request about the session being scheduled names that session. `dates.target` is the only
+name that follows the date on the toolbar, which is why a request reads the same whenever
+you open it.
 
 Every span carries these:
 
@@ -116,7 +118,7 @@ REQUEST ALL_OF staff.director DO 'session opening' DURING ANY_1_OF blocks.all ON
 `first_mondays` that meant one date per session — a letter apart and a different kind of
 thing — and which of them existed depended on how long the season happened to be. A week's
 weekday says it instead: the second Thursday of a session is
-`dates.session.this.week.two.thursday`.
+`dates.session.one.week.two.thursday`.
 
 A name a span never reaches does not exist, and using it is a validation error rather than
 a request that silently never fires. A near miss is told the nearest real name.
@@ -136,7 +138,7 @@ mixing different operators requires them, so there is no precedence to remember:
 ## Requirements: `<who> DO <what>`
 
 ```skedge
-REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_1_OF blocks.all ON EACH_OF dates.session.this.mondays
+REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_1_OF blocks.all ON EACH_OF dates.session.one.mondays
 ```
 
 Read it in three steps, always in this order:
@@ -254,7 +256,7 @@ becomes something you can request or prefer:
 | Request | Meaning |
 |---|---|
 | `REQUEST AT_MOST 2 staff.all DOING 'break' DURING EACH_OF blocks.all` | Never more than two people on break at once. Met or not. |
-| `PREFER AT_MOST 8 EACH_OF staff.all DOING activities.clinics.all ON dates.session.this.all` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
+| `PREFER AT_MOST 8 EACH_OF staff.all DOING activities.clinics.all ON dates.session.one.all` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
 | `REQUEST AT_LEAST 2h staff.james DOING 'dance practice' ON {2026-09-16 .. 2026-09-17}` | James's dance practice adds up to two hours. |
 
 An amount is `AT_LEAST`, `AT_MOST` or `EXACTLY`, then a number of assignments or a length
@@ -399,7 +401,7 @@ Priority `MUST_HAPPEN`.
 ### Lucy and Tom take out the garbage together every Monday
 
 ```skedge
-REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_1_OF blocks.all ON EACH_OF dates.session.this.mondays
+REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_1_OF blocks.all ON EACH_OF dates.session.one.mondays
 ```
 
 Priority `HIGH`.
@@ -485,7 +487,7 @@ Priority `MEDIUM`, weight `0.5`.
 ### Rotate ropes positions
 
 ```skedge
-PREFER AT_MOST 3 EACH_OF staff.ropes_level_2 DOING activities.clinics.ropes AS_ROLE EACH_OF {roles.first + roles.second} ON dates.session.this.all
+PREFER AT_MOST 3 EACH_OF staff.ropes_level_2 DOING activities.clinics.ropes AS_ROLE EACH_OF {roles.first + roles.second} ON dates.session.one.all
 ```
 
 Priority `LOW`.
@@ -493,7 +495,7 @@ Priority `LOW`.
 ### Balance clinic workload
 
 ```skedge
-PREFER AT_MOST 8 EACH_OF staff.all DOING activities.clinics.all ON dates.session.this.all
+PREFER AT_MOST 8 EACH_OF staff.all DOING activities.clinics.all ON dates.session.one.all
 ```
 
 Priority `MEDIUM`, weight `0.25`.
@@ -572,7 +574,7 @@ Priority `MUST_HAPPEN`.
 ### A review with every director, on the second Thursday
 
 ```skedge
-REQUEST ALL_OF staff.director DO 'mid-session review' DURING ANY_1_OF blocks.all ON dates.session.this.week.two.thursday
+REQUEST ALL_OF staff.director DO 'mid-session review' DURING ANY_1_OF blocks.all ON dates.session.one.week.two.thursday
 ```
 
 Priority `MEDIUM`.

@@ -203,9 +203,7 @@ same names, and a span's weeks are its days seven at a time from the start.
 | `dates.season.all` | set | every date the Calendar sheet covers |
 | `dates.session.one.all` … `dates.session.twenty.all` | set | a `main season` row, numbered in sheet order |
 | `dates.other.<name>.all` | set | any other row, by its `name` column normalized |
-| `dates.session.this.all` | set | the span `dates.target` falls in, numbered or not |
 | `dates.<span>.week.one.all` … `.week.twenty.all` | set | that week of that span |
-| `dates.session.this.week.this.all` | set | the week `dates.target` falls in |
 
 | Name within any span | Kind | Holds |
 |---|---|---|
@@ -223,7 +221,8 @@ A name exists only if the span reaches it: `dates.session.two.week.two.all` is a
 when session 2 runs to a second week. At most 20 main season rows and 20 weeks per span.
 
 There are no `first_monday` / `last_friday` names and no cross-session `first_mondays`
-sets. A week's weekday is how an occurrence is named.
+sets: a week's weekday is how an occurrence is named. There is no `this` span or `this`
+week either — every date name but `dates.target` says outright which span it means.
 
 `roles.trainee` resolves per staff member from the Skills sheet: checked off or needing a
 scaffold becomes `scaffolded`, needing a shadow or no checkoff becomes `shadow`.

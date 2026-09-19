@@ -685,8 +685,8 @@ Recorded so the outline matches the code.
   Calendar sheet's `session` column holds a number rather than a name, and a new `week`
   column numbers the days within each session. Every date name is then a span or a name
   inside one: `dates.season.all`, `dates.session.four.all`, `dates.session.four.week.two.all`, and
-  `dates.session.four.week.two.monday`. `dates.session.this.all` is the session holding the
-  target date and `dates.session.this.week.this.all` the week; the old `dates.session.all`,
+  `dates.session.four.week.two.monday`. `dates.session.one.all` is the session holding the
+  target date and `dates.session.one.week.one.all` the week; the old `dates.session.all`,
   `dates.season.all` and `date.<session name>.all` are gone. A span carries `first`,
   `last`, the weekday sets and the counted occurrences; a week, reaching each weekday
   once, carries the weekday as a single date. An unknown name now suggests the nearest

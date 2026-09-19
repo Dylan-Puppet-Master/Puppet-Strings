@@ -164,10 +164,10 @@ def test_completer_narrows_as_the_name_is_typed(window):
 def test_choosing_a_completion_replaces_what_was_typed(window):
     editor = window.editor
     editor.clear()
-    QTest.keyClicks(editor.skedge_edit, "ON dates.session.this.week.two.thu")
-    assert "dates.session.this.week.two.thursday" in completions(editor)
-    editor.skedge_edit.completer.activated.emit("dates.session.this.week.two.thursday")
-    assert editor.skedge_edit.toPlainText() == "ON dates.session.this.week.two.thursday"
+    QTest.keyClicks(editor.skedge_edit, "ON dates.session.one.week.two.thu")
+    assert "dates.session.one.week.two.thursday" in completions(editor)
+    editor.skedge_edit.completer.activated.emit("dates.session.one.week.two.thursday")
+    assert editor.skedge_edit.toPlainText() == "ON dates.session.one.week.two.thursday"
 
 
 def test_completer_stays_shut_for_plain_words_and_dates(window):

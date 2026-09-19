@@ -32,7 +32,7 @@ def test_facets_collect_staff_activities_dates(dataset):
     assert facets(req(DO.format(who="staff.dylan")), dataset).dates == set(dataset.calendar)
     g = facets(
         req(
-            "PREFER AT_MOST 1 staff.dylan DOING activities.clinics.weapons ON dates.session.this.fridays"
+            "PREFER AT_MOST 1 staff.dylan DOING activities.clinics.weapons ON dates.session.one.fridays"
         ),
         dataset,
     )

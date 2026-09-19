@@ -284,16 +284,14 @@ def date_names(dataset: Dataset) -> dict[str, Named]:
         dates.session.four.week.two.monday   one date
         dates.other.family_camp.all          a span that is not a numbered session
 
-    `this` is the span the target date falls in, and `week.this` the week inside it, so a
-    request written with them says the same thing whenever it is solved. Nothing here
-    depends on which date is being scheduled except `target` and the two `this` names: the
-    vocabulary is the same on every day of the season.
+    Every name here is the same on every day of the season, and every one of them says
+    which span it means. `dates.target` is the only name that follows the date being
+    scheduled; a request about "this session" names the session.
     """
     names = {"target": Named(frozenset({dataset.target}), True)}
     _add(names, "season", _span_names(dataset.season_dates))
     for span in dataset.spans:
         _add(names, _span_path(span), _one_span(dataset, span))
-    _add(names, f"{SESSION}.this", _one_span(dataset, dataset.this_span, this=True))
     return names
 
 
@@ -304,14 +302,11 @@ def _span_path(span) -> str:
     return f"{OTHER}.{span.id}"
 
 
-def _one_span(dataset: Dataset, span, this: bool = False) -> dict[str, Named]:
+def _one_span(dataset: Dataset, span) -> dict[str, Named]:
     """One span's own names, with its weeks nested underneath."""
-    weeks = dataset.span_weeks(span)
     names = _span_names(dataset.span_dates(span))
-    for week, dates in weeks.items():
+    for week, dates in dataset.span_weeks(span).items():
         _add(names, f"{WEEK}.{CARDINAL_WORDS[week - 1]}", _week_names(dates))
-    if this:
-        _add(names, f"{WEEK}.this", _week_names(weeks[dataset.calendar[dataset.target].week]))
     return names
 
 
