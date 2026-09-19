@@ -161,8 +161,10 @@ def _build(
     named = categories
     # a category never offers someone who is not working today
     staff_categories = {c: members & working for c, members in categories.items()}
+    read_boards, board_warnings = boards.result()
+    warnings += board_warnings
     cabin_acts, cabin_warnings = cabin_act_activities(
-        boards.result(), _weeks_by_weekday(spans), staff, named, skills
+        read_boards, _weeks_by_weekday(spans), staff, named, skills
     )
     warnings += cabin_warnings
     activities = {**clinics, **cabin_acts}
@@ -236,13 +238,25 @@ CABIN_ACTS_FOLDER = "cabin_acts"
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
 
-def _cabin_act_boards(source: Source, config: Config) -> dict[str, tuple]:
-    """Every cabin act sheet's Board tab, parsed. No folder chosen means no cabin acts."""
+def _cabin_act_boards(source: Source, config: Config) -> tuple[dict[str, tuple], list[str]]:
+    """Every cabin act sheet's Board tab, parsed, and anything that stopped one being read.
+
+    Only the folder itself is optional: an install that has not chosen one has no cabin
+    acts and nothing to say about it. Anything that goes wrong *inside* the folder — a
+    `Board` tab renamed, a spreadsheet dropped in there that is not a cabin act sheet — is
+    said out loud, because it takes every cabin act in camp out of the day, and the cost of
+    saying nothing is that nobody notices the cabin acts are gone.
+    """
+    tab = config.tabs["cabin_act_board"]
     try:
-        tables = source.read_group(CABIN_ACTS_FOLDER, config.tabs["cabin_act_board"])
+        sheets = source.group(CABIN_ACTS_FOLDER)
     except LoadError:
-        return {}  # the folder is optional, and an install without one has no cabin acts
-    return {title: parse_board(table, title) for title, table in tables.items()}
+        return {}, []  # no folder chosen, which is a way of having no cabin acts
+    try:
+        tables = source.read_all(sheets, tab)
+    except LoadError as e:
+        return {}, [f"cabin acts: no cabin act runs today, because {e}"]
+    return {title: parse_board(table, title) for title, table in tables.items()}, []
 
 
 def _weeks_by_weekday(spans: tuple[Span, ...]) -> dict[tuple[int, int], dict[str, date]]:

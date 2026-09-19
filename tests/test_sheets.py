@@ -645,3 +645,36 @@ def test_a_cabin_act_warns_only_when_a_hero_is_actually_dropped():
     assert warnings_for(len(POSITION_ROLES)) == []
     (told,) = warnings_for(len(POSITION_ROLES) + 1)
     assert "asks for more heroes than positions" in told
+
+
+def test_a_cabin_act_sheet_that_cannot_be_read_is_said_out_loud(tmp_path):
+    """Losing every cabin act in camp is not something to do quietly."""
+    import shutil
+
+    from puppet_strings.sheets.load import load_dataset
+    from puppet_strings.sheets.source import CsvSource
+    from tests.conftest import CONFIG, FIXTURES, TARGET
+
+    copy = tmp_path / "fixtures"
+    shutil.copytree(FIXTURES, copy)
+    board = next((copy / "cabin_acts").glob("*/Board.csv"))
+    board.rename(board.with_name("Bored.csv"))  # a tab renamed by somebody tidying up
+    dataset = load_dataset(CsvSource(copy), CONFIG, TARGET)
+    assert any("cabin acts: no cabin act runs today" in w for w in dataset.warnings)
+    assert not any(a.category == "cabin_act" for a in dataset.activities.values())
+
+
+def test_no_cabin_act_folder_is_no_cabin_acts_and_nothing_said(tmp_path):
+    """An install with no cabin act folder at all has nothing to warn about."""
+    import shutil
+
+    from puppet_strings.sheets.load import load_dataset
+    from puppet_strings.sheets.source import CsvSource
+    from tests.conftest import CONFIG, FIXTURES, TARGET
+
+    copy = tmp_path / "fixtures"
+    shutil.copytree(FIXTURES, copy)
+    shutil.rmtree(copy / "cabin_acts")
+    dataset = load_dataset(CsvSource(copy), CONFIG, TARGET)
+    assert not any(a.category == "cabin_act" for a in dataset.activities.values())
+    assert not any("cabin act" in w for w in dataset.warnings)
