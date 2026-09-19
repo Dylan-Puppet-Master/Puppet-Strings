@@ -43,10 +43,8 @@ def make_window(path, loaded=True):
 
 
 @pytest.fixture
-def window(app, tmp_path):
-    copy = tmp_path / "fixtures"
-    shutil.copytree(FIXTURES, copy)
-    return make_window(copy)
+def window(app, fixtures_copy):
+    return make_window(fixtures_copy)
 
 
 def visible_ids(window):
@@ -649,11 +647,9 @@ DYLAN_FREE = "REQUEST staff.dylan FREE DURING block.clinic_1 ON date.target"
 
 
 def save_request(window, description, skedge, priority="MUST_HAPPEN"):
-    editor = window.editor
-    editor.clear()
-    editor.description_edit.setText(description)
+    """Write a request in the editor and save it. Returns the id it was saved under."""
+    editor = write_request(window, skedge, description)
     editor.priority_box.setCurrentText(priority)
-    editor.skedge_edit.setPlainText(skedge)
     editor.validate()
     editor.save_button.click()
     return editor.original_id

@@ -6,13 +6,10 @@ import pytest
 
 from puppet_strings.app.conflicts import find_conflicts, summary
 from puppet_strings.app.facets import resolve_request
-from puppet_strings.model import Priority, Request
+from puppet_strings.model import Priority
+from tests.build import request as req
 
 TARGET = date(2026, 9, 16)
-
-
-def req(id, skedge, priority=Priority.HIGH):
-    return Request(id, id, skedge, priority)
 
 
 def found(dataset, *requests):
@@ -140,3 +137,12 @@ def test_a_date_or_block_that_is_not_there_holds_nothing(dataset):
 )
 def test_an_invalid_request_conflicts_with_nothing(dataset, skedge):
     assert found(dataset, req("bad", skedge), req("free", FREE)) == ()
+
+
+def test_a_slot_nobody_could_be_assigned_to_is_not_a_conflict(dataset):
+    """`Dataset.holds` decides what a slot is, so a block someone rests through is not one."""
+    from dataclasses import replace
+
+    resting = replace(dataset, resting={TARGET: {"dylan": frozenset({"clinic_1"})}})
+    assert found(dataset, req("pin", PIN), req("free", FREE))  # the same pair, not resting
+    assert found(resting, req("pin", PIN), req("free", FREE)) == ()

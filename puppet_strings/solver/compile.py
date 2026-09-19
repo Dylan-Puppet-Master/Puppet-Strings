@@ -42,6 +42,7 @@ from puppet_strings.skedge.resolve import (
     Requirement,
     Resolved,
     Score,
+    is_prefer,
 )
 from puppet_strings.solver.variables import Literal, Slot, Variables
 
@@ -173,8 +174,8 @@ class Compiler:
         self._bindings, self._shared = copy.bindings, {}
         tier = Priority.CLINIC if request.priority.hard else request.priority
         applies = self._applies(copy.condition, name)
-        wanted = [st for st in copy.statements if _is_prefer(st)]
-        required = [st for st in copy.statements if not _is_prefer(st)]
+        wanted = [st for st in copy.statements if is_prefer(st)]
+        required = [st for st in copy.statements if not is_prefer(st)]
         if required:
             # first, so that a preference can be about what the requirements chose, and so
             # that `_collapse` sees only the constraints the requirements posted
@@ -1044,11 +1045,6 @@ def _negate(literal: Literal) -> Literal:
 
 def _minute(a: Assignment) -> int:
     return a.start.hour * 60 + a.start.minute
-
-
-def _is_prefer(statement) -> bool:
-    """Whether a statement asks for something rather than requiring it."""
-    return isinstance(statement, Score) or (isinstance(statement, Count) and statement.prefer)
 
 
 def _dates_of(statement) -> tuple[date, ...]:

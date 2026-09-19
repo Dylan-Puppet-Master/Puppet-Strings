@@ -123,16 +123,19 @@ def _forbid_claims(statement: Forbid, request: Request, dataset: Dataset):
 
 
 def _slots(staff_ids, dates, blocks, dataset: Dataset, claim: Claim):
-    """The claim, once per person, date and block it reaches that the calendar really has."""
+    """The claim, once per slot it reaches that could hold an assignment at all.
+
+    `Dataset.holds` is the same question the solver asks before it makes a variable, so a
+    slot nothing can be put in — the block is not on that day, or the person is resting
+    through it — is not a slot two requests can disagree over.
+    """
     for day in dates:
         if day not in dataset.calendar:
             continue
-        on_day = [b.id for b in dataset.blocks_on(day)]
-        for block in blocks if blocks is not None else on_day:
-            if block not in on_day:
-                continue
+        for block in blocks if blocks is not None else [b.id for b in dataset.blocks_on(day)]:
             for staff_id in staff_ids:
-                yield (staff_id, day, block), claim
+                if dataset.holds(staff_id, day, block):
+                    yield (staff_id, day, block), claim
 
 
 def _forced(choice: Choice) -> bool:

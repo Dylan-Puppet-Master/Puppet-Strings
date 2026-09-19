@@ -4,12 +4,13 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QFont
 from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem
 
+from puppet_strings.app import palette
 from puppet_strings.app.conflicts import Conflict
 from puppet_strings.model import Request
 
-CLASH = QColor("#b00020")
-SLOT = QColor("#fdeef0")  # the heading's own background, so a group reads as one thing
-REASON = QColor("#6b6b6b")
+CLASH = QColor(palette.BAD)
+SLOT = QColor(palette.CLASH)  # the heading's own background, so a group reads as one thing
+REASON = QColor(palette.QUIET)
 
 
 class ConflictsPane(QTreeWidget):

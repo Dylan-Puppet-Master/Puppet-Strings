@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from puppet_strings.app import palette
 from puppet_strings.app.groups import same_group
 from puppet_strings.model import WRITABLE_PRIORITIES, Dataset, Priority, Request
 from puppet_strings.names import normalize
@@ -43,12 +44,15 @@ class SkedgeHighlighter(QSyntaxHighlighter):
         self.rules = [
             (
                 QRegularExpression(r"\b(" + KEYWORDS + r")\b"),
-                _format("#1f4e9c", bold=True),
+                _format(palette.KEYWORD, bold=True),
             ),
-            (QRegularExpression(r"\b[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+"), _format("#1b6f3b")),
-            (QRegularExpression(r"'[^']*'"), _format("#8a4b08")),
-            (QRegularExpression(r"\b\d{4}-\d{2}-\d{2}\b|\b\d+(\.\d+)?[mhd]\b"), _format("#6a2c8f")),
-            (QRegularExpression(r"#[^\n]*"), _format("#808080", italic=True)),
+            (QRegularExpression(r"\b[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+"), _format(palette.NAME)),
+            (QRegularExpression(r"'[^']*'"), _format(palette.STRING)),
+            (
+                QRegularExpression(r"\b\d{4}-\d{2}-\d{2}\b|\b\d+(\.\d+)?[mhd]\b"),
+                _format(palette.NUMBER),
+            ),
+            (QRegularExpression(r"#[^\n]*"), _format(palette.COMMENT, italic=True)),
         ]
 
     def highlightBlock(self, text: str) -> None:  # noqa: N802
@@ -306,7 +310,11 @@ class RequestEditor(QWidget):
         self.skedge_edit.setFocus()
 
     # what the line under the editor says, and what it means: valid, broken, or in hand
-    COLORS = {True: "color: #1b6f3b", False: "color: #b00020", None: "color: #6b6b6b"}
+    COLORS = {
+        True: f"color: {palette.GOOD}",
+        False: f"color: {palette.BAD}",
+        None: f"color: {palette.QUIET}",
+    }
 
     def _report(self, message: str, ok: bool | None) -> bool:
         """Say how the request stands. `ok` of None is neither: a note, with Save left alone."""

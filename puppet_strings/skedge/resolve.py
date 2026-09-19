@@ -124,6 +124,17 @@ class Condition:
 Statement = Requirement | Forbid | Count | Score
 
 
+def is_prefer(statement) -> bool:
+    """Whether a statement asks for something rather than requiring it.
+
+    True of a `PREFER` in either form, written (`ast.Score`, `ast.Count`) or resolved, so
+    that the validator and the compiler decide what a preference is the same way.
+    """
+    scores = (Score, ast.Score)
+    counts = (Count, ast.Count)
+    return isinstance(statement, scores) or (isinstance(statement, counts) and statement.prefer)
+
+
 @dataclass(frozen=True)
 class Resolved:
     """One expanded copy of a declaration. `key` names the EACH_OF items it was made for."""

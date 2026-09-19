@@ -20,7 +20,7 @@ from puppet_strings.app.store import RequestStore  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
 from puppet_strings.model import DEFAULT_GROUPS  # noqa: E402
 from puppet_strings.sheets.source import CsvSource  # noqa: E402
-from tests.conftest import FIXTURES, TARGET  # noqa: E402
+from tests.conftest import TARGET  # noqa: E402
 
 
 def test_group_names_ignore_case_and_spacing():
@@ -30,18 +30,15 @@ def test_group_names_ignore_case_and_spacing():
     assert not same_group("Ropes", "Ropes rewrite")
 
 
-def store(tmp_path):
-    import shutil
-
-    copy = tmp_path / "fixtures"
-    shutil.copytree(FIXTURES, copy)
-    loaded = RequestStore(CsvSource(copy), Config())
+def store(fixtures_copy):
+    """A store on a writable copy of the fixtures, loaded for the target date."""
+    loaded = RequestStore(CsvSource(fixtures_copy), Config())
     loaded.load(TARGET)
     return loaded
 
 
-def test_groups_start_with_the_defaults_and_keep_an_empty_one(tmp_path):
-    s = store(tmp_path)
+def test_groups_start_with_the_defaults_and_keep_an_empty_one(fixtures_copy):
+    s = store(fixtures_copy)
     assert s.groups == list(DEFAULT_GROUPS)
     assert s.add_group("  Ropes   rewrite ") == "Ropes rewrite"
     assert s.groups == [*DEFAULT_GROUPS, "Ropes rewrite"]
@@ -51,16 +48,16 @@ def test_groups_start_with_the_defaults_and_keep_an_empty_one(tmp_path):
     assert s.groups == [*DEFAULT_GROUPS, "Ropes rewrite"]
 
 
-def test_groups_made_of_requests_are_sorted_after_the_defaults(tmp_path):
-    s = store(tmp_path)
+def test_groups_made_of_requests_are_sorted_after_the_defaults(fixtures_copy):
+    s = store(fixtures_copy)
     s.set_group(["breaks"], "Zebra", member=True)
     s.set_group(["breaks"], "apple", member=True)
     assert s.groups == [*DEFAULT_GROUPS, "apple", "Zebra"]
     assert s.count("Zebra") == 1 and s.count("apple") == 1
 
 
-def test_a_request_keeps_its_other_groups(tmp_path):
-    s = store(tmp_path)
+def test_a_request_keeps_its_other_groups(fixtures_copy):
+    s = store(fixtures_copy)
     s.set_group(["breaks"], "Ropes rewrite", member=True)
     breaks = next(r for r in s.requests if r.id == "breaks")
     assert breaks.groups == ("Special daily requests", "Ropes rewrite")
@@ -68,8 +65,8 @@ def test_a_request_keeps_its_other_groups(tmp_path):
     assert next(r for r in s.requests if r.id == "breaks").groups == ("Special daily requests",)
 
 
-def test_renaming_and_deleting_a_group_rewrite_the_sheet(tmp_path):
-    s = store(tmp_path)
+def test_renaming_and_deleting_a_group_rewrite_the_sheet(fixtures_copy):
+    s = store(fixtures_copy)
     s.set_group(["breaks", "counselor-hours"], "Ropes rewrite", member=True)
     assert s.rename_group("Ropes rewrite", "Ropes") == "Ropes"
     assert s.rename_group("Ropes", "Special daily requests") == ""  # a name already taken
@@ -83,10 +80,10 @@ def test_renaming_and_deleting_a_group_rewrite_the_sheet(tmp_path):
     assert all("Ropes" not in r.groups for r in s.requests)
 
 
-def test_a_request_saved_with_groups_and_a_requester_round_trips(tmp_path):
+def test_a_request_saved_with_groups_and_a_requester_round_trips(fixtures_copy):
     from dataclasses import replace
 
-    s = store(tmp_path)
+    s = store(fixtures_copy)
     original = next(r for r in s.requests if r.id == "breaks")
     s.save(replace(original, groups=("Special daily requests",), requester="rob"), "breaks")
     again = RequestStore(s.source, s.config)

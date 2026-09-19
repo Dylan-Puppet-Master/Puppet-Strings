@@ -291,17 +291,28 @@ class MainWindow(QMainWindow):
         moved = "into" if member else "out of"
         self.status_label.setText(f"  Moved {len(ids)} request(s) {moved} {group}")
 
-    def _groups_changed(self) -> None:
-        """Groups moved: the pane's counts, the editor's ticks and the table all follow."""
+    def _requests_changed(self) -> tuple:
+        """The requests moved: the table, both panes and the filters all follow.
+
+        Every way of changing them — saving, deleting, regrouping, loading the offerings —
+        ends here, so none of them can forget a pane. Returns the conflicts found, which is
+        what a caller that has just saved something wants to know about.
+        """
         self.model.refresh()
         self.groups.refresh()
-        self.refresh_conflicts()
         self.editor.set_dataset(self.store.dataset, self.store.groups)
+        self._fill_combo(self.tag_filter, "any tag", self.store.tags)
+        found = self.refresh_conflicts()
+        self.apply_filters()
+        return found
+
+    def _groups_changed(self) -> None:
+        """As above, and the editor shows the request again so its ticks catch up."""
+        self._requests_changed()
         if self.editor.original_id:
             current = self.model.request(self.editor.original_id)
             if current is not None:
                 self.editor.show_request(current)
-        self.apply_filters()
 
     @property
     def target(self) -> date:
@@ -426,10 +437,7 @@ class MainWindow(QMainWindow):
             count = self.store.load_offerings()
         finally:
             self.end_progress()
-        self.model.refresh()
-        self.groups.refresh()
-        self.refresh_conflicts()
-        self._fill_combo(self.tag_filter, "any tag", self.store.tags)
+        self._requests_changed()
         self.status_label.setText(f"  Loaded {count} offerings for {self.target}")
 
     def insert_date(self, day: date) -> None:
@@ -502,11 +510,7 @@ class MainWindow(QMainWindow):
             saved = self.store.save(request, original_id)
         finally:
             QApplication.restoreOverrideCursor()
-        self.model.refresh()
-        self.groups.refresh()
-        self.editor.set_dataset(self.store.dataset, self.store.groups)
-        self._fill_combo(self.tag_filter, "any tag", self.store.tags)
-        found = self.refresh_conflicts()
+        found = self._requests_changed()
         clashes = [c for c in found if saved.id in c.requests]
         note = f"; it conflicts with {len(clashes)} other request(s)" if clashes else ""
         self.editor.saved_as(saved, note)  # last, so nothing else overwrites the confirmation
@@ -541,9 +545,7 @@ class MainWindow(QMainWindow):
 
     def _deleted(self, request_id: str) -> None:
         self.store.delete(request_id)
-        self.model.refresh()
-        self.groups.refresh()
-        self.refresh_conflicts()
+        self._requests_changed()
         self.status_label.setText(f"  Deleted {request_id}")
 
     @staticmethod

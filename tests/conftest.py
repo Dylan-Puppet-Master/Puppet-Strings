@@ -1,3 +1,4 @@
+import shutil
 from datetime import date
 from pathlib import Path
 
@@ -19,3 +20,11 @@ def source() -> CsvSource:
 @pytest.fixture
 def dataset(source):
     return load_dataset(source, Config(), TARGET)
+
+
+@pytest.fixture
+def fixtures_copy(tmp_path) -> Path:
+    """A copy of the fixture sheets that a test may write to."""
+    copy = tmp_path / "fixtures"
+    shutil.copytree(FIXTURES, copy)
+    return copy

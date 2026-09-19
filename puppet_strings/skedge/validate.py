@@ -8,7 +8,7 @@ resolver, which needs the dataset.
 from puppet_strings.model import Dataset, Request
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.parser import parse
-from puppet_strings.skedge.resolve import Resolved, resolve
+from puppet_strings.skedge.resolve import Resolved, is_prefer, resolve
 
 CLAUSE_NAMES = {
     ast.During: "DURING",
@@ -41,7 +41,7 @@ def check(declaration: ast.Declaration, hard: bool) -> None:
     conditions = declaration.conditions
     if len(conditions) > 1:
         raise _error("only one IF or UNLESS per declaration", conditions[1].pos)
-    prefers = [s for s in statements if _is_prefer(s)]
+    prefers = [s for s in statements if is_prefer(s)]
     if prefers and hard:
         raise _error(
             "PREFER needs a priority it can be weighed at, so not MUST_HAPPEN", prefers[0].pos
@@ -50,12 +50,6 @@ def check(declaration: ast.Declaration, hard: bool) -> None:
         _check_line(line)
     _check_labels(declaration)
     _check_variables(declaration)
-
-
-def _is_prefer(statement: ast.Statement) -> bool:
-    return isinstance(statement, ast.Score) or (
-        isinstance(statement, ast.Count) and statement.prefer
-    )
 
 
 def _check_line(line: ast.Line) -> None:

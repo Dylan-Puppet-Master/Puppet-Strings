@@ -164,7 +164,8 @@ def solve_tiers(
         model.Add(expression >= scores[tier])
 
     if placement:
-        seconds = min(tidy, deadline.remaining) if deadline.remaining else tidy
+        # what was held back for it, or whatever is left if a tier overran its allowance
+        seconds = min(tidy, deadline.remaining)
         values, placed = _minimize(model, solver, sum(placement), values, assignments, seconds)
         cancel.check()
         if not placed:

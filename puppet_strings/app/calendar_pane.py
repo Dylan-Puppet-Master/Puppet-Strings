@@ -12,9 +12,10 @@ from PySide6.QtCore import QDate, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPalette, QTextCharFormat
 from PySide6.QtWidgets import QCalendarWidget, QStyledItemDelegate, QTableView
 
+from puppet_strings.app import palette
 from puppet_strings.model import Dataset
 
-CAMP_DAY = QColor("#d6efe6")
+CAMP_DAY = QColor(palette.CAMP_DAY)
 ROWS = range(1, 7)  # row 0 of the grid holds the weekday names
 
 
