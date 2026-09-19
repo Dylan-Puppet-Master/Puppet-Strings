@@ -64,6 +64,38 @@ class Drive:
         found = self._files(f"'{folder_id}' in parents and mimeType = '{SHEET_MIME}'")
         return sorted(found, key=lambda f: f.name.lower())
 
+    def child(self, parent: str, name: str, mime: str) -> DriveFile | None:
+        """One named child of a folder, or None. Names in Drive are not unique; the first wins."""
+        quoted = name.replace("\\", "\\\\").replace("'", "\\'")
+        found = self._files(f"'{parent}' in parents and name = '{quoted}' and mimeType = '{mime}'")
+        return found[0] if found else None
+
+    def folder(self, parent: str, name: str) -> DriveFile:
+        """A named folder inside another, made if it is not there yet."""
+        found = self.child(parent, name, FOLDER_MIME)
+        if found is not None:
+            return found
+        return self._make(parent, name, FOLDER_MIME)
+
+    def spreadsheet(self, parent: str, name: str) -> DriveFile:
+        """A named spreadsheet inside a folder, made if it is not there yet."""
+        found = self.child(parent, name, SHEET_MIME)
+        if found is not None:
+            return found
+        return self._make(parent, name, SHEET_MIME)
+
+    def _make(self, parent: str, name: str, mime: str) -> DriveFile:
+        """Create one thing in a folder."""
+        response = self.session.post(
+            FILES,
+            params={"fields": "id, name, mimeType", "supportsAllDrives": "true"},
+            json={"name": name, "mimeType": mime, "parents": [parent]},
+            timeout=30,
+        )
+        if not response.ok:
+            raise DriveError(f"Drive: could not make '{name}': {response.text[:200]}")
+        return _file(response.json())
+
     def file(self, file_id: str) -> DriveFile | None:
         """One file's name and kind, or None if it is gone or not shared with the account."""
         response = self.session.get(

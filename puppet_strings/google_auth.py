@@ -16,11 +16,14 @@ existing install keeps running until it is switched over.
 import json
 from pathlib import Path
 
-# Reading and writing the sheets, listing Drive to browse it, and the address of whoever
-# signed in, so the Configure pane can say which account is in use.
+# Reading and writing the sheets, browsing Drive, making the schedule folders and the day
+# spreadsheets inside them, and the address of whoever signed in so the Configure pane can
+# say which account is in use. `drive.file` covers only what Puppet Strings makes or is
+# given, which is why browsing needs `drive.metadata.readonly` beside it.
 SCOPES = (
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive.metadata.readonly",
+    "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/userinfo.email",
     "openid",
 )

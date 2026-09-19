@@ -15,6 +15,8 @@ from typing import Protocol
 Table = list[list[str]]
 
 MAX_PARALLEL = 8  # requests in flight at once; Google starts refusing well above this
+DEFAULT_TAB = "Sheet1"  # what Google calls the one tab a new spreadsheet comes with
+FOLDER_MIME = "application/vnd.google-apps.folder"
 
 _DRIVE_ID = re.compile(r"^[A-Za-z0-9_-]{20,}$")
 
@@ -78,6 +80,15 @@ class Source(Protocol):
     def read_group(self, folder: str, tab: str) -> dict[str, Table]:
         """One tab of every spreadsheet in a folder, by spreadsheet title."""
 
+    def read_all(self, sheets: dict[str, str], tab: str) -> dict[str, Table]:
+        """One tab of each of these spreadsheets, by the title each came under."""
+
+    def documents(self, root: str, path: tuple[str, ...]) -> dict[str, str]:
+        """Spreadsheets in `root/<path>`: title -> a name `read` accepts. Missing folder: {}."""
+
+    def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
+        """Make a spreadsheet with these tabs at `root/<path>`, and the folders above it."""
+
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Replace a tab's contents, creating the tab if needed."""
 
@@ -120,6 +131,25 @@ class CsvSource:
     def read_group(self, folder: str, tab: str) -> dict[str, Table]:
         """That tab of each spreadsheet in the folder."""
         return {title: self.read(name, tab) for title, name in self.group(folder).items()}
+
+    def read_all(self, sheets: dict[str, str], tab: str) -> dict[str, Table]:
+        """That tab of each of these spreadsheets."""
+        return {title: self.read(name, tab) for title, name in sheets.items()}
+
+    def documents(self, root: str, path: tuple[str, ...]) -> dict[str, str]:
+        """Sub-folders of `<root>/<path>`, each a spreadsheet of CSV files."""
+        inside = "/".join((root, *path))
+        return self.group(inside)
+
+    def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
+        """Make the folders and an empty CSV file per tab."""
+        name = "/".join((root, *path, title))
+        for tab in tabs:
+            path_of = self.root / name / f"{tab}.csv"
+            if not path_of.exists():
+                self.write(name, tab, [])
+        (self.root / name).mkdir(parents=True, exist_ok=True)
+        return name
 
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Write one CSV file."""
@@ -187,12 +217,67 @@ class SheetsSource:
         A season is a couple of dozen sheets and a request each would take the best part of
         a minute, so they go out together and wait in parallel.
         """
-        sheets = self.group(folder)
+        return self.read_all(self.group(folder), tab)
+
+    def read_all(self, sheets: dict[str, str], tab: str) -> dict[str, Table]:
+        """That tab of each of these spreadsheets, in parallel, by the title they came under."""
         if not sheets:
             return {}
         with ThreadPoolExecutor(max_workers=min(len(sheets), MAX_PARALLEL)) as pool:
             tables = pool.map(lambda key: self.read(key, tab), sheets.values())
             return dict(zip(sheets, tables, strict=True))
+
+    def documents(self, root: str, path: tuple[str, ...]) -> dict[str, str]:
+        """Spreadsheets in `root/<path>`, by title. A folder that is not there holds nothing."""
+        folder = self._walk(root, path, make=False)
+        if folder is None:
+            return {}
+        return {f.name: f.id for f in self.drive.spreadsheets(folder)}
+
+    def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
+        """Make a spreadsheet with these tabs at `root/<path>`, and the folders above it.
+
+        A spreadsheet already there is left alone apart from the tabs it is missing, so this
+        is safe to call on a day that has been published for a week.
+        """
+        folder = self._walk(root, path, make=True)
+        sheet = self.drive.spreadsheet(folder, title)
+        self._open[sheet.id] = self.client.open_by_key(sheet.id)
+        self._tabs.pop(sheet.id, None)
+        for tab in tabs:
+            if tab not in self.tabs(sheet.id):
+                self._spreadsheet(sheet.id).add_worksheet(tab, rows=100, cols=26)
+                self._tabs.pop(sheet.id, None)
+        self._drop_first_sheet(sheet.id, tabs)
+        return sheet.id
+
+    def _drop_first_sheet(self, key: str, tabs: list[str]) -> None:
+        """Remove the empty `Sheet1` Google gives a new spreadsheet, once it has real tabs."""
+        import gspread
+
+        if not tabs:
+            return
+        try:
+            spare = self._spreadsheet(key).worksheet(DEFAULT_TAB)
+        except gspread.WorksheetNotFound:
+            return
+        self._spreadsheet(key).del_worksheet(spare)
+        self._tabs.pop(key, None)
+
+    def _walk(self, root: str, path: tuple[str, ...], make: bool) -> str | None:
+        """The folder id at `root/<path>`, made on the way down when `make`."""
+        if root not in self.folder_ids:
+            raise LoadError(f"{root}: no folder chosen; pick one in Configure")
+        here = self.folder_ids[root]
+        for name in path:
+            if make:
+                here = self.drive.folder(here, name).id
+                continue
+            found = self.drive.child(here, name, FOLDER_MIME)
+            if found is None:
+                return None
+            here = found.id
+        return here
 
     def tabs(self, sheet: str) -> list[str]:
         """Worksheet titles, fetched once per spreadsheet."""
