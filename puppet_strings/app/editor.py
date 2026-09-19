@@ -26,6 +26,7 @@ from puppet_strings.app import palette
 from puppet_strings.app.groups import same_group
 from puppet_strings.model import WRITABLE_PRIORITIES, Dataset, Priority, Request
 from puppet_strings.names import normalize
+from puppet_strings.sheets.requests import request_tabs, special_tab
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
@@ -179,6 +180,9 @@ class RequestEditor(QWidget):
         self.weight_box.setValue(1)
         self.tags_edit = QLineEdit()
         self.tags_edit.setPlaceholderText("comma-separated")
+        # Which tab of the Requests sheet it is written on, which is also which loads read
+        # it: this span's Special tab unless it is something that holds all season.
+        self.home_box = QComboBox()
         self.groups_edit = GroupsEdit()
         self.requester_edit = QLineEdit()
         self.requester_edit.setPlaceholderText("who asked for this; a staff name")
@@ -202,6 +206,7 @@ class RequestEditor(QWidget):
         form.addRow("priority", self.priority_box)
         form.addRow("weight", self.weight_box)
         form.addRow("tags", self.tags_edit)
+        form.addRow("on tab", self.home_box)
         form.addRow("groups", self.groups_edit)
         form.addRow("requester", self.requester_edit)
         form.addRow("created", self.created_label)
@@ -231,6 +236,7 @@ class RequestEditor(QWidget):
     def set_dataset(self, dataset: Dataset | None, groups: list[str] | None = None) -> None:
         """Names are validated and suggested against this dataset; groups fill the checklist."""
         self.dataset = dataset
+        self._fill_homes(request_tabs(dataset.this_span) if dataset else ())
         self.groups = list(groups or [])
         self.groups_edit.show_groups(self.groups, self.groups_edit.ticked())
         self.requester_names.setStringList(sorted(dataset.staff) if dataset else [])
@@ -246,8 +252,24 @@ class RequestEditor(QWidget):
         self.skedge_edit.set_names(names)
         self.validate()
 
+    def _fill_homes(self, tabs: tuple[str, ...], keep: str = "") -> None:
+        """Offer the tabs of the span being scheduled, plus whichever one `keep` names.
+
+        A request read from another span's tab — one looked at after the date was moved —
+        keeps its own tab in the list, so opening it does not quietly propose moving it.
+        """
+        chosen = keep or self.home_box.currentText()
+        if not chosen and self.dataset is not None:
+            chosen = special_tab(self.dataset.this_span)
+        self.home_box.blockSignals(True)
+        self.home_box.clear()
+        self.home_box.addItems([t for t in tabs if t != chosen] + ([chosen] if chosen else []))
+        self.home_box.setCurrentText(chosen)
+        self.home_box.blockSignals(False)
+
     def show_request(self, request: Request) -> None:
         """Load a request into the fields."""
+        self._fill_homes(request_tabs(self.dataset.this_span) if self.dataset else (), request.home)
         self.original_id = request.id
         self.id_label.setText(request.id)
         self.description_edit.setText(request.description)
@@ -262,7 +284,10 @@ class RequestEditor(QWidget):
         self.validate()
 
     def clear(self) -> None:
-        """Start a new request."""
+        """Start a new request, on this span's Special tab until it is said to be otherwise."""
+        self._fill_homes(request_tabs(self.dataset.this_span) if self.dataset else ())
+        if self.dataset is not None:
+            self.home_box.setCurrentText(special_tab(self.dataset.this_span))
         self.original_id = None
         self.id_label.setText("(assigned on save)")
         self.description_edit.clear()
@@ -290,6 +315,7 @@ class RequestEditor(QWidget):
             groups=self.groups_edit.ticked(),
             requester=normalize(self.requester_edit.text()),
             created=date.fromisoformat(created) if created else None,
+            home=self.home_box.currentText(),
         )
 
     def validate(self) -> bool:

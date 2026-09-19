@@ -9,7 +9,11 @@ from puppet_strings.sheets.calendar import calendar_days, parse_calendar
 from puppet_strings.sheets.clinic_data import parse_clinics
 from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import assignment_rows, parse_published
-from puppet_strings.sheets.requests import parse_requests, request_rows
+from puppet_strings.sheets.requests import (
+    parse_request_tabs,
+    parse_requests,
+    request_rows,
+)
 from puppet_strings.sheets.skills import (
     ClinicPositions,
     known_skills,
@@ -200,21 +204,25 @@ def test_blocks(source):
 
 
 def test_requests_round_trip(source):
-    table = source.read("config", "Requests")
-    requests = parse_requests(table)
+    """Every tab a load reads, in the order it reads them: the season's, then the span's."""
+    tabs = ["Season Requests", "S1 Clinics"]
+    requests = parse_request_tabs({tab: source.read("requests", tab) for tab in tabs})
+    assert {r.home for r in requests} == set(tabs)
     assert requests[0].id == "counselor-hours"
     assert requests[0].weight == 1.0
     assert requests[3].weight == 0.5
     assert requests[0].created == date(2026, 9, 1)
     assert requests[0].tags == ("legal", "counselors")
     assert requests[2].tags == ()
-    assert requests[-1].tags == ("cabin act",)
-    assert requests[-2].tags == ("generated",)
+    by_id = {r.id: r for r in requests}
+    assert by_id["cabin-acts"].tags == ("cabin act",)
+    assert requests[-1].tags == ("generated",)  # the Clinics tab is read after the season's
     assert requests[0].groups == ("Special daily requests",)
     assert requests[-1].groups == ()  # generated clinic requests are in no group
     assert requests[0].requester == "lucy"
     assert requests[1].requester == ""
-    assert parse_requests(request_rows(requests)) == requests
+    season = tuple(r for r in requests if r.home == "Season Requests")
+    assert parse_requests(request_rows(season), "Season Requests") == season
 
 
 def test_requests_read_a_sheet_written_before_groups_existed():

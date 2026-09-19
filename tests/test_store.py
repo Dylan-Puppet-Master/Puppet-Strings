@@ -71,7 +71,7 @@ def test_renaming_and_deleting_a_group_rewrite_the_sheet(fixtures_copy):
     assert s.rename_group("Ropes rewrite", "Ropes") == "Ropes"
     assert s.rename_group("Ropes", "Special daily requests") == ""  # a name already taken
     assert s.rename_group("Ropes", " ") == ""
-    written = s.source.read("config", "Requests")
+    written = s.source.read("requests", "Season Requests")
     column = written[0].index("groups")
     row = next(r for r in written if r[0] == "breaks")
     assert row[column] == "Special daily requests, Ropes"

@@ -96,7 +96,7 @@ def test_editor_validation_and_save(window):
     editor.save_button.click()
     assert window.model.rowCount() == 32
     assert editor.id_label.text() == "dylan-s-day-off"
-    saved = window.store.source.read("config", "Requests")
+    saved = window.store.source.read("requests", "S1 Special")  # a new request is this span's
     row = next(r for r in saved if r[0] == "dylan-s-day-off")
     assert row[saved[0].index("tags")] == "training, week 2"
     assert "week 2" in window.store.tags
@@ -274,7 +274,7 @@ def test_load_offerings_mirrors_the_offerings_tab(window):
 def test_reload_picks_up_a_row_deleted_on_the_sheet(window):
     import csv
 
-    path = window.store.source.root / "config" / "Requests.csv"
+    path = window.store.source.root / "requests" / "Season Requests.csv"
     index = window.proxy.index(0, 0)
     window.table.selectionModel().setCurrentIndex(index, QItemSelectionModel.SelectCurrent)
     shown = window.editor.original_id
@@ -295,7 +295,7 @@ def test_solve_uses_requests_saved_since_the_last_reload(app, tmp_path):
 
     copy = tmp_path / "fresh"
     shutil.copytree(FIXTURES, copy)
-    path = copy / "config" / "Requests.csv"
+    path = copy / "requests" / "S1 Clinics.csv"
     with path.open(newline="") as f:
         rows = [r for r in csv.reader(f) if "generated" not in r]
     with path.open("w", newline="") as f:
@@ -500,7 +500,7 @@ def test_making_a_group_and_putting_requests_in_it(window, monkeypatch):
     window._set_group(["dylan-off-ropes", "breaks"], "Ropes rewrite", member=True)
     assert group_rows(window)["Ropes rewrite"] == 2
     assert visible_ids(window) == {"dylan-off-ropes", "breaks"}
-    saved = window.store.source.read("config", "Requests")
+    saved = window.store.source.read("requests", "Season Requests")
     row = next(r for r in saved if r[0] == "dylan-off-ropes")
     assert row[saved[0].index("groups")] == "Special weekly requests, Ropes rewrite"
     window._set_group(["breaks"], "Ropes rewrite", member=False)
@@ -570,7 +570,7 @@ def test_requester_completes_and_is_checked(window):
     editor.requester_edit.setText("rob")
     assert editor.validate()
     editor.save_button.click()
-    saved = window.store.source.read("config", "Requests")
+    saved = window.store.source.read("requests", "Season Requests")
     row = next(r for r in saved if r[0] == "dylan-off-ropes")
     assert row[saved[0].index("requester")] == "rob"
 

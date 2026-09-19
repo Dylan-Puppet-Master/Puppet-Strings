@@ -1,4 +1,4 @@
-"""Turn the Offerings tab into requests on the Requests sheet.
+"""Turn the Offerings tab into requests on the span's Clinics tab.
 
 Each offered clinic instance becomes a CLINIC request tagged GENERATED_TAG, so the Puppet
 Master can see, edit or delete it before solving. The request names the clinic and when,
@@ -8,7 +8,7 @@ said `ANY_1_OF staff.all` as well would be saying it twice. The clinic runs full
 not at all, because filling one position of an instance fills them all
 (`solver.structural`), which is what lets the request stop at naming it.
 
-Loading again first removes every generated request for that date, so the Requests sheet
+Loading again first removes every generated request for that date, so the Clinics tab
 mirrors the Offerings tab.
 """
 
@@ -19,8 +19,12 @@ from puppet_strings.model import Dataset, Priority, Request
 GENERATED_TAG = "generated"
 
 
-def generated_requests(dataset: Dataset) -> list[Request]:
-    """One CLINIC request per offering, for the dataset's target date."""
+def generated_requests(dataset: Dataset, home: str = "") -> list[Request]:
+    """One CLINIC request per offering, for the dataset's target date.
+
+    `home` is the tab they are written to — the span's Clinics tab, which is what keeps
+    them off the tabs the Puppet Master writes by hand and out of other sessions' loads.
+    """
     target = dataset.target.isoformat()
     requests = []
     for offering in dataset.offerings:
@@ -36,6 +40,7 @@ def generated_requests(dataset: Dataset) -> list[Request]:
                 priority=Priority.CLINIC,
                 tags=(GENERATED_TAG,),
                 created=dataset.target,
+                home=home,
             )
         )
     return requests

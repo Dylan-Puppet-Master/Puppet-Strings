@@ -1,13 +1,4 @@
 id,description,skedge,priority,weight,tags,groups,requester,created
-counselor-hours,Counselors get a morning and an afternoon counselor hour,"EACH_OF c IN staff.counselor
-morning:   REQUEST c DO 'counselor hour' FOR 1h DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}
-afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING ANY_1_OF {blocks.playstation + blocks.clinic_3}
-GAP morning TO afternoon AT_MOST 5h",MUST_HAPPEN,,"legal, counselors",Special daily requests,lucy,2026-09-01
-breaks,"Non-directors, non-counselors take three 30-minute breaks",REQUEST EACH_OF {staff.all - staff.director - staff.counselor} DO 'break' FOR 30m DURING ANY_3_OF blocks.all,MUST_HAPPEN,,legal,Special daily requests,,2026-09-01
-clinic-preference,Staff run clinics they prefer,"PREFER EACH_OF s IN staff.all DOING EACH_OF c IN activities.clinics.all MAXIMIZE metrics.preference(s, c)",MEDIUM,1,,Special weekly requests,,2026-09-01
-clinic-variety,Do not repeat a clinic within a week,PREFER AT_MOST 1 EACH_OF staff.all DOING EACH_OF activities.clinics.all ON {(dates.target - 6d) .. dates.target},MEDIUM,0.5,variety,Special weekly requests,,2026-09-01
-playstation-availability,Free as many non-directors as possible for playstation,REQUEST EACH_OF {staff.all - staff.director} FREE DURING blocks.playstation,HIGH,1,,Special daily requests,,2026-09-01
-dylan-off-ropes,Dylan stays off ropes this week,REQUEST staff.dylan NOT DO activities.clinics.ropes ON {2026-09-14 .. 2026-09-18},MUST_HAPPEN,,pin,Special weekly requests,dylan,2026-09-13
 offering:2026-09-16:archery_1_2:clinic_1,Archery 1 & 2 in clinic_1,REQUEST ANY_1_OF staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
 offering:2026-09-16:gravity_zip_line:clinic_1,Gravity Zip Line in clinic_1,REQUEST ANY_1_OF staff.all DO activities.clinics.gravity_zip_line DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
 offering:2026-09-16:lvl_2_on_ground:clinic_1,Lvl. 2 on Ground in clinic_1,REQUEST ANY_1_OF staff.all DO activities.clinics.lvl_2_on_ground DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
@@ -32,4 +23,3 @@ offering:2026-09-16:secret_pool:clinic_4,Secret Pool in clinic_4,REQUEST ANY_1_O
 offering:2026-09-16:ceramics_wheel:clinic_4,Ceramics Wheel in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.ceramics_wheel DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
 offering:2026-09-16:craft_fairy:clinic_4,Craft Fairy in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.craft_fairy DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
 offering:2026-09-16:salsa:clinic_4,Salsa in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.salsa DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-cabin-acts,Every cabin act is staffed by the heroes its cabin asked for,REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act,CLINIC,,cabin act,,,2026-09-16

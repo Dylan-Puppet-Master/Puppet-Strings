@@ -24,6 +24,7 @@ SHEET_ROLES = {
     "clinic_schedule": "clinic_schedule",
     "skills": "skills",
     "config": "config",
+    "requests": "requests",
 }
 FOLDER_MIME = "application/vnd.google-apps.folder"
 
@@ -104,6 +105,13 @@ class Source(Protocol):
     def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
         """Make a spreadsheet with these tabs at `root/<path>`, and the folders above it."""
 
+    def name(self, role: str, key: str) -> None:
+        """Let a role stand for a spreadsheet for the rest of the run, as `discover` does.
+
+        It is what a spreadsheet just made is reached by: `create` returns the thing itself,
+        and every reader asks for the role.
+        """
+
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Replace a tab's contents, creating the tab if needed."""
 
@@ -114,19 +122,28 @@ class Source(Protocol):
 class CsvSource:
     """Tables stored as `<root>/<sheet>/<tab>.csv`."""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, names: dict[str, str] | None = None) -> None:
         self.root = Path(root)
+        self.names = dict(names or {})  # a role -> the folder standing in for its spreadsheet
+
+    def folder(self, sheet: str) -> Path:
+        """Where a spreadsheet's tabs are, by role or by path."""
+        return self.root / self.names.get(sheet, sheet)
+
+    def name(self, role: str, key: str) -> None:
+        """Point a role at a folder, as `discover` points one at a Drive id."""
+        self.names[role] = key
 
     def tabs(self, sheet: str) -> list[str]:
         """Tab names, from the CSV file names."""
-        folder = self.root / sheet
+        folder = self.folder(sheet)
         if not folder.is_dir():
             raise LoadError(f"{sheet}: no folder {folder}")
         return sorted(p.stem for p in folder.glob("*.csv"))
 
     def read(self, sheet: str, tab: str) -> Table:
         """Rows of one CSV file."""
-        path = self.root / sheet / f"{tab}.csv"
+        path = self.folder(sheet) / f"{tab}.csv"
         if not path.exists():
             raise LoadError(f"{sheet}: no tab '{tab}' ({path} missing)")
         with path.open(newline="", encoding="utf-8") as f:
@@ -174,7 +191,7 @@ class CsvSource:
 
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Write one CSV file."""
-        path = self.root / sheet / f"{tab}.csv"
+        path = self.folder(sheet) / f"{tab}.csv"
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerows(table)
@@ -283,6 +300,10 @@ class SheetsSource:
                 if role is not None:
                     found[role] = key
         self.sheet_ids = {**self.sheet_ids, **found}  # what is in the tree is the truth
+
+    def name(self, role: str, key: str) -> None:
+        """Point a role at a Drive id, as `discover` does from the names in the tree."""
+        self.sheet_ids = {**self.sheet_ids, role: key}
 
     def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
         """Make a spreadsheet with these tabs at `root/<path>`, and the folders above it.

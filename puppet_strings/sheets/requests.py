@@ -1,9 +1,42 @@
-"""Requests: one row per request, one column per field."""
+"""Requests: their own spreadsheet, one row per request, one tab per session.
 
-from puppet_strings.model import WRITABLE_PRIORITIES, Priority, Request
+They used to be a tab of the Config sheet, and that one tab held every request the season
+had ever made, which meant reading the whole season to schedule one day: the generated
+clinic requests alone are one row per clinic per block per day, and by August there were
+thousands of them nobody would ever look at again.
+
+They are now a spreadsheet of their own — `Requests`, beside Config and Skills in the
+Puppet Strings folder, found by its name like the rest. Its tabs are these, and a load
+reads three of them:
+
+    Season Requests   what holds all season or crosses sessions: the legal limits, the
+                      standing agreements, anything written for more than one session
+    S1 Clinics        the clinic requests Load offerings writes for session 1's days
+    S1 Special        what was asked for session 1 in particular
+
+A span that is not a numbered session is labelled by its own name instead of `S1`, so a
+`Staff Week` row on the Calendar sheet gets `Staff Week Clinics` and `Staff Week Special`.
+
+Which tab a request lives on is its `home`, and it is read off the tab it came from. A
+request written in the app goes to its session's Special tab unless it is said to hold all
+season, and a generated one goes to the session's Clinics tab, where the next Load
+offerings can throw it away without touching anything written by hand.
+"""
+
+import re
+from datetime import date
+
+from puppet_strings.generate import GENERATED_TAG
+from puppet_strings.model import WRITABLE_PRIORITIES, Priority, Request, Span
 from puppet_strings.names import normalize
 from puppet_strings.sheets.calendar import parse_date
-from puppet_strings.sheets.source import LoadError, Table, header_rows, split_list
+from puppet_strings.sheets.source import LoadError, Source, Table, header_rows, split_list
+
+REQUESTS_SHEET = "requests"  # the role the Requests spreadsheet is read under
+REQUESTS_TITLE = "Requests"  # what it is called in the Puppet Strings folder
+SEASON_TAB = "Season Requests"  # the one tab every span's load reads
+CLINICS_SUFFIX = " Clinics"
+SPECIAL_SUFFIX = " Special"
 
 COLUMNS = (
     "id",
@@ -21,12 +54,73 @@ OPTIONAL = ("tags", "groups", "requester")
 REQUIRED = tuple(c for c in COLUMNS if c not in OPTIONAL)
 
 
-def parse_requests(table: Table) -> tuple[Request, ...]:
-    """Requests in sheet order. Checks fields, not Skedge (see skedge.validate)."""
-    where = "Requests"
+def span_label(span: Span) -> str:
+    """What a span's own tabs are called after: `S4` for a session, else the span's name."""
+    return f"S{span.session}" if span.session is not None else span.name
+
+
+def clinics_tab(span: Span) -> str:
+    """The tab holding the span's generated clinic requests."""
+    return f"{span_label(span)}{CLINICS_SUFFIX}"
+
+
+def special_tab(span: Span) -> str:
+    """The tab holding what was asked for this span in particular."""
+    return f"{span_label(span)}{SPECIAL_SUFFIX}"
+
+
+def request_tabs(span: Span) -> tuple[str, ...]:
+    """The three tabs a load of a day in this span reads."""
+    return (SEASON_TAB, clinics_tab(span), special_tab(span))
+
+
+def read_requests(source: Source, span: Span) -> tuple[tuple[Request, ...], list[str]]:
+    """The requests in play for a day of `span`, and anything worth saying about the read.
+
+    A missing tab is not an error: a session nobody has written a special request for yet
+    simply has no Special tab, and a write makes one when there is something to put in it.
+    A missing spreadsheet is, because a season with no requests at all is far more likely
+    to be a sheet nobody has split yet than a season nobody has asked anything of.
+    """
+    have = set(_tabs(source))
+    wanted = [tab for tab in request_tabs(span) if tab in have]
+    warnings: list[str] = []
+    if SEASON_TAB not in have:
+        warnings.append(f"{REQUESTS_TITLE}: no '{SEASON_TAB}' tab, so nothing holds all season")
+    tables = source.read_many(REQUESTS_SHEET, wanted)
+    return parse_request_tabs({tab: tables[tab] for tab in wanted}), warnings
+
+
+def _tabs(source: Source) -> list[str]:
+    """The Requests spreadsheet's tabs, or a LoadError saying how to get one."""
+    try:
+        return source.tabs(REQUESTS_SHEET)
+    except LoadError as e:
+        raise LoadError(
+            f"{REQUESTS_TITLE}: no '{REQUESTS_TITLE}' spreadsheet in the Puppet Strings folder. "
+            "`puppet-strings split-requests` makes one from the Config sheet's Requests tab, "
+            f"a tab per session ({e})"
+        ) from e
+
+
+def parse_request_tabs(tables: dict[str, Table]) -> tuple[Request, ...]:
+    """Requests from several tabs at once, in tab order. Ids must be unique across them all."""
+    requests: list[Request] = []
+    ids: set[str] = set()
+    for tab, table in tables.items():
+        requests += parse_requests(table, tab, ids)
+    return tuple(requests)
+
+
+def parse_requests(table: Table, where: str = "Requests", ids: set[str] | None = None):
+    """One tab's requests in sheet order. Checks fields, not Skedge (see skedge.validate).
+
+    `ids` is the ids already taken by the tabs read before this one; it is added to, so a
+    request that appears on two tabs is caught rather than quietly shadowing the other.
+    """
     rows = header_rows(table, REQUIRED, where)
     requests = []
-    ids = set()
+    ids = set() if ids is None else ids
     for row in rows:
         cell = f"{where} row '{row['id']}'"
         if not row["id"]:
@@ -54,9 +148,61 @@ def parse_requests(table: Table) -> tuple[Request, ...]:
                 groups=tuple(split_list(row.get("groups", ""))),
                 requester=normalize(row.get("requester", "")),
                 created=created,
+                home=where,
             )
         )
     return tuple(requests)
+
+
+def home_for(request: Request, span: Span) -> str:
+    """Which tab a request belongs on: the one it names, or the one its kind implies."""
+    if request.home:
+        return request.home
+    return clinics_tab(span) if GENERATED_TAG in request.tags else special_tab(span)
+
+
+def write_requests(source: Source, requests: tuple[Request, ...], held: set[str]) -> None:
+    """Write every request to the tab it calls home, and empty the tabs nothing is left on.
+
+    `held` is the tabs the requests were read from. One of them going empty — the last
+    special request of a session deleted, say — has to be written as an empty tab rather
+    than left alone, or the next load reads back what was just removed.
+    """
+    by_tab: dict[str, list[Request]] = {tab: [] for tab in held}
+    for request in requests:
+        by_tab.setdefault(request.home or SEASON_TAB, []).append(request)
+    for tab, rows in by_tab.items():
+        source.write(REQUESTS_SHEET, tab, request_rows(tuple(rows)))
+
+
+# A generated request's id says the date it was made for: `offering:2026-09-16:riflery:...`
+_GENERATED_ID = re.compile(r"^offering:(\d{4}-\d{2}-\d{2}):")
+
+
+def split_requests(source: Source, root: str, legacy: str, spans, year: int) -> dict[str, int]:
+    """Make the Requests spreadsheet out of the old tab. Returns rows written per tab.
+
+    A generated request goes to the Clinics tab of the span holding the date in its id.
+    Everything else goes to Season Requests, which every load reads: a hand-written request
+    put on the wrong session's tab would quietly stop applying, and nobody would see it go.
+    Moving one to a session's Special tab afterwards is a cut and paste, and the app writes
+    new ones there itself.
+
+    The Config sheet's old tab is left exactly as it was, so this can be run twice, and a
+    season that turns out to have been split wrong can be split again.
+    """
+    by_date = {day: span for span in spans for day in span.dates}
+    requests = parse_requests(source.read("config", legacy), legacy)
+    by_tab: dict[str, list[Request]] = {SEASON_TAB: []}
+    for request in requests:
+        match = _GENERATED_ID.match(request.id)
+        span = by_date.get(date.fromisoformat(match.group(1))) if match else None
+        tab = clinics_tab(span) if span is not None else SEASON_TAB
+        by_tab.setdefault(tab, []).append(request)
+    source.name(REQUESTS_SHEET, source.create(root, (str(year),), REQUESTS_TITLE, [SEASON_TAB]))
+    for tab, rows in by_tab.items():
+        source.write(REQUESTS_SHEET, tab, request_rows(tuple(rows)))
+    return {tab: len(rows) for tab, rows in by_tab.items()}
 
 
 def request_rows(requests: tuple[Request, ...]) -> Table:

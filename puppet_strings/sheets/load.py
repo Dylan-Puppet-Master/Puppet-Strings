@@ -17,7 +17,7 @@ from puppet_strings.sheets.categories import parse_staff_categories
 from puppet_strings.sheets.clinic_data import parse_clinics
 from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import parse_published
-from puppet_strings.sheets.requests import parse_requests
+from puppet_strings.sheets.requests import read_requests
 from puppet_strings.sheets.schedules import (
     ROOT,
     STAFF_CATEGORIES,
@@ -70,7 +70,9 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
 def _config_tables(source: Source, config: Config) -> dict:
     """Every tab of the config spreadsheet that is read, in one request."""
     tabs = config.tabs
-    wanted = [tabs["blocks"], tabs["calendar"], tabs["requests"], tabs["metrics"]]
+    # The requests are not here: which of their tabs to read depends on the span the
+    # target falls in, which the Calendar in this very batch is what says.
+    wanted = [tabs["blocks"], tabs["calendar"], tabs["metrics"]]
     if tabs["adjustments"] in source.tabs("config"):
         wanted.append(tabs["adjustments"])  # the tab is optional
     return source.read_many("config", wanted)
@@ -179,7 +181,8 @@ def _build(
             f"{'/'.join(span_path(span))}: no '{today}' sheet yet, so nothing is offered; "
             "Load offerings makes one"
         )
-    requests = parse_requests(config_tables[tabs["requests"]])
+    requests, request_warnings = read_requests(source, span)
+    warnings += request_warnings
 
     # Only the clinics have categories; a cabin act is found by its cabin, not by a heading.
     clinic_categories = {a.category for a in clinics.values()}

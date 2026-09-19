@@ -1,4 +1,4 @@
-"""The app's copy of the requests, loaded from and saved to the Requests sheet."""
+"""The app's copy of the requests, loaded from and saved to the Requests tabs."""
 
 from dataclasses import replace
 from datetime import date
@@ -13,7 +13,7 @@ from puppet_strings.names import normalize
 from puppet_strings.publish.writer import day_sheet
 from puppet_strings.sheets.adjustments import adjustment_rows
 from puppet_strings.sheets.load import load_dataset
-from puppet_strings.sheets.requests import request_rows
+from puppet_strings.sheets.requests import clinics_tab, home_for, write_requests
 from puppet_strings.sheets.source import CsvSource, Source
 
 CONFIG_SHEET = "config"
@@ -42,6 +42,7 @@ class RequestStore:
         # A group lives on the requests in it, so one just made holds nothing yet and would
         # vanish on the next read. These keep it in the pane until something joins it.
         self.empty_groups: list[str] = []
+        self.held: set[str] = set()  # the Requests tabs the load read, home or not
 
     @property
     def fixtures(self) -> bool:
@@ -61,6 +62,8 @@ class RequestStore:
         """Read every sheet for a target date. Raises LoadError."""
         self.dataset = load_dataset(self.source, self.config, target)
         self.requests = list(self.dataset.requests)
+        # the tabs this load came off, so one emptied by a deletion is written empty
+        self.held = {r.home for r in self.requests if r.home}
         self.facets, self.resolved = {}, {}
         for request in self.requests:
             self._index(request)
@@ -77,11 +80,13 @@ class RequestStore:
         return find_conflicts(self.requests, self.resolved, self.dataset)
 
     def save(self, request: Request, original_id: str | None) -> Request:
-        """Add or replace a request and write the whole Requests tab.
+        """Add or replace a request and write the tabs it and its neighbours live on.
 
-        A request without an id gets one made from its description. Returns the request
-        as saved.
+        A request without an id gets one made from its description, and one that names no
+        tab goes to this span's Special tab — or its Clinics tab, if it was generated.
+        Returns the request as saved.
         """
+        request = replace(request, home=home_for(request, self.dataset.this_span))
         ids = [r.id for r in self.requests]
         if original_id in ids:
             request = replace(request, id=original_id)
@@ -102,7 +107,7 @@ class RequestStore:
         ready rather than a folder to go and build by hand.
         """
         day_sheet(self.source, self.config, self.dataset.this_span, self.dataset.target)
-        generated = generated_requests(self.dataset)
+        generated = generated_requests(self.dataset, home=clinics_tab(self.dataset.this_span))
         self.requests = merge(self.requests, generated, self.dataset.target)
         self._reindex(generated)
         self._write()
@@ -242,5 +247,6 @@ class RequestStore:
         self._write()
 
     def _write(self) -> None:
-        tab = self.config.tabs["requests"]
-        self.source.write(CONFIG_SHEET, tab, request_rows(tuple(self.requests)))
+        """Write each request to the tab it calls home, and empty any tab left with none."""
+        self.held |= {r.home for r in self.requests if r.home}
+        write_requests(self.source, tuple(self.requests), self.held)

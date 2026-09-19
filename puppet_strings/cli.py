@@ -12,8 +12,10 @@ from puppet_strings.model import Dataset
 from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
 from puppet_strings.publish.writer import day_sheet, is_published, publish
 from puppet_strings.session import open_source
+from puppet_strings.sheets.calendar import parse_calendar
 from puppet_strings.sheets.load import load_dataset
-from puppet_strings.sheets.requests import request_rows
+from puppet_strings.sheets.requests import clinics_tab, split_requests, write_requests
+from puppet_strings.sheets.schedules import ROOT
 from puppet_strings.sheets.source import CsvSource, LoadError, Source, Table
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.resolve import name_listing
@@ -37,6 +39,9 @@ def main(argv: list[str] | None = None) -> int:
         "load-offerings", help="add the Offerings tab's clinics to the Requests sheet"
     )
     commands.add_parser("names", help="list every valid Skedge name")
+    commands.add_parser(
+        "split-requests", help="divide the one old Requests tab into a tab per session"
+    )
     solve_parser = commands.add_parser("solve", help="build the schedule for the target date")
     solve_parser.add_argument("--publish", action="store_true", help="write to Published Schedules")
     solve_parser.add_argument(
@@ -70,6 +75,8 @@ def _run(args, config: Config, target: date) -> int:
     source = open_source(config, args.fixtures)
     if args.command == "export-fixtures":
         return _export(source, args.folder)
+    if args.command == "split-requests":
+        return _split_requests(source, config, target.year)
     dataset = load_dataset(source, config, target)
     for warning in dataset.warnings:
         print(f"warning: {warning}")
@@ -87,6 +94,22 @@ def _run(args, config: Config, target: date) -> int:
     for adjustment in dataset.today_adjustments:
         print(f"today: {adjustment.describe(dataset.staff[adjustment.staff].name)}")
     return _solve(source, config, dataset, args)
+
+
+def _split_requests(source: Source, config: Config, year: int) -> int:
+    """Divide the one old Requests tab, without loading anything else first.
+
+    A season big enough to need splitting is a season a full load is slow on, and the old
+    tab may hold requests for sessions that are over; only the Calendar is needed to say
+    which date belongs to which span.
+    """
+    source.discover(ROOT, year)
+    spans = parse_calendar(source.read("config", config.tabs["calendar"]), config.date_order)
+    written = split_requests(source, ROOT, config.tabs["requests"], spans, year)
+    for tab, rows in written.items():
+        print(f"{tab}: {rows} requests")
+    print(f"{config.tabs['requests']} is left as it was; delete it once the new tabs look right")
+    return 0
 
 
 def _export(source: Source, folder: Path) -> int:
@@ -108,10 +131,12 @@ def _names(dataset: Dataset) -> int:
 
 def _load_offerings(source: Source, config: Config, dataset: Dataset) -> int:
     day_sheet(source, config, dataset.this_span, dataset.target)  # made if it is not there yet
-    generated = generated_requests(dataset)
+    clinics = clinics_tab(dataset.this_span)
+    generated = generated_requests(dataset, home=clinics)
     merged = merge(list(dataset.requests), generated, dataset.target)
-    source.write("config", config.tabs["requests"], request_rows(tuple(merged)))
-    print(f"loaded {len(generated)} offerings for {dataset.target} into the Requests sheet")
+    held = {r.home for r in merged if r.home} | {clinics}
+    write_requests(source, tuple(merged), held)
+    print(f"loaded {len(generated)} offerings for {dataset.target} into the {clinics} tab")
     return 0
 
 

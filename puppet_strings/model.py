@@ -341,10 +341,14 @@ WRITABLE_PRIORITIES = tuple(p for p in Priority if p is not Priority.STABILITY)
 
 @dataclass(frozen=True)
 class Request:
-    """One row of the Requests sheet.
+    """One row of a Requests tab.
 
     `groups` are the panes of the request manager a request shows up in; a request may be
     in several or in none. `requester` is the staff id of whoever asked for it, or "".
+
+    `home` is the tab it is written on and was read from — a session's Clinics or Special
+    tab, or the season's. It is not a column: the tab a row sits on is what says it, which
+    is why moving a request between sessions is a cut and paste on the sheet.
     """
 
     id: str
@@ -356,6 +360,7 @@ class Request:
     groups: tuple[str, ...] = ()
     requester: str = ""
     created: date | None = None
+    home: str = ""
 
 
 @dataclass(frozen=True)
