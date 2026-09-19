@@ -8,8 +8,8 @@ the side and weekdays across the top, each weekday four columns wide:
     row 2  a weekday merged over its four columns, then spare "Extra" columns
     row 4+ one block of rows per cabin, the cabin merged down column A
 
-Inside a cabin's block each weekday holds a label column and a value column beside it, so
-`Activity`, `Location` and `HEROES` are read by their labels rather than by counting rows.
+Inside a cabin's block each weekday holds two label columns, each with its value beside it,
+so `Activity`, `Location` and `HEROES` are read by their labels rather than by counting rows.
 Merged cells carry their value in the top-left cell only, which is why a cabin name or a
 weekday appears once and holds until the next one.
 
@@ -41,6 +41,7 @@ HEROES = "heroes"
 CABIN_ACT_CATEGORY = "cabin_act"
 CABIN_ACT_BLOCK = "cabin_act"  # the Blocks sheet's own name for the slot they run in
 MIN_RAL = 1  # a cabin act asks for people by name or skill, never by risk level
+LABEL_PAIRS = 2  # a weekday is four columns: two labels, each with its value beside it
 
 # Cabin acts are scheduled Monday to Friday; the grid's spare "Extra" columns head no day.
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday")
@@ -62,6 +63,7 @@ class CabinAct:
     weekday: str
     activity: str
     heroes: tuple[str, ...]
+    card: tuple[tuple[str, str], ...] = ()  # every label on the card and what it says
 
 
 def parse_title(title: str, where: str) -> tuple[int, int]:
@@ -86,20 +88,30 @@ def parse_board(table: Table, where: str) -> tuple[CabinAct, ...]:
     days = _weekday_columns(table[DAY_ROW], where)
     acts = []
     cabin = ""
-    fields: dict[tuple[str, str], dict[str, str]] = {}
+    cards: dict[tuple[str, str], dict[str, str]] = {}
     for cells in table[FIRST_CABIN_ROW:]:
         name = _cell(cells, CABIN_COLUMN)
         cabin = name or cabin  # the cabin is merged down its block, so it holds
         if not cabin:
             continue
         for column, weekday in days:
-            label = normalize(_cell(cells, column))
-            if label in (ACTIVITY, HEROES):
-                fields.setdefault((cabin, weekday), {})[label] = _cell(cells, column + 1)
-    for (name, weekday), written in fields.items():
+            for pair in range(0, LABEL_PAIRS * 2, 2):
+                label = _cell(cells, column + pair)
+                if label:
+                    cards.setdefault((cabin, weekday), {})[label] = _cell(cells, column + pair + 1)
+    for (name, weekday), card in cards.items():
+        written = {normalize(label): value for label, value in card.items()}
         heroes = tuple(split_list(written.get(HEROES, "")))
-        if heroes:  # an act nobody is asked for needs no request
-            acts.append(CabinAct(name, weekday, written.get(ACTIVITY, ""), heroes))
+        if heroes:  # an act nobody is asked for needs nobody scheduled
+            acts.append(
+                CabinAct(
+                    name,
+                    weekday,
+                    written.get(ACTIVITY, ""),
+                    heroes,
+                    tuple((label, value) for label, value in card.items() if value),
+                )
+            )
     return tuple(acts)
 
 
@@ -193,6 +205,7 @@ def _activity(
             positions=tuple(positions),
             cabin=act.cabin,
             day=day,
+            card=act.card,
         ),
         warnings,
     )

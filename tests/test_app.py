@@ -190,7 +190,7 @@ def test_completer_follows_the_loaded_dataset(app, tmp_path):
     assert completions(window.editor) == ["staff.cam_vl"]
 
 
-def test_names_panel_lists_namespaces(window):
+def test_namespaces_panel_lists_namespaces(window):
     names = window.names
     assert [names.topLevelItem(i).text(0) for i in range(names.topLevelItemCount())] == [
         "staff",
@@ -211,7 +211,7 @@ def child(item, text):
     return next(item.child(i) for i in range(item.childCount()) if item.child(i).text(0) == text)
 
 
-def test_names_panel_nests_dotted_names(window):
+def test_namespaces_panel_nests_dotted_names(window):
     dates = next(
         window.names.topLevelItem(i)
         for i in range(window.names.topLevelItemCount())
@@ -225,9 +225,11 @@ def test_names_panel_nests_dotted_names(window):
     monday = child(week, "dates.session.one.second_week.monday")
     assert monday.text(1) == "2026-09-21 (Monday)"
     window.editor.clear()
-    window.names.itemDoubleClicked.emit(session, 0)  # not a name: nothing is inserted
+    window.names.setCurrentItem(session)  # not a name: nothing is inserted
+    window.names._pick_current()
     assert window.editor.skedge_edit.toPlainText() == ""
-    window.names.itemDoubleClicked.emit(monday, 0)
+    window.names.setCurrentItem(monday)
+    window.names._pick_current()
     assert window.editor.skedge_edit.toPlainText() == "dates.session.one.second_week.monday"
 
 
@@ -834,3 +836,46 @@ def test_an_offerings_load_that_fails_says_so(window, monkeypatch):
     window.wait_for_offerings()
     assert shown == ["Offerings: no tab"]
     assert window.progress is None
+
+
+class FakeDialog:
+    """Stands in for a popup: records what it was given and is closed at once."""
+
+    def __init__(self, opened, value):
+        opened.append(value)
+
+    def exec(self):
+        return 0
+
+
+def test_double_clicking_a_name_opens_what_it_stands_for(window, monkeypatch):
+    from puppet_strings.app import main as main_module
+
+    shown = []
+    monkeypatch.setattr(
+        main_module, "DetailsDialog", lambda found, parent: FakeDialog(shown, found)
+    )
+    staff_top = next(
+        window.names.topLevelItem(i)
+        for i in range(window.names.topLevelItemCount())
+        if window.names.topLevelItem(i).text(0) == "staff"
+    )
+    dylan = child(staff_top, "staff.dylan")
+    window.names.itemDoubleClicked.emit(dylan, 0)
+    assert shown and shown[0].subtitle == "Dylan, RAL 5"
+
+
+def test_double_clicking_a_metric_opens_its_table(window, monkeypatch):
+    from puppet_strings.app import main as main_module
+
+    opened = []
+    monkeypatch.setattr(
+        main_module, "MetricDialog", lambda *args, **kwargs: FakeDialog(opened, args[2])
+    )
+    metrics = next(
+        window.names.topLevelItem(i)
+        for i in range(window.names.topLevelItemCount())
+        if window.names.topLevelItem(i).text(0) == "metrics"
+    )
+    window.names.itemDoubleClicked.emit(child(metrics, "metrics.preference"), 0)
+    assert opened == ["preference"]

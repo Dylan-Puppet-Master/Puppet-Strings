@@ -166,6 +166,8 @@ class Activity:
     # neither and can run on any day it is offered.
     cabin: str = ""
     day: date | None = None
+    # What the cabin act board wrote on the card, label by label, for the app to show.
+    card: tuple[tuple[str, str], ...] = ()
 
     def position(self, role: str) -> Position | None:
         """The position with this role, if any."""

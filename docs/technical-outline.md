@@ -314,7 +314,7 @@ puppet_strings/
     ├── main.py          # window, menu, solve/publish actions
     ├── request_table.py # model + proxy filters (date, priority, staff, activity, scope)
     ├── editor.py        # Skedge editor, highlighter, live validation
-    └── names_panel.py   # browsable list of valid names
+    └── namespaces_panel.py # browsable tree of valid names
 
 tests/
 ├── fixtures/            # CSV export of each tab, trimmed to ~15 staff and ~25 clinics

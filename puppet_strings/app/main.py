@@ -31,11 +31,13 @@ from puppet_strings.app.calendar_pane import SessionCalendar
 from puppet_strings.app.configure import ConfigureDialog
 from puppet_strings.app.conflicts import summary
 from puppet_strings.app.conflicts_panel import ConflictsPane
+from puppet_strings.app.details import details, is_metric
+from puppet_strings.app.details_dialog import DetailsDialog, MetricDialog
 from puppet_strings.app.editor import RequestEditor
 from puppet_strings.app.facets import facets
 from puppet_strings.app.groups import ALL, same_group
 from puppet_strings.app.groups_panel import GroupsPane
-from puppet_strings.app.names_panel import NamesPanel
+from puppet_strings.app.namespaces_panel import NamespacesPanel
 from puppet_strings.app.requests_model import RequestFilter, RequestsModel
 from puppet_strings.app.same_day import SICKNESS, SLEEP, SameDayDialog
 from puppet_strings.app.schedule_dialog import ScheduleDialog
@@ -194,8 +196,9 @@ class MainWindow(QMainWindow):
         self.editor = RequestEditor()
         self.editor.saved.connect(self._saved)
         self.editor.deleted.connect(self._deleted)
-        self.names = NamesPanel()
+        self.names = NamespacesPanel()
         self.names.picked.connect(self.editor.insert_name)
+        self.names.inspected.connect(self.inspect_name)
         self.calendar = SessionCalendar()
         self.calendar.picked.connect(self.insert_date)
         self.groups = GroupsPane(store)
@@ -222,7 +225,7 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(1, 4)
         splitter.setStretchFactor(2, 3)
         self.setCentralWidget(splitter)
-        names_dock = QDockWidget("Names", self)
+        names_dock = QDockWidget("Namespaces", self)
         names_dock.setWidget(self.names)
         self.addDockWidget(Qt.RightDockWidgetArea, names_dock)
         calendar_dock = QDockWidget("Calendar: click a date to insert it", self)
@@ -540,6 +543,17 @@ class MainWindow(QMainWindow):
 
     def _offerings_finished(self) -> None:
         self.offerings = None
+
+    def inspect_name(self, name: str) -> None:
+        """Open a name from the Namespaces pane: its metric table, or what it stands for."""
+        if self.store.dataset is None:
+            return
+        if is_metric(name):
+            MetricDialog(self.store.source, self.store.config, name.split(".")[-1], self).exec()
+            return
+        found = details(name, self.store.dataset)
+        if found is not None:
+            DetailsDialog(found, self).exec()
 
     def insert_date(self, day: date) -> None:
         """Put a clicked calendar date into the Skedge editor at the cursor."""

@@ -1,27 +1,36 @@
-"""A tree of every valid Skedge name, by namespace. Double-click inserts into the editor.
+"""A tree of every valid Skedge name, by namespace.
 
 Names nest on their dots, so `dates.session.four.second_week.monday` is five levels deep
 rather than one line among hundreds. A node that is a name in its own right — `dates.session.four`
-is a name as well as a parent — carries what it stands for beside it and can be inserted;
-a node that is only a step on the way to one, such as `dates.session`, cannot.
+is a name as well as a parent — carries what it stands for beside it; a node that is only a
+step on the way to one, such as `dates.session`, does not.
+
+Double-click opens a name to see what it stands for, which is the question the one-line
+note cannot answer. Enter, or the right-click menu, puts it into the request being edited.
 """
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem
+from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtWidgets import QMenu, QTreeWidget, QTreeWidgetItem
 
 from puppet_strings.model import Dataset
 from puppet_strings.skedge.resolve import name_listing
 
 
-class NamesPanel(QTreeWidget):
+class NamespacesPanel(QTreeWidget):
     """Namespaces as top-level items; names beneath, with the sheet value alongside."""
 
-    picked = Signal(str)
+    picked = Signal(str)  # put this name into the request being edited
+    inspected = Signal(str)  # show what this name stands for
 
     def __init__(self) -> None:
         super().__init__()
         self.setHeaderLabels(["name", "sheet value"])
-        self.itemDoubleClicked.connect(self._pick)
+        self.itemDoubleClicked.connect(self._inspect)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._menu)
+        for key in ("Return", "Enter"):
+            QShortcut(QKeySequence(key), self, self._pick_current)
         # the names get longer the deeper they go, so the column follows what is open
         self.itemExpanded.connect(lambda _: self.resizeColumnToContents(0))
         self.itemCollapsed.connect(lambda _: self.resizeColumnToContents(0))
@@ -53,7 +62,26 @@ class NamesPanel(QTreeWidget):
                 nodes[prefix] = node
         return nodes[name]
 
-    def _pick(self, item: QTreeWidgetItem, column: int) -> None:
+    @property
+    def current_name(self) -> str:
+        """The name highlighted, or "" when the highlight is only a step on the way to one."""
+        item = self.currentItem()
+        return (item.data(0, Qt.UserRole) or "") if item is not None else ""
+
+    def _inspect(self, item: QTreeWidgetItem, column: int) -> None:
         name = item.data(0, Qt.UserRole)
         if name:
-            self.picked.emit(name)
+            self.inspected.emit(name)
+
+    def _pick_current(self) -> None:
+        if self.current_name:
+            self.picked.emit(self.current_name)
+
+    def _menu(self, point) -> None:
+        name = self.current_name
+        if not name:
+            return
+        menu = QMenu(self)
+        menu.addAction("Insert into the request", self._pick_current)
+        menu.addAction("Show what it stands for", lambda: self.inspected.emit(name))
+        menu.exec(self.viewport().mapToGlobal(point))

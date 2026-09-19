@@ -135,9 +135,23 @@ list of names appears and narrows as you keep typing.
 name, Escape closes the list. The names offered are exactly the ones the validator
 accepts, so anything the list gives you is spelled right.
 
-**Names.** The panel on the right lists every valid name with what it stands for: a staff
-member's name, how many members a category has, a block's times, a date. Double-click one
-to insert it at the cursor.
+**Namespaces.** The panel on the right lists every valid name with a one-line note: a staff
+member's name, how many members a category has, a block's times, a date. Press Enter, or
+right-click, to insert the highlighted name at the cursor.
+
+**Double-click a name to open it**, which answers what the one-line note cannot:
+
+| Name | What opens |
+|---|---|
+| A staff member | What they are checked off on, and every category they are in |
+| A staff category | Its members |
+| A clinic | What each position asks for, and everyone on the sheets who could hold it |
+| A cabin act | The same, for the day being scheduled, plus what the cabin act board wrote on its card. A cabin with nothing on that day says which days it does have |
+| A metric | Its table of ratings, which you can **edit**; Save writes it back to the metric tab |
+| A date or a role | Nothing. A date's note is the date and a role is a word |
+
+Opening an activity is worth the habit now that a request for one names nobody: it is where
+you check that the people you expect are the people it can have.
 
 **Calendar.** Below the names, a calendar with camp days (the dates on the Calendar sheet)
 shaded. Down its left-hand side, each week is labelled with the session and week it is,

@@ -1,0 +1,117 @@
+"""What a name in the Namespaces pane opens."""
+
+import os
+from datetime import date
+
+import pytest
+
+from puppet_strings.app.details import details, is_metric
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+
+def rows(found, heading):
+    return dict(next(s for s in found.sections if s.heading == heading).rows)
+
+
+def test_a_staff_member_shows_their_skills_and_categories(dataset):
+    found = details("staff.dylan", dataset)
+    assert found.subtitle == "Dylan, RAL 5"
+    assert rows(found, "Checked off on")["archery_1_2"] == "checked off"
+    assert "staff.counselor" in rows(found, "In these categories")
+    assert "staff.director" not in rows(found, "In these categories")
+
+
+def test_a_staff_category_shows_its_members(dataset):
+    found = details("staff.counselor", dataset)
+    assert found.subtitle == "3 working today"
+    assert set(rows(found, "Members")) == {"Dylan", "James", "Paul"}
+
+
+def test_a_clinic_shows_what_each_position_asks_for_and_who_could_hold_it(dataset):
+    found = details("activities.clinics.canoe_1_2", dataset)
+    asks = rows(found, "It asks for")
+    assert asks["first: canoe at RAL 5"] == "Alesa"
+    assert asks["lifeguard: lifeguard at RAL 5"] == "Alesa, Vic"
+
+
+def test_a_cabin_act_shows_the_day_being_scheduled_and_its_card(dataset):
+    found = details("activities.cabin_acts.m2", dataset)
+    assert found.subtitle == "M2 Fort Building on 2026-09-16"
+    asks = rows(found, "It asks for")
+    assert asks["first: Vic"] == "Vic"  # asked for by name, so nobody else will do
+    assert asks["second: Low Ropes"] == "Lisa, Vic"  # asked for by skill
+    assert asks["third: Village HERO"] == "Audrey, Mogee"  # asked for by category
+    assert rows(found, "On the cabin act board")["Activity"] == "Fort Building"
+
+
+def test_a_cabin_with_nothing_on_today_says_which_days_it_has(dataset):
+    found = details("activities.cabin_acts.p4", dataset)
+    assert found.subtitle == "nothing on 2026-09-16"
+    assert rows(found, "It does have these days") == {"2026-09-18": "P4 Tea Party"}
+
+
+def test_a_set_of_activities_lists_them(dataset):
+    found = details("activities.cabin_acts.all", dataset)
+    assert found.subtitle == "4 activities"
+    assert rows(found, "It holds")["M1 Lake Day"] == "2026-09-14"
+
+
+@pytest.mark.parametrize("name", ["dates.target", "dates.session.one", "roles.first"])
+def test_dates_and_roles_open_nothing(dataset, name):
+    assert details(name, dataset) is None
+
+
+def test_a_metric_opens_its_table_instead(dataset):
+    assert is_metric("metrics.preference")
+    assert not is_metric("staff.dylan")
+    assert details("metrics.preference", dataset) is None
+
+
+def test_the_metric_table_is_edited_and_written_back(fixtures_copy):
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication, QTableWidgetItem
+
+    from puppet_strings.app.details_dialog import MetricDialog
+    from puppet_strings.config import Config
+    from puppet_strings.sheets.source import CsvSource
+
+    QApplication.instance() or QApplication([])
+    source = CsvSource(fixtures_copy)
+    dialog = MetricDialog(source, Config(), "preference")
+    assert dialog.header == ["staff", "activity", "value"]
+    before = len(source.read("config", "metric_preference"))
+    last = len([r for r in dialog.rows() if any(r)])
+    for column, text in enumerate(("Dylan", "Riflery", "5")):
+        dialog.grid.setItem(last - 1, column, QTableWidgetItem(text))
+    dialog.save()
+    written = source.read("config", "metric_preference")
+    assert written[0] == ["staff", "activity", "value"]
+    assert written[-1] == ["Dylan", "Riflery", "5"]
+    assert len(written) == before + 1
+
+
+def test_the_metric_table_keeps_what_it_was_given(fixtures_copy):
+    """Saving without editing rewrites the tab unchanged, blank rows dropped."""
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication
+
+    from puppet_strings.app.details_dialog import MetricDialog
+    from puppet_strings.config import Config
+    from puppet_strings.sheets.source import CsvSource
+
+    QApplication.instance() or QApplication([])
+    source = CsvSource(fixtures_copy)
+    before = source.read("config", "metric_preference")
+    MetricDialog(source, Config(), "preference").save()
+    assert source.read("config", "metric_preference") == before
+
+
+def test_the_target_date_is_what_a_cabin_act_is_shown_for(source):
+    from puppet_strings.config import Config
+    from puppet_strings.sheets.load import load_dataset
+
+    friday = load_dataset(source, Config(), date(2026, 9, 18))
+    found = details("activities.cabin_acts.p4", friday)
+    assert found.subtitle == "P4 Tea Party on 2026-09-18"
+    assert rows(found, "It asks for")["first: Sarah"] == "Sarah"
