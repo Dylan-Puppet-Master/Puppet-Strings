@@ -13,6 +13,7 @@ from PySide6.QtGui import QTextCursor  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox  # noqa: E402
 
+from puppet_strings.app import palette  # noqa: E402
 from puppet_strings.app.calendar_pane import ROWS  # noqa: E402
 from puppet_strings.app.groups import ALL, DEFAULT_GROUPS, UNGROUPED  # noqa: E402
 from puppet_strings.app.main import MainWindow  # noqa: E402
@@ -243,7 +244,8 @@ def test_calendar_click_inserts_a_date(window):
     assert window.editor.skedge_edit.toPlainText() == "ON 2026-09-18"
     assert window.calendar.minimumDate() < QDate(2000, 1, 1)  # any date can be picked
     assert (
-        window.calendar.dateTextFormat(QDate(2026, 9, 13)).background().color().name() == "#d6efe6"
+        window.calendar.dateTextFormat(QDate(2026, 9, 13)).background().color().name()
+        == palette.CAMP_DAY
     )
     assert window.calendar.dateTextFormat(QDate(2026, 10, 30)).background().style() == Qt.NoBrush
     window.calendar.clicked.emit(QDate(2026, 10, 2))
@@ -901,3 +903,13 @@ def test_a_date_off_the_calendar_asks_for_another_one(window, monkeypatch):
     window.reload()
     window.wait_for_load()
     assert "Loaded" in window.status_label.text()
+
+
+def test_the_on_date_filter_follows_the_target_date(window):
+    """It starts on the target and moves with it; moving it back leaves the target alone."""
+    assert window.date_filter.date() == window.date_edit.date()
+    window.date_edit.setDate(QDate(2026, 9, 18))
+    assert window.date_filter.date() == QDate(2026, 9, 18)
+    window.date_filter.setDate(QDate(2026, 9, 21))
+    assert window.date_edit.date() == QDate(2026, 9, 18)  # the target did not move
+    assert window.target.isoformat() == "2026-09-18"

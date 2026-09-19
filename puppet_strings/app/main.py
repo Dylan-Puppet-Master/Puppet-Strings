@@ -295,9 +295,12 @@ class MainWindow(QMainWindow):
         self.staff_filter = _combo(["any staff"])
         self.activity_filter = _combo(["any activity"])
         self.date_check = QCheckBox("on date")
-        self.date_filter = QDateEdit(QDate(date.today() + timedelta(days=1)))
+        self.date_filter = QDateEdit(self.date_edit.date())
         self.date_filter.setDisplayFormat("yyyy-MM-dd")
         self.date_filter.setCalendarPopup(True)
+        # The filter follows the date being scheduled, which is what you are almost always
+        # asking about; moving the filter to look at another day leaves the target alone.
+        self.date_edit.dateChanged.connect(self.date_filter.setDate)
         combos = (
             self.priority_filter,
             self.tag_filter,

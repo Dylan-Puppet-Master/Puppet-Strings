@@ -86,6 +86,10 @@ it: free text over id, description, Skedge and requester; priority; tag; staff; 
 and a date. These narrow whatever group is showing, so the group is the shelf and the
 filters are the search. To ask how far a request reaches, filter by the date itself.
 
+**on date** starts on the date being scheduled and follows it, because that is the day you
+are almost always asking about. Moving the filter to look at another day leaves the target
+date alone, so you can check next Monday without changing what Solve would build.
+
 The staff and activity filters use the names a request resolves to, so filtering by
 `dylan` finds requests written for `staff.counselor` as well.
 

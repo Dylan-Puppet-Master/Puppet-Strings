@@ -10,7 +10,9 @@ GOOD = "#1b6f3b"  # valid, saved, a camp day
 BAD = "#b00020"  # an error, a contradiction
 QUIET = "#6b6b6b"  # a note, a reason, anything said in passing
 
-CAMP_DAY = "#d6efe6"  # the calendar's shading for a day on the Calendar sheet
+# A span shades every day between its ends, so this is a large block of colour rather than
+# a sprinkle: neutral grey stays out of the way where a tint of green did not.
+CAMP_DAY = "#e8eaed"  # the calendar's shading for a day the Calendar sheet covers
 CLASH = "#fdeef0"  # the conflicts pane's shading for one collision
 
 # the Skedge editor's highlighting, which is decoration rather than meaning
