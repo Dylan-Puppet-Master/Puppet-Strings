@@ -30,14 +30,20 @@ roles.first`, because a one-item set takes no quantifier. The clinic still runs 
 staffed or not at all — filling one position of an instance fills them all — but every
 position it wants is now written down rather than left to the skill matching.
 
+**Load offerings** also makes the day's spreadsheet when it is not there yet, with its
+Offerings grid copied from the Clinic Schedule template and its other tabs empty. So a day
+nobody has set up is one click from being ready, and the click after that reads what you
+put in the grid.
+
 Loading first removes every generated request for the target date, so the sheet mirrors
-the Offerings tab: a clinic you removed there disappears here. Hand-written requests are
+that day's Offerings tab: a clinic you removed there disappears here. Hand-written requests are
 never touched. Between loads you can delete a generated request to drop that clinic, or
 edit it, for example to replace `ANY_1_OF staff.all` with a category to limit who runs it;
 loading again undoes such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
 clinic view and the report; it asks first if no offerings are loaded for the date.
-**Publish** in that window writes the schedule to Published Schedules, asking first if the
-date is already published.
+**Publish** in that window writes the day's own spreadsheet in the
+[schedules tree](sheets.md#the-schedules-tree), asking first if the date is already
+published.
 
 **Cabin acts** need no button. They are activities, read from every sheet in the Cabin
 Acts folder each time **Reload** runs, and one line on the Requests sheet asks for all of

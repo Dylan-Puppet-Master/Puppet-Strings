@@ -84,7 +84,7 @@ random_seed        = 0
 |---|---|
 | `puppet-strings validate` | Parse and validate every row of the Requests sheet against current names. Prints errors with request id, line, column. |
 | `puppet-strings names` | Print every valid name per namespace. |
-| `puppet-strings solve --date 2026-09-16 [--publish]` | Load data, solve, print the schedule and report. With `--publish`, write to Published Schedules. |
+| `puppet-strings solve --date 2026-09-16 [--publish]` | Load data, solve, print the schedule and report. With `--publish`, write the day's own spreadsheet. |
 | `puppet-strings export-fixtures DIR` | Download every sheet tab as CSV. Used to refresh test fixtures and to work offline. |
 | `puppet-strings app` | Open the desktop request manager. |
 
@@ -258,9 +258,17 @@ An index tab `Metrics` plus one data tab per metric.
 
 Values are sheet names, not identifiers, so the Puppet Master can paste from other sheets. Normalized score = `(value − scale_min) / (scale_max − scale_min)`. An assignment with no row scores 0. Values outside the scale are a load error.
 
-### 2.9 Published Schedules (new, read and written)
+### 2.9 The schedules tree (new, read and written)
 
-One tab per published date, named by ISO date, holding one row per assignment. This is the canonical record and what the solver reads back as fixed past assignments.
+Revised 2026-09-19; it was one spreadsheet of dated tabs until then. One Drive folder tree
+under the `schedules` root chosen in the Configure pane: `<year>/<Program Type>/<span
+name>/`, holding one `Staff Categories` spreadsheet and one spreadsheet per day named
+`<Weekday>_<week of the span>`. Every part of the path is read off the Calendar sheet.
+
+A day's spreadsheet holds `Offerings` (started from the Clinic Schedule template when the
+day is made), `Assignments`, `Staff View`, `Clinic View`, `Report`, and `Changes` after a
+same-day re-solve. `Assignments` is the canonical record and what the solver reads back as
+fixed past assignments; an empty one means the day is set up but not solved.
 
 | Column | Example |
 |---|---|

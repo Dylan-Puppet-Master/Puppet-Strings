@@ -56,7 +56,7 @@ published. Switching it on reveals two buttons:
 Both write the same Adjustments row and both list what is already in effect, so one person
 can be short of sleep and resting the afternoon without either recording wiping the other.
 **Put back to usual** clears someone's row. Then press **Solve**. The schedule window opens with a **Changes** tab listing what moved. **Publish**
-writes the day again, along with a Changes tab in Published Schedules.
+writes the day again, along with a Changes tab in that day's spreadsheet.
 
 From the command line:
 

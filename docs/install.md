@@ -38,13 +38,17 @@ made once and handed to the next Puppet Master along with this repository.
 
 Nothing needs sharing with anybody: you already have the sheets.
 
-## 4. Create the two new spreadsheets
+## 4. Create the config spreadsheet and the schedules folder
 
 Create a **config spreadsheet** with tabs named `Blocks`, `Calendar`, `Requests`,
 `Metrics` and, when you want it, `Adjustments`, with the exact columns in [The sheets](sheets.md). Each metric you add later gets
 its own extra tab of ratings, as that page explains. The Blocks tab needs a `cabin_act`
-row, which is the slot the cabin act sheets are scheduled into. Create an empty
-**Published Schedules** spreadsheet. Choose both in the Configure pane.
+row, which is the slot the cabin act sheets are scheduled into.
+
+Then make an empty **Schedules** folder. Puppet Strings builds the year, programme and span
+folders inside it as it needs them; you put a `Staff Categories` spreadsheet in each span's
+folder, and **Load offerings** makes the day spreadsheets. See
+[the schedules tree](sheets.md#the-schedules-tree).
 
 ## 5. Sign in and choose the sheets
 
@@ -59,10 +63,11 @@ shared drive, the same three places Drive itself offers.
 
 | Row | What to pick |
 |---|---|
-| Clinic Data, Clinic Schedule, Skills, Staff Categories | The existing spreadsheets |
+| Clinic Data, Skills | The existing spreadsheets |
+| Clinic Schedule | The spreadsheet whose Offerings grid a new day is started from |
 | Config | The spreadsheet holding Blocks, Calendar, Requests, Metrics, Adjustments |
-| Published Schedules | An empty spreadsheet for the days you publish |
 | Cabin Acts | The **folder** holding one cabin act sheet per session and week |
+| Schedules | The **folder** holding a folder per year; see [the schedules tree](sheets.md#the-schedules-tree) |
 
 What you choose is kept in `~/.config/puppet_strings/settings.json`. **Configure** is on
 the right of the toolbar whenever you want to change a sheet, or sign in as a different
@@ -80,7 +85,6 @@ clinics          = "Clinics"      # Clinic_Data: the combined tab with a Categor
 offerings        = "Offerings"    # Clinic_Schedule
 skills           = "Skills"       # Skills: the main tab
 position_skills  = "Positions"    # Skills: Clinic_Name | 1st | 2nd | 3rd
-staff_categories = "Categories"   # Staff Categories
 cabin_act_board  = "Board"        # the tab of a cabin act sheet that is read
 
 [auth]

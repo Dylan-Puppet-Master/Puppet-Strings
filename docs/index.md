@@ -15,7 +15,7 @@ printable views back to Google Sheets.
    adjust requests: a day off, a pinned facilitator, a training session.
 3. Press **Solve**. Read the staff view, the clinic view and the report of anything that
    could not be satisfied.
-4. Press **Publish**. The schedule lands in the Published Schedules spreadsheet.
+4. Press **Publish**. The schedule lands in that day's own spreadsheet.
 
 If the day is already published and someone turns up ill or short of sleep, see
 [Same-day changes](same-day.md).
@@ -26,10 +26,11 @@ If the day is already published and someone turns up ill or short of sleep, see
 |---|---|
 | Clinics, positions, RAL minimums | Clinic_Data spreadsheet |
 | Who is checked off on what | Skills spreadsheet |
-| Staff categories | Staff Categories spreadsheet |
-| Tomorrow's clinics | Offerings tab of Clinic_Schedule |
+| Staff categories | A `Staff Categories` spreadsheet in each span's folder |
+| Tomorrow's clinics | The Offerings tab of that day's spreadsheet |
+| The grid a new day starts from | Offerings tab of Clinic_Schedule |
 | Blocks, calendar, requests, metrics, adjustments | The config spreadsheet |
-| Published schedules | The Published Schedules spreadsheet |
+| Published schedules | One spreadsheet per day, in the [schedules tree](sheets.md#the-schedules-tree) |
 | The code | This repository, one Python package |
 
 Start with [Install and set up](install.md).

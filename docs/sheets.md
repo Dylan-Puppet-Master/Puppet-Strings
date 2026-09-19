@@ -58,15 +58,23 @@ The staff roster is the set of rows on the main tab, and `staff.all` names all o
 `staff.clinic_trainers` is everyone with at least one `Trainer` cell. A skill itself is not
 a name: it is asked for by the position that needs it, on a clinic or on a cabin act.
 
-## Staff Categories
+## Staff Categories (one per span, in the schedules tree)
 
 One column per category, the name in row 1 and members below. Each becomes
 `staff.<category>` (`staff.counselor`, `staff.director`, `staff.village_hero`). Members must
 be on the Skills sheet. A column headed `etc.` is ignored.
 
-## Offerings (in Clinic_Schedule)
+**Every span keeps its own**, in its folder in the [schedules tree](#the-schedules-tree),
+because who is on staff changes from session to session — so `staff.counselor` follows the
+date being scheduled. A span with no `Staff Categories` spreadsheet is a load error naming
+the folder it looked in: loading with no categories at all would quietly drop every request
+that names one.
 
-The grid you already fill in. Row 1 is the weekday; row 2 has `Clinic 1` … `Clinic 4`
+## Offerings (one per day, in the schedules tree)
+
+The grid you already fill in, now a tab of the day's own spreadsheet rather than one tab
+shared by every date. The **Clinic Schedule** spreadsheet chosen in Configure is the
+template a new day is started from. Row 1 is the weekday; row 2 has `Clinic 1` … `Clinic 4`
 above each group of columns. Below, category headings in capitals and clinic names. The
 lookup columns (slots, staff) are ignored, as is everything below a `Cancelled` row.
 
@@ -306,11 +314,49 @@ rated sits at the bottom of the scale, so the solver treats "not rated yet" as "
 and crowds people onto the few clinics that are rated. A default in the middle of the
 scale says "no opinion", and only the ratings you actually enter pull for or against.
 
-## Published Schedules
+## The schedules tree
 
-One tab per published date, named by the date, with one row per assignment. Ad hoc tasks
-are written in quotes (`'counselor hour'`). These tabs are the record the solver reads
-back for past dates.
+Published schedules, the days' Offerings grids and each span's staff all live in one folder
+tree, under the **Schedules** folder chosen in the Configure pane:
+
+```
+Schedules/
+  2027/
+    Main Season/
+      Session 1/
+        Staff Categories      one spreadsheet, for that span's staff
+        Monday_1              one spreadsheet per day
+        Tuesday_1
+        Monday_2              the second week's Monday
+    Other/
+      August Family Camp/
+        Staff Categories
+        Monday_1
+```
+
+The year is the span's own, the programme is its `program type` and the folder under it is
+its `name`, all read off the [Calendar](#calendar-config-spreadsheet), so nothing is written
+down twice. A day is named for its weekday and which week of its span it falls in, because a
+fortnight reaches Monday more than once.
+
+**Load offerings makes a day's spreadsheet** when it is not there yet, with the Offerings
+grid copied from the Clinic Schedule template — weekday set to its own — and the other tabs
+empty, ready for Publish. It never touches a sheet that is already there, so a grid you have
+pruned stays pruned.
+
+### A day's spreadsheet
+
+| Tab | What it is |
+|---|---|
+| `Offerings` | The grid of what runs that day, started from the template and edited by hand |
+| `Assignments` | One row per assignment: the record the solver reads back |
+| `Staff View`, `Clinic View`, `Report` | Written on Publish, for people to read |
+| `Changes` | Added by a same-day re-solve, saying what moved |
+
+The `Assignments` tab is the one the program reads; the views are drawn from it and cannot
+be read back, because a grid of names does not say who was on what for how long. A day whose
+`Assignments` tab is empty has been set up but not solved, which is how the app knows
+whether a date is published.
 
 | Column | Meaning |
 |---|---|
@@ -318,6 +364,8 @@ back for past dates.
 | `start` | Where the task starts inside its block, written as `HH:MM` |
 | `minutes` | How long it lasts; a clinic fills its block |
 | `source` | `offering`, or the request id that required it |
+
+Ad hoc tasks are written in quotes (`'counselor hour'`).
 
 These tabs are overwritten on every publish:
 
