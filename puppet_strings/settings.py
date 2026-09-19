@@ -1,10 +1,10 @@
 """Which spreadsheets and folders Puppet Strings reads, chosen in the app rather than typed.
 
 Spreadsheet ids used to be written into config.toml by hand, which meant knowing what a
-Drive id is and where to find one. They live here instead, in a file the Configure pane
-writes, alongside the name each was chosen under so the pane can show the sheet rather
-than its id. config.toml is still read first, so an install that predates this keeps
-working and can be moved over one sheet at a time.
+Drive id is and where to find one. The directories to look in live here instead, in a file
+the Configure pane writes, alongside the name each was chosen under so the pane can show
+the folder rather than its id. config.toml is still read first, so an install that names
+its spreadsheets there keeps working; `sheets` is kept for exactly that.
 """
 
 import json
@@ -14,15 +14,13 @@ from pathlib import Path
 
 DEFAULT_PATH = Path("~/.config/puppet_strings/settings.json")
 
-# Nothing but folders is asked for. What is inside the Puppet Strings folder is found by
-# name -- a spreadsheet called Skills is the Skills sheet, a folder called 2027 is that
-# year -- so setting up is choosing where to look, not listing what is there.
-SHEETS = ()
-
+# Nothing but directories is asked for. What is inside the root is found by name -- a
+# spreadsheet called Skills is the Skills sheet, a folder called 2027 is that year -- so
+# setting up is choosing where to look, not listing what is there.
 FOLDERS = (
     (
         "root",
-        "Puppet Strings",
+        "Root",
         "Holds a folder per year, and the reference sheets named Clinic_Data, "
         "Clinic_Schedule, Skills and Config",
     ),

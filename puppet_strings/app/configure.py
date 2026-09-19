@@ -1,9 +1,10 @@
 """The Configure pane: which Google account, and which sheets and folders to read.
 
-Spreadsheet ids used to be typed into config.toml. Here each one is a row saying what the
-sheet is for, what is currently chosen, and a button that opens Drive to change it, so
-nothing has to be known about Drive ids. Changes are written when the pane is closed with
-Save, and the window then reads everything again with what was chosen.
+Spreadsheet ids used to be typed into config.toml, one per sheet. Now there are two
+directories to choose and everything inside them is found by name, so the pane is a row
+each: what the directory is for, what is currently chosen, and a button that opens Drive to
+change it. Changes are written when the pane is closed with Save, and the window then reads
+everything again with what was chosen.
 
 The account row is the same idea: it says who is signed in, and offers to sign in as
 somebody else or to sign out. Signing out does not delete anything on Drive; it forgets
@@ -32,7 +33,7 @@ from puppet_strings import google_auth
 from puppet_strings.app.drive_browser import DriveBrowser
 from puppet_strings.config import Config
 from puppet_strings.drive import Drive
-from puppet_strings.settings import FOLDERS, SHEETS, Chosen, load_settings, save_settings
+from puppet_strings.settings import FOLDERS, Chosen, load_settings, save_settings
 
 NOT_CHOSEN = "not chosen"
 SIGNED_OUT = "Not signed in"
@@ -87,8 +88,7 @@ class ConfigureDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.addWidget(self._account_box(client_button))
-        layout.addWidget(self._chosen_box("Spreadsheets", "sheets", SHEETS))
-        layout.addWidget(self._chosen_box("Folders of sheets", "folders", FOLDERS))
+        layout.addWidget(self._chosen_box("Directories", "folders", FOLDERS))
         layout.addStretch(1)
         layout.addWidget(buttons)
         self.refresh_account()

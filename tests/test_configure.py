@@ -163,3 +163,14 @@ def test_signing_out_forgets_the_token(app, config):
     assert not config.token.exists()
     assert dialog.account_label.text() == "Not signed in"
     assert dialog.saved  # the window must read everything again
+
+
+def test_the_pane_has_no_empty_spreadsheets_box(app, config):
+    """Nothing is chosen sheet by sheet any more, so there is no box for it."""
+    from PySide6.QtWidgets import QGroupBox
+
+    dialog = ConfigureDialog(config, credentials=object())
+    assert [box.title() for box in dialog.findChildren(QGroupBox)] == [
+        "Google account",
+        "Directories",
+    ]

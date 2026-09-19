@@ -63,11 +63,10 @@ shared drive, the same three places Drive itself offers.
 
 | Row | What to pick |
 |---|---|
-| Puppet Strings | The **folder** holding a folder per year; see [the schedules tree](sheets.md#the-schedules-tree) |
-| Cabin Acts | The **folder** holding one cabin act sheet per session and week, which somebody else keeps |
+| Root | The **directory** holding a folder per year; see [the schedules tree](sheets.md#the-schedules-tree) |
+| Cabin Acts | The **directory** holding one cabin act sheet per session and week, which somebody else keeps |
 
-Two folders is the whole of it. Inside the Puppet Strings folder everything is found by
-name — a spreadsheet called `Clinic_Data`, `Clinic_Schedule`, `Skills` or `Config` is that
+Two directories is the whole of it. Inside the root everything is found by name — a spreadsheet called `Clinic_Data`, `Clinic_Schedule`, `Skills` or `Config` is that
 sheet, a folder called `2027` is that year — so renaming a sheet is how you move it, and
 nothing has to be re-chosen when you add next season.
 
