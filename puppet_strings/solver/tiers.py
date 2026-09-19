@@ -10,6 +10,7 @@ from ortools.sat.python import cp_model
 
 from puppet_strings.config import Config
 from puppet_strings.model import SOFT_TIERS, Priority
+from puppet_strings.solver.compile import SCALE
 
 
 class Cancelled(Exception):
@@ -112,10 +113,14 @@ def solve_tiers(
             values = _snapshot(solver)
             scores[tier] = round(solver.ObjectiveValue())
             if status == cp_model.FEASIBLE:
-                notes.append(f"tier {tier.value} hit the time limit; its score may not be optimal")
+                notes.append(_unproven(tier, scores[tier], solver.BestObjectiveBound(), config))
         else:
             scores[tier] = _total(terms[tier], values)
-            notes.append(f"tier {tier.value} ran out of time; kept the schedule so far")
+            notes.append(
+                f"tier {tier.value}: ran out of time in {config.time_limit_seconds:.0f}s without "
+                "a schedule of its own; kept the one from the tier before, which still holds "
+                "every request met so far"
+            )
         model.Add(expression >= scores[tier])
 
     if placement:
@@ -125,6 +130,29 @@ def solve_tiers(
         if not placed:
             notes.append("placement pass ran out of time; partial tasks may sit later in a block")
     return TierOutcome(True, values, scores=scores, notes=tuple(notes))
+
+
+def _unproven(tier: Priority, score: int, bound: float, config: Config) -> str:
+    """Why a tier stopped: it has a schedule, it just could not prove none is better.
+
+    The schedule is kept either way, so what is worth saying is how much room is left: the
+    solver ruled out everything above `bound`, and the gap to the score is what it could
+    not rule out. A request of weight 1 is worth `SCALE`, so the gap reads in requests,
+    which is the size the Puppet Master thinks in. A gap under a tenth of a request is
+    rounding and says so.
+    """
+    limit = f"{config.time_limit_seconds:.0f}s"
+    head = f"tier {tier.value}: could not prove this schedule optimal in {limit}; it is kept"
+    if bound in (float("inf"), float("-inf")) or bound < score:
+        return f"{head}, and nothing better was ruled out"
+    gap = (bound - score) / SCALE
+    if gap < 0.1:
+        return f"{head}, and it is within a rounding error of the best possible"
+    return (
+        f"{head}. It scores {score / SCALE:.1f} and the best possible is somewhere up to "
+        f"{bound / SCALE:.1f}, so at most {gap:.1f} more requests' worth was on the table. "
+        f"Raise time_limit_seconds to let it finish the proof"
+    )
 
 
 def _minimize(

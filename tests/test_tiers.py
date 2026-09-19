@@ -99,3 +99,45 @@ def test_a_stopped_solve_gives_up_instead_of_returning_a_schedule():
 def test_an_unstopped_solve_is_unaffected():
     result = solve(build(), CONFIG, cancel=Cancel())
     assert result.feasible and result.assignments
+
+
+# -- what a tier says when the clock beats it ------------------------------------------------
+
+
+def unproven(score, bound, seconds=30):
+    from puppet_strings.solver.tiers import _unproven
+
+    return _unproven(Priority.MEDIUM, score, bound, Config(time_limit_seconds=seconds))
+
+
+def test_an_unproven_tier_says_how_much_was_left_on_the_table():
+    note = unproven(42000, 48500.0)
+    assert note.startswith("tier MEDIUM: could not prove this schedule optimal in 30s; it is kept")
+    assert "It scores 42.0" in note and "somewhere up to 48.5" in note
+    assert "at most 6.5 more requests' worth" in note
+    assert "Raise time_limit_seconds" in note
+
+
+def test_a_tier_that_is_all_but_proven_says_so_instead_of_a_number():
+    assert "within a rounding error" in unproven(42000, 42050.0)
+
+
+def test_a_tier_that_ruled_nothing_out_does_not_invent_a_gap():
+    assert "nothing better was ruled out" in unproven(42000, float("inf"))
+    assert "nothing better was ruled out" in unproven(42000, 41000.0)  # a bound below the score
+
+
+def test_a_timed_out_tier_carries_that_note(monkeypatch):
+    """The whole solve, to check the note reaches the report rather than just reading well."""
+    real = cp_model.CpSolver.Solve
+    calls = []
+
+    def feasible_but_unproven(self, model, *args, **kwargs):
+        status = real(self, model, *args, **kwargs)
+        calls.append(status)
+        return cp_model.FEASIBLE if len(calls) > 1 else status
+
+    monkeypatch.setattr(cp_model.CpSolver, "Solve", feasible_but_unproven)
+    result = solve(build(), CONFIG)
+    assert result.feasible
+    assert any("could not prove this schedule optimal" in note for note in result.notes)
