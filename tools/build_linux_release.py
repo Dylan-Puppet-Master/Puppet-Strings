@@ -1,11 +1,10 @@
-"""Package the Linux executable as a self-contained .tar.gz release."""
+"""Package the Linux executable with a desktop launcher and icon."""
 
 from __future__ import annotations
 
 import shutil
 import tarfile
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
@@ -18,6 +17,7 @@ ARCHIVE = DIST / "puppet-strings-linux.tar.gz"
 
 
 def main() -> None:
+    """Package the Linux executable, icon, and desktop launcher as a tar.gz."""
     if not SOURCE.is_file():
         raise SystemExit(f"Missing executable: {SOURCE}")
 

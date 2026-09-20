@@ -1,4 +1,4 @@
-"""Build platform-specific application icons and the Linux desktop launcher."""
+"""Build platform-specific application icons from the top-level icon.png."""
 
 from __future__ import annotations
 
@@ -9,13 +9,13 @@ from pathlib import Path
 
 from PIL import Image
 
-
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "icon.png"
 BUILD = ROOT / "build" / "icon"
 
 
 def require_source() -> None:
+    """Validate that the source icon exists and is square."""
     if not SOURCE.exists():
         raise SystemExit(f"Missing icon source: {SOURCE}")
 
@@ -27,6 +27,7 @@ def require_source() -> None:
 
 
 def build_windows() -> Path:
+    """Build a Windows ICO file containing multiple icon sizes."""
     output = BUILD.with_suffix(".ico")
     output.parent.mkdir(parents=True, exist_ok=True)
 
@@ -49,6 +50,7 @@ def build_windows() -> Path:
 
 
 def build_macos() -> Path:
+    """Build a macOS ICNS file from the source PNG."""
     output = BUILD.with_suffix(".icns")
     iconset = BUILD.with_suffix(".iconset")
 
@@ -82,6 +84,7 @@ def build_macos() -> Path:
 
 
 def build_linux() -> Path:
+    """Copy the source PNG to the Linux build directory."""
     output = BUILD.with_suffix(".png")
     output.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(SOURCE, output)
@@ -89,6 +92,7 @@ def build_linux() -> Path:
 
 
 def main() -> None:
+    """Build the icon appropriate for the current operating system."""
     require_source()
 
     system = platform.system()

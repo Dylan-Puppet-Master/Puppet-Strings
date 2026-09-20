@@ -187,15 +187,17 @@ def _disagreements(
 
     # Flag directly that multiple MUST_HAPPEN requests share the same slot
     if len(must_happen_requests) > 1:
+        request_names = ", ".join(sorted(must_happen_requests))
         reasons.append(
-            f"multiple MUST_HAPPEN requests ({', '.join(sorted(must_happen_requests))}) assigned to same slot"
-        )
+        f"multiple MUST_HAPPEN requests ({request_names}) "
+        "assigned to same slot"
+    )
         involved.update(must_happen_requests)
 
     doing = _first_of(claims, DO)
     free = _first_of(claims, FREE)
     busy = _first_of(claims, BUSY)
-    
+
     for free_claim in free:
         for do_claim in doing:
             clash(f"must be free, and is asked to do {do_claim.target}", free_claim, do_claim)
