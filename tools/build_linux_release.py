@@ -13,19 +13,22 @@ DIST = ROOT / "dist"
 SOURCE = DIST / "puppet-strings-linux"
 ICON = ROOT / "build" / "icon.png"
 
-PACKAGE_DIR = DIST / "puppet-strings-linux"
+PACKAGE_DIR = DIST / "puppet-strings-linux-package"
 ARCHIVE = DIST / "puppet-strings-linux.tar.gz"
 
 
 def main() -> None:
-    if not SOURCE.exists():
+    if not SOURCE.is_file():
         raise SystemExit(f"Missing executable: {SOURCE}")
 
-    if not ICON.exists():
+    if not ICON.is_file():
         raise SystemExit(f"Missing icon: {ICON}")
 
     if PACKAGE_DIR.exists():
-        shutil.rmtree(PACKAGE_DIR)
+        if PACKAGE_DIR.is_dir():
+            shutil.rmtree(PACKAGE_DIR)
+        else:
+            PACKAGE_DIR.unlink()
 
     if ARCHIVE.exists():
         ARCHIVE.unlink()
