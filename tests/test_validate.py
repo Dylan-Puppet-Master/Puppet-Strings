@@ -213,11 +213,18 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             58,
         ),
         (
-            "ANY_1_OF b IN blocks.all\nREQUEST staff.dylan DO 'x' DURING {b + blocks.lunch}",
+            "ANY_1_OF b IN blocks.all\nREQUEST staff.dylan DO 'x' DURING {blocks.all - b}",
             Priority.HIGH,
-            "must stand alone",
+            "chosen by the solver",
             2,
-            36,
+            49,
+        ),
+        (
+            "ANY_1_OF p IN staff.all\nREQUEST ANY_2_OF {staff.dylan + p} DO 'x' DURING blocks.lunch",
+            Priority.HIGH,
+            "taken with ALL_OF or not at all",
+            2,
+            9,
         ),
     ],
 )

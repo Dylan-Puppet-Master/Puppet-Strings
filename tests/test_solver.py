@@ -342,6 +342,44 @@ def test_the_same_person_sets_up_and_tears_down():
     assert len({a.staff for a in rows}) == 1
 
 
+def test_a_bound_name_can_be_added_into_a_set():
+    """ "Charlton needs to do something with either Dylan or Donny" is one request."""
+    text = (
+        "ANY_1_OF videographer IN {staff.dylan + staff.donny}\n"
+        "REQUEST ALL_OF {staff.charlton + videographer}\n"
+        "DO 'Video KM Rope Swing' FOR 30m DURING blocks.clinic_1"
+    )
+    ds = dataset(
+        [staff("Charlton"), staff("Dylan"), staff("Donny")],
+        [],
+        requests=[request("video", text)],
+    )
+    rows = [a for a in run(ds).assignments if a.activity == "Video KM Rope Swing"]
+    who = {a.staff for a in rows}
+    assert "charlton" in who  # named outright, so always
+    assert len(who & {"dylan", "donny"}) == 1  # and one of the two, the solver's pick
+    assert len(who) == 2
+
+
+def test_a_bound_name_added_into_a_set_is_the_same_person_throughout():
+    """The binding is one choice for the whole request, wherever the name turns up."""
+    text = (
+        "ANY_1_OF videographer IN {staff.dylan + staff.donny}\n"
+        "morning: REQUEST ALL_OF {staff.charlton + videographer}\n"
+        "  DO 'film' FOR 30m DURING blocks.clinic_1\n"
+        "after: REQUEST videographer DO 'edit' FOR 30m DURING blocks.clinic_3"
+    )
+    ds = dataset(
+        [staff("Charlton"), staff("Dylan"), staff("Donny")],
+        [],
+        requests=[request("video", text)],
+    )
+    rows = run(ds).assignments
+    filming = {a.staff for a in rows if a.activity == "film"} - {"charlton"}
+    editing = {a.staff for a in rows if a.activity == "edit"}
+    assert filming == editing and len(editing) == 1
+
+
 def test_a_task_fills_its_block_unless_for_shortens_it():
     ds = dataset(
         [staff("Dylan")],

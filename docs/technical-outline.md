@@ -760,3 +760,17 @@ Recorded so the outline matches the code.
   Ids are the next free number on the request's tab — `s4-1`, `season-2` — rather than a
   slug of the description, because a description is for people, is allowed to be empty, and
   gets rewritten the moment somebody words it better, none of which an id may do.
+- **A statement may run over several lines, and a bound name may be added into a set**
+  (Puppet Master, 2026-09-19). Both came from one request that read perfectly and would not
+  compile. A newline is no longer the end of a statement when the next line begins with a
+  word that continues one — `DO`, `DURING`, `ON`, `FOR`, a set operator, a closing brace —
+  which keeps the grammar LALR by deciding it in the lexer: `_CONTINUES` matches those
+  newlines and is ignored, and `_NL` gets the rest. `EACH_OF`, `ANY_n_OF` and bare names are
+  deliberately not continuations, since each of them can begin a line of its own.
+  `ANY_1_OF v IN {…}` could only be used as a whole selector, so "Charlton with either
+  Dylan or Donny" had no natural wording; a bound name can now be added into a set with `+`,
+  which resolves to a `Choice` carrying `parts` — the items named here, plus whatever each
+  part chose. The solver already spoke in a dict of item to literal, so joining them is
+  merging two dicts, and the binding's own literals are what keep it the same person
+  throughout. Only `+`, and only `ALL_OF`: `-` and `&` ask what a chosen name is not, and
+  taking `n` of such a set is choosing out of something still being chosen.

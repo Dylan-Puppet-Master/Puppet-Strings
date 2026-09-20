@@ -51,12 +51,17 @@ class Choice:
 
     `var` names a choice a binding line makes once for the whole declaration; every
     selector carrying the same `var` shares it.
+
+    `parts` are choices taken *as well as* these items, which is what a bound name added
+    into a set means: `ALL_OF {staff.charlton + videographer}` is charlton, always, and
+    whoever the solver picked for `videographer`, whoever that turns out to be.
     """
 
     items: tuple[Item, ...]
     kind: str
     n: int = 1
     var: str | None = None
+    parts: tuple["Choice", ...] = ()
     pos: ast.Pos = DEFAULT_POS
 
 
@@ -427,7 +432,7 @@ class _Scope:
         items, single = _evaluate(selector.expr, namespace, self)
         if single:
             raise _error("is one item and takes no quantifier", selector.pos)
-        choice = Choice(_sorted(items), ANY, selector.n, selector.var, selector.pos)
+        choice = Choice(_sorted(items), ANY, selector.n, selector.var, pos=selector.pos)
         return replace(self, anys={**self.anys, selector.var: (choice, namespace)})
 
 
@@ -570,6 +575,9 @@ def _choice(
     if selector.quantifier == ast.EACH_OF:
         return Choice((scope.each[selector.pos],), POOL if pool else ALL, pos=selector.pos)
     expr = selector.expr
+    joined, bound = _split_bound(selector.expr, scope)
+    if bound:
+        return _with_bound(selector, joined, bound, namespace, scope, pool, when)
     if isinstance(expr, ast.Var) and expr.name in scope.anys:
         if selector.quantifier:
             raise _error(
@@ -594,6 +602,65 @@ def _choice(
     if selector.quantifier == ast.ALL_OF:
         return Choice(_sorted(items), ALL, pos=selector.pos)
     return Choice(_sorted(items), ANY, selector.n, pos=selector.pos)
+
+
+def _split_bound(expr: ast.SetExpr, scope: _Scope) -> tuple[ast.SetExpr | None, tuple]:
+    """Separate the names the solver has already chosen from the rest of a `+` union.
+
+    Only `+` is taken apart. `-` and `&` ask what a chosen name is *not*, or what it has in
+    common with something, neither of which can be answered before the solver has chosen.
+    """
+    if isinstance(expr, ast.Var) and expr.name in scope.anys:
+        return None, (expr,)
+    if not isinstance(expr, ast.SetOp) or expr.op != "+":
+        return expr, ()
+    left, left_bound = _split_bound(expr.left, scope)
+    right, right_bound = _split_bound(expr.right, scope)
+    bound = left_bound + right_bound
+    if not bound:
+        return expr, ()
+    if left is None:
+        return right, bound
+    if right is None:
+        return left, bound
+    return replace(expr, left=left, right=right), bound
+
+
+def _with_bound(
+    selector: ast.Selector,
+    joined: ast.SetExpr | None,
+    bound: tuple,
+    namespace: str,
+    scope: _Scope,
+    pool: bool,
+    when: tuple[Item, ...],
+) -> Choice:
+    """A set holding a bound name: the rest of it, plus whoever the binding chose.
+
+    Taking `n` of such a set would mean choosing out of something that is itself still
+    being chosen, which is a different idea and not one anybody has needed, so only ALL_OF
+    is allowed. Everything named is included, and the bound name brings the one it picked.
+    """
+    if selector.quantifier not in (None, ast.ALL_OF):
+        raise _error(
+            "a set holding a name the solver chooses is taken with ALL_OF or not at all",
+            selector.pos,
+        )
+    parts = []
+    for var in bound:
+        choice, from_namespace = scope.anys[var.name]
+        _expect(namespace, from_namespace, var)
+        parts.append(replace(choice, kind=POOL if pool else ANY, pos=var.pos))
+    if joined is None:
+        first, *rest = parts
+        return replace(first, parts=tuple(rest), pos=selector.pos)
+    items, _ = _evaluate(joined, namespace, scope)
+    if namespace == DATES:
+        items = frozenset(d for d in items if d in scope.dataset.calendar)
+    if namespace == ACTIVITIES:
+        items, _ = _on_those_days(items, False, when, scope)
+    kind = POOL if pool else ALL
+    return Choice(_sorted(items), kind, parts=tuple(parts), pos=selector.pos)
 
 
 def _on_those_days(
@@ -626,7 +693,11 @@ def _evaluate(expr: ast.SetExpr, namespace: str, scope: _Scope) -> tuple[frozens
             _expect(namespace, bound, expr)
             return frozenset({item}), True
         if expr.name in scope.anys:
-            raise _error(f"'{expr.name}' is chosen by the solver and must stand alone", expr.pos)
+            raise _error(
+                f"'{expr.name}' is chosen by the solver, so it can only be added to a set "
+                "with '+', not taken away from one or crossed with one",
+                expr.pos,
+            )
         raise _error(f"unknown variable '{expr.name}'", expr.pos)
     if isinstance(expr, ast.DateLiteral):
         if namespace != DATES:

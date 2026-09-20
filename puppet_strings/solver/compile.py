@@ -465,7 +465,19 @@ class Compiler:
     # -- choices -------------------------------------------------------------------------------
 
     def _choose(self, choice: Choice, active: Literal, name: str) -> dict:
-        """One literal per item: `active` itself for ALL, else `n` of them chosen together."""
+        """One literal per item: `active` itself for ALL, else `n` of them chosen together.
+
+        A choice with `parts` is a set somebody added a bound name into, so it is the
+        items here together with whatever each part chose; the parts keep their own
+        literals, which is what makes `videographer` the same person everywhere it appears.
+        """
+        chosen = self._choose_one(choice, active, name)
+        for i, part in enumerate(choice.parts):
+            chosen = {**chosen, **self._choose_one(part, active, f"{name}:part{i}")}
+        return chosen
+
+    def _choose_one(self, choice: Choice, active: Literal, name: str) -> dict:
+        """One part of a choice, before any it is joined with."""
         if choice.var is not None:
             if choice.var not in self._shared:  # a PREFER, which has no sat
                 binding = replace(self._bindings[choice.var], var=None)
@@ -485,8 +497,10 @@ class Compiler:
         """Each item of a pool with the condition for its membership: True, or a shared choice."""
         if choice is None:
             return {}
-        if choice.var is None:
+        if choice.var is None and not choice.parts:
             return dict.fromkeys(choice.items, True)
+        if choice.var is None:
+            return {**dict.fromkeys(choice.items, True), **self._choose(choice, True, "")}
         return self._choose(choice, True, "")
 
     # -- patterns ------------------------------------------------------------------------------

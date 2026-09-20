@@ -309,6 +309,26 @@ REQUEST ANY_1_OF staff.office DO 'front desk' DURING blocks.clinic_1
 `ANY_1_OF x IN <set>` on its own line picks one item for the whole request: "the same
 person sets up and tears down".
 
+A name bound this way can also be **added into a set** with `+`, which is how you say
+"Alesa and one of these two":
+
+```skedge
+ANY_1_OF videographer IN {staff.dylan + staff.cam_vl}
+
+REQUEST ALL_OF {staff.alesa + videographer}
+DO 'Video KM Rope Swing'
+DURING ANY_1_OF blocks.all FOR 30m
+ON ANY_1_OF dates.session.one.all
+```
+
+Alesa is named outright, so she is always in it; `videographer` brings whichever of Dylan
+and Cam the solver picked, and it is the same one everywhere the name appears in the
+request. Only `+` works: `-` and `&` ask what a chosen name is *not*, or what it has in
+common with something, and neither can be answered before the solver has chosen. A set
+holding a bound name is taken with `ALL_OF`, or with nothing at all, for the same reason —
+`ANY_2_OF {staff.alesa + videographer}` would be choosing out of something that is
+itself still being chosen.
+
 Label two requirements and put a `GAP` between them:
 
 ```skedge
@@ -321,6 +341,17 @@ GAP morning TO afternoon AT_MOST 5h
 `GAP a TO b` means `b` starts after `a` ends, and the time between meets the amount.
 `GAP a TO b AT_LEAST 0m` is plain ordering. Real start and end times are compared, so a
 one-hour task may slide around inside its 75-minute block to make a gap work.
+
+### A statement over several lines
+
+A statement can be written on as many lines as it reads well on. A line beginning with a
+word that continues a statement — `DO`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`,
+`WITHOUT`, `NOT`, `FREE`, `IN`, `TO`, `ALL_OF`, `CONSECUTIVE` — or with a set operator or a
+closing brace, carries on the line above it. Nothing needs indenting, and where a statement
+fits on one line it can stay there.
+
+`EACH_OF` and `ANY_n_OF` never continue a statement, because a line starting with either of
+them is a binding of its own; neither does a bare name, because it may be a label.
 
 ### One request, several statements
 

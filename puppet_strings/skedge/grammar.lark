@@ -77,8 +77,16 @@ REF.2       : /[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+/
 NAME        : /[a-z_][a-z0-9_]*/
 
 COMMENT     : /#[^\n]*/
+
+// A statement may be written over as many lines as it reads well on. A line beginning
+// with a word that continues a statement -- DO, DURING, ON, FOR, a set operator -- is a
+// continuation of the one above, and the newline before it is nothing. EACH_OF and
+// ANY_n_OF are deliberately not on the list: they begin a binding line of their own, and
+// a line starting with a bare name may be a label, so neither can continue anything.
+_CONTINUES  : /(\r?\n[ \t]*)+(?=(DO|NOT|FREE|DURING|ON|AS_ROLE|FOR|WITH|WITHOUT|IN|TO|CONSECUTIVE|ALL_OF|MAXIMIZE|MINIMIZE)\b|[+&}),]|\.\.|-[ \t]*[a-z_{(])/
 _NL         : /(\r?\n[ \t]*)+/
 %import common.INT
 %import common.WS_INLINE
 %ignore WS_INLINE
 %ignore COMMENT
+%ignore _CONTINUES
