@@ -69,7 +69,7 @@ def find_conflicts(
                     slots.setdefault(slot, []).append(claim)
     found = []
     for (staff, day, block), claims in slots.items():
-        reasons, involved = _disagreements(claims, dataset.blocks[block].minutes)
+        reasons, involved = _disagreements(claims, dataset.blocks[block].minutes, hard_first)
         if reasons:
             found.append(Conflict(staff, day, block, tuple(reasons), _order(involved, hard_first)))
     return tuple(sorted(found, key=lambda c: (c.date, c.staff, c.block)))
@@ -164,18 +164,38 @@ def _targets(what) -> frozenset[str]:
 # -- what disagrees -----------------------------------------------------------------------
 
 
-def _disagreements(claims: list[Claim], block_minutes: int) -> tuple[list[str], set[str]]:
+def _disagreements(
+    claims: list[Claim], block_minutes: int, request_map: dict[str, Request]
+) -> tuple[list[str], set[str]]:
     """The reasons the claims on one slot cannot all hold, and the requests making them."""
     reasons: list[str] = []
     involved: set[str] = set()
+
+    # Determine which requests in this slot are MUST_HAPPEN
+    must_happen_claims = [
+        c for c in claims if request_map[c.request].priority.hard
+    ]
+    must_happen_requests = {c.request for c in must_happen_claims}
+
+    # Rule: If fewer than 2 requests have MUST_HAPPEN priority, there is no conflict.
+    if len(must_happen_requests) < 2:
+        return [], set()
 
     def clash(reason: str, *making: Claim) -> None:
         reasons.append(reason)
         involved.update(claim.request for claim in making)
 
+    # Flag directly that multiple MUST_HAPPEN requests share the same slot
+    if len(must_happen_requests) > 1:
+        reasons.append(
+            f"multiple MUST_HAPPEN requests ({', '.join(sorted(must_happen_requests))}) assigned to same slot"
+        )
+        involved.update(must_happen_requests)
+
     doing = _first_of(claims, DO)
     free = _first_of(claims, FREE)
     busy = _first_of(claims, BUSY)
+    
     for free_claim in free:
         for do_claim in doing:
             clash(f"must be free, and is asked to do {do_claim.target}", free_claim, do_claim)
