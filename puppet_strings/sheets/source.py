@@ -14,7 +14,7 @@ from typing import Protocol
 
 Table = list[list[str]]
 
-MAX_PARALLEL = 8  # requests in flight at once; Google starts refusing well above this
+MAX_PARALLEL = 4  # requests in flight at once; Google starts refusing well above this
 DEFAULT_TAB = "Sheet1"  # what Google calls the one tab a new spreadsheet comes with
 
 # What a spreadsheet has to be called in the Puppet Strings folder to be recognised, so that
