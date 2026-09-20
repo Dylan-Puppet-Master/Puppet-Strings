@@ -172,9 +172,7 @@ def _disagreements(
     involved: set[str] = set()
 
     # Determine which requests in this slot are MUST_HAPPEN
-    must_happen_claims = [
-        c for c in claims if request_map[c.request].priority.hard
-    ]
+    must_happen_claims = [c for c in claims if request_map[c.request].priority.hard]
     must_happen_requests = {c.request for c in must_happen_claims}
 
     # Rule: If fewer than 2 requests have MUST_HAPPEN priority, there is no conflict.
@@ -188,10 +186,7 @@ def _disagreements(
     # Flag directly that multiple MUST_HAPPEN requests share the same slot
     if len(must_happen_requests) > 1:
         request_names = ", ".join(sorted(must_happen_requests))
-        reasons.append(
-        f"multiple MUST_HAPPEN requests ({request_names}) "
-        "assigned to same slot"
-    )
+        reasons.append(f"multiple MUST_HAPPEN requests ({request_names}) assigned to same slot")
         involved.update(must_happen_requests)
 
     doing = _first_of(claims, DO)

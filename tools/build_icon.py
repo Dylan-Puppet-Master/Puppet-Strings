@@ -21,9 +21,7 @@ def require_source() -> None:
 
     with Image.open(SOURCE) as image:
         if image.width != image.height:
-            raise SystemExit(
-                f"icon.png must be square; got {image.width}x{image.height}"
-            )
+            raise SystemExit(f"icon.png must be square; got {image.width}x{image.height}")
 
 
 def build_windows() -> Path:
