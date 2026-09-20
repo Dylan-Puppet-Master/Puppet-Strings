@@ -13,20 +13,45 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+
     runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - run: pip install -e ".[dev]"
-      - name: Build in camp's settings, so the download needs no config file
+      - run: pip install Pillow
+
+      - name: Build application settings
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: python tools/build_settings.py
-      - run: pyinstaller puppet_strings.spec
-      - uses: actions/upload-artifact@v4
+
+      - name: Build platform icon
+        run: python tools/build_icon.py
+
+      - name: Build executable
+        run: pyinstaller puppet_strings.spec
+
+      - name: Package Linux release
+        if: matrix.os == 'ubuntu-latest'
+        run: python tools/build_linux_release.py
+
+      - name: Upload Linux release
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: puppet-strings-${{ matrix.os }}
+          path: dist/puppet-strings-linux.tar.gz
+
+      - name: Upload Windows/macOS release
+        if: matrix.os != 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
         with:
           name: puppet-strings-${{ matrix.os }}
           path: dist/puppet-strings-*
@@ -34,11 +59,13 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: downloaded
+
       - uses: softprops/action-gh-release@v2
         with:
-          files: downloaded/*/puppet-strings-*
+          files: downloaded/*/*
           generate_release_notes: true
