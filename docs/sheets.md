@@ -79,9 +79,8 @@ names them is simply not met rather than an error, and the load says how many ar
 
 ## Offerings (one per day, in the schedules tree)
 
-The grid you already fill in, now a tab of the day's own spreadsheet rather than one tab
-shared by every date. The **Clinic Schedule** spreadsheet chosen in Configure is the
-template a new day is started from. Row 1 is the weekday; row 2 has `Clinic 1` … `Clinic 4`
+The grid you already fill in, a tab of the day's own spreadsheet. The **Clinic Schedule**
+spreadsheet chosen in Configure is the template a new day is started from. Row 1 is the weekday; row 2 has `Clinic 1` … `Clinic 4`
 above each group of columns. Below, category headings in capitals and clinic names. The
 lookup columns (slots, staff) are ignored, as is everything below a `Cancelled` row.
 

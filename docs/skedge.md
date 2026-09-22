@@ -124,11 +124,8 @@ unless it says `ON` something else.
 REQUEST ALL_OF staff.director DO 'session opening' DURING ANY_1_OF blocks.all ON ALL_OF dates.session.two.week.one.all
 ```
 
-**There is no `first_monday` or `last_friday`.** There used to be, and beside them a
-`first_mondays` that meant one date per session — a letter apart and a different kind of
-thing — and which of them existed depended on how long the season happened to be. A week's
-weekday says it instead: the second Thursday of a session is
-`dates.session.one.week.two.thursday`.
+**There is no `first_monday` or `last_friday`.** A week's weekday says the same thing and
+says it once: the second Thursday of a session is `dates.session.one.week.two.thursday`.
 
 A name a span never reaches does not exist, and using it is a validation error rather than
 a request that silently never fires. A near miss is told the nearest real name.

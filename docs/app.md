@@ -26,9 +26,9 @@ REQUEST ANY_1_OF staff.all DO activities.clinics.canoe_1_2 AS_ROLE EACH_OF {role
 
 `EACH_OF` is what makes each position its own choice of person; `ALL_OF` would ask one
 person to hold all three. A clinic with one position names it on its own, `AS_ROLE
-roles.first`, because a one-item set takes no quantifier. The clinic still runs fully
-staffed or not at all — filling one position of an instance fills them all — but every
-position it wants is now written down rather than left to the skill matching.
+roles.first`, because a one-item set takes no quantifier. The clinic runs fully
+staffed or not at all — filling one position of an instance fills them all — and every
+position it wants is written down rather than left to the skill matching.
 
 **Load offerings** also makes the day's spreadsheet when it is not there yet, with its
 Offerings grid copied from the Clinic Schedule template and its other tabs empty. So a day
@@ -152,8 +152,8 @@ and two half-hour tasks fit in one block quite happily. What they say has to be 
 It also reads only what is **settled**. `REQUEST ANY_1_OF staff.all DO …`, `DURING ANY_2_OF
 blocks.all` and every `PREFER` leave the solver room to move, and moving things around each
 other is its job, so they are never reported. What is left is worth looking at: a request
-saved into a collision says so in the toolbar as it saves. A request can also contradict
-itself, now that one request may hold several statements, and that shows up the same way.
+saved into a collision says so in the toolbar as it saves. One request may hold several
+statements, so it can also contradict itself, and that shows up the same way.
 
 ### Errors
 
@@ -236,7 +236,7 @@ right-click, to insert the highlighted name at the cursor.
 | A metric | Its table of ratings and what an unrated pairing is worth, both of which you can **edit**; Save writes the table to the metric tab and the default to the Metrics tab |
 | A date or a role | Nothing. A date's note is the date and a role is a word |
 
-Opening an activity is worth the habit now that a request for one names nobody: it is where
+Opening an activity is worth the habit, since a request for one names nobody: it is where
 you check that the people you expect are the people it can have.
 
 **Calendar.** Below the names, a calendar with camp days (the dates on the Calendar sheet)

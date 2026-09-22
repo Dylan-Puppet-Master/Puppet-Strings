@@ -727,47 +727,42 @@ Recorded so the outline matches the code.
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
   leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
   is what keeps the pane quiet enough to be worth reading.
-- **An update can be an archive** (Puppet Master, 2026-09-21). The Linux release became a
+- **An update can be an archive** (Puppet Master, 2026-09-21). The Linux release is a
   tar.gz carrying the executable, the icon and an `install.sh` that writes the desktop
-  entry, and `install()` still moved whatever had been downloaded over `sys.executable` —
-  which for that release means replacing the running program with a gzip file. It now
-  unpacks an archive (`tarfile`, `filter="data"`), installs the executable inside it and
-  refreshes the icon beside the program *if one is already there*, leaving the desktop
-  entry alone: it names the folder, which is where the new executable went. A bare
-  executable, which is what Windows and macOS release, still installs exactly as before.
-- **The staff view is formatted too** (Puppet Master, 2026-09-21). It went out as bare
-  rows, which on Google Sheets is a hundred-cell grid of grey text in columns too narrow
-  for what is in them — and it is the sheet everybody at camp actually opens. `staff_view`
-  returns a `Styled` like `clinic_view`: title, bold headings, a frozen corner (two rows
-  and the name column), the clinic view's block colours on the headings, banding on every
-  other row, wrapped cells and column widths. `Styled` grew `freeze_columns`, `wrap` and
+  entry. `install()` unpacks an archive (`tarfile`, `filter="data"`), puts the executable
+  inside it where the running one is, and refreshes the icon beside it *if one is already
+  there*. The desktop entry is left alone: it names that folder, which is where the new
+  executable went. A bare executable, which is what Windows and macOS release, is moved
+  into place as it is.
+- **The staff view is formatted too** (Puppet Master, 2026-09-21). It is the sheet
+  everybody at camp opens, most of them looking for one row of it, so `staff_view` returns
+  a `Styled` like `clinic_view`: title, bold headings, a frozen corner (two rows and the
+  name column), the clinic view's block colours on the headings, banding on every other
+  row, wrapped cells and column widths. `Styled` carries `freeze_columns`, `wrap` and
   `column_widths` for it, the last going out as one `updateDimensionProperties` batch.
-- **The conflicts pane became the errors pane** (Puppet Master, 2026-09-21). Two requests
+- **The errors pane holds more than conflicts** (Puppet Master, 2026-09-21). Two requests
   disagreeing is not the only thing that is wrong on paper and invisible until a solve:
   `REQUEST staff.henry DO activities.clinics.aerial_silks DURING blocks.clinic_3` validates
   -- every name in it exists -- and is still impossible if Henry has no checkoff, or if the
   day's Offerings tab does not run aerial silks in clinic 3. `app/errors.py` reads the same
   resolved copies the conflict finder does and asks those two questions of every settled
-  `REQUEST … DO`; `app/errors_panel.py` (was `conflicts_panel.py`) shows conflicts and
-  errors in one tree, since both name a slot and the requests to go and look at. Both
-  checks are skipped where the solver has a choice, and the offering check is skipped
-  entirely when the day offers nothing at all, which is one thing to see to rather than a
-  pane full of the same sentence.
-- **Only what must happen can conflict** (Puppet Master, 2026-09-21). The first version
-  compared every claim on a slot whatever its priority, so a `LOW` preference crossing a
-  `HIGH` promise was reported as a conflict although the solver settles it by dropping the
-  cheaper one and the day comes out regardless. `find_conflicts` now reads only the
-  `MUST_HAPPEN` requests: a conflict is a day that cannot be built, which takes two
-  promises that cannot both be kept. Everything softer is the solver's to weigh and the
-  report's to explain.
-- **A refused drag enter cost the whole drag** (Puppet Master, 2026-09-21). `GroupList`
-  judged the drag *enter* by the row under the pointer, and a widget that ignores a drag
-  enter is told nothing more about that drag: crossing into the list over `All requests` --
-  the row at the top, and so the one most drags come in over -- left every group in the
-  pane undroppable until the drag was started again. The enter now asks only whether the
-  mime type is a set of requests; where the pointer is stays the move's and the drop's
-  question. `dragMoveEvent` also calls Qt's own first, which is what starts the scrolling
-  when a drag is held at the edge of a list too long to show at once.
+  `REQUEST … DO`; `app/errors_panel.py` shows conflicts and errors in one tree, since both
+  name a slot and the requests to go and look at. Both checks are skipped where the solver
+  has a choice, and the offering check is skipped entirely when the day offers nothing at
+  all, which is one thing to see to rather than a pane full of the same sentence.
+- **Only what must happen can conflict** (Puppet Master, 2026-09-21). `find_conflicts`
+  reads the `MUST_HAPPEN` requests and no others. A conflict is a day that cannot be built,
+  which takes two promises that cannot both be kept; a softer request crossing another is
+  settled by dropping the cheaper one, and the day comes out regardless. Everything below
+  `MUST_HAPPEN` is the solver's to weigh and the report's to explain.
+- **A drag is welcomed at the door and judged at the table** (Puppet Master, 2026-09-21).
+  `GroupList.dragEnterEvent` asks only whether the mime type is a set of requests; which
+  row the pointer is over is the move's and the drop's question. A widget that ignores a
+  drag enter is told nothing more about that drag, so judging the enter by the row under it
+  would leave every group undroppable whenever the pointer crossed into the list over `All
+  requests` -- the row at the top, and so the one most drags come in over. `dragMoveEvent`
+  calls Qt's own first, which is what starts the scrolling when a drag is held at the edge
+  of a list too long to show at once.
 - **Keywords read in either case** (Puppet Master, 2026-09-21). Every keyword is its own
   terminal at priority 5, written `/WORD\b/i`, rather than an anonymous string. The `i`
   makes `request` and `REQUEST` one word; the priority puts it above `NAME`, which lower
@@ -775,16 +770,13 @@ Recorded so the outline matches the code.
   variable and not `FOR` followed by `mat`. The parser upper-cases what a quantifier or a
   bound token says before comparing it, so the tree holds one spelling however it was
   typed. The highlighter matches case-insensitively for the same reason.
-- **A gap reaches back into the published days** (Puppet Master, 2026-09-21). `Made` held
-  only the assignments a requirement makes on the target date, so a `GAP` between two
-  labeled requirements was a within-the-day comparison, and a request whose first half had
-  already happened yesterday was compared against nothing. `Made` times are now counted
-  from midnight on the target date, which makes yesterday negative, and a labeled
-  requirement satisfied by a published day contributes that day's real times
-  (`_was_made`). Dates after the target still hold nothing and cannot be one end of a gap;
-  they are checked on the day they turn into, when the other end is published. This is what
-  makes a duration in days worth writing: `GAP first TO second AT_LEAST 40h` now means the
-  forty hours it says.
+- **A gap reaches back into the published days** (Puppet Master, 2026-09-21). `Made` times
+  are counted from midnight on the target date, which puts yesterday at a negative time, and
+  a labeled requirement satisfied by a published day contributes that day's real start and
+  end (`_was_made`). A `GAP` is therefore a distance between two assignments wherever they
+  sit, which is what makes a duration in days worth writing: `GAP first TO second AT_LEAST
+  40h` is the forty hours it says. Dates after the target hold nothing and cannot be one end
+  of a gap; they are checked on the day they land on, when the other end is published.
 - **One clock for the whole solve** (Puppet Master, 2026-09-18). `time_limit_seconds` used
   to be handed to every pass, so a day with five tiers could take five times the setting.
   A `Deadline` now starts in `solve()`, before the model is built, and each pass asks it
