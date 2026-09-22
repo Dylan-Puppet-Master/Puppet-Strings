@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QSizePolicy,
     QSplitter,
-    QTableView,
     QToolBar,
     QVBoxLayout,
     QWidget,
@@ -41,6 +40,7 @@ from puppet_strings.app.facets import facets
 from puppet_strings.app.groups import ALL, UNGROUPED
 from puppet_strings.app.groups_panel import GroupsPane
 from puppet_strings.app.namespaces_panel import NamespacesPanel
+from puppet_strings.app.request_table import RequestTable
 from puppet_strings.app.requests_model import RequestFilter, RequestsModel
 from puppet_strings.app.same_day import SICKNESS, SLEEP, SameDayDialog
 from puppet_strings.app.schedule_dialog import ScheduleDialog
@@ -193,11 +193,8 @@ class MainWindow(QMainWindow):
         self.model = RequestsModel(store)
         self.proxy = RequestFilter(store)
         self.proxy.setSourceModel(self.model)
-        self.table = QTableView()
+        self.table = RequestTable()  # a row is dragged onto a group to move it there
         self.table.setModel(self.proxy)
-        self.table.setSelectionBehavior(QTableView.SelectRows)
-        self.table.setDragEnabled(True)  # a row is dragged onto a group to move it there
-        self.table.setDragDropMode(QTableView.DragOnly)
         self.table.setSortingEnabled(True)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.selectionModel().currentRowChanged.connect(self._select)

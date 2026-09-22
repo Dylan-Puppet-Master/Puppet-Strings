@@ -87,7 +87,10 @@ There are two ways a request gets its group, and no others:
 
 - **A new request joins the group being shown.** Pick the group first, then **New**.
 - **Drag its row onto a group's label to move it.** Select one row or several, drag them
-  across to the pane, and let go over the group they should be on; dropping them on
+  across to the pane, and let go over the group they should be on. What travels with the
+  pointer is a small card naming the first request, with a count on its corner when there
+  are more, and the group a drop would land on is outlined as the pointer passes over it.
+  Dropping them on
   `Ungrouped` takes them off every shelf. The status line says how many moved. `All
   requests` is not a shelf, so the pointer shows a refusal over it; hold the drag at the
   top or the bottom of the list and it scrolls, so a group below the fold can be dropped

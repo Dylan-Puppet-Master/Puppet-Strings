@@ -5,8 +5,8 @@ by dragging its row onto another group's label — which is why there is no grou
 the editor: the pane is where a request's group is decided, all of it in one place.
 """
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor
+from PySide6.QtCore import QRectF, Qt, Signal
+from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
@@ -39,6 +39,10 @@ class GroupList(QListWidget):
     and so the row most drags come in over -- left the whole list dead for that drag, and
     no group in it could be dropped on. The enter asks only whether these are requests;
     which row they are over is the move's and the drop's question.
+
+    The group a drop would land on is outlined while the pointer is over it, as a file
+    manager outlines the folder under a dragged file, rather than marked with Qt's line
+    between rows, which says "in between" -- the one thing a drop here never means.
     """
 
     dropped = Signal(list, str)
@@ -47,6 +51,8 @@ class GroupList(QListWidget):
         super().__init__()
         self.setAcceptDrops(True)
         self.setDragDropMode(QListWidget.DropOnly)
+        self.setDropIndicatorShown(False)
+        self.target: QListWidgetItem | None = None  # the group a drop would land on now
 
     def dragEnterEvent(self, event) -> None:  # noqa: N802
         """Take a drag of requests; ignore anything else dragged in from elsewhere."""
@@ -66,13 +72,21 @@ class GroupList(QListWidget):
         """
         super().dragMoveEvent(event)
         if self._group_at(event) is None:
+            self._aim(None)
             event.ignore()
             return
+        self._aim(self.itemAt(event.position().toPoint()))
         event.setDropAction(Qt.MoveAction)
         event.accept()
 
+    def dragLeaveEvent(self, event) -> None:  # noqa: N802
+        """The pointer has gone elsewhere, so no group is aimed at."""
+        self._aim(None)
+        super().dragLeaveEvent(event)
+
     def dropEvent(self, event) -> None:  # noqa: N802
         """Move the dragged requests onto the group they were let go over."""
+        self._aim(None)
         group = self._group_at(event)
         if group is None:
             event.ignore()
@@ -81,6 +95,27 @@ class GroupList(QListWidget):
         event.setDropAction(Qt.MoveAction)
         event.accept()
         self.dropped.emit([i for i in ids if i], group)
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        """Draw the list, then outline the group a drop would land on."""
+        super().paintEvent(event)
+        if self.target is None:
+            return
+        spot = QRectF(self.visualItemRect(self.target)).adjusted(1.5, 1.5, -1.5, -1.5)
+        fill = QColor(palette.HIGHLIGHT)
+        fill.setAlpha(70)
+        painter = QPainter(self.viewport())
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(QPen(QColor(palette.HIGHLIGHT).lighter(130), 1.5))
+        painter.setBrush(fill)
+        painter.drawRoundedRect(spot, 4, 4)
+        painter.end()
+
+    def _aim(self, item: QListWidgetItem | None) -> None:
+        """Outline this group as the one a drop would land on, or none."""
+        if item is not self.target:
+            self.target = item
+            self.viewport().update()
 
     def _group_at(self, event) -> str | None:
         """The group under the pointer, or None if a drop there would mean nothing."""
@@ -136,6 +171,7 @@ class GroupsPane(QWidget):
         """Rebuild the list from the store, staying on the group that was picked."""
         wanted = keep or self.current
         self.list.blockSignals(True)
+        self.list.target = None  # its item is about to be deleted
         self.list.clear()
         ungrouped = sum(1 for r in self.store.requests if not r.group)
         self._add(ALL, len(self.store.requests))

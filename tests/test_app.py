@@ -641,6 +641,39 @@ def test_a_drag_is_taken_wherever_it_crosses_into_the_groups(window, monkeypatch
     assert dropped == [(["breaks"], "Ropes rewrite")]
 
 
+def test_the_group_under_a_drag_is_outlined_until_it_leaves(window, monkeypatch):
+    from PySide6.QtGui import QDragLeaveEvent, QDragMoveEvent
+
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("Ropes rewrite", True))
+    window.groups.new_group()
+    pane, data = window.groups, request_drag(window, {"breaks"})
+    buttons, keys = Qt.LeftButton, Qt.NoModifier
+    pane.list.dragMoveEvent(
+        QDragMoveEvent(over(pane, "Ropes rewrite"), Qt.MoveAction, data, buttons, keys)
+    )
+    assert pane.list.target.data(Qt.UserRole) == "Ropes rewrite"
+    pane.list.dragMoveEvent(QDragMoveEvent(over(pane, ALL), Qt.MoveAction, data, buttons, keys))
+    assert pane.list.target is None  # `All requests` is not a shelf, so nothing is aimed at
+    pane.list.dragMoveEvent(
+        QDragMoveEvent(over(pane, "Ropes rewrite"), Qt.MoveAction, data, buttons, keys)
+    )
+    pane.list.dragLeaveEvent(QDragLeaveEvent())
+    assert pane.list.target is None
+
+
+def test_a_drag_is_shown_as_a_small_token_not_the_rows(app):
+    from PySide6.QtGui import QFont
+
+    from puppet_strings.app.request_table import WIDEST, drag_token
+
+    one = drag_token(["breaks"], QFont())
+    many = drag_token([f"request-{i}" for i in range(40)], QFont())
+    assert one.width() < WIDEST and one.height() < 60
+    assert many.width() < WIDEST + 60 and many.height() < 80  # a count, however many
+    long = drag_token(["x" * 500], QFont())
+    assert long.width() <= WIDEST + 30  # a long id is elided, not the token grown
+
+
 def test_renaming_and_deleting_a_group(window, monkeypatch):
     names = iter([("Ropes rewrite", True), ("Ropes", True)])
     monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: next(names))
