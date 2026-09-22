@@ -116,9 +116,16 @@ The staff and activity filters use the names a request resolves to, so filtering
 
 **The conflicts pane.** Along the bottom, every place two requests contradict each other,
 found without solving. Each heading is one collision — one person, one date, one block —
-and everything under it belongs to that collision: the requests caught in it, hardest
-first, and the reasons they cannot all hold. A request in two collisions appears under
-both. Double-click one to open it in the editor.
+and everything under it belongs to that collision: the requests caught in it and the
+reasons they cannot all hold. A request in two collisions appears under both.
+Double-click one to open it in the editor.
+
+**A conflict means the day cannot be built at all**, so only `MUST_HAPPEN` requests make
+one. Two requests of any lower priority wanting different things of the same person in the
+same block is not a conflict: the solver keeps the one worth more and says in the report
+that it could not meet the other, and the day still comes out. There have to be at least
+two requests that *must* happen, about one person, in one block, on one date, asking for
+things that cannot both be true.
 
 | What it catches | Example |
 |---|---|
@@ -129,7 +136,10 @@ both. Double-click one to open it in the editor.
 
 ![The conflicts pane](img/conflicts.png)
 
-It reads only what is **settled**. `REQUEST ANY_1_OF staff.all DO …`, `DURING ANY_2_OF
+Sharing a slot is not by itself a collision: two requests asking for the same clinic agree,
+and two half-hour tasks fit in one block quite happily. What they say has to be impossible.
+
+It also reads only what is **settled**. `REQUEST ANY_1_OF staff.all DO …`, `DURING ANY_2_OF
 blocks.all` and every `PREFER` leave the solver room to move, and moving things around each
 other is its job, so they are never reported. What is left is worth looking at: a request
 saved into a collision says so in the toolbar as it saves. A request can also contradict

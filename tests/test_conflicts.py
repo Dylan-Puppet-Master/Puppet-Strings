@@ -7,9 +7,14 @@ import pytest
 from puppet_strings.app.conflicts import find_conflicts, summary
 from puppet_strings.app.facets import resolve_request
 from puppet_strings.model import Priority
-from tests.build import request as req
+from tests.build import request as build_request
 
 TARGET = date(2026, 9, 16)
+
+
+def req(id, skedge, priority=Priority.MUST_HAPPEN, weight=1.0):
+    """A request that must happen, which is the only kind a conflict is made of."""
+    return build_request(id, skedge, priority, weight)
 
 
 def found(dataset, *requests):
@@ -38,10 +43,27 @@ def test_being_asked_to_work_and_to_be_free(dataset):
     assert summary((conflict,)) == "1 conflict(s) over 1 staff member(s)"
 
 
-def test_the_hard_request_is_named_first(dataset):
-    """What must happen is the fixed point, so it heads the list of what is caught."""
-    conflicts = found(dataset, req("pin", PIN, Priority.MUST_HAPPEN), req("free", FREE))
-    assert conflicts[0].requests == ("pin", "free")
+def test_only_what_must_happen_can_conflict(dataset):
+    """A softer request is weighed, not promised, so a day it cannot fit is still a day.
+
+    The pair below contradicts itself flatly; all that decides whether it is a conflict is
+    whether both sides have been promised.
+    """
+    assert found(dataset, req("pin", PIN), req("free", FREE, Priority.HIGH)) == ()
+    assert found(dataset, req("pin", PIN, Priority.HIGH), req("free", FREE)) == ()
+    assert found(dataset, req("pin", PIN, Priority.LOW), req("free", FREE, Priority.HIGH)) == ()
+    assert found(dataset, req("pin", PIN), req("free", FREE))
+
+
+def test_sharing_a_slot_is_not_a_conflict(dataset):
+    """Two promises in one slot are only a conflict if they cannot both be kept."""
+    second = PIN.replace(
+        "DO activities.clinics.riflery", "DO activities.clinics.riflery AS_ROLE roles.second"
+    )
+    assert found(dataset, req("pin", PIN), req("same", second)) == ()
+    hour = "REQUEST staff.dylan DO 'paperwork' FOR 30m DURING blocks.clinic_1 ON dates.target"
+    calls = "REQUEST staff.dylan DO 'phone calls' FOR 30m DURING blocks.clinic_1 ON dates.target"
+    assert found(dataset, req("hour", hour), req("calls", calls)) == ()  # 60 fits in 75
 
 
 def test_being_asked_to_do_something_and_not_to(dataset):
@@ -103,7 +125,11 @@ def test_a_choice_the_solver_makes_is_not_a_conflict(dataset):
         # somewhere in the day, not in this block
         req("loose", "REQUEST staff.dylan DO 'paperwork' FOR 60m DURING ANY_1_OF blocks.all"),
         # a preference, which never has to hold
-        req("wish", "PREFER AT_MOST 1 staff.dylan DOING activities.clinics.riflery"),
+        req(
+            "wish",
+            "PREFER AT_MOST 1 staff.dylan DOING activities.clinics.riflery",
+            Priority.HIGH,
+        ),
     ]
     assert found(dataset, req("free", FREE), *quiet) == ()
 

@@ -5,11 +5,22 @@ reads the resolved requests instead and looks for the disagreements that are pla
 paper: one person, one date, one block, and two requests asking for things that cannot
 both happen.
 
-Only *forced* statements are read — the ones that leave the solver no choice. `REQUEST
-staff.rob DO activities.clinics.ropes DURING blocks.clinic_1` claims Rob's clinic 1; `REQUEST
-ANY_1_OF staff.all DO …` and `DURING ANY_2_OF blocks.all` claim nothing in particular,
-because the solver picks, and picking around each other is its job, not a conflict. That
-keeps this quiet: what it reports is worth looking at.
+A conflict is a day that cannot be scheduled at all, which is a narrower thing than two
+requests wanting different things of the same person. Two conditions hold before one is
+reported, and both of them are what keeps this quiet enough to be worth reading:
+
+*   Every request involved is MUST_HAPPEN. Anything softer is weighed rather than
+    promised: the solver drops the lower priority one and the day still comes out, with
+    the report saying what went unfulfilled. Only what must happen can make a day
+    impossible, so only what must happen is read here.
+*   The statements are *forced* — they leave the solver no choice. `REQUEST staff.rob DO
+    activities.clinics.ropes DURING blocks.clinic_1` claims Rob's clinic 1; `REQUEST
+    ANY_1_OF staff.all DO …` and `DURING ANY_2_OF blocks.all` claim nothing in particular,
+    because the solver picks, and picking around each other is its job.
+
+Two MUST_HAPPEN requests meeting in one slot are not a conflict by themselves: two asking
+for the same clinic agree, and two half-hour tasks share a block quite happily. What they
+say about the slot has to be impossible, which is what `_disagreements` looks for.
 """
 
 from dataclasses import dataclass
@@ -59,25 +70,25 @@ class Conflict:
 def find_conflicts(
     requests: list[Request], resolved: dict[str, tuple[Resolved, ...]], dataset: Dataset
 ) -> tuple[Conflict, ...]:
-    """Every slot where the requests contradict each other, in calendar order."""
-    hard_first = {r.id: r for r in requests}
+    """Every slot where the requests contradict each other, in calendar order.
+
+    Only MUST_HAPPEN requests are read, so a slot a preference and a promise both reach is
+    not a slot anything can go wrong in: the solver keeps the promise and weighs the
+    preference, which is the whole of what the priorities are for.
+    """
+    must_happen = [r for r in requests if r.priority.hard]
     slots: dict[tuple[str, date, str], list[Claim]] = {}
-    for request in requests:
+    for request in must_happen:
         for copy in resolved.get(request.id, ()):
             for statement in copy.statements:
                 for slot, claim in _claims(statement, request, dataset):
                     slots.setdefault(slot, []).append(claim)
     found = []
     for (staff, day, block), claims in slots.items():
-        reasons, involved = _disagreements(claims, dataset.blocks[block].minutes, hard_first)
+        reasons, involved = _disagreements(claims, dataset.blocks[block].minutes)
         if reasons:
-            found.append(Conflict(staff, day, block, tuple(reasons), _order(involved, hard_first)))
+            found.append(Conflict(staff, day, block, tuple(reasons), tuple(sorted(involved))))
     return tuple(sorted(found, key=lambda c: (c.date, c.staff, c.block)))
-
-
-def _order(ids: set[str], requests: dict[str, Request]) -> tuple[str, ...]:
-    """The requests involved, the ones that must happen first: those are the immovable ones."""
-    return tuple(sorted(ids, key=lambda i: (not requests[i].priority.hard, i)))
 
 
 # -- what a statement claims --------------------------------------------------------------
@@ -164,30 +175,19 @@ def _targets(what) -> frozenset[str]:
 # -- what disagrees -----------------------------------------------------------------------
 
 
-def _disagreements(
-    claims: list[Claim], block_minutes: int, request_map: dict[str, Request]
-) -> tuple[list[str], set[str]]:
-    """The reasons the claims on one slot cannot all hold, and the requests making them."""
+def _disagreements(claims: list[Claim], block_minutes: int) -> tuple[list[str], set[str]]:
+    """The reasons the claims on one slot cannot all hold, and the requests making them.
+
+    Every claim here is one a MUST_HAPPEN request makes. Sharing a slot is not the
+    disagreement — a slot holds as many promises as fit in it — so what is looked for is
+    the pairs that cannot both be kept.
+    """
     reasons: list[str] = []
     involved: set[str] = set()
-
-    # Determine which requests in this slot are MUST_HAPPEN
-    must_happen_claims = [c for c in claims if request_map[c.request].priority.hard]
-    must_happen_requests = {c.request for c in must_happen_claims}
-
-    # Rule: If fewer than 2 requests have MUST_HAPPEN priority, there is no conflict.
-    if len(must_happen_requests) < 2:
-        return [], set()
 
     def clash(reason: str, *making: Claim) -> None:
         reasons.append(reason)
         involved.update(claim.request for claim in making)
-
-    # Flag directly that multiple MUST_HAPPEN requests share the same slot
-    if len(must_happen_requests) > 1:
-        request_names = ", ".join(sorted(must_happen_requests))
-        reasons.append(f"multiple MUST_HAPPEN requests ({request_names}) assigned to same slot")
-        involved.update(must_happen_requests)
 
     doing = _first_of(claims, DO)
     free = _first_of(claims, FREE)

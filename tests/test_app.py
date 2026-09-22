@@ -734,7 +734,7 @@ def test_the_conflicts_pane_starts_empty(window):
 def test_saving_a_contradiction_groups_it_in_the_pane(window):
     riflery = save_request(window, "Dylan on riflery", PIN_RIFLERY)
     assert window.conflicts.topLevelItemCount() == 0
-    free = save_request(window, "Dylan is free", DYLAN_FREE, priority="HIGH")
+    free = save_request(window, "Dylan is free", DYLAN_FREE)
     assert "it conflicts with 1 other request(s)" in window.status_label.text()
     (heading, children) = tree_rows(window.conflicts)[0]
     assert heading == "dylan · Wed 2026-09-16 · clinic_1"
@@ -743,6 +743,14 @@ def test_saving_a_contradiction_groups_it_in_the_pane(window):
     heading = window.conflicts.topLevelItem(0)
     assert heading.text(2) == "must be free, and is asked to do riflery"
     assert heading.childCount() == 2  # one reason, so it is said once, in the heading
+
+
+def test_a_contradiction_the_solver_can_settle_is_not_a_conflict(window):
+    """Only MUST_HAPPEN requests can make a day impossible, so only they are reported."""
+    save_request(window, "Dylan on riflery", PIN_RIFLERY)
+    save_request(window, "Dylan is free", DYLAN_FREE, priority="HIGH")
+    assert window.conflicts.topLevelItemCount() == 0
+    assert window.conflicts_dock.windowTitle() == "Conflicts"
 
 
 def test_a_request_appears_under_every_collision_it_is_in(window, monkeypatch):

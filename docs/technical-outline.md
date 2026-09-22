@@ -727,6 +727,13 @@ Recorded so the outline matches the code.
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
   leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
   is what keeps the pane quiet enough to be worth reading.
+- **Only what must happen can conflict** (Puppet Master, 2026-09-21). The first version
+  compared every claim on a slot whatever its priority, so a `LOW` preference crossing a
+  `HIGH` promise was reported as a conflict although the solver settles it by dropping the
+  cheaper one and the day comes out regardless. `find_conflicts` now reads only the
+  `MUST_HAPPEN` requests: a conflict is a day that cannot be built, which takes two
+  promises that cannot both be kept. Everything softer is the solver's to weigh and the
+  report's to explain.
 - **One clock for the whole solve** (Puppet Master, 2026-09-18). `time_limit_seconds` used
   to be handed to every pass, so a day with five tiers could take five times the setting.
   A `Deadline` now starts in `solve()`, before the model is built, and each pass asks it
