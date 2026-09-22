@@ -2,6 +2,7 @@
 
 import os
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -13,6 +14,7 @@ from PySide6.QtGui import QTextCursor  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox  # noqa: E402
 
+import puppet_strings  # noqa: E402
 from puppet_strings.app import palette  # noqa: E402
 from puppet_strings.app.calendar_pane import ROWS  # noqa: E402
 from puppet_strings.app.groups import ALL, DEFAULT_GROUPS, UNGROUPED  # noqa: E402
@@ -1194,6 +1196,21 @@ def coloured(edit, word: str) -> str:
     return ""
 
 
+def test_every_keyword_the_grammar_has_is_a_keyword_to_the_editor():
+    """The one list the box colours by, checked against the one the parser reads by."""
+    import re
+
+    from puppet_strings.app.editor import KEYWORD_WORDS, is_keyword
+
+    grammar = (
+        Path(puppet_strings.__file__).parent / "skedge" / "grammar.lark"
+    ).read_text()
+    words = set(re.findall(r"/([A-Z_]+)\\b/i", grammar))
+    assert len(words) > 20
+    assert words <= set(KEYWORD_WORDS), sorted(words - set(KEYWORD_WORDS))
+    assert is_keyword("ANY_3_OF") and is_keyword("exclude")  # and the one that counts
+
+
 def test_a_keyword_is_coloured_in_whichever_case_it_is_written_in(window):
     """Skedge reads `request` and `REQUEST` alike, so the editor colours them alike."""
     edit = window.editor.skedge_edit
@@ -1203,3 +1220,7 @@ def test_a_keyword_is_coloured_in_whichever_case_it_is_written_in(window):
     assert coloured(edit, "staff.dylan") == palette.NAME
     edit.setPlainText("REQUEST staff.dylan DO 'x' DURING blocks.clinic_1")
     assert coloured(edit, "REQUEST") == palette.KEYWORD
+    edit.setPlainText("EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all")
+    assert coloured(edit, "EXCLUDE") == palette.KEYWORD
+    assert coloured(edit, "ALL_OF") == palette.KEYWORD
+    assert coloured(edit, "'offsite'") == palette.STRING

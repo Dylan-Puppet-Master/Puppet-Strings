@@ -31,6 +31,7 @@ from puppet_strings.skedge.validate import validate_request
 KEYWORD_WORDS = (
     "REQUEST",
     "PREFER",
+    "EXCLUDE",
     "IF",
     "UNLESS",
     "GAP",
