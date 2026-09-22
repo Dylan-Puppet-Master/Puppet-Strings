@@ -116,9 +116,14 @@ def clinic_view(
     """The printed clinic schedule: one column per clinic block.
 
     Clinics come first, grouped by category in Clinic_Data order, one row per position
-    holder (1st above 2nd) and a Shadow or Scaffold row for trainees. Offered clinics with
-    nobody assigned keep their row. Then every other task, one name per row, and finally
-    `remainder` listing staff with nothing in that block.
+    holder (1st above 2nd) and a Shadow or Scaffold row for trainees. Then every other
+    task, one name per row, and finally `remainder` listing staff with nothing in that
+    block.
+
+    Nothing has a row unless somebody is on it in one of these blocks. A clinic that was
+    offered and could not be staffed, or that a request deferred to another day, is not
+    happening today, and a row of empty cells on the schedule is a clinic people go looking
+    for. The Report is where a clinic that was asked for and did not run is named.
 
     Two sets of colours make the grid readable on paper: each clinic block column has its
     own, on its heading and on every cell of it that says something, and each category on
@@ -135,9 +140,8 @@ def clinic_view(
         if a.block in blocks:
             by_activity_block.setdefault((a.activity, a.block), []).append(a)
 
-    shown = _offered(dataset) | {
-        a.activity for a in assignments if a.activity in dataset.activities
-    }
+    # from the assignments in these blocks, so that a row always has a name on it
+    shown = {activity for activity, _ in by_activity_block if activity in dataset.activities}
     labels: list[Fill] = []  # the left-hand column, one colour per category
     categories = dict.fromkeys(a.category for a in dataset.activities.values())
     for index, category in enumerate(categories):
@@ -175,7 +179,7 @@ def clinic_view(
                     rows += _stack(label, trainees, blocks)
         rows.append([])
 
-    tasks = dict.fromkeys(a.activity for a in assignments if a.activity not in dataset.activities)
+    tasks = dict.fromkeys(a for a, _ in by_activity_block if a not in dataset.activities)
     for task in tasks:
         bold.append(len(rows))
         people = {b: [names[a.staff] for a in by_activity_block.get((task, b), [])] for b in blocks}
@@ -203,8 +207,8 @@ def _block_fills(rows: Table, count: int) -> tuple[Fill, ...]:
     """Each clinic block column's colour: on its heading, and on every cell that says something.
 
     The heading is always coloured, so the top of the sheet says which colour is which
-    block; below it an empty cell stays white, which is what makes an unstaffed clinic or a
-    block somebody is free in show up as a gap.
+    block; below it an empty cell stays white, which is what makes a clinic that runs in
+    one block and not another, or a block somebody is free in, show up as a gap.
     """
     return tuple(
         Fill(r, c, colour(BLOCK_COLOURS, c - 1))
@@ -221,13 +225,6 @@ def _title(dataset: Dataset) -> str:
     today = dataset.calendar[dataset.target]
     span = dataset.this_span.name
     return f"Day {day}, {span} Week {today.week} - {dataset.target:%A}"
-
-
-def _offered(dataset: Dataset) -> set[str]:
-    prefix = f"offering:{dataset.target.isoformat()}:"
-    return {
-        r.id[len(prefix) :].rsplit(":", 1)[0] for r in dataset.requests if r.id.startswith(prefix)
-    }
 
 
 def _holders(here: list[Assignment]) -> list[Assignment]:

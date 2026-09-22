@@ -281,7 +281,7 @@ fixed past assignments; an empty one means the day is set up but not solved.
 Three further tabs are overwritten on every publish and hold the latest date only: `Staff View`, `Clinic View`, `Report`. Older views can be regenerated from the date tabs with `puppet-strings solve --date … --publish` only if the date is not yet published; a `--views-only` flag re-renders views from an existing tab without solving.
 
 - **Staff View**: one row per staff member, one column per block (blocks sharing a `display_group` merge into one column). A staff member with no assignment in `blocks.playstation` shows `Available`.
-- **Clinic View**: one row per offered clinic instance, one column per clinic block, position holders in order (1st above 2nd), trainees after them marked `(shadow)` or `(scaffolded)`. Coloured one colour per clinic block column and one per Clinic_Data category (`publish/palette.py`); `Styled` carries the fills and `SheetsSource.style` sends them in one `batch_format`.
+- **Clinic View**: one row per clinic somebody is on, one column per clinic block, position holders in order (1st above 2nd), trainees after them marked `(shadow)` or `(scaffolded)`. Coloured one colour per clinic block column and one per Clinic_Data category (`publish/palette.py`); `Styled` carries the fills and `SheetsSource.style` sends them in one `batch_format`.
 - **Report**: one row per unsatisfied soft request (`id`, `priority`, `description`) and, for an infeasible run, the conflicting `MUST_HAPPEN` ids.
 
 Republishing a date overwrites its tab after a confirmation prompt.

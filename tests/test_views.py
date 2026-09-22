@@ -28,6 +28,11 @@ def rows(dataset):
         )
 
     return (
+        # one clinic per category, since a clinic nobody is on has no row at all
+        whole("vic", "archery_1_2", "first", "clinic_2"),
+        whole("lucy", "riflery", "first", "clinic_3"),
+        whole("tom", "canoe_1_2", "first", "clinic_4"),
+        whole("jack", "candle_making", "first", "clinic_3"),
         whole("rob", "gravity_zip_line", "first", "clinic_1"),
         whole("james", "gravity_zip_line", "second", "clinic_1"),
         whole("paul", "gravity_zip_line", "shadow", "clinic_1", "train"),
@@ -118,9 +123,9 @@ def test_clinic_view(dataset):
     assert table[zip_line + 2] == ["Shadow", "Paul", "", "", ""]
     smith = labels.index("Blacksmithing (DBL)")
     assert table[smith] == ["Blacksmithing (DBL)", "Alexis", "Alexis", "", ""]
-    assert "Pole Course Explore Level 1 & 2 (DBL)" in labels  # offered, nobody assigned
-    assert table[labels.index("Pole Course Explore Level 1 & 2 (DBL)")][1:] == ["", "", "", ""]
-    assert "Muay Thai" not in labels  # not offered
+    # offered and nobody on it: deferred, or nobody could staff it, so it is not happening
+    assert "Pole Course Explore Level 1 & 2 (DBL)" not in labels
+    assert "Muay Thai" not in labels  # not offered either
     assert [] in table  # blank rows between categories
     hour = labels.index("counselor hour")
     assert table[hour] == ["counselor hour", "", "Dylan", "", ""]
@@ -144,8 +149,7 @@ def test_clinic_view_colours_each_block_column(dataset):
     assert colours[(smith, 1)] == BLOCK_COLOURS[0]  # a name takes its column's colour
     assert colours[(smith, 2)] == BLOCK_COLOURS[1]
     assert (smith, 3) not in colours  # and an empty cell stays white
-    pole = labels.index("Pole Course Explore Level 1 & 2 (DBL)")
-    assert not [c for c in range(1, 5) if (pole, c) in colours]  # offered, nobody on it
+    assert "Pole Course Explore Level 1 & 2 (DBL)" not in labels  # nobody on it, so no row
 
 
 def test_clinic_view_colours_each_category(dataset):

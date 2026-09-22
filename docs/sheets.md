@@ -425,15 +425,18 @@ These tabs are overwritten on every publish:
 - **Clinic View**: the printable clinic schedule. A merged title (`Day 4, Session 1 -
   Wednesday`), a header of clinic blocks, then one row per clinic grouped by category in
   Clinic_Data order with a blank row between groups. A clinic with two positions takes two
-  rows (1st above 2nd); trainees get a `Shadow` or `Scaffold` row beneath. An offered
-  clinic nobody could staff keeps its row, empty. After the clinics come the other tasks
-  (counselor hours, breaks) one name per row, and a final `DYOW/WPs` group listing everyone
-  with nothing in that block. Title and clinic names are bold and the top rows are frozen.
+  rows (1st above 2nd); trainees get a `Shadow` or `Scaffold` row beneath. Nothing has a
+  row unless somebody is on it: a clinic that was offered and could not be staffed, or that
+  a request put off to another day, is not happening today and is not on the schedule. The
+  Report is what names a clinic that was asked for and did not run. After the clinics come
+  the other tasks (counselor hours, breaks) one name per row, and a final `DYOW/WPs` group
+  listing everyone with nothing in that block. Title and clinic names are bold and the top
+  rows are frozen.
 
     It is also coloured, so a printed copy can be read across a room. Each clinic block
     has a colour of its own, on its heading and on every cell of that column with a name
-    in it, which leaves the gaps white: an unstaffed clinic and a block somebody is free
-    in both show as blank. Each category on Clinic_Data has a colour of its own too, on
+    in it, which leaves the gaps white: a clinic that runs in one block and not another
+    shows as blank in the block it does not run in. Each category on Clinic_Data has a colour of its own too, on
     the name of every clinic in it, so a category reads as one run down the left-hand
     column. Both sets of colours are the lists in `puppet_strings/publish/palette.py`;
     change a colour there and the next publish uses it. Colours are given out in sheet
