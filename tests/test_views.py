@@ -110,6 +110,49 @@ def test_the_views_leave_out_whoever_is_not_at_camp(dataset):
     assert "Rob" not in free and "Dylan" in free
 
 
+def excluded(dataset):
+    """The fixture day with Dylan offsite all day and Sarah out for clinic 1."""
+    from dataclasses import replace
+
+    return replace(
+        dataset,
+        excluded={
+            dataset.target: {
+                "dylan": {b.id: "offsite" for b in dataset.blocks_on(dataset.target)},
+                "sarah": {"clinic_1": "at the dentist"},
+            }
+        },
+    )
+
+
+def test_the_staff_view_says_where_somebody_excluded_is(dataset):
+    view = staff_view(excluded(dataset), ())
+    by_name = {row[0]: dict(zip(view.rows[1], row, strict=True)) for row in view.rows[2:]}
+    assert set(by_name["Dylan"].values()) == {"Dylan", "offsite"}
+    assert by_name["Sarah"]["Clinic 1"] == "at the dentist"
+    assert by_name["Sarah"]["Clinic 2"] == ""  # back afterwards, and free
+    assert by_name["Dylan"]["Playstation"] == "offsite"  # rather than Available
+
+
+def test_the_clinic_view_groups_the_people_who_are_away(dataset):
+    """They are neither on a clinic nor free, so they are their own row and not in DYOW/WPs."""
+    view = clinic_view(excluded(dataset), ())
+    labels = [row[0] if row else "" for row in view.rows]
+    offsite = view.rows[labels.index("offsite")]
+    assert offsite == ["offsite", "Dylan", "Dylan", "Dylan", "Dylan"]
+    dentist = view.rows[labels.index("at the dentist")]
+    assert dentist == ["at the dentist", "Sarah", "", "", ""]
+    free = labels.index("DYOW/WPs")
+    columns = {1: [], 2: []}
+    for row in view.rows[free:]:
+        for column in columns:
+            if column < len(row) and row[column]:
+                columns[column].append(row[column])
+    assert "Dylan" not in columns[1] and "Dylan" not in columns[2]
+    assert "Sarah" not in columns[1] and "Sarah" in columns[2]
+    assert set(view.bold_rows) >= {labels.index("offsite"), labels.index("at the dentist")}
+
+
 def test_clinic_view(dataset):
     view = clinic_view(dataset, rows(dataset))
     table = view.rows

@@ -41,8 +41,8 @@ A single thing (`staff.rob`, `blocks.clinic_1`, `2026-09-21`) needs no quantifie
 `ON` means the day being scheduled.
 
 `NOT DO` forbids, `FREE` means nothing to do (and `NOT FREE` something), `WITH` / `WITHOUT` say who is alongside,
-`IF` / `UNLESS` make a request conditional, and `GAP` puts time between two requirements.
-That is the whole language.
+`IF` / `UNLESS` make a request conditional, `GAP` puts time between two requirements, and
+`EXCLUDE` takes somebody out of the day altogether. That is the whole language.
 
 Keywords are written in upper case here and everywhere else, which is what makes a request
 skimmable, but they are read in either case: `request staff.dylan do 'x' during
@@ -415,6 +415,43 @@ asks for is an error, which catches misspelled task names.
 of a lower tier outweighs a higher one; within a tier, weights set the exchange rate. See
 [How the solver decides](solver.md). A `PREFER` cannot be `MUST_HAPPEN`, in a request of
 its own or beside requirements; a cap that must hold is `REQUEST AT_MOST`.
+
+## EXCLUDE: somebody who is not here
+
+A day off, a training course, a dentist's appointment. `EXCLUDE` says that somebody is not
+at camp for some of a day, which is not a thing to ask for — it is what the day is like:
+
+```skedge
+EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all ON 2026-09-16
+```
+
+Dylan holds nothing in those blocks, no clinic can use him and no request reaches him
+there, and the published schedule says `offsite` where his assignments would have been —
+on the Staff View in each of his cells, and on the Clinic View in a row of its own beside
+the clinics. The quoted word is that label, so write whatever the schedule should say.
+
+| Part | Means |
+|---|---|
+| `EXCLUDE <who>` | the people who are away: a name, `ALL_OF` a set, or `EACH_OF` one |
+| `DO '<label>'` | what the schedule says where they would have been |
+| `DURING <blocks>` | the blocks they are away for; left out, every block of the day |
+| `ON <dates>` | the dates; left out, the date being scheduled |
+
+**The rules that must happen still must.** A day's legal requirements are written about
+the staff who are here — `REQUEST EACH_OF staff.all DO 'break' …` — and somebody out for a
+whole day is in no category that day, so nothing is asked of them and the day still solves.
+Somebody out for part of a day is still at camp and is still owed their breaks; they are
+simply taken in a block they are around for.
+
+An `EXCLUDE` is a fact, so nothing in it is the solver's to choose: `ANY_n_OF` is refused,
+it takes no `IF`, and it is written at `MUST_HAPPEN` in a request of its own. Naming that
+person anyway in another request — `REQUEST staff.dylan DO activities.clinics.riflery` on
+his day off — is a contradiction the errors pane names: at `MUST_HAPPEN` the day will not
+solve, and below it the work simply never happens.
+
+The Adjustments sheet does the same thing for somebody who is [ill or short of
+sleep](same-day.md); `EXCLUDE` is for what is known in advance and belongs with the
+requests.
 
 ## Time horizon
 

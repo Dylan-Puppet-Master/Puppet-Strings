@@ -165,6 +165,7 @@ the validator has already said so — and it is still wrong:
 | Somebody who is not checked off | `REQUEST staff.henry DO activities.clinics.aerial_silks DURING blocks.clinic_3` when Henry has no aerial silks checkoff, or not the RAL the position needs, or is not one of the people a cabin act's card asks for |
 | A position the activity does not have | `AS_ROLE roles.third` on a clinic with two positions |
 | A clinic the day does not run then | `DURING blocks.clinic_3` when the day's Offerings tab runs it in clinic 1, or does not run it at all |
+| Work asked of somebody who is away | a request naming somebody an [`EXCLUDE`](skedge.md#exclude-somebody-who-is-not-here) has taken out of that block |
 
 The error says which sheet answers it — the Skills sheet for a checkoff, the day's
 Offerings tab for a block — and, where the day runs the clinic somewhere else, which block

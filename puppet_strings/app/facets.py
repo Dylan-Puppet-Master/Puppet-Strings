@@ -6,7 +6,7 @@ from datetime import date
 from puppet_strings.model import Dataset, Request
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.parser import parse
-from puppet_strings.skedge.resolve import Choice, Requirement
+from puppet_strings.skedge.resolve import Choice, Exclusion, Requirement
 from puppet_strings.skedge.validate import validate_request
 
 
@@ -54,6 +54,10 @@ def resolve_request(request: Request, dataset: Dataset) -> tuple[Facets, tuple]:
     dates: set[date] = set()
     for copy in copies:
         for statement in copy.statements:
+            if isinstance(statement, Exclusion):
+                staff |= set(statement.who.items)
+                dates |= set(statement.on.items)
+                continue
             part = statement if isinstance(statement, Requirement) else statement.pattern
             staff |= set(part.who.items)
             dates |= set(part.on.items)
@@ -70,5 +74,5 @@ def _dated(declaration: ast.Declaration) -> bool:
     if not statements:
         return False
     first = statements[0]
-    part = first if isinstance(first, ast.Requirement) else first.pattern
+    part = first if isinstance(first, ast.Requirement | ast.Exclude) else first.pattern
     return ast.clause(part.clauses, ast.On) is not None

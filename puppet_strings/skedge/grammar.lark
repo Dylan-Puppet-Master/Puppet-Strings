@@ -9,7 +9,7 @@
 // it only ever takes a whole word: `format` is a name, not `FOR` and then `mat`.
 
 start       : _NL* line (_NL+ line)* _NL*
-?line       : binding | if_ | unless | labeled | request | prefer | gap
+?line       : binding | if_ | unless | labeled | request | prefer | gap | exclude
 
 binding     : (EACH_OF | ANY_N_OF) NAME _IN set_
 if_         : _IF condition
@@ -25,6 +25,10 @@ request     : _REQUEST chooser _DO do_target do_clause*           -> request_do
             | _REQUEST amount pattern CONSECUTIVE?                -> request_count
 prefer      : _PREFER amount pattern CONSECUTIVE?                 -> prefer_count
             | _PREFER pattern goal                                -> prefer_score
+
+// Who is not at camp for part of a day, and what to write where they would have been.
+// It takes a quoted label rather than an activity: they are not doing anything here.
+exclude     : _EXCLUDE chooser _DO STRING do_clause*
 condition   : amount? pattern CONSECUTIVE?
 
 pattern     : pool _DO target clause*                            -> pattern_doing
@@ -71,6 +75,7 @@ without     : _WITHOUT set_
 // The keywords. A leading `_` keeps the token out of the tree, the way an anonymous string
 // would; `.5` puts them above NAME, which lower case would otherwise be read as.
 _REQUEST.5  : /REQUEST\b/i
+_EXCLUDE.5  : /EXCLUDE\b/i
 _PREFER.5   : /PREFER\b/i
 _IF.5       : /IF\b/i
 _UNLESS.5   : /UNLESS\b/i

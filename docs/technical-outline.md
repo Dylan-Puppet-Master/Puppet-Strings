@@ -727,6 +727,18 @@ Recorded so the outline matches the code.
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
   leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
   is what keeps the pane quiet enough to be worth reading.
+- **EXCLUDE takes somebody out of the day** (Puppet Master, 2026-09-22). A day off is not
+  something to ask the solver for, so `EXCLUDE <who> DO '<label>' [DURING] [ON]` is applied
+  rather than compiled. `puppet_strings/exclude.py` resolves every `EXCLUDE` on the sheet
+  and returns the Dataset those days leave behind: the blocks go into `resting`, so
+  `Dataset.holds` is false and no variable is ever made for them; somebody out for a whole
+  day drops out of every staff category, which is what keeps a `MUST_HAPPEN` rule written
+  about `staff.all` from asking anything of them and is why the day still solves; and
+  `Dataset.excluded` carries the label for the published views. The pass is idempotent and
+  runs at the end of `load_dataset`, in `solve()` and in `RequestStore.current`, so a
+  Dataset is never seen with somebody in a day they are not in. The compiler drops
+  `Exclusion` statements, and a copy holding nothing else is done rather than inactive, so
+  the report has nothing to say about it.
 - **An update can be an archive** (Puppet Master, 2026-09-21). The Linux release is a
   tar.gz carrying the executable, the icon and an `install.sh` that writes the desktop
   entry. `install()` unpacks an archive (`tarfile`, `filter="data"`), puts the executable

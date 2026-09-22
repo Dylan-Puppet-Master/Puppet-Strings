@@ -133,6 +133,17 @@ class Score:
 
 
 @dataclass(frozen=True)
+class Exclusion:
+    """`EXCLUDE <who> DO '<label>' …`, resolved: who is out, when, and what to call it."""
+
+    who: Choice
+    label: str
+    during: Choice | None  # None is every block the date has
+    on: Choice
+    pos: ast.Pos
+
+
+@dataclass(frozen=True)
 class Condition:
     """`IF` or (`unless`) `UNLESS`, resolved. Without an amount it asks for one match."""
 
@@ -142,7 +153,7 @@ class Condition:
     consecutive: bool
 
 
-Statement = Requirement | Forbid | Count | Score
+Statement = Requirement | Forbid | Count | Score | Exclusion
 
 
 def is_prefer(statement) -> bool:
@@ -461,6 +472,8 @@ def _copy(declaration: ast.Declaration, scope: _Scope) -> Resolved:
 
 
 def _statement(statement: ast.Statement, scope: _Scope) -> Statement:
+    if isinstance(statement, ast.Exclude):
+        return _exclusion(statement, scope)
     if isinstance(statement, ast.Count):
         pattern = _pattern(statement.pattern, scope)
         return Count(
@@ -479,6 +492,22 @@ def _statement(statement: ast.Statement, scope: _Scope) -> Statement:
         pattern = Pattern(pool, busy=statement.what is None, **parts, pos=statement.pos)
         return Forbid(who, pattern, statement.pos)
     return Requirement(who, label=statement.label, **parts, pos=statement.pos)
+
+
+def _exclusion(statement: ast.Exclude, scope: _Scope) -> Exclusion:
+    """`EXCLUDE …`, resolved. Nothing in it is a choice: it says what the day is like."""
+    who = _choice(statement.who, STAFF, scope, pool=False)
+    during = ast.clause(statement.clauses, ast.During)
+    on = ast.clause(statement.clauses, ast.On)
+    return Exclusion(
+        who=who,
+        label=statement.label,
+        during=_choice(during.selector, BLOCKS, scope, pool=False) if during else None,
+        on=_choice(on.selector, DATES, scope, pool=False)
+        if on
+        else Choice((scope.dataset.target,), ALL),
+        pos=statement.pos,
+    )
 
 
 def _anyone(statement: ast.Requirement, scope: _Scope) -> Choice:

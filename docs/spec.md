@@ -50,7 +50,7 @@ Skedge has two statements and two ways of talking about assignments.
 
 | Element | Form |
 |---|---|
-| Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `GAP`, `TO`, `DO`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY_n_OF`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
+| Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY_n_OF`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
 | Quantifier | `ALL_OF`, `EACH_OF`, and `ANY_n_OF` for any whole `n` from 1: `ANY_1_OF`, `ANY_3_OF` |
 | Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session.four.week.two.monday` |
 | Variable, label | A bare identifier: `s`, `morning`. A label is followed by a colon. |
@@ -85,7 +85,7 @@ or a clause a statement cannot take, is a parse error and not a validation rule.
 // it only ever takes a whole word: `format` is a name, not `FOR` and then `mat`.
 
 start       : _NL* line (_NL+ line)* _NL*
-?line       : binding | if_ | unless | labeled | request | prefer | gap
+?line       : binding | if_ | unless | labeled | request | prefer | gap | exclude
 
 binding     : (EACH_OF | ANY_N_OF) NAME _IN set_
 if_         : _IF condition
@@ -101,6 +101,10 @@ request     : _REQUEST chooser _DO do_target do_clause*           -> request_do
             | _REQUEST amount pattern CONSECUTIVE?                -> request_count
 prefer      : _PREFER amount pattern CONSECUTIVE?                 -> prefer_count
             | _PREFER pattern goal                                -> prefer_score
+
+// Who is not at camp for part of a day, and what to write where they would have been.
+// It takes a quoted label rather than an activity: they are not doing anything here.
+exclude     : _EXCLUDE chooser _DO STRING do_clause*
 condition   : amount? pattern CONSECUTIVE?
 
 pattern     : pool _DO target clause*                            -> pattern_doing
@@ -147,6 +151,7 @@ without     : _WITHOUT set_
 // The keywords. A leading `_` keeps the token out of the tree, the way an anonymous string
 // would; `.5` puts them above NAME, which lower case would otherwise be read as.
 _REQUEST.5  : /REQUEST\b/i
+_EXCLUDE.5  : /EXCLUDE\b/i
 _PREFER.5   : /PREFER\b/i
 _IF.5       : /IF\b/i
 _UNLESS.5   : /UNLESS\b/i
@@ -402,6 +407,7 @@ next to each other in the Blocks sheet. `AT_LEAST` holds when some run reaches t
 | `PREFER <amount> <pattern> [CONSECUTIVE]` | by degree: the closer the matches are to the amount, the better |
 | `PREFER <pattern> MAXIMIZE metrics.x(args)` | by degree: each match earns the metric's value |
 | `PREFER <pattern> MINIMIZE metrics.x(args)` | by degree: each match costs the metric's value |
+| `EXCLUDE <who> DO '<label>' [DURING] [ON]` | not met or unmet: applied (§9.2) |
 
 A `REQUEST` is all or nothing. To get partial credit from a `REQUEST`, split it with
 `EACH_OF`: each copy is then met or not on its own. That is how "avoid" is written:
@@ -411,7 +417,24 @@ at a soft priority is one small request per person per block.
 `PREFER` takes patterns only. A soft wish that some requirement hold is a `REQUEST` at a
 soft priority, so `PREFER <who> DO …` does not exist.
 
-### 9.1 Metrics
+### 9.1 EXCLUDE
+
+`EXCLUDE <who> DO '<label>' [DURING <blocks>] [ON <dates>]` says that these people are not
+at camp for those blocks on those dates. `DURING` left out is every block the date has;
+`ON` left out is the date being scheduled. It is applied rather than solved:
+
+- No assignment of theirs exists in those blocks, and no statement of any kind reaches
+  them there. It is the same state the Adjustments sheet's `resting` puts somebody in.
+- Somebody excluded from every block a date has is in no staff category on that date, so a
+  `REQUEST` written about a category asks nothing of them. Somebody excluded from part of
+  a date stays in their categories.
+- `<label>` is what the published views write where their assignments would have been.
+
+Nothing in an `EXCLUDE` is chosen, so `ANY_n_OF` is refused in every position. It takes no
+clause but `DURING` and `ON`, holds no `IF`, no `GAP` and no label, is the only statement
+in its declaration, and its priority is `MUST_HAPPEN`.
+
+### 9.2 Metrics
 
 A metric call names its keys: `metrics.preference(s, c)`. Each argument is an item or a
 variable bound by `EACH_OF`, and the arguments must agree in number and namespace with the
@@ -469,6 +492,7 @@ Only a positive `REQUEST` makes things happen. `NOT`, `AT_MOST`, `PREFER`, `IF` 
    a `REQUEST AT_LEAST` or `REQUEST EXACTLY` pattern matches it, or as the `WITH` partner
    one of those needs.
 3. A `REQUEST` whose condition says it does not apply asks for nothing.
+4. Nothing exists in a block an `EXCLUDE` has taken somebody out of, whatever asks for it.
 
 A quoted task named in a pattern or a `NOT DO` that no positive `REQUEST` in any request
 names is an error, not a line that does nothing.
@@ -525,6 +549,7 @@ The solver schedules `dates.target`.
 - **Past dates** with a published schedule are facts. They cannot change, and they count
   exactly as today's assignments do, in every requirement, pattern, condition and amount.
 - **Future dates** hold nothing yet.
+- **Excluded blocks** (§9.1) hold nothing for the person excluded from them, on any date.
 - A request all of whose dates are past, or all future, is inactive.
 - A positive `REQUEST` that could still be met on later dates is **deferrable**: a
   requirement whose `ON ANY_n_OF` can still choose later dates, or an `AT_LEAST` or
@@ -573,6 +598,10 @@ a metric call. The validator and the solver report:
 | `only REQUEST … DO can be labeled` | A label on a `NOT`, `FREE` or amount `REQUEST`. |
 | `undefined label` | `GAP` naming a label that no statement defines. |
 | `defined twice` | Two statements with the same label. |
+| `EXCLUDE is a fact about the day, so it is MUST_HAPPEN` | An `EXCLUDE` at any other priority. |
+| `EXCLUDE stands on its own line and its own request` | An `EXCLUDE` beside any other line. |
+| `EXCLUDE says who is away, so nothing in it is ANY_n_OF` | `ANY_n_OF` anywhere in an `EXCLUDE`. |
+| `EXCLUDE takes DURING and ON, not` | Any other clause on an `EXCLUDE`; the message names it. |
 | `date range ends before it starts` | A backwards range. |
 | `needs a single date here` | An offset or range endpoint that is a set of dates. |
 | `invalid date` | A date that is not a date. |

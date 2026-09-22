@@ -3,10 +3,11 @@
 from ortools.sat.python import cp_model
 
 from puppet_strings.config import Config
+from puppet_strings.exclude import apply_exclusions
 from puppet_strings.model import Assignment, Dataset, Priority, Request, minute_to_time
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.ast import SkedgeError
-from puppet_strings.skedge.resolve import Count, Requirement, Resolved
+from puppet_strings.skedge.resolve import Count, Exclusion, Requirement, Resolved
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.compile import SCALE, Compiled, Compiler
 from puppet_strings.solver.result import Change, RequestOutcome, Result
@@ -43,6 +44,10 @@ def solve(
     """
     config = config or Config()
     cancel = cancel or Cancel()
+    # Who an EXCLUDE takes out of the day comes out of it before a variable is made. A load
+    # has already done this; doing it again costs a substring search per request and means
+    # a solve is right about who is here however its dataset was put together.
+    dataset = apply_exclusions(dataset)
     deadline = Deadline(config.time_limit_seconds)
     model = cp_model.CpModel()
     variables = Variables(model, dataset)
@@ -124,6 +129,13 @@ def _check_adhoc_tasks(copies: list[tuple[Request, Resolved]]) -> None:
 
 
 def _task(statement) -> str | None:
+    """The quoted task a statement is about, if it is about one.
+
+    An `EXCLUDE`'s quoted word is a label for the schedule rather than a task anybody does,
+    so it asks for nothing and needs nobody to ask for it.
+    """
+    if isinstance(statement, Exclusion):
+        return None
     what = statement.what if isinstance(statement, Requirement) else statement.pattern.what
     return what.text if isinstance(what, ast.Task) else None
 

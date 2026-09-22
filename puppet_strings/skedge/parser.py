@@ -183,6 +183,10 @@ class _Builder(Transformer):
         who, _, *clauses = items
         return ast.Requirement(who, None, True, tuple(clauses), _pos(meta))
 
+    def exclude(self, meta, items):
+        who, label, *clauses = items
+        return ast.Exclude(who, str(label)[1:-1], tuple(clauses), _pos(meta))
+
     def request_count(self, meta, items):
         return self._count(meta, items, prefer=False)
 

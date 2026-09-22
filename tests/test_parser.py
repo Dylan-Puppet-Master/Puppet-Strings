@@ -152,6 +152,17 @@ def test_a_gap_may_be_written_in_days():
     assert days.amount.value == 2880 and days.amount.duration
 
 
+def test_exclude_statement():
+    (line,) = parse("EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all ON 2026-08-26").lines
+    assert isinstance(line, ast.Exclude)
+    assert line.who.expr == ast.Ref("staff", "dylan", ast.Pos(1, 9))
+    assert line.label == "offsite"  # a label for the schedule, not an activity
+    assert ast.clause(line.clauses, ast.During).selector.quantifier == ast.ALL_OF
+    assert ast.clause(line.clauses, ast.On).selector.expr.value == date(2026, 8, 26)
+    (bare,) = parse("EXCLUDE staff.dylan DO 'offsite'").lines  # every block of the day
+    assert bare.clauses == ()
+
+
 def test_a_keyword_may_be_written_in_either_case():
     """Upper case is the convention; lower case is the same request, not an error."""
     shouted = parse("REQUEST ALL_OF staff.counselor DO 'x' FOR 30m DURING ANY_1_OF blocks.all")

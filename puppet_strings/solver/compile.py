@@ -37,6 +37,7 @@ from puppet_strings.skedge.resolve import (
     Choice,
     Condition,
     Count,
+    Exclusion,
     Forbid,
     Pattern,
     Requirement,
@@ -173,7 +174,16 @@ class Compiler:
     # -- one copy ------------------------------------------------------------------------------
 
     def compile(self, request: Request, copy: Resolved) -> bool:
-        """Add one copy. Returns False when it is inactive: its dates all past or all future."""
+        """Add one copy. Returns False when it is inactive: its dates all past or all future.
+
+        An `EXCLUDE` is not compiled at all: who is away was settled before the model was
+        built, by taking those blocks out of the day (`puppet_strings.exclude`). A copy
+        that holds nothing else is done rather than inactive, so the report leaves it be.
+        """
+        statements = tuple(st for st in copy.statements if not isinstance(st, Exclusion))
+        if not statements:
+            return True
+        copy = replace(copy, statements=statements)
         if not self._active(copy):
             return False
         self._name = name = f"{request.id}[{copy.key}]" if copy.key else request.id

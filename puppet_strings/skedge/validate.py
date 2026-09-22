@@ -38,6 +38,9 @@ def check(declaration: ast.Declaration, hard: bool) -> None:
     statements = declaration.statements
     if not statements:
         raise ast.SkedgeError("a declaration needs at least one statement", 1, 1)
+    if declaration.exclusions:
+        _check_exclusions(declaration, hard)
+        return
     conditions = declaration.conditions
     if len(conditions) > 1:
         raise _error("only one IF or UNLESS per declaration", conditions[1].pos)
@@ -50,6 +53,37 @@ def check(declaration: ast.Declaration, hard: bool) -> None:
         _check_line(line)
     _check_labels(declaration)
     _check_variables(declaration)
+
+
+def _check_exclusions(declaration: ast.Declaration, hard: bool) -> None:
+    """An EXCLUDE says who is not at camp, which is a fact rather than something to want.
+
+    So it stands on its own: there is nothing for a condition to make it depend on, nothing
+    to weigh it against, and nothing for the solver to choose. A declaration holding one
+    holds nothing else, and every set in it names exactly who and when.
+    """
+    exclusions = declaration.exclusions
+    if len(declaration.lines) > len(exclusions):
+        raise _error("EXCLUDE stands on its own line and its own request", exclusions[0].pos)
+    if not hard:
+        raise _error("EXCLUDE is a fact about the day, so it is MUST_HAPPEN", exclusions[0].pos)
+    for line in exclusions:
+        _settled(line.who)
+        for clause in line.clauses:
+            if isinstance(clause, ast.During | ast.On):
+                _settled(clause.selector)
+            else:
+                raise _error(
+                    f"EXCLUDE takes DURING and ON, not {CLAUSE_NAMES[type(clause)]}", clause.pos
+                )
+        _check_clauses(line.clauses, ast.Task(line.label))
+    _check_variables(declaration)
+
+
+def _settled(selector: ast.Selector) -> None:
+    """Nothing in an EXCLUDE is the solver's to pick: it is either so or it is not."""
+    if selector.quantifier == ast.ANY_OF:
+        raise _error("EXCLUDE says who is away, so nothing in it is ANY_n_OF", selector.pos)
 
 
 def _check_line(line: ast.Line) -> None:

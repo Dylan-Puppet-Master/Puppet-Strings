@@ -46,6 +46,7 @@ from puppet_strings.app.same_day import SICKNESS, SLEEP, SameDayDialog
 from puppet_strings.app.schedule_dialog import ScheduleDialog
 from puppet_strings.app.store import RequestStore
 from puppet_strings.config import Config, load_config
+from puppet_strings.exclude import mentions_exclusion
 from puppet_strings.google_auth import AuthError
 from puppet_strings.model import WRITABLE_PRIORITIES
 from puppet_strings.session import open_source
@@ -725,6 +726,11 @@ class MainWindow(QMainWindow):
             saved = self.store.save(request, original_id)
         finally:
             QApplication.restoreOverrideCursor()
+        if mentions_exclusion(saved.skedge):
+            self.reload()  # who is away changes what every other request is read against
+            self.editor.saved_as(saved)
+            self.status_label.setText(f"  Saved {saved.id}")
+            return
         conflicts, errors = self._requests_changed()
         clashes = [c for c in conflicts if saved.id in c.requests]
         wrong = [e for e in errors if e.request == saved.id]
@@ -761,9 +767,13 @@ class MainWindow(QMainWindow):
         return answer == QMessageBox.Save
 
     def _deleted(self, request_id: str) -> None:
+        request = self.model.request(request_id)
+        away = request is not None and mentions_exclusion(request.skedge)
         self.store.delete(request_id)
         self._requests_changed()
         self.status_label.setText(f"  Deleted {request_id}")
+        if away:
+            self.reload()  # the day has somebody back in it, so read it all again
 
     @staticmethod
     def _fill_combo(combo: QComboBox, first: str, items: list[str]) -> None:

@@ -418,6 +418,8 @@ These tabs are overwritten on every publish:
   tasks in time order and `DYOW/WPs` for unused time. Only the people the span's Staff
   Categories sheet names get a row; the Skills sheet keeps everyone who has ever worked
   here, and the ones it lists who are not here this session are left off both views.
+  Somebody an `EXCLUDE` has taken out of a block has that request's label in the cell —
+  `offsite`, `at the dentist` — rather than an empty one.
   A merged title says which day it is, the names and the block headings are frozen so they
   stay put as the grid is scrolled, each block column carries the colour it has on the
   Clinic View, every other row is banded, and the columns are wide enough — and wrapped —
@@ -429,8 +431,10 @@ These tabs are overwritten on every publish:
   row unless somebody is on it: a clinic that was offered and could not be staffed, or that
   a request put off to another day, is not happening today and is not on the schedule. The
   Report is what names a clinic that was asked for and did not run. After the clinics come
-  the other tasks (counselor hours, breaks) one name per row, and a final `DYOW/WPs` group
-  listing everyone with nothing in that block. Title and clinic names are bold and the top
+  the other tasks (counselor hours, breaks) one name per row, a row per `EXCLUDE` label
+  with the people it takes out of the day, and a final `DYOW/WPs` group listing everyone
+  with nothing in that block. Somebody who is away is in their own row rather than among
+  the people who are free. Title and clinic names are bold and the top
   rows are frozen.
 
     It is also coloured, so a printed copy can be read across a room. Each clinic block

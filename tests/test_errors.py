@@ -77,6 +77,22 @@ def test_a_quoted_task_asks_for_no_checkoff_and_is_offered_by_nobody(dataset):
     )
 
 
+def test_work_asked_of_somebody_who_is_away(dataset):
+    """Two requests, one saying he is off and one putting him to work, and one of them is wrong."""
+    from dataclasses import replace
+
+    away = replace(
+        dataset,
+        excluded={dataset.target: {"dylan": {"clinic_1": "offsite", "clinic_2": "offsite"}}},
+    )
+    (error,) = found(away, req("pin", ARCHERY))
+    assert error.staff == "dylan" and error.block == "clinic_1" and error.day == TARGET
+    assert error.message == "Dylan is 'offsite' then, so cannot be on Archery 1 & 2"
+    # and nothing to say about a block he is back for
+    back = found(away, req("later", ARCHERY.replace("clinic_1", "clinic_3")))
+    assert [e.message for e in back if "is 'offsite'" in e.message] == []
+
+
 def test_a_day_that_offers_nothing_is_not_a_day_of_errors(dataset):
     """Before Load offerings there is nothing to be offered in, which is one thing, not fifty."""
     from dataclasses import replace

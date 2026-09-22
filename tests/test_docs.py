@@ -12,13 +12,19 @@ from puppet_strings.solver.solve import solve
 from tests.examples import EXAMPLES
 
 
+def as_written(skedge: str) -> Request:
+    """One example as a request. An EXCLUDE is a fact about the day, so it is MUST_HAPPEN."""
+    hard = "EXCLUDE" in skedge.upper()
+    return Request("doc", "", skedge, Priority.MUST_HAPPEN if hard else Priority.HIGH)
+
+
 @pytest.mark.parametrize("name", list(EXAMPLES))
 def test_doc_example_validates(dataset, name):
-    assert validate_request(Request("doc", "", EXAMPLES[name], Priority.HIGH), dataset) is not None
+    assert validate_request(as_written(EXAMPLES[name]), dataset) is not None
 
 
 def test_docs_have_every_example():
-    assert len(EXAMPLES) == 40
+    assert len(EXAMPLES) == 41
 
 
 def _prerequisites(dataset, skedge):
@@ -39,7 +45,7 @@ def _prerequisites(dataset, skedge):
 def test_doc_example_solves(dataset, name):
     skedge = EXAMPLES[name]
     offerings = tuple(r for r in dataset.requests if "generated" in r.tags)
-    example = Request("doc", "", skedge, Priority.HIGH)
+    example = as_written(skedge)
     single = replace(dataset, requests=offerings + _prerequisites(dataset, skedge) + (example,))
     result = solve(single, Config(time_limit_seconds=10, workers=4))
     assert result.feasible

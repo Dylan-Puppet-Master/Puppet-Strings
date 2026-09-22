@@ -59,7 +59,7 @@ def staff_view(
         row = [dataset.staff[staff_id].name]
         for block in blocks:
             here = sorted(by_staff_block.get((staff_id, block.id), []), key=lambda a: a.start)
-            row.append(_cell(dataset, block, here, remainder))
+            row.append(_cell(dataset, staff_id, block, here, remainder))
         rows.append(row)
     columns = len(blocks) + 1
     return Styled(
@@ -88,7 +88,12 @@ def _staff_fills(rows: int, blocks: int) -> tuple[Fill, ...]:
     return tuple(fills)
 
 
-def _cell(dataset: Dataset, block: Block, here: list[Assignment], remainder: str) -> str:
+def _cell(
+    dataset: Dataset, staff_id: str, block: Block, here: list[Assignment], remainder: str
+) -> str:
+    excused = dataset.excused(staff_id, block.id)
+    if excused:
+        return excused  # an EXCLUDE: they are not at camp for this block, and it says so
     if not here:
         return AVAILABLE if block.id == PLAYSTATION else ""
     segments = []
@@ -187,12 +192,19 @@ def clinic_view(
     if tasks:
         rows.append([])
 
+    here = sorted(dataset.at_camp, key=lambda s: names[s])
+    for label, people in _excused(dataset, here, blocks).items():
+        bold.append(len(rows))
+        rows += _stack(label, people, blocks)
+
     bold.append(len(rows))
     busy = {(a.staff, a.block) for a in assignments}
-    # Free means free and here: somebody this span does not have is not spare, and listing
-    # them under DYOW/WPs on every block of the day is how a name nobody knows gets read out.
-    here = sorted(dataset.at_camp, key=lambda s: names[s])
-    free = {b: [names[s] for s in here if (s, b) not in busy] for b in blocks}
+    # Free means free and here: somebody this span does not have is not spare, and somebody
+    # an EXCLUDE took out of the block is not spare either -- they are already accounted for.
+    free = {
+        b: [names[s] for s in here if (s, b) not in busy and not dataset.excused(s, b)]
+        for b in blocks
+    }
     rows += _stack(remainder, free, blocks)
     return Styled(
         rows,
@@ -201,6 +213,22 @@ def clinic_view(
         freeze_rows=2,
         fills=tuple(labels) + _block_fills(rows, len(blocks)),
     )
+
+
+def _excused(dataset: Dataset, here: list[str], blocks: list[str]) -> dict[str, dict[str, list]]:
+    """The people an EXCLUDE took out of these blocks, a row per label it wrote.
+
+    They are neither on a clinic nor free, so they are their own group: `offsite` reads
+    beside the clinics the way `DYOW/WPs` does, and somebody looking for a name finds it.
+    """
+    names = {s: dataset.staff[s].name for s in dataset.staff}
+    labels = dict.fromkeys(
+        dataset.excused(s, b) for b in blocks for s in here if dataset.excused(s, b)
+    )
+    return {
+        label: {b: [names[s] for s in here if dataset.excused(s, b) == label] for b in blocks}
+        for label in labels
+    }
 
 
 def _block_fills(rows: Table, count: int) -> tuple[Fill, ...]:

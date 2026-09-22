@@ -1166,6 +1166,68 @@ def test_a_deferrable_amount_stays_reachable():
     assert len(where(result, activity="inventory")) == 1 and ids(result.deferred) == ["stock"]
 
 
+# -- EXCLUDE ---------------------------------------------------------------------------------
+
+OFFSITE = "EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all"
+BREAKS = "REQUEST EACH_OF staff.all DO 'break' FOR 30m DURING ANY_1_OF blocks.all"
+
+
+def with_breaks(*exclusions):
+    """A day with a legal break everybody must get, and whoever is excluded from it."""
+    return dataset(
+        [staff("Dylan"), staff("Sarah")],
+        [],
+        categories={"all": ["Dylan", "Sarah"]},
+        requests=[
+            request("breaks", BREAKS, Priority.MUST_HAPPEN),
+            *[
+                request(f"away-{i}", text, Priority.MUST_HAPPEN)
+                for i, text in enumerate(exclusions)
+            ],
+        ],
+    )
+
+
+def test_a_day_off_does_not_stop_the_day_being_solved():
+    """The legal breaks stay MUST_HAPPEN and are asked of the staff who are at camp."""
+    result = run(with_breaks(OFFSITE))
+    assert result.feasible and result.conflicts == ()
+    assert [a.staff for a in where(result, activity="break")] == ["sarah"]
+    assert where(result, staff="dylan") == []  # nothing at all is assigned to him
+
+
+def test_nothing_may_be_put_in_a_block_somebody_is_excluded_from():
+    """A clinic cannot use them and no request can reach them there."""
+    ds = with_breaks("EXCLUDE staff.dylan DO 'offsite' DURING blocks.clinic_1")
+    ds = replace(
+        ds,
+        requests=(
+            *ds.requests,
+            request("pin", "REQUEST staff.dylan DO 'inventory' DURING blocks.clinic_1"),
+        ),
+    )
+    result = run(ds)
+    assert result.feasible
+    assert where(result, staff="dylan", block="clinic_1") == []
+    assert ids(result.unsatisfied) == ["pin"]  # asked for anyway, and not met
+
+
+def test_a_morning_off_still_owes_them_their_afternoon_break():
+    """Somebody back after lunch is at camp, so the day's MUST_HAPPEN rules still reach them."""
+    morning = "EXCLUDE staff.dylan DO 'dentist' DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}"
+    result = run(with_breaks(morning))
+    assert result.feasible
+    (dylan,) = where(result, staff="dylan", activity="break")
+    assert dylan.block not in ("clinic_1", "clinic_2")
+
+
+def test_an_exclusion_is_neither_unsatisfied_nor_inactive():
+    """It is not a request the solver weighs; it is the day it weighs everything else in."""
+    result = run(with_breaks(OFFSITE))
+    assert ids(result.unsatisfied) == [] and ids(result.inactive) == []
+    assert ids(result.deferred) == []
+
+
 def test_past_and_future_requests_are_inactive():
     ds = dataset(
         [staff("Dylan")],

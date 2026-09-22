@@ -85,7 +85,47 @@ def _of_requirement(statement: Requirement, request: Request, dataset: Dataset, 
         return []  # FREE, a quoted task, or an activity the solver is left to pick
     activity = dataset.activities[activity_id]
     found = _unqualified(statement, request, dataset, activity)
+    found += _while_away(statement, request, dataset, activity)
     return found + _unoffered(statement, request, dataset, activity, offered)
+
+
+def _while_away(statement: Requirement, request: Request, dataset: Dataset, activity) -> list:
+    """Slots an EXCLUDE has already taken the named people out of.
+
+    Two requests, one saying somebody is off and one putting them to work, and nothing can
+    decide which was meant: at MUST_HAPPEN the day will not solve, and below it the work
+    simply never happens. Either way it is worth saying while both are on the screen.
+    """
+    if not forced(statement.who) or not forced(statement.on):
+        return []
+    blocks = statement.during.items if statement.during and forced(statement.during) else ()
+    found = []
+    for day in statement.on.items:
+        if not isinstance(day, date):
+            continue
+        for staff_id in statement.who.items:
+            for block in blocks or _blocks_on(dataset, day):
+                label = dataset.excused(str(staff_id), str(block), day)
+                if not label:
+                    continue
+                name = dataset.staff[str(staff_id)].name
+                found.append(
+                    Problem(
+                        request.id,
+                        f"{name} is '{label}' then, so cannot be on {activity.name}",
+                        day=day,
+                        staff=str(staff_id),
+                        block=str(block),
+                    )
+                )
+    return found
+
+
+def _blocks_on(dataset: Dataset, day: date) -> tuple[str, ...]:
+    """The blocks a request with no DURING reaches, which is all of that day's."""
+    if day not in dataset.calendar:
+        return ()
+    return tuple(b.id for b in dataset.blocks_on(day))
 
 
 # -- who may do it --------------------------------------------------------------------------

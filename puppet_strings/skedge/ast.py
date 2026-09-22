@@ -223,7 +223,21 @@ class Score:
     pos: Pos
 
 
-Statement = Requirement | Count | Score
+@dataclass(frozen=True)
+class Exclude:
+    """`EXCLUDE <who> DO '<label>' [DURING <blocks>] [ON <dates>]`.
+
+    Nobody is being asked for anything: these people are not at camp for those blocks, and
+    `label` is what the schedule says where their assignments would have been.
+    """
+
+    who: Selector
+    label: str
+    clauses: tuple[Clause, ...]
+    pos: Pos
+
+
+Statement = Requirement | Count | Score | Exclude
 
 
 @dataclass(frozen=True)
@@ -266,8 +280,13 @@ class Declaration:
 
     @property
     def statements(self) -> tuple[Statement, ...]:
-        """The REQUEST and PREFER lines."""
-        return tuple(x for x in self.lines if isinstance(x, Requirement | Count | Score))
+        """The REQUEST, PREFER and EXCLUDE lines."""
+        return tuple(x for x in self.lines if isinstance(x, Requirement | Count | Score | Exclude))
+
+    @property
+    def exclusions(self) -> tuple["Exclude", ...]:
+        """The EXCLUDE lines."""
+        return tuple(x for x in self.lines if isinstance(x, Exclude))
 
     @property
     def bindings(self) -> tuple[Binding, ...]:
@@ -309,11 +328,11 @@ def selectors(line: Line) -> Iterator[tuple[str | None, Selector]]:
         yield None, line.selector
         return
     for part in (line, *patterns(line)):
-        if not isinstance(part, Requirement | Pattern):
+        if not isinstance(part, Requirement | Pattern | Exclude):
             continue
         if part.who is not None:
             yield STAFF, part.who
-        if isinstance(part.what, Selector):
+        if isinstance(getattr(part, "what", None), Selector):
             yield ACTIVITIES, part.what
         for c in part.clauses:
             if type(c) in NAMESPACES:
@@ -325,7 +344,7 @@ def set_exprs(line: Line) -> Iterator[SetExpr]:
     for _, selector in selectors(line):
         yield selector.expr
     for part in (line, *patterns(line)):
-        if isinstance(part, Requirement | Pattern):
+        if isinstance(part, Requirement | Pattern | Exclude):
             for c in part.clauses:
                 if isinstance(c, With | Without):
                     yield c.staff

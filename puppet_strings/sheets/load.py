@@ -6,6 +6,7 @@ from dataclasses import replace
 from datetime import date
 
 from puppet_strings.config import Config
+from puppet_strings.exclude import apply_exclusions
 from puppet_strings.model import CalendarDay, Dataset, Span, block_runs_on
 from puppet_strings.names import normalize
 from puppet_strings.sheets import metrics as metrics_sheet
@@ -208,7 +209,7 @@ def _build(
     )
     baseline = schedules.pop(target, None)  # the target's own schedule is what to hold to
 
-    return Dataset(
+    dataset = Dataset(
         target=target,
         staff=staff,
         staff_categories=staff_categories,
@@ -228,6 +229,10 @@ def _build(
         away=frozenset(away),
         warnings=tuple(warnings),
     )
+    # Last, because who is away for a day is written in the requests and the requests are
+    # read here: every reader of a Dataset then sees one day, with the people an EXCLUDE
+    # takes out of it already out of it.
+    return apply_exclusions(dataset)
 
 
 def _reserve(namespace: str, names: Iterable[str], taken: Iterable[str]) -> None:

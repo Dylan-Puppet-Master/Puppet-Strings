@@ -250,3 +250,55 @@ def test_fixture_requests_all_validate(dataset):
 def test_a_gap_may_be_zero(dataset):
     text = f"a: {DO}\nb: REQUEST staff.dylan DO 'y' DURING blocks.clinic_2\nGAP a TO b AT_LEAST 0m"
     assert validate_request(request(text), dataset)
+
+
+EXCLUDE = "EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all ON dates.target"
+
+
+def test_an_exclusion_validates(dataset):
+    assert validate_request(request(EXCLUDE, Priority.MUST_HAPPEN), dataset)
+    assert validate_request(
+        request("EXCLUDE staff.dylan DO 'offsite'", Priority.MUST_HAPPEN), dataset
+    )
+
+
+@pytest.mark.parametrize(
+    ("skedge", "priority", "message"),
+    [
+        (EXCLUDE, Priority.HIGH, "EXCLUDE is a fact about the day, so it is MUST_HAPPEN"),
+        (
+            "EXCLUDE ANY_1_OF staff.all DO 'offsite'",
+            Priority.MUST_HAPPEN,
+            "nothing in it is ANY_n_OF",
+        ),
+        (
+            "EXCLUDE staff.dylan DO 'offsite' DURING ANY_2_OF blocks.all",
+            Priority.MUST_HAPPEN,
+            "nothing in it is ANY_n_OF",
+        ),
+        (
+            f"{EXCLUDE}\nREQUEST staff.rob DO 'x' DURING blocks.clinic_1",
+            Priority.MUST_HAPPEN,
+            "EXCLUDE stands on its own line and its own request",
+        ),
+        (
+            "EXCLUDE staff.dylan DO 'offsite' FOR 30m",
+            Priority.MUST_HAPPEN,
+            "EXCLUDE takes DURING and ON, not FOR",
+        ),
+        (
+            "EXCLUDE staff.dylan DO 'offsite' ON dates.target ON dates.target",
+            Priority.MUST_HAPPEN,
+            "ON given twice",
+        ),
+        (
+            "EXCLUDE staff.counselor DO 'offsite'",
+            Priority.MUST_HAPPEN,
+            "needs a quantifier: ALL_OF, ANY_n_OF or EACH_OF",
+        ),
+    ],
+)
+def test_an_exclusion_is_refused(dataset, skedge, priority, message):
+    with pytest.raises(SkedgeError) as info:
+        validate_request(request(skedge, priority), dataset)
+    assert message in info.value.message

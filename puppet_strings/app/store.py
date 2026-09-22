@@ -10,6 +10,7 @@ from puppet_strings.app.facets import Facets, resolve_request
 from puppet_strings.app.group_tabs import GroupTabs
 from puppet_strings.app.groups import DEFAULT_GROUPS, clean, same_group
 from puppet_strings.config import Config
+from puppet_strings.exclude import apply_exclusions
 from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
 from puppet_strings.model import Adjustment, Dataset, Request, Rest
 from puppet_strings.names import normalize
@@ -175,8 +176,12 @@ class RequestStore:
 
     @property
     def current(self) -> Dataset:
-        """The loaded dataset with the requests as they are now, saved edits included."""
-        return replace(self.dataset, requests=tuple(self.requests))
+        """The loaded dataset with the requests as they are now, saved edits included.
+
+        An EXCLUDE among those edits is applied here, so the schedule that is solved, the
+        views that show it and the sheet it is published to all agree about who is away.
+        """
+        return apply_exclusions(replace(self.dataset, requests=tuple(self.requests)))
 
     @property
     def offerings_loaded(self) -> bool:

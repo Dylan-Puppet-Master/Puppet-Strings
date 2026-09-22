@@ -492,6 +492,11 @@ class Dataset:
     baseline: tuple[Assignment, ...] | None = None
     adjustments: tuple[Adjustment, ...] = ()
     resting: Mapping[date, Mapping[str, frozenset[str]]] = field(default_factory=dict)
+    # Who an EXCLUDE has taken out of a day, by date: staff id -> block -> the label to
+    # write where their assignments would have been. They hold nothing in those blocks and
+    # nothing is asked of them there; `resting` carries the same blocks, which is what the
+    # solver reads, and this carries the words, which is what the published views read.
+    excluded: Mapping[date, Mapping[str, Mapping[str, str]]] = field(default_factory=dict)
     # Who the span's Staff Categories sheet does not name, and so is not at camp this span.
     # The Skills sheet keeps everyone who ever worked here, and the ones who have left or
     # are here another session are nothing to do with this day: they hold no assignment,
@@ -503,6 +508,11 @@ class Dataset:
     def at_camp(self) -> tuple[str, ...]:
         """The staff this span has, in Skills sheet order. A day is only ever about them."""
         return tuple(i for i in self.staff if i not in self.away)
+
+    def excused(self, staff_id: str, block: str, day: date | None = None) -> str:
+        """What an EXCLUDE wrote over this slot, or "" if the person is in the schedule."""
+        excluded = self.excluded.get(day or self.target, {})
+        return excluded.get(staff_id, {}).get(block, "")
 
     @property
     def today_adjustments(self) -> tuple[Adjustment, ...]:
