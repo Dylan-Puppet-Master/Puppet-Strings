@@ -2,6 +2,7 @@
 
 import os
 import shutil
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -746,6 +747,61 @@ def test_saving_a_request_about_this_date_asks_nothing(window, monkeypatch):
 
 
 # -- the calendar --------------------------------------------------------------------------
+
+
+# -- what a load reads, and what it leaves for later -----------------------------------------
+
+
+def test_the_prefetch_reads_the_published_days_the_load_left(app, fixtures_copy):
+    """The load does not wait for them; they are there by the time Solve is pressed."""
+    window = make_window(fixtures_copy, loaded=False)
+    window.reload()
+    window.wait_for_load()
+    window.wait_for_history()
+    assert set(window.store.dataset.published) == {date(2026, 9, 14), date(2026, 9, 15)}
+
+
+def test_the_prefetch_follows_the_day_the_window_moved_to(window):
+    window.wait_for_history()
+    window.date_edit.setDate(QDate(2026, 9, 17))
+    window.reload()
+    window.wait_for_load()
+    window.wait_for_history()
+    assert window.store.dataset.target == date(2026, 9, 17)
+    assert window.store.dataset.published
+
+
+def test_a_prefetch_that_arrives_after_the_day_has_moved_on_is_dropped(window):
+    """It was asked of one day and answers for that one; the window is on another."""
+    from dataclasses import replace
+
+    window.wait_for_history()
+    store = window.store
+    store.dataset = replace(store.dataset, published={}, target=date(2026, 9, 17))
+    asked_for = store.dataset
+
+    def moved_on(*a, **k):
+        store.dataset = replace(asked_for, target=date(2026, 9, 18))  # another load, meanwhile
+        return replace(asked_for, published={date(2026, 9, 15): ()})
+
+    store.source = store.source  # unchanged; only the read is stood in for
+    import puppet_strings.app.store as store_module
+
+    original = store_module.read_history
+    store_module.read_history = moved_on
+    try:
+        assert store.prefetch_history() is False
+    finally:
+        store_module.read_history = original
+    assert store.dataset.target == date(2026, 9, 18) and store.dataset.published == {}
+
+
+def test_solving_finds_the_history_already_read(window):
+    """That is the point of it: Solve starts without a wait for the days behind it."""
+    window.wait_for_history()
+    read = window.store.dataset
+    assert read.published
+    assert window.store.for_solving().published == read.published
 
 
 def test_calendar_labels_weeks_with_their_session(window):

@@ -39,8 +39,13 @@ STAFF_CATEGORIES_TAB = "Categories"  # the one tab of a span's Staff Categories 
 CLINIC_TRAINERS = "clinic_trainers"
 
 
-def load_dataset(source: Source, config: Config, target: date) -> Dataset:
+def load_dataset(source: Source, config: Config, target: date, history: bool = True) -> Dataset:
     """Read every sheet and build the Dataset for `target`.
+
+    `history` reads what was published on the days before the target as well. Only the
+    solver looks at those, and there is a spreadsheet of them per day of the season so far,
+    so the request manager loads without them and `read_history` fetches them when a solve
+    is about to want them.
 
     Each spreadsheet is fetched with as few requests as possible; over Google Sheets, one
     request per spreadsheet plus one for the metric tabs and one for past schedules.
@@ -64,7 +69,7 @@ def load_dataset(source: Source, config: Config, target: date) -> Dataset:
     with ThreadPoolExecutor(max_workers=1) as pool:
         boards = pool.submit(_cabin_act_boards, source, config)
         return _build(
-            source, config, target, tabs, warnings, boards, config_tables, spans, calendar
+            source, config, target, tabs, warnings, boards, config_tables, spans, calendar, history
         )
 
 
@@ -103,6 +108,7 @@ def _build(
     config_tables: dict,
     spans,
     calendar,
+    history: bool,
 ):
     """Everything but the Calendar and the cabin act sheets, which are already read."""
     skills_tables = source.read_many("skills", [tabs["skills"], tabs["position_skills"]])
@@ -204,8 +210,12 @@ def _build(
         m.name: metrics_sheet.parse_metric(m, metric_tables[tab_of[m.name]], to_id) for m in index
     }
 
+    # Only the target's own day, unless the history is asked for: what happened on the days
+    # before it is the solver's business, and reading them is a spreadsheet per day of the
+    # season so far. `read_history` fetches them on the way into a solve.
+    days = [d for d in sorted(calendar) if d <= target] if history else [target]
     schedules = _published(
-        source, config, spans, calendar, target, staff, activities, {span.id: in_span}
+        source, config, spans, calendar, target, staff, activities, {span.id: in_span}, days
     )
     baseline = schedules.pop(target, None)  # the target's own schedule is what to hold to
 
@@ -292,8 +302,8 @@ def _categories_table(source: Source, in_span: dict[str, str], span: Span) -> li
     return source.read(in_span[STAFF_CATEGORIES], STAFF_CATEGORIES_TAB)
 
 
-def _published(source, config, spans, calendar, target, staff, activities, listed):
-    """Every published day up to and including the target, read from its own spreadsheet.
+def _published(source, config, spans, calendar, target, staff, activities, listed, days):
+    """These days' published assignments, each read from its own spreadsheet.
 
     A past day is a fact the target is scheduled around, so the assignment rows are what is
     read: the three views beside them are for people. Days are spread over a spreadsheet
@@ -302,14 +312,12 @@ def _published(source, config, spans, calendar, target, staff, activities, liste
     A span's folder is listed once, not once per day in it, and `listed` carries in the one
     the caller has already listed to find the target's own day. Listing is a Drive request,
     and a season reaching the end of August has a couple of hundred days behind it; asking
-    for the same folder that many times is most of the wait on every reload.
+    for the same folder that many times is most of the wait on a load.
     """
     wanted: dict[date, str] = {}
     by_span = {s.id: s for s in spans}
     listed = dict(listed)
-    for day in sorted(calendar):
-        if day > target:
-            break
+    for day in days:
         span = by_span[calendar[day].span]
         if span.id not in listed:
             listed[span.id] = source.documents(ROOT, span_path(span))
@@ -326,3 +334,29 @@ def _published(source, config, spans, calendar, target, staff, activities, liste
             continue  # the sheet is there but the day has not been solved
         found[day] = parse_published(table, day, staff, activities)
     return found
+
+
+def read_history(source: Source, config: Config, dataset: Dataset) -> Dataset:
+    """The dataset with every published day before the target read into it.
+
+    Only the solver ever asks what happened on a past day: a pattern counting how many
+    clinics somebody has run this session, a request that was already met earlier in its
+    window. The window does not ask, so a load for the window does not read them — and
+    there are as many of them as the season is old, one spreadsheet each. They are read
+    here instead, on the way into a solve, where they are about to be worth having.
+    """
+    if dataset.published:
+        return dataset  # already read; a second solve of the same day asks nobody
+    before = [d for d in sorted(dataset.calendar) if d < dataset.target]
+    published = _published(
+        source,
+        config,
+        dataset.spans,
+        dataset.calendar,
+        dataset.target,
+        dataset.staff,
+        dataset.activities,
+        {},
+        before,
+    )
+    return replace(dataset, published=published)

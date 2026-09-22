@@ -48,7 +48,7 @@ from puppet_strings.app.store import RequestStore
 from puppet_strings.config import Config, load_config
 from puppet_strings.exclude import mentions_exclusion
 from puppet_strings.google_auth import AuthError
-from puppet_strings.model import WRITABLE_PRIORITIES
+from puppet_strings.model import WRITABLE_PRIORITIES, Dataset
 from puppet_strings.session import open_source
 from puppet_strings.sheets.source import CsvSource, LoadError, NotACampDay
 from puppet_strings.update import UpdateError, download, install, latest_release
@@ -170,14 +170,21 @@ class SolveWorker(QThread):
         self.store = store
         self.same_day = same_day
         self.cancel = cancel
+        self.dataset: Dataset | None = None  # what was solved, for the dialog to publish
 
     def run(self) -> None:
-        """Solve and emit the result, the error text, or that it was stopped."""
+        """Solve and emit the result, the error text, or that it was stopped.
+
+        The published days behind the target are read here rather than at load time: they
+        are a spreadsheet each and only the solver reads them, so the wait belongs to the
+        solve, where there is already a panel up saying what is happening.
+        """
         # already imported by run_solve
         from puppet_strings.solver.solve import Cancelled, RequestError, solve
 
         try:
-            result = solve(self.store.current, self.store.config, self.same_day, self.cancel)
+            self.dataset = self.store.for_solving()
+            result = solve(self.dataset, self.store.config, self.same_day, self.cancel)
         except Cancelled:
             self.stopped.emit()
         except (RequestError, LoadError) as e:
@@ -199,6 +206,8 @@ class MainWindow(QMainWindow):
         self.progress: BusyDialog | None = None  # for work that cannot be cancelled
         self.loader: LoadWorker | None = None
         self.offerings: Worker | None = None
+        self.history: Worker | None = None  # the past days, read while the day is read over
+        self.history_wanted = False
         self.updater: Worker | None = None
         self.installer: Worker | None = None
         self.checked_for_updates = False
@@ -546,6 +555,7 @@ class MainWindow(QMainWindow):
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
         self.calendar.show_dataset(dataset)
         self._refresh_same_day()
+        self.prefetch_history()
         conflicts, errors = self.refresh_errors()
         today = [a.describe(dataset.staff[a.staff].name) for a in dataset.today_adjustments]
         state = "published" if dataset.baseline is not None else "not published"
@@ -556,6 +566,37 @@ class MainWindow(QMainWindow):
             error_summary(errors),
         ]
         self._say(". ".join(parts + today + list(dataset.warnings)))
+
+    def prefetch_history(self) -> None:
+        """Read the published days behind the target, in the background, so Solve is ready.
+
+        Nothing on the window wants them and the solver wants all of them, so they are
+        fetched between the two: the load finishes without them and they are usually there
+        long before anybody presses Solve. A failure says nothing — the solve reads them
+        itself and reports properly if they cannot be had — and a load that starts
+        meanwhile makes this answer the wrong day's, which the store drops on arrival.
+        """
+        if self.store.dataset is None:
+            return
+        if self.history is not None:
+            self.history_wanted = True  # one at a time; this day's turn comes next
+            return
+        self.history = Worker(self.store.prefetch_history)
+        self.history.finished.connect(self._history_finished)
+        self.history.start()
+
+    def _history_finished(self) -> None:
+        """Drop the thread, and go again if the day changed while it was running."""
+        self.history = None
+        if self.history_wanted:
+            self.history_wanted = False
+            self.prefetch_history()
+
+    def wait_for_history(self) -> None:
+        """Block until the past days have been read (used by tests)."""
+        while self.history is not None:
+            self.history.wait()
+            QApplication.processEvents()
 
     def _say(self, message: str) -> None:
         """Put a message in the toolbar, with the whole of it on the tooltip."""
@@ -696,9 +737,8 @@ class MainWindow(QMainWindow):
     def _solved(self, result) -> None:
         self._close_busy()
         self.status_label.setText("")
-        ScheduleDialog(
-            self.store.source, self.store.config, self.store.current, result, self
-        ).exec()
+        solved = self.worker.dataset if self.worker is not None else self.store.current
+        ScheduleDialog(self.store.source, self.store.config, solved, result, self).exec()
 
     def _solve_stopped(self) -> None:
         self._close_busy()

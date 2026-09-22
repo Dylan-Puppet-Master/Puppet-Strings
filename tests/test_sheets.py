@@ -611,6 +611,23 @@ def test_somebody_in_no_category_is_away(fixtures_copy):
     assert "alan" in loaded.away and "alan" not in loaded.at_camp  # and off the published views
 
 
+def test_a_load_can_leave_the_days_behind_it_for_later(source):
+    """The window reads none of them and there is a spreadsheet of them per day of a season."""
+    from puppet_strings.sheets.load import load_dataset, read_history
+    from tests.conftest import CONFIG
+
+    target = date(2026, 9, 15)
+    quick = load_dataset(source, CONFIG, target, history=False)
+    assert quick.published == {}
+    assert quick.baseline is not None  # but the target's own day is read, and says so
+
+    filled = read_history(source, CONFIG, quick)
+    assert set(filled.published) == {date(2026, 9, 14)}
+    assert filled.baseline == quick.baseline
+    assert read_history(source, CONFIG, filled) is filled  # asked once, not once per solve
+    assert load_dataset(source, CONFIG, target).published == filled.published
+
+
 def test_split_requests_reads_an_id_for_the_tab_it_belongs_on(tmp_path):
     """The old tab's ids say where each row goes: a date, a span's name, or neither."""
     import shutil

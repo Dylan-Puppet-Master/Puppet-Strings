@@ -17,7 +17,7 @@ from puppet_strings.names import normalize
 from puppet_strings.publish.writer import day_sheet
 from puppet_strings.sheets.adjustments import adjustment_rows
 from puppet_strings.sheets.calendar import calendar_days, parse_calendar
-from puppet_strings.sheets.load import load_dataset
+from puppet_strings.sheets.load import load_dataset, read_history
 from puppet_strings.sheets.requests import (
     CLINICS_SUFFIX,
     SEASON_TAB,
@@ -105,8 +105,13 @@ class RequestStore:
         return calendar_days(parse_calendar(table, self.config.date_order))
 
     def load(self, target: date) -> None:
-        """Read every sheet for a target date. Raises LoadError."""
-        self.dataset = load_dataset(self.source, self.config, target)
+        """Read every sheet for a target date. Raises LoadError.
+
+        Not the days behind it, though: what was published on them is the solver's
+        business, nothing in the window asks, and there is a spreadsheet of them per day of
+        the season so far. `for_solving` reads them when something is about to want them.
+        """
+        self.dataset = load_dataset(self.source, self.config, target, history=False)
         self.requests = list(self.dataset.requests)
         # the tabs this load came off, so one emptied by a deletion is written empty
         self.held = {r.home for r in self.requests if r.home}
@@ -182,6 +187,35 @@ class RequestStore:
         views that show it and the sheet it is published to all agree about who is away.
         """
         return apply_exclusions(replace(self.dataset, requests=tuple(self.requests)))
+
+    def for_solving(self) -> Dataset:
+        """The current dataset with the published days behind the target read into it.
+
+        Called off the UI thread, on the way into a solve. Where the prefetch has already
+        read them, this costs nothing and Solve starts straight away.
+        """
+        return read_history(self.source, self.config, self.current)
+
+    def prefetch_history(self) -> bool:
+        """Read the days behind the target into the loaded dataset. For a worker thread.
+
+        The window does not need them, so a load does not wait for them; a solve does, so
+        they are fetched while the Puppet Master reads the day over. Returns whether they
+        landed.
+
+        The dataset they were asked for is the dataset they are put into, and nothing else:
+        a load started since has read another day, and yesterday's answer is no part of it.
+        A Dataset is frozen and swapping one for another is a single assignment, so a reader
+        on the other thread sees the whole of one or the whole of the other.
+        """
+        asked_for = self.dataset
+        if asked_for is None or asked_for.published:
+            return False
+        filled = read_history(self.source, self.config, asked_for)
+        if self.dataset is not asked_for:
+            return False
+        self.dataset = filled
+        return True
 
     @property
     def offerings_loaded(self) -> bool:

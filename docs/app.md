@@ -240,6 +240,11 @@ right-click, to insert the highlighted name at the cursor.
 Opening an activity is worth the habit, since a request for one names nobody: it is where
 you check that the people you expect are the people it can have.
 
+**Reload** reads the day: the sheets every pane and every request is checked against. What
+was published on the days *before* it is the solver's business alone, so it is not waited
+for — it is fetched in the background as soon as the load finishes, and is usually there
+before Solve is pressed. Pressing Solve sooner reads it then instead.
+
 **Calendar.** Below the names, a calendar with camp days (the dates on the Calendar sheet)
 shaded. Down its left-hand side, each week is labelled with the session and week it is,
 `S4` over `W2`, taken from the Calendar sheet — the numbers `dates.session.four.week.two.all`

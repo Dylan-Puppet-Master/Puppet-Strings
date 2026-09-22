@@ -727,6 +727,18 @@ Recorded so the outline matches the code.
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
   leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
   is what keeps the pane quiet enough to be worth reading.
+- **A load reads the day; a solve reads the days behind it** (Puppet Master, 2026-09-22).
+  What was published on past days is read by the solver alone — `variables.was_free`,
+  `was_member`, and patterns counting back over a session — and there is a spreadsheet of
+  them per day of the season so far, so a reload in August was spending most of its time
+  fetching what the window never looks at. `load_dataset(..., history=False)` reads only
+  the target's own day, which is what `baseline` and the Same-day toggle need;
+  `read_history` fills in the rest and is called on the way into a solve
+  (`RequestStore.for_solving`). The request manager then prefetches it on a worker as soon
+  as a load finishes, so Solve is usually already holding what it needs. A prefetch
+  installs its answer only if the dataset it was asked about is still the one loaded,
+  since a Dataset is frozen and swapping one for another is a single assignment. A reload
+  is then flat in the age of the season: about a dozen API calls in August as in June.
 - **A read is one request** (Puppet Master, 2026-09-22). `read_many` asked Google what
   tabs a spreadsheet had before asking for the values, which is a second round trip per
   spreadsheet — and a load opens one spreadsheet per published day and per cabin act
