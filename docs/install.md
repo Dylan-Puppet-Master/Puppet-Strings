@@ -4,9 +4,13 @@
 
 1. Download the file for your computer from the
    [releases page](https://github.com/Dylan-Puppet-Master/Puppet-Strings/releases):
-   `puppet-strings-windows.exe`, `puppet-strings-macos` or `puppet-strings-linux`.
-2. Put it somewhere you will find it again, and open it. On macOS and Linux you may have
-   to mark it runnable first (`chmod +x puppet-strings-macos`).
+   `puppet-strings-windows.exe`, `puppet-strings-macos` or `puppet-strings-linux.tar.gz`.
+2. Put it somewhere you will find it again, and open it. On macOS you may have to mark it
+   runnable first (`chmod +x puppet-strings-macos`). On Linux, unpack the archive
+   (`tar xzf puppet-strings-linux.tar.gz`) into the folder you want to keep it in and run
+   `./puppet-strings-linux/install.sh`, which marks the program runnable and puts Puppet
+   Strings in your applications menu with its icon. Keep the folder where it is: the menu
+   entry points at it.
 3. Sign in with the Google account that can open camp's sheets, and choose the **Puppet
    Strings** folder in **Configure**. Puppet Strings remembers both.
 
@@ -19,6 +23,11 @@ and your folder, which it remembers for you.
 version is out and replaces the file you are running if you say yes; restart it afterwards.
 A downloaded copy also asks quietly the first time it loads a day, and says nothing unless
 there is something newer.
+
+On Linux the update is the same archive the releases page has, so it is unpacked and the
+program inside it replaces the one you are running, in the folder it is already in. The
+icon beside it is refreshed at the same time, and your menu entry is left alone — it names
+that same folder and goes on working. There is no need to run `install.sh` again.
 
 ## Building the releases, once
 

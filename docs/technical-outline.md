@@ -727,6 +727,14 @@ Recorded so the outline matches the code.
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
   leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
   is what keeps the pane quiet enough to be worth reading.
+- **An update can be an archive** (Puppet Master, 2026-09-21). The Linux release became a
+  tar.gz carrying the executable, the icon and an `install.sh` that writes the desktop
+  entry, and `install()` still moved whatever had been downloaded over `sys.executable` —
+  which for that release means replacing the running program with a gzip file. It now
+  unpacks an archive (`tarfile`, `filter="data"`), installs the executable inside it and
+  refreshes the icon beside the program *if one is already there*, leaving the desktop
+  entry alone: it names the folder, which is where the new executable went. A bare
+  executable, which is what Windows and macOS release, still installs exactly as before.
 - **The staff view is formatted too** (Puppet Master, 2026-09-21). It went out as bare
   rows, which on Google Sheets is a hundred-cell grid of grey text in columns too narrow
   for what is in them — and it is the sheet everybody at camp actually opens. `staff_view`
