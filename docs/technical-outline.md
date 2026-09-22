@@ -727,6 +727,17 @@ Recorded so the outline matches the code.
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
   leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
   is what keeps the pane quiet enough to be worth reading.
+- **A publish is six write requests** (Puppet Master, 2026-09-22). Google counts write
+  requests against sixty a minute per person, and a publish sent a clear and an update per
+  tab, a format call per bold row, and one each for the merge, the unmerge, the freeze and
+  the widths — around forty on the sample day and past sixty on a real one, which is a 429
+  in the middle of writing a schedule. `Source.write_many` clears and refills every tab of
+  a spreadsheet in two requests (`values_batch_clear`, `values_batch_update`), and `style`
+  sends one `batch_update` for the shape of the sheet and one `batch_format` for the
+  painting, however many rows and fills it holds. A publish is six requests and a save of a
+  request is two. Anything Google refuses for coming too fast (429, 503) waits 5, 15 then
+  30 seconds and asks again, which is what its own answer asks for; the publish runs on a
+  worker with a panel up, so the waiting is visible and the window keeps painting.
 - **A load reads the day; a solve reads the days behind it** (Puppet Master, 2026-09-22).
   What was published on past days is read by the solver alone — `variables.was_free`,
   `was_member`, and patterns counting back over a session — and there is a spreadsheet of

@@ -45,13 +45,14 @@ from puppet_strings.app.requests_model import RequestFilter, RequestsModel
 from puppet_strings.app.same_day import SICKNESS, SLEEP, SameDayDialog
 from puppet_strings.app.schedule_dialog import ScheduleDialog
 from puppet_strings.app.store import RequestStore
+from puppet_strings.app.worker import Worker
 from puppet_strings.config import Config, load_config
 from puppet_strings.exclude import mentions_exclusion
 from puppet_strings.google_auth import AuthError
 from puppet_strings.model import WRITABLE_PRIORITIES, Dataset
 from puppet_strings.session import open_source
 from puppet_strings.sheets.source import CsvSource, LoadError, NotACampDay
-from puppet_strings.update import UpdateError, download, install, latest_release
+from puppet_strings.update import download, install, latest_release
 
 
 def run_app(config: Config, fixtures: Path | None) -> int:
@@ -130,32 +131,6 @@ class LoadWorker(QThread):
             self.failed.emit(traceback.format_exc())
             return
         self.done.emit()
-
-
-class Worker(QThread):
-    """Runs one job off the UI thread, so the window keeps painting while it runs.
-
-    A job that blocks the UI thread leaves the progress panel unpainted and its bar
-    frozen, which looks like a hung window rather than a busy one.
-    """
-
-    done = Signal(object)
-    failed = Signal(str)
-
-    def __init__(self, job) -> None:
-        super().__init__()
-        self.job = job
-
-    def run(self) -> None:
-        """Do the job and report what it returned, or the error text."""
-        try:
-            result = self.job()
-        except (LoadError, UpdateError) as e:
-            self.failed.emit(str(e))  # these say what went wrong; a traceback would not
-        except Exception:  # noqa: BLE001 - shown to the user, never swallowed
-            self.failed.emit(traceback.format_exc())
-        else:
-            self.done.emit(result)
 
 
 class SolveWorker(QThread):

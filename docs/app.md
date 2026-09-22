@@ -240,6 +240,10 @@ right-click, to insert the highlighted name at the cursor.
 Opening an activity is worth the habit, since a request for one names nobody: it is where
 you check that the people you expect are the people it can have.
 
+**Publish** writes the day out with a panel up saying so, and puts the window back when
+it is done. If Google says the writing is coming too fast — it allows sixty writes a minute
+per person — it waits and tries again rather than giving up on a half-written day.
+
 **Reload** reads the day: the sheets every pane and every request is checked against. What
 was published on the days *before* it is the solver's business alone, so it is not waited
 for — it is fetched in the background as soon as the load finishes, and is usually there

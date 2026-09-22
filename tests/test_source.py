@@ -93,6 +93,97 @@ def test_a_read_that_fails_for_another_reason_says_what_happened(source):
         src.read("config", "Blocks")
 
 
+class WriteSpreadsheet(FakeSpreadsheet):
+    """A spreadsheet that records the writes a publish sends it."""
+
+    def __init__(self, tables, refusals=0):
+        super().__init__(tables)
+        self.cleared = []
+        self.written = []
+        self.added = []
+        self.refusals = refusals
+
+    def values_batch_clear(self, params=None, body=None):
+        self.cleared.append(body["ranges"])
+
+    def values_batch_update(self, body):
+        if self.refusals:
+            self.refusals -= 1
+            raise _refused(429)
+        self.written.append(body)
+
+    def add_worksheet(self, title, rows, cols):
+        self.added.append(title)
+        self.tables[title] = []
+
+
+def _refused(status):
+    """What gspread raises when Google says a request came too fast."""
+    error = RuntimeError(f"[{status}]: Quota exceeded")
+    error.response = type("Response", (), {"status_code": status})()
+    return error
+
+
+def test_writing_several_tabs_takes_two_requests(source):
+    """A published day is five tabs, and a clear and a refill each is ten of a minute's sixty."""
+    src, _ = source
+    spreadsheet = WriteSpreadsheet({"Blocks": [], "Empty": [], "Calendar": []})
+    src._open["config"] = spreadsheet
+    src.write_many("config", {"Blocks": [["a"]], "Calendar": [["b"], ["c"]], "Empty": []})
+    assert spreadsheet.cleared == [["'Blocks'", "'Calendar'", "'Empty'"]]
+    (body,) = spreadsheet.written
+    assert body["valueInputOption"] == "RAW"
+    assert body["data"] == [  # an empty tab is cleared and then has nothing to write
+        {"range": "'Blocks'!A1", "values": [["a"]]},
+        {"range": "'Calendar'!A1", "values": [["b"], ["c"]]},
+    ]
+
+
+def test_writing_a_tab_that_is_not_there_yet_makes_it(source):
+    src, _ = source
+    spreadsheet = WriteSpreadsheet({"Blocks": []})
+    src._open["config"] = spreadsheet
+    src._tabs["config"] = ["Blocks"]
+    src.write_many("config", {"Report": [["x"]]})
+    assert spreadsheet.added == ["Report"]
+    assert spreadsheet.written[0]["data"] == [{"range": "'Report'!A1", "values": [["x"]]}]
+
+
+def test_a_request_that_came_too_fast_waits_and_goes_again(source, monkeypatch):
+    """Google's answer to a spent quota is to come back, so that is what is done."""
+    slept = []
+    monkeypatch.setattr("puppet_strings.sheets.source.sleep", slept.append)
+    src, _ = source
+    spreadsheet = WriteSpreadsheet({"Blocks": []}, refusals=2)
+    src._open["config"] = spreadsheet
+    src.write_many("config", {"Blocks": [["a"]]})
+    assert slept == [5, 15]  # two refusals, two waits, and the third time it landed
+    assert len(spreadsheet.written) == 1
+
+
+def test_a_refusal_that_is_not_about_speed_is_raised(source, monkeypatch):
+    monkeypatch.setattr("puppet_strings.sheets.source.sleep", lambda _: None)
+    src, _ = source
+    spreadsheet = WriteSpreadsheet({"Blocks": []})
+
+    def forbidden(body):
+        raise _refused(403)
+
+    spreadsheet.values_batch_update = forbidden
+    src._open["config"] = spreadsheet
+    with pytest.raises(RuntimeError, match="403"):
+        src.write_many("config", {"Blocks": [["a"]]})
+
+
+def test_a_quota_that_never_frees_up_gives_up_saying_so(source, monkeypatch):
+    monkeypatch.setattr("puppet_strings.sheets.source.sleep", lambda _: None)
+    src, _ = source
+    spreadsheet = WriteSpreadsheet({"Blocks": []}, refusals=99)
+    src._open["config"] = spreadsheet
+    with pytest.raises(RuntimeError, match="429"):
+        src.write_many("config", {"Blocks": [["a"]]})
+
+
 class StyleWorksheet:
     """Enough of a gspread worksheet to record what `style` asks of it."""
 
@@ -100,32 +191,25 @@ class StyleWorksheet:
     id = 7
 
     def __init__(self, spreadsheet=None):
-        self.formats = []
         self.batches = []
-        self.merged = []
-        self.frozen = None
         self.spreadsheet = spreadsheet
-
-    def unmerge_cells(self, a1):
-        self.merged.clear()
-
-    def merge_cells(self, a1):
-        self.merged.append(a1)
-
-    def format(self, a1, fmt):
-        self.formats.append((a1, fmt))
-
-    def freeze(self, rows, cols=0):
-        self.frozen = (rows, cols)
 
     def batch_format(self, batch):
         self.batches.append(batch)
 
 
-def test_style_sends_every_fill_in_one_batch(source):
+def styling(source, styled):
+    """What one `style` call sends: the shape requests, then the painting."""
     src, spreadsheet = source
-    worksheet = StyleWorksheet()
+    worksheet = StyleWorksheet(spreadsheet)
     spreadsheet.worksheet = lambda tab: worksheet
+    src.style("config", "A View", styled)
+    shape = spreadsheet.updates[0]["requests"] if spreadsheet.updates else []
+    return {r: body for request in shape for r, body in request.items()}, worksheet.batches
+
+
+def test_style_shapes_the_sheet_in_one_request_and_paints_it_in_another(source):
+    """Google counts sixty write requests a minute, and a day has two views to dress."""
     styled = Styled(
         rows=[["Clinic", "Clinic 1"]],
         title_span=2,
@@ -133,26 +217,23 @@ def test_style_sends_every_fill_in_one_batch(source):
         freeze_rows=2,
         fills=(Fill(1, 0, "#cfe2ff"), Fill(1, 1, "#e8f0fe")),
     )
-    src.style("config", "Clinic View", styled)
-    assert worksheet.merged == ["A1:B1"] and worksheet.frozen == (2, 0)
-    assert worksheet.formats[0] == ("A1:Z1000", _PLAIN)  # yesterday's colours cleared first
-    assert worksheet.formats[1] == ("A2:Z2", {"textFormat": {"bold": True}})
-    assert worksheet.batches == [
-        [
-            {
-                "range": "A2",
-                "format": {"backgroundColor": _rgb("#cfe2ff")},
-            },
-            {"range": "B2", "format": {"backgroundColor": _rgb("#e8f0fe")}},
-        ]
+    shape, batches = styling(source, styled)
+    assert len(source[1].updates) == 1 and len(batches) == 1  # two requests, whatever it holds
+    assert shape["mergeCells"]["range"]["endColumnIndex"] == 2
+    assert shape["unmergeCells"]["range"]["endRowIndex"] == 10  # whatever was merged before
+    frozen = shape["updateSheetProperties"]["properties"]["gridProperties"]
+    assert (frozen["frozenRowCount"], frozen["frozenColumnCount"]) == (2, 0)
+    (painting,) = batches
+    assert painting[0] == {"range": "A1:Z1000", "format": _PLAIN}  # yesterday's colours first
+    assert painting[1] == {"range": "A2:Z2", "format": {"textFormat": {"bold": True}}}
+    assert painting[2:] == [
+        {"range": "A2", "format": {"backgroundColor": _rgb("#cfe2ff")}},
+        {"range": "B2", "format": {"backgroundColor": _rgb("#e8f0fe")}},
     ]
 
 
-def test_style_sizes_the_columns_and_wraps_in_one_request(source):
-    """A view that says how wide its columns are says it once, not once per column."""
-    src, spreadsheet = source
-    worksheet = StyleWorksheet(spreadsheet)
-    spreadsheet.worksheet = lambda tab: worksheet
+def test_style_sizes_the_columns_and_wraps(source):
+    """A view that says how wide its columns are says it in the request it is shaped by."""
     styled = Styled(
         rows=[["Staff", "Clinic 1"]],
         freeze_rows=2,
@@ -160,21 +241,23 @@ def test_style_sizes_the_columns_and_wraps_in_one_request(source):
         wrap=True,
         column_widths=((0, 0, 150), (1, 3, 190)),
     )
-    src.style("config", "Staff View", styled)
-    assert worksheet.frozen == (2, 1)
-    assert worksheet.formats[0][1]["wrapStrategy"] == "WRAP"
-    (body,) = spreadsheet.updates
-    ranges = [r["updateDimensionProperties"] for r in body["requests"]]
-    assert [(r["range"]["startIndex"], r["range"]["endIndex"]) for r in ranges] == [(0, 1), (1, 4)]
-    assert [r["properties"]["pixelSize"] for r in ranges] == [150, 190]
+    shape, batches = styling(source, styled)
+    assert "mergeCells" not in shape  # nothing merged, so nothing to cut the frozen column
+    frozen = shape["updateSheetProperties"]["properties"]["gridProperties"]
+    assert frozen["frozenColumnCount"] == 1
+    widths = [
+        r["updateDimensionProperties"]
+        for r in source[1].updates[0]["requests"]
+        if "updateDimensionProperties" in r
+    ]
+    assert [(w["range"]["startIndex"], w["range"]["endIndex"]) for w in widths] == [(0, 1), (1, 4)]
+    assert [w["properties"]["pixelSize"] for w in widths] == [150, 190]
+    assert batches[0][0]["format"]["wrapStrategy"] == "WRAP"
 
 
-def test_style_without_fills_asks_for_no_batch(source):
-    src, spreadsheet = source
-    worksheet = StyleWorksheet()
-    spreadsheet.worksheet = lambda tab: worksheet
-    src.style("config", "Clinic View", Styled(rows=[["a"]]))
-    assert worksheet.batches == [] and worksheet.merged == []
+def test_a_view_with_nothing_to_paint_still_clears_what_was_there(source):
+    _, batches = styling(source, Styled(rows=[["a"]]))
+    assert batches == [[{"range": "A1:Z1000", "format": _PLAIN}]]
 
 
 def test_a_colour_becomes_the_fractions_the_api_wants():

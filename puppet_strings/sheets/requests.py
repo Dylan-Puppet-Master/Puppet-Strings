@@ -173,8 +173,11 @@ def write_requests(source: Source, requests: tuple[Request, ...], held: set[str]
     by_tab: dict[str, list[Request]] = {tab: [] for tab in held}
     for request in requests:
         by_tab.setdefault(request.home or SEASON_TAB, []).append(request)
-    for tab, rows in by_tab.items():
-        source.write(REQUESTS_SHEET, tab, request_rows(tuple(rows)))
+    # One write for the lot: saving one request rewrites up to three tabs, and a save is
+    # something the Puppet Master does every couple of minutes all afternoon.
+    source.write_many(
+        REQUESTS_SHEET, {tab: request_rows(tuple(rows)) for tab, rows in by_tab.items()}
+    )
 
 
 # A generated request's id says the date it was made for: `offering:2026-09-16:riflery:...`

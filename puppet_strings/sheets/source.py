@@ -10,11 +10,18 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
+from time import sleep
 from typing import Protocol
 
 Table = list[list[str]]
 
 MAX_PARALLEL = 4  # requests in flight at once; Google starts refusing well above this
+
+# Google's quotas are per minute per person: sixty write requests, three hundred reads. A
+# day that spends them is told to come back later rather than refused outright, so it waits
+# and asks again, for long enough that the minute the quota is counted over has turned over.
+TOO_FAST = (429, 503)
+WAITS = (5, 15, 30)
 DEFAULT_TAB = "Sheet1"  # what Google calls the one tab a new spreadsheet comes with
 
 # What a spreadsheet has to be called in the Puppet Strings folder to be recognised, so that
@@ -137,6 +144,9 @@ class Source(Protocol):
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Replace a tab's contents, creating the tab if needed."""
 
+    def write_many(self, sheet: str, tables: dict[str, Table]) -> None:
+        """Replace several tabs of one spreadsheet, in as few requests as possible."""
+
     def style(self, sheet: str, tab: str, styled: Styled):
         """Apply a Styled's formatting. Where formatting is not possible, no-op."""
 
@@ -218,6 +228,11 @@ class CsvSource:
         with path.open("w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerows(table)
 
+    def write_many(self, sheet: str, tables: dict[str, Table]) -> None:
+        """Each tab's rows. A file each is already as few requests as this takes."""
+        for tab, table in tables.items():
+            self.write(sheet, tab, table)
+
     def style(self, sheet: str, tab: str, styled: Styled):
         """CSV files carry no formatting."""
 
@@ -249,6 +264,22 @@ class SheetsSource:
         self._folders: dict[tuple[str, tuple[str, ...]], str] = {}  # where a path is in Drive
         self._discovered: set[tuple[str, int]] = set()
         self._drive = None
+
+    def _sent(self, call):
+        """Make one API call, waiting and going again if Google says it came too fast.
+
+        Publishing a day and saving a request are a handful of requests each, which is well
+        inside the quota; several of them in the same minute is not. Waiting is what the
+        quota asks for, and the panel that is up while this runs says the window is busy.
+        """
+        for wait in (*WAITS, None):
+            try:
+                return call()
+            except Exception as e:  # noqa: BLE001 - anything else is re-raised untouched
+                if wait is None or not _too_fast(e):
+                    raise
+                sleep(wait)
+        return None  # unreachable: the last turn of the loop either returns or raises
 
     @property
     def drive(self):
@@ -419,8 +450,9 @@ class SheetsSource:
         if not tabs:
             return {}
         ranges = [f"'{tab}'" for tab in tabs]
+        spreadsheet = self._spreadsheet(sheet)
         try:
-            response = self._spreadsheet(sheet).values_batch_get(ranges)
+            response = self._sent(lambda: spreadsheet.values_batch_get(ranges))
         except Exception as e:  # noqa: BLE001 - re-raised, once it can say what was wrong
             raise self._why_not(sheet, tabs, e) from e
         tables = {}
@@ -440,54 +472,89 @@ class SheetsSource:
 
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Clear and refill a worksheet, adding it if missing."""
-        import gspread
+        self.write_many(sheet, {tab: table})
 
+    def write_many(self, sheet: str, tables: dict[str, Table]) -> None:
+        """Clear and refill several worksheets of one spreadsheet, in two requests.
+
+        Google counts *write requests* against a quota of sixty a minute per person, and a
+        published day is a spreadsheet of five tabs. A clear and a refill each would be ten
+        of that minute's sixty before any formatting; a batch clear and a batch update are
+        two, whatever the day holds.
+        """
+        if not tables:
+            return
         spreadsheet = self._spreadsheet(sheet)
-        try:
-            worksheet = spreadsheet.worksheet(tab)
-            worksheet.clear()
-        except gspread.WorksheetNotFound:
-            worksheet = spreadsheet.add_worksheet(tab, rows=max(len(table), 1), cols=26)
+        self._add_missing(sheet, spreadsheet, tables)
+        self._sent(lambda: spreadsheet.values_batch_clear(body={"ranges": _ranges(tables)}))
+        data = [{"range": f"'{tab}'!A1", "values": table} for tab, table in tables.items() if table]
+        if data:
+            body = {"valueInputOption": "RAW", "data": data}
+            self._sent(lambda: spreadsheet.values_batch_update(body))
+
+    def _add_missing(self, sheet: str, spreadsheet, tables: dict[str, Table]) -> None:
+        """Make the tabs that are not there yet. A day made by `create` has them all."""
+        have = set(self.tabs(sheet))
+        for tab, table in tables.items():
+            if tab in have:
+                continue
+            rows = max(len(table), 1)
+
+            def add(tab: str = tab, rows: int = rows) -> None:
+                spreadsheet.add_worksheet(tab, rows=rows, cols=26)
+
+            self._sent(add)
             self._tabs.pop(sheet, None)
-        if table:
-            worksheet.update(table, "A1")
 
     def style(self, sheet: str, tab: str, styled: Styled):
         """Merge the title, bold the rows, freeze the corner, size the columns, fill the cells.
 
-        Every cell is cleared back to plain first, so republishing a shorter schedule does
-        not leave yesterday's colours under it. The fills go in one `batch_format` call: a
-        printed day is hundreds of coloured cells, and a request each would take longer
-        than the solve did.
-        """
-        from gspread.utils import rowcol_to_a1
+        Two requests, whatever the day holds: one for the shape of the sheet — what is
+        merged, what is frozen, how wide the columns are — and one for how the cells are
+        painted. Google allows sixty write requests a minute per person, and a bold row or
+        a coloured cell each would spend a day's worth of them on one view.
 
+        Every cell is cleared back to plain at the head of the painting, so republishing a
+        shorter schedule does not leave yesterday's colours under it.
+        """
         worksheet = self._spreadsheet(sheet).worksheet(tab)
-        worksheet.unmerge_cells(f"A1:{rowcol_to_a1(max(worksheet.row_count, 1), 26)}")
-        worksheet.format("A1:Z1000", _PLAIN | (_WRAPPED if styled.wrap else {}))
-        if styled.title_span > 1:
-            worksheet.merge_cells(f"A1:{rowcol_to_a1(1, styled.title_span)}")
-        for row in styled.bold_rows:
-            worksheet.format(f"A{row + 1}:Z{row + 1}", {"textFormat": {"bold": True}})
-        worksheet.freeze(rows=styled.freeze_rows, cols=styled.freeze_columns)
-        self._widen(worksheet, styled)
-        batch = [
-            {"range": _a1(fill), "format": {"backgroundColor": _rgb(fill.colour)}}
-            for fill in styled.fills
-        ]
-        if batch:
-            worksheet.batch_format(batch)
+        shape = self._shape(worksheet, styled)
+        if shape:
+            self._sent(lambda: worksheet.spreadsheet.batch_update({"requests": shape}))
+        self._sent(lambda: worksheet.batch_format(self._paint(styled)))
 
     @staticmethod
-    def _widen(worksheet, styled: Styled) -> None:
-        """Give the columns the widths the view asked for, in one request."""
-        if not styled.column_widths:
-            return
-        requests = [
+    def _shape(worksheet, styled: Styled) -> list[dict]:
+        """What is merged, what is frozen, and how wide the columns are."""
+        sheet_id = worksheet.id
+        rows, columns = max(worksheet.row_count, 1), 26
+        requests: list[dict] = [
+            {
+                "unmergeCells": {
+                    "range": _grid(sheet_id, 0, rows, 0, columns)  # whatever was merged before
+                }
+            },
+            {
+                "updateSheetProperties": {
+                    "properties": {
+                        "sheetId": sheet_id,
+                        "gridProperties": {
+                            "frozenRowCount": styled.freeze_rows,
+                            "frozenColumnCount": styled.freeze_columns,
+                        },
+                    },
+                    "fields": ("gridProperties.frozenRowCount,gridProperties.frozenColumnCount"),
+                }
+            },
+        ]
+        if styled.title_span > 1:
+            merge = _grid(sheet_id, 0, 1, 0, styled.title_span)
+            requests.append({"mergeCells": {"range": merge, "mergeType": "MERGE_ALL"}})
+        requests += [
             {
                 "updateDimensionProperties": {
                     "range": {
-                        "sheetId": worksheet.id,
+                        "sheetId": sheet_id,
                         "dimension": "COLUMNS",
                         "startIndex": first,
                         "endIndex": last + 1,
@@ -498,7 +565,22 @@ class SheetsSource:
             }
             for first, last, pixels in styled.column_widths
         ]
-        worksheet.spreadsheet.batch_update({"requests": requests})
+        return requests
+
+    @staticmethod
+    def _paint(styled: Styled) -> list[dict]:
+        """Every cell back to plain, then the bold rows, then the fills, in that order."""
+        plain = _PLAIN | (_WRAPPED if styled.wrap else {})
+        painting = [{"range": "A1:Z1000", "format": plain}]
+        painting += [
+            {"range": f"A{row + 1}:Z{row + 1}", "format": {"textFormat": {"bold": True}}}
+            for row in styled.bold_rows
+        ]
+        painting += [
+            {"range": _a1(fill), "format": {"backgroundColor": _rgb(fill.colour)}}
+            for fill in styled.fills
+        ]
+        return painting
 
 
 # What every cell is reset to before the day's own formatting goes on.
@@ -527,6 +609,28 @@ def header_rows(table: Table, required: tuple[str, ...], where: str) -> list[dic
         padded = cells + [""] * (len(header) - len(cells))
         rows.append({name: value.strip() for name, value in zip(header, padded, strict=False)})
     return rows
+
+
+def _too_fast(error: Exception) -> bool:
+    """Whether Google is asking to be asked again rather than saying no."""
+    response = getattr(error, "response", None)
+    return getattr(response, "status_code", None) in TOO_FAST
+
+
+def _ranges(tables: dict[str, Table]) -> list[str]:
+    """A whole tab per name, as the values API wants them written."""
+    return [f"'{tab}'" for tab in tables]
+
+
+def _grid(sheet_id: int, top: int, bottom: int, left: int, right: int) -> dict:
+    """A rectangle of one tab, in the half-open 0-based form the API takes."""
+    return {
+        "sheetId": sheet_id,
+        "startRowIndex": top,
+        "endRowIndex": bottom,
+        "startColumnIndex": left,
+        "endColumnIndex": right,
+    }
 
 
 def _a1(fill: Fill) -> str:

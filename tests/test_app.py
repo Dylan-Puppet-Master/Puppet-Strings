@@ -365,6 +365,50 @@ def test_solve_worker_produces_a_result(window, app):
     assert results and results[0].feasible
 
 
+def test_publishing_puts_a_panel_up_and_writes_on_a_thread(window, app, monkeypatch):
+    """A dozen requests to Google with the dialog unpainted reads as a hung window."""
+    from puppet_strings.app.schedule_dialog import ScheduleDialog
+    from puppet_strings.solver.result import Result
+
+    said = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: said.append(a[2]))
+    result = Result(feasible=True, assignments=())
+    dialog = ScheduleDialog(
+        window.store.source, window.store.config, window.store.current, result
+    )
+    dialog.publish_button.click()
+    assert dialog.busy is not None and dialog.busy.isVisible()  # up while it is written
+    assert not dialog.busy.cancel_button.isVisible()  # half a published day is no better
+    assert not dialog.publish_button.isEnabled()
+    dialog.wait_for_publish()
+    app.processEvents()
+    assert dialog.busy is None and said == ["Published 2026-09-16."]
+    assert dialog.already_published
+    written = window.store.source.read(
+        "root/2026/Main Season/Session 1/Wednesday_1", "Staff View"
+    )
+    assert written[1][0] == "Staff"
+
+
+def test_a_publish_that_fails_can_be_tried_again(window, monkeypatch):
+    from puppet_strings.app.schedule_dialog import ScheduleDialog
+    from puppet_strings.solver.result import Result
+
+    complaints = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: complaints.append(a[1]))
+    monkeypatch.setattr(
+        "puppet_strings.app.schedule_dialog.publish",
+        lambda *a: (_ for _ in ()).throw(RuntimeError("Google said no")),
+    )
+    dialog = ScheduleDialog(
+        window.store.source, window.store.config, window.store.current, Result(feasible=True)
+    )
+    dialog.publish_button.click()
+    dialog.wait_for_publish()
+    assert complaints == ["Could not publish"]
+    assert dialog.publish_button.isEnabled() and dialog.busy is None
+
+
 def test_same_day_is_offered_only_for_a_published_day(window, tmp_path):
     assert not window.same_day_action.isEnabled()
     assert not window.sleep_action.isVisible() and not window.sickness_action.isVisible()

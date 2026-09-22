@@ -53,23 +53,27 @@ def _template(source: Source, config: Config, day: date) -> list[list[str]]:
 
 
 def publish(source: Source, config: Config, dataset: Dataset, result: Result) -> None:
-    """Write the day's assignments plus the Staff View, Clinic View and Report."""
+    """Write the day's assignments plus the Staff View, Clinic View and Report.
+
+    Every tab goes in one write, and each view is dressed in two more. Google allows sixty
+    write requests a minute per person; a day sent a tab and a bold row at a time spent most
+    of that minute on one publish, and a second publish inside it was refused outright.
+    """
     tabs = config.tabs
     sheet = day_sheet(source, config, dataset.this_span, dataset.target)
-    source.write(
-        sheet,
-        tabs["assignments"],
-        assignment_rows(result.assignments, dataset.staff, dataset.activities),
-    )
     staff = staff_view(dataset, result.assignments, config.remainder)
-    source.write(sheet, tabs["staff_view"], staff.rows)
-    source.style(sheet, tabs["staff_view"], staff)
     clinics = clinic_view(dataset, result.assignments, config.remainder)
-    source.write(sheet, tabs["clinic_view"], clinics.rows)
-    source.style(sheet, tabs["clinic_view"], clinics)
-    source.write(sheet, tabs["report"], report(result))
+    written = {
+        tabs["assignments"]: assignment_rows(result.assignments, dataset.staff, dataset.activities),
+        tabs["staff_view"]: staff.rows,
+        tabs["clinic_view"]: clinics.rows,
+        tabs["report"]: report(result),
+    }
     if dataset.baseline is not None:  # a same-day re-solve, so say what moved
-        source.write(sheet, tabs["changes"], changes_view(dataset, result))
+        written[tabs["changes"]] = changes_view(dataset, result)
+    source.write_many(sheet, written)
+    source.style(sheet, tabs["staff_view"], staff)
+    source.style(sheet, tabs["clinic_view"], clinics)
 
 
 def is_published(source: Source, config: Config, dataset: Dataset) -> bool:
