@@ -51,12 +51,19 @@ class Styled:
 
     Everything here is advice a sheet may ignore: a CSV file takes the rows and drops the
     rest, which is why the views build one object rather than formatting as they go.
+
+    `column_widths` are (first column, last column, pixels), 0-based and the last column
+    included, because a grid of names wants narrow columns and a grid of sentences wants
+    wide ones, and Sheets' own guess is one width for everything.
     """
 
     rows: Table
     title_span: int = 0  # merge row 1 across this many columns
     bold_rows: tuple[int, ...] = ()  # 0-based row indexes
     freeze_rows: int = 0
+    freeze_columns: int = 0
+    wrap: bool = False  # let a long cell take two lines rather than running under its neighbour
+    column_widths: tuple[tuple[int, int, int], ...] = ()
     fills: tuple[Fill, ...] = field(default_factory=tuple)
 
 
@@ -395,7 +402,7 @@ class SheetsSource:
             worksheet.update(table, "A1")
 
     def style(self, sheet: str, tab: str, styled: Styled):
-        """Merge the title, bold the rows, freeze the top rows, fill the coloured cells.
+        """Merge the title, bold the rows, freeze the corner, size the columns, fill the cells.
 
         Every cell is cleared back to plain first, so republishing a shorter schedule does
         not leave yesterday's colours under it. The fills go in one `batch_format` call: a
@@ -406,12 +413,13 @@ class SheetsSource:
 
         worksheet = self._spreadsheet(sheet).worksheet(tab)
         worksheet.unmerge_cells(f"A1:{rowcol_to_a1(max(worksheet.row_count, 1), 26)}")
-        worksheet.format("A1:Z1000", _PLAIN)
+        worksheet.format("A1:Z1000", _PLAIN | (_WRAPPED if styled.wrap else {}))
         if styled.title_span > 1:
             worksheet.merge_cells(f"A1:{rowcol_to_a1(1, styled.title_span)}")
         for row in styled.bold_rows:
             worksheet.format(f"A{row + 1}:Z{row + 1}", {"textFormat": {"bold": True}})
-        worksheet.freeze(rows=styled.freeze_rows)
+        worksheet.freeze(rows=styled.freeze_rows, cols=styled.freeze_columns)
+        self._widen(worksheet, styled)
         batch = [
             {"range": _a1(fill), "format": {"backgroundColor": _rgb(fill.colour)}}
             for fill in styled.fills
@@ -419,12 +427,38 @@ class SheetsSource:
         if batch:
             worksheet.batch_format(batch)
 
+    @staticmethod
+    def _widen(worksheet, styled: Styled) -> None:
+        """Give the columns the widths the view asked for, in one request."""
+        if not styled.column_widths:
+            return
+        requests = [
+            {
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId": worksheet.id,
+                        "dimension": "COLUMNS",
+                        "startIndex": first,
+                        "endIndex": last + 1,
+                    },
+                    "properties": {"pixelSize": pixels},
+                    "fields": "pixelSize",
+                }
+            }
+            for first, last, pixels in styled.column_widths
+        ]
+        worksheet.spreadsheet.batch_update({"requests": requests})
+
 
 # What every cell is reset to before the day's own formatting goes on.
 _PLAIN = {
     "textFormat": {"bold": False},
     "backgroundColor": {"red": 1, "green": 1, "blue": 1},
 }
+
+# A cell that wraps and sits at the top of its row: two tasks in one block read as two
+# lines rather than as one line running out under the next block's column.
+_WRAPPED = {"wrapStrategy": "WRAP", "verticalAlignment": "TOP"}
 
 
 def header_rows(table: Table, required: tuple[str, ...], where: str) -> list[dict[str, str]]:

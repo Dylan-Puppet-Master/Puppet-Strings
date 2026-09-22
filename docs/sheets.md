@@ -419,6 +419,10 @@ These tabs are overwritten on every publish:
   tasks in time order and `DYOW/WPs` for unused time. Only the people the span's Staff
   Categories sheet names get a row; the Skills sheet keeps everyone who has ever worked
   here, and the ones it lists who are not here this session are left off both views.
+  A merged title says which day it is, the names and the block headings are frozen so they
+  stay put as the grid is scrolled, each block column carries the colour it has on the
+  Clinic View, every other row is banded, and the columns are wide enough — and wrapped —
+  for two tasks in one block to read as two lines.
 - **Clinic View**: the printable clinic schedule. A merged title (`Day 4, Session 1 -
   Wednesday`), a header of clinic blocks, then one row per clinic grouped by category in
   Clinic_Data order with a blank row between groups. A clinic with two positions takes two

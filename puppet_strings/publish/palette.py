@@ -31,6 +31,13 @@ CATEGORY_COLOURS = (
 )
 
 
+# The staff view's own two shades. It is a grid of names rather than a grid of colours, so
+# what it needs is enough shading to keep an eye on one row across ten columns: a band on
+# every other row, and a quieter one down the column of names.
+BANDING = "#f3f5f8"
+NAME_COLUMN = "#e8ebef"
+
+
 def colour(palette: tuple[str, ...], index: int) -> str:
     """The index'th colour of a palette, wrapping round when it runs out."""
     return palette[index % len(palette)]

@@ -61,9 +61,9 @@ def publish(source: Source, config: Config, dataset: Dataset, result: Result) ->
         tabs["assignments"],
         assignment_rows(result.assignments, dataset.staff, dataset.activities),
     )
-    source.write(
-        sheet, tabs["staff_view"], staff_view(dataset, result.assignments, config.remainder)
-    )
+    staff = staff_view(dataset, result.assignments, config.remainder)
+    source.write(sheet, tabs["staff_view"], staff.rows)
+    source.style(sheet, tabs["staff_view"], staff)
     clinics = clinic_view(dataset, result.assignments, config.remainder)
     source.write(sheet, tabs["clinic_view"], clinics.rows)
     source.style(sheet, tabs["clinic_view"], clinics)

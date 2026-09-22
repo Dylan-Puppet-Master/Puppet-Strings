@@ -23,6 +23,10 @@ class FakeSpreadsheet:
     def __init__(self, tables):
         self.tables = tables
         self.calls = []
+        self.updates = []
+
+    def batch_update(self, body):
+        self.updates.append(body)
 
     def worksheets(self):
         self.calls.append("worksheets")
@@ -76,12 +80,14 @@ class StyleWorksheet:
     """Enough of a gspread worksheet to record what `style` asks of it."""
 
     row_count = 10
+    id = 7
 
-    def __init__(self):
+    def __init__(self, spreadsheet=None):
         self.formats = []
         self.batches = []
         self.merged = []
         self.frozen = None
+        self.spreadsheet = spreadsheet
 
     def unmerge_cells(self, a1):
         self.merged.clear()
@@ -92,8 +98,8 @@ class StyleWorksheet:
     def format(self, a1, fmt):
         self.formats.append((a1, fmt))
 
-    def freeze(self, rows):
-        self.frozen = rows
+    def freeze(self, rows, cols=0):
+        self.frozen = (rows, cols)
 
     def batch_format(self, batch):
         self.batches.append(batch)
@@ -111,7 +117,7 @@ def test_style_sends_every_fill_in_one_batch(source):
         fills=(Fill(1, 0, "#cfe2ff"), Fill(1, 1, "#e8f0fe")),
     )
     src.style("config", "Clinic View", styled)
-    assert worksheet.merged == ["A1:B1"] and worksheet.frozen == 2
+    assert worksheet.merged == ["A1:B1"] and worksheet.frozen == (2, 0)
     assert worksheet.formats[0] == ("A1:Z1000", _PLAIN)  # yesterday's colours cleared first
     assert worksheet.formats[1] == ("A2:Z2", {"textFormat": {"bold": True}})
     assert worksheet.batches == [
@@ -123,6 +129,27 @@ def test_style_sends_every_fill_in_one_batch(source):
             {"range": "B2", "format": {"backgroundColor": _rgb("#e8f0fe")}},
         ]
     ]
+
+
+def test_style_sizes_the_columns_and_wraps_in_one_request(source):
+    """A view that says how wide its columns are says it once, not once per column."""
+    src, spreadsheet = source
+    worksheet = StyleWorksheet(spreadsheet)
+    spreadsheet.worksheet = lambda tab: worksheet
+    styled = Styled(
+        rows=[["Staff", "Clinic 1"]],
+        freeze_rows=2,
+        freeze_columns=1,
+        wrap=True,
+        column_widths=((0, 0, 150), (1, 3, 190)),
+    )
+    src.style("config", "Staff View", styled)
+    assert worksheet.frozen == (2, 1)
+    assert worksheet.formats[0][1]["wrapStrategy"] == "WRAP"
+    (body,) = spreadsheet.updates
+    ranges = [r["updateDimensionProperties"] for r in body["requests"]]
+    assert [(r["range"]["startIndex"], r["range"]["endIndex"]) for r in ranges] == [(0, 1), (1, 4)]
+    assert [r["properties"]["pixelSize"] for r in ranges] == [150, 190]
 
 
 def test_style_without_fills_asks_for_no_batch(source):

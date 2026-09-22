@@ -727,6 +727,13 @@ Recorded so the outline matches the code.
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
   leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
   is what keeps the pane quiet enough to be worth reading.
+- **The staff view is formatted too** (Puppet Master, 2026-09-21). It went out as bare
+  rows, which on Google Sheets is a hundred-cell grid of grey text in columns too narrow
+  for what is in them — and it is the sheet everybody at camp actually opens. `staff_view`
+  returns a `Styled` like `clinic_view`: title, bold headings, a frozen corner (two rows
+  and the name column), the clinic view's block colours on the headings, banding on every
+  other row, wrapped cells and column widths. `Styled` grew `freeze_columns`, `wrap` and
+  `column_widths` for it, the last going out as one `updateDimensionProperties` batch.
 - **The conflicts pane became the errors pane** (Puppet Master, 2026-09-21). Two requests
   disagreeing is not the only thing that is wrong on paper and invisible until a solve:
   `REQUEST staff.henry DO activities.clinics.aerial_silks DURING blocks.clinic_3` validates

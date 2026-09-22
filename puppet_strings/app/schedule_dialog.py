@@ -30,9 +30,8 @@ class ScheduleDialog(QDialog):
         self.resize(1100, 700)
         tabs = QTabWidget()
         if result.feasible:
-            tabs.addTab(
-                _table(staff_view(dataset, result.assignments, config.remainder)), "Staff View"
-            )
+            staff = staff_view(dataset, result.assignments, config.remainder)
+            tabs.addTab(_table(staff.rows), "Staff View")
             clinics = clinic_view(dataset, result.assignments, config.remainder)
             tabs.addTab(_table(clinics.rows), "Clinic View")
         if result.changes:

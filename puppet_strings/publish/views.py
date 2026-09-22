@@ -12,7 +12,13 @@ from puppet_strings.model import (
     Dataset,
     minute_to_time,
 )
-from puppet_strings.publish.palette import BLOCK_COLOURS, CATEGORY_COLOURS, colour
+from puppet_strings.publish.palette import (
+    BANDING,
+    BLOCK_COLOURS,
+    CATEGORY_COLOURS,
+    NAME_COLUMN,
+    colour,
+)
 from puppet_strings.sheets.source import Fill, Styled, Table
 from puppet_strings.solver.result import RequestOutcome, Result
 
@@ -23,9 +29,13 @@ ANY_CLINIC = "any_clinic"
 HEADINGS_ROW = 1  # row 0 is the title; row 1 names the blocks
 
 
+STAFF_COLUMN_WIDTH = 150  # a name; the block columns hold a sentence
+BLOCK_COLUMN_WIDTH = 190
+
+
 def staff_view(
     dataset: Dataset, assignments: tuple[Assignment, ...], remainder: str = DEFAULT_REMAINDER
-) -> Table:
+) -> Styled:
     """One row per staff member at camp, one column per block.
 
     A block's cell lists the person's tasks in time order, joined by ", then ". Time in the
@@ -34,9 +44,14 @@ def staff_view(
     Only the staff the span's Staff Categories sheet names get a row. The Skills sheet keeps
     everyone who has ever worked here, and a schedule listing people who are not at camp
     this session is a schedule people have to read past.
+
+    It is read by everybody at camp, most of them looking for one row of it, so it is dressed
+    for that: the day it is says so at the top, the names and the headings stay on screen as
+    the grid is scrolled, each block's column carries the colour it has on the clinic view,
+    and every other row is banded so that an eye crossing ten columns stays on one person.
     """
     blocks = dataset.blocks_on(dataset.target)
-    rows: Table = [["Staff"] + [_label(b.id) for b in blocks]]
+    rows: Table = [[_title(dataset)], ["Staff"] + [_label(b.id) for b in blocks]]
     by_staff_block: dict[tuple[str, str], list[Assignment]] = {}
     for a in assignments:
         by_staff_block.setdefault((a.staff, a.block), []).append(a)
@@ -46,7 +61,31 @@ def staff_view(
             here = sorted(by_staff_block.get((staff_id, block.id), []), key=lambda a: a.start)
             row.append(_cell(dataset, block, here, remainder))
         rows.append(row)
-    return rows
+    columns = len(blocks) + 1
+    return Styled(
+        rows,
+        title_span=columns,
+        bold_rows=(0, HEADINGS_ROW),
+        freeze_rows=2,
+        freeze_columns=1,  # the names, so a row is still somebody's at the far end of the day
+        wrap=True,
+        column_widths=(
+            (0, 0, STAFF_COLUMN_WIDTH),
+            (1, len(blocks), BLOCK_COLUMN_WIDTH),
+        ),
+        fills=_staff_fills(len(rows), len(blocks)),
+    )
+
+
+def _staff_fills(rows: int, blocks: int) -> tuple[Fill, ...]:
+    """The headings in their block's colour, the names in their own, and a band per row."""
+    fills = [Fill(HEADINGS_ROW, c + 1, colour(BLOCK_COLOURS, c)) for c in range(blocks)]
+    fills.append(Fill(HEADINGS_ROW, 0, NAME_COLUMN))
+    for row in range(HEADINGS_ROW + 1, rows):
+        fills.append(Fill(row, 0, NAME_COLUMN))
+        if (row - HEADINGS_ROW) % 2 == 0:
+            fills += [Fill(row, c + 1, BANDING) for c in range(blocks)]
+    return tuple(fills)
 
 
 def _cell(dataset: Dataset, block: Block, here: list[Assignment], remainder: str) -> str:

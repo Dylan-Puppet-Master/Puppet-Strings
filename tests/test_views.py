@@ -1,7 +1,13 @@
 from datetime import time
 
 from puppet_strings.model import Assignment, Priority
-from puppet_strings.publish.palette import BLOCK_COLOURS, CATEGORY_COLOURS, colour
+from puppet_strings.publish.palette import (
+    BANDING,
+    BLOCK_COLOURS,
+    CATEGORY_COLOURS,
+    NAME_COLUMN,
+    colour,
+)
 from puppet_strings.publish.views import clinic_view, report, staff_view
 from puppet_strings.publish.writer import day_sheet, is_published, publish
 from puppet_strings.sheets.source import CsvSource
@@ -36,7 +42,9 @@ def rows(dataset):
 
 
 def test_staff_view(dataset):
-    table = staff_view(dataset, rows(dataset))
+    view = staff_view(dataset, rows(dataset))
+    table = view.rows[1:]  # row 0 is the title
+    assert view.rows[0] == ["Day 4, Session 1 Week 1 - Wednesday"]
     assert table[0] == [
         "Staff",
         "Breakfast",
@@ -66,8 +74,24 @@ def test_staff_view(dataset):
         and by_name["Dylan"]["Playstation"] == "Available"
     )
     assert len(table) == 22
-    custom = staff_view(dataset, rows(dataset), remainder="own work")
+    custom = staff_view(dataset, rows(dataset), remainder="own work").rows[1:]
     assert {row[0]: row for row in custom[1:]}["James"][6] == "own work, then break"
+
+
+def test_the_staff_view_is_dressed_for_being_read(dataset):
+    """It is the sheet everybody at camp opens, most of them looking for one row of it."""
+    view = staff_view(dataset, rows(dataset))
+    blocks = len(view.rows[1]) - 1
+    assert view.title_span == blocks + 1 and view.bold_rows == (0, 1)
+    assert (view.freeze_rows, view.freeze_columns) == (2, 1) and view.wrap
+    assert [width for _, _, width in view.column_widths] == [150, 190]
+    headings = {f.column: f.colour for f in view.fills if f.row == 1}
+    assert headings[1] == colour(BLOCK_COLOURS, 0)  # the clinic view's colour for that block
+    assert headings[0] == NAME_COLUMN
+    names = {f.row for f in view.fills if f.column == 0}
+    assert names == set(range(1, len(view.rows)))  # every name sits in the name column's shade
+    banded = {f.row for f in view.fills if f.column == 1 and f.colour == BANDING}
+    assert banded == set(range(3, len(view.rows), 2))  # every other row, below the headings
 
 
 def test_the_views_leave_out_whoever_is_not_at_camp(dataset):
@@ -75,7 +99,7 @@ def test_the_views_leave_out_whoever_is_not_at_camp(dataset):
     from dataclasses import replace
 
     away = replace(dataset, away=frozenset({"rob", "paul"}))
-    names = [row[0] for row in staff_view(away, rows(dataset))[1:]]
+    names = [row[0] for row in staff_view(away, rows(dataset)).rows[2:]]
     assert "Rob" not in names and "Paul" not in names and "Dylan" in names
     free = [cell for row in clinic_view(away, ()).rows for cell in row]
     assert "Rob" not in free and "Dylan" in free

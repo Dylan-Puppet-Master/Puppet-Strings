@@ -163,7 +163,7 @@ def _solve(source: Source, config: Config, dataset: Dataset, args) -> int:
         for request_id in result.conflicts:
             print(f"  {request_id}")
         return 1
-    _print_table(staff_view(dataset, result.assignments, config.remainder))
+    _print_table(staff_view(dataset, result.assignments, config.remainder).rows)
     print()
     _print_table(clinic_view(dataset, result.assignments, config.remainder).rows)
     print()
