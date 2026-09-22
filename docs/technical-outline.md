@@ -734,6 +734,14 @@ Recorded so the outline matches the code.
   `MUST_HAPPEN` requests: a conflict is a day that cannot be built, which takes two
   promises that cannot both be kept. Everything softer is the solver's to weigh and the
   report's to explain.
+- **A refused drag enter cost the whole drag** (Puppet Master, 2026-09-21). `GroupList`
+  judged the drag *enter* by the row under the pointer, and a widget that ignores a drag
+  enter is told nothing more about that drag: crossing into the list over `All requests` --
+  the row at the top, and so the one most drags come in over -- left every group in the
+  pane undroppable until the drag was started again. The enter now asks only whether the
+  mime type is a set of requests; where the pointer is stays the move's and the drop's
+  question. `dragMoveEvent` also calls Qt's own first, which is what starts the scrolling
+  when a drag is held at the edge of a list too long to show at once.
 - **Keywords read in either case** (Puppet Master, 2026-09-21). Every keyword is its own
   terminal at priority 5, written `/WORD\b/i`, rather than an anonymous string. The `i`
   makes `request` and `REQUEST` one word; the priority puts it above `NAME`, which lower

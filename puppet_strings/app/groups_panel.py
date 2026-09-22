@@ -32,6 +32,13 @@ class GroupList(QListWidget):
     Qt's own drop handling would move rows about inside the list, which is not what a drop
     here means, so the events are taken over: what lands is the ids of the requests being
     dragged, and where it lands is the group they join.
+
+    The drag is welcomed at the door and judged at the table. A widget that refuses the
+    drag *enter* stops being told where the pointer goes next, so refusing it because the
+    pointer happened to cross the list over `All requests` -- which is the row at the top,
+    and so the row most drags come in over -- left the whole list dead for that drag, and
+    no group in it could be dropped on. The enter asks only whether these are requests;
+    which row they are over is the move's and the drop's question.
     """
 
     dropped = Signal(list, str)
@@ -43,11 +50,26 @@ class GroupList(QListWidget):
 
     def dragEnterEvent(self, event) -> None:  # noqa: N802
         """Take a drag of requests; ignore anything else dragged in from elsewhere."""
-        self._consider(event)
+        if not event.mimeData().hasFormat(REQUEST_IDS):
+            event.ignore()
+            return
+        event.setDropAction(Qt.MoveAction)
+        event.accept()
 
     def dragMoveEvent(self, event) -> None:  # noqa: N802
-        """Accept only over a group: `All requests` and `Ungrouped` are not shelves."""
-        self._consider(event)
+        """Accept only over a group: `All requests` is not a shelf.
+
+        Qt's own handler runs first, for the scrolling it starts when the pointer is held
+        at the top or the bottom of the list: a group below the fold is still a group to
+        drop on. What it decides is then overruled, because the list's own items are not
+        what is being dropped on.
+        """
+        super().dragMoveEvent(event)
+        if self._group_at(event) is None:
+            event.ignore()
+            return
+        event.setDropAction(Qt.MoveAction)
+        event.accept()
 
     def dropEvent(self, event) -> None:  # noqa: N802
         """Move the dragged requests onto the group they were let go over."""
@@ -56,15 +78,9 @@ class GroupList(QListWidget):
             event.ignore()
             return
         ids = bytes(event.mimeData().data(REQUEST_IDS)).decode().split("\n")
-        event.acceptProposedAction()
-        self.dropped.emit([i for i in ids if i], group)
-
-    def _consider(self, event) -> None:
-        if self._group_at(event) is None:
-            event.ignore()
-            return
         event.setDropAction(Qt.MoveAction)
         event.accept()
+        self.dropped.emit([i for i in ids if i], group)
 
     def _group_at(self, event) -> str | None:
         """The group under the pointer, or None if a drop there would mean nothing."""

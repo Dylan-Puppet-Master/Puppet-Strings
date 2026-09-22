@@ -546,6 +546,60 @@ def test_making_a_group_and_dragging_requests_onto_it(window, monkeypatch):
     assert next(r for r in window.store.requests if r.id == "breaks").group == ""
 
 
+def request_drag(window, ids):
+    """The mime data a row being dragged out of the table carries."""
+    from PySide6.QtCore import QItemSelectionModel
+
+    selection = window.table.selectionModel()
+    selection.clearSelection()
+    for row in range(window.proxy.rowCount()):
+        if window.proxy.data(window.proxy.index(row, 0)) in ids:
+            selection.select(
+                window.proxy.index(row, 0), QItemSelectionModel.Select | QItemSelectionModel.Rows
+            )
+    return window.proxy.mimeData(selection.selectedIndexes())
+
+
+def over(pane, group):
+    """The middle of a group's row in the pane, where a drop on it would land."""
+    row = next(
+        i for i in range(pane.list.count()) if pane.list.item(i).data(Qt.UserRole) == group
+    )
+    return pane.list.visualItemRect(pane.list.item(row)).center()
+
+
+def test_a_drag_is_taken_wherever_it_crosses_into_the_groups(window, monkeypatch):
+    """A refused drag enter costs the whole drag: no move event follows it.
+
+    `All requests` heads the list, so it is the row most drags come in over. Refusing them
+    there is why a request sometimes could not be dropped on any group at all.
+    """
+    from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
+
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("Ropes rewrite", True))
+    window.groups.new_group()
+    pick_group(window, ALL)  # the table shows the request being dragged
+    pane, data = window.groups, request_drag(window, {"breaks"})
+    buttons, keys = Qt.LeftButton, Qt.NoModifier
+    enter = QDragEnterEvent(over(pane, ALL), Qt.MoveAction, data, buttons, keys)
+    pane.list.dragEnterEvent(enter)
+    assert enter.isAccepted()  # these are requests, whatever row they came in over
+
+    on_all = QDragMoveEvent(over(pane, ALL), Qt.MoveAction, data, buttons, keys)
+    pane.list.dragMoveEvent(on_all)
+    assert not on_all.isAccepted()  # `All requests` is not a shelf
+
+    where = over(pane, "Ropes rewrite")
+    moved = QDragMoveEvent(where, Qt.MoveAction, data, buttons, keys)
+    pane.list.dragMoveEvent(moved)
+    assert moved.isAccepted()
+
+    dropped = []
+    pane.list.dropped.connect(lambda ids, group: dropped.append((ids, group)))
+    pane.list.dropEvent(QDropEvent(where, Qt.MoveAction, data, buttons, keys))
+    assert dropped == [(["breaks"], "Ropes rewrite")]
+
+
 def test_renaming_and_deleting_a_group(window, monkeypatch):
     names = iter([("Ropes rewrite", True), ("Ropes", True)])
     monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: next(names))
