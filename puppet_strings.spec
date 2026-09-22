@@ -20,9 +20,12 @@ analysis = Analysis(  # noqa: F821
     pathex=["."],
     datas=[
         ("puppet_strings/skedge/grammar.lark", "puppet_strings/skedge"),
+        ("puppet_strings/training/problems", "puppet_strings/training/problems"),
+        ("puppet_strings/training/data", "puppet_strings/training/data"),
     ],
     hiddenimports=[
         "puppet_strings.app.main",
+        "puppet_strings.training.app",
         "ortools.sat.python.cp_model",
     ],
     excludes=[

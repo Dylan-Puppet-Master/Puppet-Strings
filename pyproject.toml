@@ -28,6 +28,7 @@ include = ["puppet_strings*"]
 
 [tool.setuptools.package-data]
 "puppet_strings.skedge" = ["*.lark"]
+"puppet_strings.training" = ["problems/*.toml", "data/**/*.csv"]
 
 [tool.ruff]
 line-length = 100

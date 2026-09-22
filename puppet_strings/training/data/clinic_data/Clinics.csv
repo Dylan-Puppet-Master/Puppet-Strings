@@ -1,0 +1,170 @@
+Clinic_Name,Slots,Staff_Requested,RAL_Required,Category
+Balloon Twisting,6,1,1,Arts
+Bead Working,6,1,1,Arts
+Blacksmithing (DBL),4,1,5,Arts
+Block Printing,6,1,3,Arts
+Candle Making,6,1,1,Arts
+Ceramics Glaze,8,1,1,Arts
+Ceramics Slab/Sculpture,6,1,1,Arts
+Ceramics Wheel,4,1,1,Arts
+Ceramics Course,4,1,1,Arts
+Clothing Alterations,6,1,1,Arts
+Embroidery,6,1,1,Arts
+Fabric Marbling,6,1,1,Arts
+Felting,6,1,1,Arts
+Glass Fusing,6,1,3,Arts
+Jewelry Smithing (DBL),4,1,4,Arts
+Jewelry Smithing Course,4,1,4,Arts
+Knitting,6,1,1,Arts
+Lampworking (DBL),4,1,5,Arts
+Lampworking Course,4,1,5,Arts
+Lampworking: Bead Making,4,1,5,Arts
+Lathe Woodworking,5,1,4,Arts
+Lathe: Cup Making (DBL),5,1,4,Arts
+Lathe: Pen Making,5,1,4,Arts
+Leatherworking (DBL),4,1,1,Arts
+Leather Keychains,6,1,1,Arts
+Pine Needle Art,6,1,1,Arts
+Polymer Clay,6,1,1,Arts
+Puppet Making,6,1,1,Arts
+Shibori,6,1,1,Arts
+Stained Glass (DBL),4,1,5,Arts
+Tie Dye,6,1,1,Arts
+Watercolor,6,1,1,Arts
+Wet Felting,6,1,1,Arts
+Wire Jewelry,6,1,1,Arts
+Woodburning,6,1,1,Arts
+Craft Fairy,0,1,1,Arts
+Bee Keeping,5,1,1,Outdoor
+Firemaking,6,1,1,Outdoor
+HMM Bite & Sting,8,1,1,Outdoor
+HMM Boo Boo Goo,8,1,1,Outdoor
+HMM Lip Balm,8,1,1,Outdoor
+HMM Lotion,8,1,1,Outdoor
+ODK Bread,8,1,1,Outdoor
+Soap Making,6,1,5,Outdoor
+Plant & Animal Farm,8,1,1,Outdoor
+Mountain Biking 1,6,1,5,Rolling
+Mountain Biking 2,6,1,5,Rolling
+Mountaing Biking 3,6,1,5,Rolling
+Mountain Boarding 1 & 2,6,1,4,Rolling
+Dance and Choreography,9,1,1,Performance
+Drama/Improv,12,1,1,Performance
+Salsa,15,2,11,Performance
+Guitar,6,1,1,Performance
+Kalimba,6,1,1,Performance
+Native Flute,6,1,1,Performance
+Ukulele,6,1,1,Performance
+Dungeons and Dragons (DBL),6,1,1,Tabletop
+Dungeons and Dragons 12+ (DBL),6,1,1,Tabletop
+Ancient Weaponry,6,1,4,Weapons
+Archery 1 & 2,11,1,4,Weapons
+Archery 3 ,8,1,4,Weapons
+Archery 4 & 5,8,1,4,Weapons
+Archery Clout,8,1,4,Weapons
+AtlAtl 1 & 2,8,1,4,Weapons
+Atl Atl 3,8,1,4,Weapons
+Muay Thai,5,2,54,Weapons
+Quarter Staff,8,1,4,Weapons
+Riflery,8,1,4,Weapons
+Sword Fighting 1 & 2,10,1,4,Weapons
+Sword Fighting 3,8,1,4,Weapons
+Throwing Range,8,1,4,Weapons
+Battle Royale,20,2,44,Weapons
+Battle Royale Setup/Breakdown,0,1,1,Weapons
+Aerial Yoga,11,1,4,Relaxation
+Yoga,11,1,1,Relaxation
+Canoe 1,8,1,5,Water
+Canoe 1 & 2,8,1,5,Water
+Crazy Canoe,8,1,5,Water
+Hot Rocks,10,1,4,Water
+Rope Swing,8,1,4,Water
+Swim for Fun,20,1,4,Water
+The Falls,10,1,4,Water
+Secret Pool,8,1,5,Water
+Canopy Tour (DBL),5,2,54,Ropes
+Climbing Wall,6,2,53,Ropes
+Crow's Nest (DBL),5,2,55,Ropes
+Giant's Junkyard,6,2,53,Ropes
+Giant Swing,6,2,53,Ropes
+Gravity Zip Line,6,2,53,Ropes
+Leap of Faith,5,1,5,Ropes
+Pole Course Explore Level 1 & 2 (DBL),16,3,543,Ropes
+Pole Course Explore Level 2 & 3 (DBL),16,3,543,Ropes
+Pole Course Level 1,8,3,543,Ropes
+Pole Course Level 2,8,3,543,Ropes
+Pole Course Level 3,8,3,543,Ropes
+Skyscraper,4,2,53,Ropes
+Tree Climbing,5,1,5,Ropes
+Lvl. 2 on Ground,0,1,5,Ropes
+Agility Course,12,2,44,Agility
+Ninja Training Level 1,8,1,1,Agility
+Ninja Training Level 2,8,1,1,Agility
+Ninja Training Level 3,8,1,1,Agility
+Parkour,6,1,4,Agility
+Slackline,5,1,3,Agility
+Aerial Silks Ground,8,2,53,Circus
+Aerial Silks Air,8,2,53,Circus
+Aerial Silks Sky,8,2,53,Circus
+Aerial Silks Course,8,2,53,Circus
+Aerial Bungee,6,2,54,Circus
+Circus Whip 1 & 2,5,1,5,Circus
+Juggling,6,1,1,Circus
+Lyra Beg,8,2,53,Circus
+Lyra Int,8,2,53,Circus
+Poi,6,1,1,Circus
+Staff,6,1,1,Circus
+Stilt Walking,5,2,44,Circus
+Spin Jam,6,1,1,Circus
+Unicycle,6,1,5,Circus
+Horseback Riding L1 - Arena,5,2,54,Equestrian
+Horseback Riding L1 - Trail,4,2,54,Equestrian
+Horseback Riding L2 - Arena,5,2,54,Equestrian
+Horseback Riding L2 - Trail,4,2,54,Equestrian
+Horseback Riding L3- Arena,5,2,54,Equestrian
+Horseback Riding L3 - Trail (DBL),4,2,54,Equestrian
+Horseback Riding L4 - Arena,5,2,54,Equestrian
+Horse Bubble Bath,6,2,54,Equestrian
+Horse Course,5,2,54,Equestrian
+Horse Archery,5,2,54,Equestrian
+Low Ropes,20,1,5,Other
+Acrylic Pouring,6,1,1,Other
+Adv. Stilts,6,1,1,Other
+Advanced Firemaking,6,1,1,Other
+Advanced J. Smith,6,1,1,Other
+Advanced Puppet Making (DBL),6,1,1,Other
+Canoe,6,1,5,Other
+Ceramics - Matcha Sets,6,1,1,Other
+D&D Course,6,1,1,Other
+Dylan,6,1,1,Other
+Fishing,6,1,5,Other
+Glass Mosaics,6,1,1,Other
+Glass Mosaics Course,6,1,1,Other
+Glass Mosaics Course (DBL),6,1,1,Other
+Glass Mosaics (DBL),6,1,1,Other
+Horse Care,6,1,1,Other
+Iron Fortress,4,2,55,Other
+Lampworking: Hollow Tubes,4,1,1,Other
+Lathe: Bowl Making (DBL),6,1,1,Other
+Lathe Bowls,6,1,1,Other
+Leatherworking Course,6,1,1,Other
+Matcha Set Course,6,1,1,Other
+Matcha Set Course (DBL),6,1,1,Other
+Ninja Training 1,8,1,1,Other
+Ninja Training 2,8,1,1,Other
+NO JEWELRYSMITHING AND BLACKSMITHING SAME DAY,6,1,1,Other
+Paper Marbling,6,1,1,Other
+Pods A/B,4,2,11,Other
+Pole Course 1 & 2 Explore (DBL),16,3,111,Other
+Pole Course 2 & 3 Explore (DBL),8,3,111,Other
+Puppet Making Course,6,1,1,Other
+#REF!,6,1,1,Other
+Riflery Challenge,6,1,1,Other
+Ropes Course,6,1,1,Other
+Stained Glass Mirrors,6,1,1,Other
+Stuffed Animals,6,1,1,Other
+Stuffed Animals Course,6,1,1,Other
+Tending to Bread,6,1,1,Other
+Tending to Soap,6,1,1,Other
+Trampoline Spotter,6,1,1,Other
+WILD,6,1,1,Other

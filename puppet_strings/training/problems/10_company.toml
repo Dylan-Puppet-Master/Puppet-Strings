@@ -1,0 +1,116 @@
+[level]
+name = "WITH and WITHOUT"
+blurb = "Who is working alongside whom."
+day = "2026-08-04"
+teaches = """
+... WITH <staff>       someone from that set is on the same clinic or task, alongside
+... WITHOUT <staff>    nobody from that set is
+
+REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT staff.vic
+REQUEST staff.jack NOT DO activities.clinics.all WITH staff.lucy
+
+"X only if Y is there too" is always:  X NOT DO it WITHOUT Y
+"""
+
+[[problem]]
+id = "with-rob-needs-vic"
+title = "Only with Vic"
+prompt = "If Rob is on a ropes clinic, Vic must be on it with him."
+answer = "REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT staff.vic"
+priority = "MUST_HAPPEN"
+hints = ["'X only if Y is there' is written X NOT DO it WITHOUT Y."]
+explain = "Rob may not do ropes without Vic: so either he isn't on ropes, or Vic is there too."
+wrong = [
+  "REQUEST staff.rob NOT DO activities.clinics.ropes WITH staff.vic",
+  "REQUEST staff.vic NOT DO activities.clinics.ropes WITHOUT staff.rob",
+]
+
+[[problem]]
+id = "with-never-together"
+title = "Keep them apart"
+prompt = "Gabe and Julian never run the same clinic together."
+answer = "REQUEST staff.gabe NOT DO activities.clinics.all WITH staff.julian"
+priority = "MUST_HAPPEN"
+alternatives = ["REQUEST staff.julian NOT DO activities.clinics.all WITH staff.gabe"]
+wrong = ["REQUEST staff.gabe NOT DO activities.clinics.all WITHOUT staff.julian"]
+
+[[problem]]
+id = "with-store-pair"
+title = "Store with a friend"
+prompt = "Jana runs the 'camp store' during clinic 1, with Kara working it alongside her."
+answer = "REQUEST staff.jana DO 'camp store' DURING blocks.clinic_1 WITH staff.kara"
+explain = "WITH on a positive request asks for the partner too."
+alternatives = ["REQUEST ALL_OF {staff.jana + staff.kara} DO 'camp store' DURING blocks.clinic_1"]
+wrong = ["REQUEST staff.jana DO 'camp store' DURING blocks.clinic_1"]
+
+[[problem]]
+id = "with-junior-senior"
+title = "Never alone on the water"
+prompt = "No counselor does 'canoe safety' unless a director is doing it with them. One request per counselor."
+answer = "REQUEST EACH_OF staff.counselors NOT DO 'canoe safety' WITHOUT staff.directors"
+priority = "HIGH"
+wrong = ["REQUEST EACH_OF staff.counselors NOT DO 'canoe safety' WITH staff.directors"]
+
+[[problem]]
+id = "with-no-mfg-together"
+title = "Spread the MFGs"
+prompt = "Charlton never does 'trail work' alongside another MFG."
+answer = "REQUEST staff.charlton NOT DO 'trail work' WITH {staff.mfgs - staff.charlton}"
+priority = "MUST_HAPPEN"
+alternatives = ["REQUEST staff.charlton NOT DO 'trail work' WITH {staff.alan + staff.connor}"]
+wrong = ["REQUEST staff.charlton NOT DO 'trail work' WITH staff.alan"]
+
+[[problem]]
+id = "with-shared-clinic-each-block"
+title = "One point per clinic"
+prompt = "Gabe and Peyton shouldn't share a clinic. Make it one small request per block, so each shared clinic costs a point."
+answer = "REQUEST staff.gabe NOT DO activities.clinics.all WITH staff.peyton DURING EACH_OF blocks.all"
+priority = "HIGH"
+wrong = ["REQUEST staff.gabe NOT DO activities.clinics.all WITH staff.peyton"]
+
+[[problem]]
+id = "with-trainer-present"
+title = "A trainer nearby"
+prompt = "Alan only works the Climbing Wall when Charlton is on it too."
+answer = "REQUEST staff.alan NOT DO activities.clinics.climbing_wall WITHOUT staff.charlton"
+priority = "MUST_HAPPEN"
+wrong = ["REQUEST staff.charlton NOT DO activities.clinics.climbing_wall WITHOUT staff.alan"]
+
+[[problem]]
+id = "with-heroes-pair"
+title = "Partners"
+prompt = "Khushi does 'cabin inspections' during rest hour, alongside some village leader."
+answer = "REQUEST staff.khushi DO 'cabin inspections' DURING blocks.rest_hour WITH staff.village_leaders"
+wrong = ["REQUEST staff.khushi DO 'cabin inspections' DURING blocks.rest_hour"]
+
+[[problem]]
+id = "with-without-directors-desk"
+title = "Never alone at the desk"
+prompt = "Each village hero may only do 'front desk' when a permanent hero is on the desk with them."
+answer = "REQUEST EACH_OF staff.village_heroes NOT DO 'front desk' WITHOUT staff.permanent_heroes"
+priority = "HIGH"
+wrong = ["REQUEST EACH_OF staff.village_heroes NOT DO 'front desk' WITHOUT staff.directors"]
+
+[[problem]]
+id = "with-apart-at-meals"
+title = "Apart at meals"
+prompt = "Diya and Audrey never do 'kitchen help' together at a meal."
+answer = "REQUEST staff.diya NOT DO 'kitchen help' WITH staff.audrey DURING blocks.meals"
+priority = "MUST_HAPPEN"
+wrong = ["REQUEST staff.diya NOT DO 'kitchen help' WITH staff.audrey DURING blocks.lunch"]
+
+[[problem]]
+id = "with-ropes-pair-each"
+title = "Every ropes counselor has backup"
+prompt = "No counselor is on the Giant Swing unless an MFG is on it with them. One request per counselor."
+answer = "REQUEST EACH_OF staff.counselors NOT DO activities.clinics.giant_swing WITHOUT staff.mfgs"
+priority = "HIGH"
+wrong = ["REQUEST EACH_OF staff.counselors NOT DO activities.clinics.giant_swing WITH staff.mfgs"]
+
+[[problem]]
+id = "with-both-on-it"
+title = "Always as a pair"
+prompt = "Hailey and Alyce do 'horse shoeing' together during clinic 2 — write it with WITH."
+answer = "REQUEST staff.hailey DO 'horse shoeing' DURING blocks.clinic_2 WITH staff.alyce"
+alternatives = ["REQUEST ALL_OF {staff.hailey + staff.alyce} DO 'horse shoeing' DURING blocks.clinic_2"]
+wrong = ["REQUEST staff.hailey DO 'horse shoeing' DURING blocks.clinic_2 WITH staff.alexis"]

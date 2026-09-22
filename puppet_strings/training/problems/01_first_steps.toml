@@ -1,0 +1,126 @@
+[level]
+name = "Basics"
+blurb = "One person, one task, one block."
+day = "2026-08-04"
+teaches = """
+REQUEST <who> DO '<task>' DURING <block>
+
+REQUEST staff.rob DO 'break' DURING blocks.lunch
+
+• Names are lowercase, with dots: staff.rob, blocks.lunch
+• A task nobody is trained for goes in 'single quotes'
+• Keywords are UPPER CASE by convention (lower case works too)
+• With no ON, a request is about the day being scheduled
+"""
+
+[[problem]]
+id = "first-rob-lunch-break"
+title = "Rob's lunch break"
+prompt = "Rob should take a 'break' during lunch."
+answer = "REQUEST staff.rob DO 'break' DURING blocks.lunch"
+hints = [
+  "Start with REQUEST, then who, then DO, then the task in quotes, then DURING and the block.",
+  "Rob is staff.rob and lunch is blocks.lunch. Try typing 'rob' — the editor will offer the full name.",
+]
+explain = "Who (staff.rob) DO what ('break') DURING when (blocks.lunch). That sentence shape is the heart of Skedge."
+alternatives = [
+  "request staff.rob do 'break' during blocks.lunch",
+  "REQUEST staff.rob DO 'break' DURING blocks.lunch ON dates.target",
+]
+wrong = [
+  "REQUEST staff.rob DO 'break' DURING blocks.dinner",
+  "REQUEST staff.vic DO 'break' DURING blocks.lunch",
+]
+
+[[problem]]
+id = "first-dylan-maintenance"
+title = "Archery maintenance"
+prompt = "Dylan needs to do 'archery maintenance' during clinic 3."
+answer = "REQUEST staff.dylan DO 'archery maintenance' DURING blocks.clinic_3"
+hints = ["The block is blocks.clinic_3.", "Tasks with spaces are fine inside the quotes: 'archery maintenance'."]
+explain = "A quoted task can be anything at all — it just needs someone's time."
+wrong = ["REQUEST staff.dylan DO 'archery maintenance' DURING blocks.clinic_2"]
+
+[[problem]]
+id = "first-cam-video"
+title = "Filming"
+prompt = "Cam VL should spend the evening program doing 'video editing'."
+answer = "REQUEST staff.cam_vl DO 'video editing' DURING blocks.evening_program"
+hints = ["A name with a space in it on the sheet becomes an underscore: Cam VL is staff.cam_vl."]
+explain = "Every sheet name is turned into lowercase with underscores. The Names pane on the right lists them all."
+wrong = ["REQUEST staff.cam_vl DO 'video editing' DURING blocks.embers"]
+
+[[problem]]
+id = "first-lower-case"
+title = "Quiet keywords"
+prompt = "Write this one in lower case: Paul takes a 'break' during clinic 4."
+answer = "REQUEST staff.paul DO 'break' DURING blocks.clinic_4"
+hints = ["request staff.paul do 'break' during blocks.clinic_4"]
+explain = "Keywords are read in either case. Upper case is the convention because it makes requests easy to skim."
+alternatives = ["request staff.paul do 'break' during blocks.clinic_4"]
+
+[[problem]]
+id = "first-today-explicit"
+title = "Naming the target date"
+prompt = "Rob does 'ropes check' during clinic 1 on the day being scheduled. Write the date with ON."
+answer = "REQUEST staff.rob DO 'ropes check' DURING blocks.clinic_1 ON dates.target"
+hints = ["ON comes after DURING.", "The day being scheduled is dates.target."]
+explain = "dates.target is the day the schedule is being made for. Leaving ON out means exactly the same thing."
+alternatives = ["REQUEST staff.rob DO 'ropes check' DURING blocks.clinic_1"]
+wrong = ["REQUEST staff.rob DO 'ropes check' DURING blocks.clinic_1 ON dates.session.six.week.one.wednesday"]
+
+[[problem]]
+id = "first-on-a-date"
+title = "A different day"
+prompt = "Vic does 'zip line inspection' during clinic 2 on Wednesday, August 5th."
+answer = "REQUEST staff.vic DO 'zip line inspection' DURING blocks.clinic_2 ON 2026-08-05"
+hints = ["Dates are written year-month-day: 2026-08-05.", "Click a day in the Calendar pane to put its date in the editor."]
+explain = "A date can be written as it is, or by name: dates.session.six.week.one.wednesday is the same day."
+alternatives = ["REQUEST staff.vic DO 'zip line inspection' DURING blocks.clinic_2 ON dates.session.six.week.one.wednesday"]
+wrong = ["REQUEST staff.vic DO 'zip line inspection' DURING blocks.clinic_2 ON 2026-08-06"]
+
+[[problem]]
+id = "first-friday"
+title = "Friday laundry"
+prompt = "Emily does 'laundry' during rest hour on the Friday of this session."
+answer = "REQUEST staff.emily DO 'laundry' DURING blocks.rest_hour ON dates.session.six.week.one.friday"
+hints = ["This session is session six. Its Friday is dates.session.six.week.one.friday, or 2026-08-07."]
+alternatives = ["REQUEST staff.emily DO 'laundry' DURING blocks.rest_hour ON 2026-08-07"]
+wrong = ["REQUEST staff.emily DO 'laundry' DURING blocks.rest_hour ON 2026-08-06"]
+
+[[problem]]
+id = "first-sunday"
+title = "Opening day"
+prompt = "On the first day of the session, Lisa does 'check-in' during lunch."
+answer = "REQUEST staff.lisa DO 'check-in' DURING blocks.lunch ON dates.session.six.first"
+hints = ["The first day of session six is dates.session.six.first — a Sunday."]
+explain = "Sundays and Saturdays only run meals and rest hour, so only those blocks exist on them."
+alternatives = ["REQUEST staff.lisa DO 'check-in' DURING blocks.lunch ON 2026-08-02"]
+wrong = ["REQUEST staff.lisa DO 'check-in' DURING blocks.lunch ON 2026-08-03"]
+
+[[problem]]
+id = "first-last-day"
+title = "Closing day"
+prompt = "On the last day of the session, David does 'pickup' during breakfast."
+answer = "REQUEST staff.david DO 'pickup' DURING blocks.breakfast ON dates.session.six.last"
+alternatives = ["REQUEST staff.david DO 'pickup' DURING blocks.breakfast ON 2026-08-08"]
+wrong = ["REQUEST staff.david DO 'pickup' DURING blocks.breakfast ON dates.session.six.first"]
+
+[[problem]]
+id = "first-comment"
+title = "Leave a note"
+prompt = "Write a request with a comment above it saying why: Donny does 'fire pit cleanup' during clinic 4. (Comments start with #.)"
+answer = "REQUEST staff.donny DO 'fire pit cleanup' DURING blocks.clinic_4"
+hints = ["# the fire pit was left a mess\nREQUEST staff.donny DO 'fire pit cleanup' DURING blocks.clinic_4"]
+explain = "Anything after # is a note for people. It changes nothing about the request."
+alternatives = ["# the fire pit was a mess\nREQUEST staff.donny DO 'fire pit cleanup' DURING blocks.clinic_4"]
+
+[[problem]]
+id = "first-two-lines"
+title = "Room to breathe"
+prompt = "A request can go over several lines. Write this one with DURING on a line of its own: Nathan does 'bike repair' during clinic 3."
+answer = "REQUEST staff.nathan DO 'bike repair' DURING blocks.clinic_3"
+hints = ["REQUEST staff.nathan DO 'bike repair'\nDURING blocks.clinic_3"]
+explain = "A line that starts with DO, DURING, ON and the like carries on the line above it."
+alternatives = ["REQUEST staff.nathan DO 'bike repair'\nDURING blocks.clinic_3"]
+wrong = ["REQUEST staff.nathan DO 'bike repair'\nDURING blocks.clinic_4"]

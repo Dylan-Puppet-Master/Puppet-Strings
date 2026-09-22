@@ -59,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     export = commands.add_parser("export-fixtures", help="download every tab as CSV")
     export.add_argument("folder", type=Path)
     commands.add_parser("app", help="open the desktop request manager (the default)")
+    commands.add_parser("train", help="practise writing Skedge, offline, on a real session")
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
@@ -72,6 +73,10 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run(args, config: Config, target: date) -> int:
+    if args.command == "train":
+        from puppet_strings.training.app import run_training
+
+        return run_training()
     if args.command in (None, "app"):
         from puppet_strings.app.main import run_app
 

@@ -1,0 +1,14 @@
+block_id,start,end,day_types,program_type,categories
+setup,07:30,08:00,weekday,"main season, other"
+breakfast,08:00,08:45,"weekday, weekend","main season, other",meals
+clinic_1,08:45,09:45,weekday,"main season, other",any_clinic
+clinic_2,10:00,11:00,weekday,"main season, other",any_clinic
+cabin_act,11:15,12:15,weekday,"main season, other"
+lunch,12:15,12:45,"weekday, weekend","main season, other",meals
+rest_hour,12:45,13:50,"weekday, weekend","main season, other"
+playstation,14:00,15:00,weekday,"main season, other"
+clinic_3,15:30,16:30,weekday,"main season, other",any_clinic
+clinic_4,16:45,17:45,weekday,"main season, other",any_clinic
+dinner,18:00,18:45,"weekday, weekend","main season, other",meals
+embers,19:00,20:00,weekday,"main season, other",evening
+evening_program,20:00,21:30,weekday,"main season, other",evening

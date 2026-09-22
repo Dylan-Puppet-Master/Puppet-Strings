@@ -32,6 +32,7 @@ cli.py and app/ (PySide6) drive the same functions.
 | `puppet_strings/solver/` | Compiles requests to CP-SAT and solves tier by tier |
 | `puppet_strings/publish/` | Renders the staff view, clinic view and report |
 | `puppet_strings/app/` | The desktop request manager |
+| `puppet_strings/training/` | The Skedge trainer (`puppet-strings train`) and its bundled session |
 | `puppet_strings/cli.py` | The `puppet-strings` command |
 
 ## Install
@@ -58,6 +59,7 @@ puppet-strings --date 2026-06-15 solve   # print tomorrow's schedule
 puppet-strings solve --publish           # and write it to the day's own sheet
 puppet-strings solve --same-day          # re-solve a published day, moving as few people as it can
 puppet-strings app                       # open the request manager
+puppet-strings train                     # practise writing Skedge, offline
 ```
 
 Every command accepts `--fixtures FOLDER` to run from CSV files instead of Google Sheets;

@@ -1,0 +1,176 @@
+[level]
+name = "FREE and NOT"
+blurb = "Keeping people free, busy, or off something."
+day = "2026-08-04"
+teaches = """
+REQUEST <who> FREE DURING <blocks>        nothing assigned then
+REQUEST <who> NOT FREE DURING <blocks>    something assigned then
+REQUEST <who> NOT DO <what> ...           never doing that
+
+REQUEST staff.dylan FREE DURING blocks.playstation
+REQUEST staff.rob NOT DO 'break' DURING blocks.meals
+
+• Right of NOT, sets mean "any of these" and need no ALL_OF
+• NOT DO can leave out DURING: then it's all day
+• The subject still chooses: ALL_OF {…} NOT DO means none of them does
+"""
+
+[[problem]]
+id = "free-dylan-playstation"
+title = "A free hour"
+prompt = "Dylan should be free — nothing assigned — during playstation."
+answer = "REQUEST staff.dylan FREE DURING blocks.playstation"
+hints = ["FREE takes the place of DO and the task."]
+explain = "FREE means working that day, with nothing assigned in that block."
+wrong = [
+  "REQUEST staff.dylan NOT FREE DURING blocks.playstation",
+  "REQUEST staff.dylan NOT DO 'break' DURING blocks.playstation",
+]
+
+[[problem]]
+id = "free-day-off"
+title = "A day off"
+prompt = "Vic has Thursday off: nothing assigned in any block that day."
+answer = "REQUEST staff.vic FREE DURING ALL_OF blocks.all ON dates.session.six.week.one.thursday"
+priority = "MUST_HAPPEN"
+hints = ["Free in every block: FREE DURING ALL_OF blocks.all."]
+alternatives = ["REQUEST staff.vic FREE DURING ALL_OF blocks.all ON 2026-08-06", "REQUEST staff.vic FREE DURING EACH_OF blocks.all ON 2026-08-06"]
+wrong = ["REQUEST staff.vic FREE DURING ANY_1_OF blocks.all ON 2026-08-06"]
+
+[[problem]]
+id = "free-not-free"
+title = "Keep them busy"
+prompt = "Every counselor should have something to do during clinic 1. Each counselor counts on their own."
+answer = "REQUEST EACH_OF staff.counselors NOT FREE DURING blocks.clinic_1"
+priority = "HIGH"
+explain = "NOT FREE means something is assigned. It doesn't say what — anything will do."
+wrong = ["REQUEST EACH_OF staff.counselors FREE DURING blocks.clinic_1"]
+
+[[problem]]
+id = "free-no-breaks-at-meals"
+title = "No breaks at meals"
+prompt = "Rob shouldn't take a 'break' during any meal."
+answer = "REQUEST staff.rob NOT DO 'break' DURING blocks.meals"
+hints = ["Right of NOT, a set means 'any of these' — no ALL_OF needed."]
+alternatives = ["REQUEST staff.rob NOT DO 'break' DURING {blocks.breakfast + blocks.lunch + blocks.dinner}"]
+wrong = ["REQUEST staff.rob NOT DO 'break' DURING blocks.lunch"]
+
+[[problem]]
+id = "free-no-ropes-all-day"
+title = "Off the ropes"
+prompt = "Rob does no ropes clinic at all today."
+answer = "REQUEST staff.rob NOT DO activities.clinics.ropes"
+hints = ["All the ropes clinics are a category: activities.clinics.ropes.", "Leave out DURING to mean all day."]
+explain = "With no DURING, NOT DO covers the whole day."
+alternatives = ["REQUEST staff.rob NOT DO activities.clinics.ropes DURING blocks.all"]
+wrong = ["REQUEST staff.rob NOT DO activities.clinics.ropes DURING {blocks.any_clinic - blocks.clinic_4}"]
+
+[[problem]]
+id = "free-each-director"
+title = "Directors at playstation"
+prompt = "Each director should be free during playstation, each counting on their own."
+answer = "REQUEST EACH_OF staff.directors FREE DURING blocks.playstation"
+priority = "HIGH"
+wrong = [
+  "REQUEST ALL_OF staff.directors FREE DURING blocks.playstation",
+  "REQUEST EACH_OF staff.directors FREE DURING blocks.rest_hour",
+]
+
+[[problem]]
+id = "free-none-of-them"
+title = "Nobody on felting"
+prompt = "None of the directors runs Felting today."
+answer = "REQUEST ALL_OF staff.directors NOT DO activities.clinics.felting"
+explain = "The subject of NOT still chooses. ALL_OF staff.directors NOT DO … is 'none of them does it'."
+alternatives = ["REQUEST ALL_OF {staff.david + staff.lisa + staff.matthew} NOT DO activities.clinics.felting"]
+wrong = ["REQUEST ANY_1_OF staff.directors NOT DO activities.clinics.felting"]
+
+[[problem]]
+id = "free-one-of-them-not"
+title = "At least one stays off"
+prompt = "At least one of Rob and Vic stays off the canopy tour today."
+answer = "REQUEST ANY_1_OF {staff.rob + staff.vic} NOT DO activities.clinics.canopy_tour_dbl"
+explain = "ANY_1_OF on the left of NOT is 'one of them doesn't' — the solver picks who."
+wrong = ["REQUEST ALL_OF {staff.rob + staff.vic} NOT DO activities.clinics.canopy_tour_dbl"]
+
+[[problem]]
+id = "free-two-blocks"
+title = "Free for the afternoon"
+prompt = "Kara is free during both clinic 3 and clinic 4."
+answer = "REQUEST staff.kara FREE DURING ALL_OF {blocks.clinic_3 + blocks.clinic_4}"
+wrong = ["REQUEST staff.kara FREE DURING ANY_1_OF {blocks.clinic_3 + blocks.clinic_4}"]
+
+[[problem]]
+id = "free-any-clinic-block"
+title = "One free clinic"
+prompt = "Mogee gets one clinic block free today — any of the four."
+answer = "REQUEST staff.mogee FREE DURING ANY_1_OF blocks.any_clinic"
+wrong = ["REQUEST staff.mogee FREE DURING ALL_OF blocks.any_clinic"]
+
+[[problem]]
+id = "free-not-archery"
+title = "Somebody else's turn"
+prompt = "Tyson shouldn't run Archery 1 & 2 during clinic 2."
+answer = "REQUEST staff.tyson NOT DO activities.clinics.archery_1_2 DURING blocks.clinic_2"
+wrong = ["REQUEST staff.tyson NOT DO activities.clinics.archery_1_2 DURING blocks.clinic_3"]
+
+[[problem]]
+id = "free-no-weapons-evening"
+title = "No weapons for counselors"
+prompt = "No counselor runs any weapons clinic on Wednesday. (One request per counselor.)"
+answer = "REQUEST EACH_OF staff.counselors NOT DO activities.clinics.weapons ON 2026-08-05"
+priority = "HIGH"
+alternatives = ["REQUEST EACH_OF staff.counselors NOT DO activities.clinics.weapons ON dates.session.six.week.one.wednesday"]
+wrong = ["REQUEST EACH_OF staff.counselors NOT DO activities.clinics.weapons"]
+
+[[problem]]
+id = "free-not-free-evening"
+title = "Someone on duty"
+prompt = "Each village leader has something to do during the evening program."
+answer = "REQUEST EACH_OF staff.village_leaders NOT FREE DURING blocks.evening_program"
+priority = "HIGH"
+wrong = ["REQUEST EACH_OF staff.village_leaders NOT FREE DURING blocks.embers"]
+
+[[problem]]
+id = "free-avoid-meal-breaks-each"
+title = "Avoid, one meal at a time"
+prompt = "The office staff (the directors) should avoid taking a 'break' at meals. Make it count once per person per meal, so two meal-breaks are twice as bad as one."
+answer = "REQUEST EACH_OF staff.directors NOT DO 'break' DURING EACH_OF blocks.meals"
+priority = "HIGH"
+explain = "Splitting small is how Skedge says 'avoid': each meal-break misses exactly one of the nine small requests."
+wrong = [
+  "REQUEST EACH_OF staff.directors NOT DO 'break' DURING blocks.meals",
+  "REQUEST ALL_OF staff.directors NOT DO 'break' DURING blocks.meals",
+]
+
+[[problem]]
+id = "free-not-clinics-morning"
+title = "A quiet morning"
+prompt = "Lisa doesn't run any clinic during clinic 1 or clinic 2."
+answer = "REQUEST staff.lisa NOT DO activities.clinics.all DURING {blocks.clinic_1 + blocks.clinic_2}"
+alternatives = ["REQUEST staff.lisa NOT DO activities.clinics.all DURING {blocks.clinic_2 + blocks.clinic_1}"]
+wrong = ["REQUEST staff.lisa FREE DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}"]
+
+[[problem]]
+id = "free-free-vs-no-task"
+title = "Free really means free"
+prompt = "Alan should have nothing at all during rest hour — not a break, not anything."
+answer = "REQUEST staff.alan FREE DURING blocks.rest_hour"
+wrong = ["REQUEST staff.alan NOT DO 'break' DURING blocks.rest_hour"]
+
+[[problem]]
+id = "free-not-free-some-block"
+title = "Busy all evening"
+prompt = "Hails has something to do in every evening block."
+answer = "REQUEST staff.hails NOT FREE DURING blocks.evening"
+hints = ["Right of NOT, sets are plain: NOT FREE DURING blocks.evening is busy in each of them."]
+alternatives = ["REQUEST staff.hails NOT FREE DURING {blocks.embers + blocks.evening_program}"]
+wrong = ["REQUEST staff.hails NOT FREE DURING blocks.embers"]
+
+[[problem]]
+id = "free-whole-session-off"
+title = "Never on the lake"
+prompt = "All session long, Pip never does 'lifeguard'."
+answer = "REQUEST staff.pip NOT DO 'lifeguard' ON dates.session.six.all"
+alternatives = ["REQUEST staff.pip NOT DO 'lifeguard' ON {2026-08-02 .. 2026-08-08}"]
+wrong = ["REQUEST staff.pip NOT DO 'lifeguard'"]

@@ -1,0 +1,177 @@
+[level]
+name = "Counting"
+blurb = "AT_LEAST, AT_MOST and EXACTLY: how many, how long, how many in a row."
+day = "2026-08-04"
+teaches = """
+REQUEST <amount> <pattern> [CONSECUTIVE]
+
+REQUEST AT_MOST 2 staff.counselors DO 'break' DURING EACH_OF blocks.all
+REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing'
+REQUEST AT_MOST 1 EACH_OF staff.all DO activities.clinics.all CONSECUTIVE
+REQUEST staff.rob DO 'break' FOR 30m DURING blocks.clinic_1
+
+• An amount is AT_LEAST, AT_MOST or EXACTLY, then a count (3) or a length (90m, 2h)
+• In a pattern, sets mean "any of these"; EACH_OF splits it to count per item
+• CONSECUTIVE counts back-to-back blocks on one day
+• FOR sets how long a quoted task lasts inside its block
+"""
+
+[[problem]]
+id = "count-two-on-break"
+title = "Two at a time"
+prompt = "Never more than two counselors on 'break' in the same block."
+answer = "REQUEST AT_MOST 2 staff.counselors DO 'break' DURING EACH_OF blocks.all"
+priority = "MUST_HAPPEN"
+hints = ["Start with the amount: REQUEST AT_MOST 2 …", "EACH_OF blocks.all makes it count block by block rather than over the whole day."]
+explain = "Without EACH_OF on the blocks, it would count breaks over the whole day instead of at once."
+wrong = [
+  "REQUEST AT_MOST 3 staff.counselors DO 'break' DURING EACH_OF blocks.all",
+  "REQUEST AT_MOST 2 staff.counselors DO 'break'",
+]
+
+[[problem]]
+id = "count-lifeguards"
+title = "Enough lifeguards"
+prompt = "At least three village heroes do 'lifeguard' during rest hour."
+answer = "REQUEST AT_LEAST 3 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"
+explain = "A positive AT_LEAST asks for things to happen, just like REQUEST … DO does."
+alternatives = ["REQUEST ANY_3_OF staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"]
+wrong = ["REQUEST AT_LEAST 2 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"]
+
+[[problem]]
+id = "count-exactly-one-on-call"
+title = "Exactly one on call"
+prompt = "Exactly one director is 'on call' during each evening block."
+answer = "REQUEST EXACTLY 1 staff.directors DO 'on call' DURING EACH_OF blocks.evening"
+priority = "MUST_HAPPEN"
+wrong = [
+  "REQUEST AT_LEAST 1 staff.directors DO 'on call' DURING EACH_OF blocks.evening",
+  "REQUEST EXACTLY 1 staff.directors DO 'on call' DURING blocks.evening",
+]
+
+[[problem]]
+id = "count-short-break"
+title = "A short break"
+prompt = "Rob takes a 30-minute 'break' during clinic 1."
+answer = "REQUEST staff.rob DO 'break' FOR 30m DURING blocks.clinic_1"
+hints = ["FOR 30m goes after the task."]
+explain = "A task with FOR takes part of its block; the Staff View labels the rest of it."
+alternatives = ["REQUEST staff.rob DO 'break' DURING blocks.clinic_1 FOR 30m"]
+wrong = ["REQUEST staff.rob DO 'break' DURING blocks.clinic_1"]
+
+[[problem]]
+id = "count-two-hours-editing"
+title = "Two hours of editing"
+prompt = "Cam VL spends at least two hours on 'video editing' today, in whatever blocks."
+answer = "REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing'"
+hints = ["A length is written 2h or 120m.", "REQUEST AT_LEAST 2h <who> DO <what>"]
+alternatives = ["REQUEST AT_LEAST 120m staff.cam_vl DO 'video editing'"]
+wrong = ["REQUEST AT_LEAST 1h staff.cam_vl DO 'video editing'"]
+
+[[problem]]
+id = "count-no-two-in-a-row"
+title = "Never two in a row"
+prompt = "Nobody runs two clinics back to back. Count it per person."
+answer = "REQUEST AT_MOST 1 EACH_OF staff.all DO activities.clinics.all CONSECUTIVE"
+priority = "MUST_HAPPEN"
+hints = ["EACH_OF staff.all counts person by person.", "CONSECUTIVE at the end counts back-to-back blocks."]
+wrong = ["REQUEST AT_MOST 2 EACH_OF staff.all DO activities.clinics.all CONSECUTIVE"]
+
+[[problem]]
+id = "count-each-at-most-two-clinics"
+title = "Two clinics each"
+prompt = "No counselor runs more than two clinics today."
+answer = "REQUEST AT_MOST 2 EACH_OF staff.counselors DO activities.clinics.all"
+priority = "HIGH"
+wrong = [
+  "REQUEST AT_MOST 2 staff.counselors DO activities.clinics.all",
+  "REQUEST AT_MOST 3 EACH_OF staff.counselors DO activities.clinics.all",
+]
+
+[[problem]]
+id = "count-break-each"
+title = "Three breaks"
+prompt = "Every village hero gets exactly three 'break' blocks today, each hero counted on their own."
+answer = "REQUEST EXACTLY 3 EACH_OF staff.village_heroes DO 'break'"
+priority = "HIGH"
+wrong = ["REQUEST EXACTLY 3 staff.village_heroes DO 'break'"]
+
+[[problem]]
+id = "count-three-breaks-for"
+title = "Three short breaks"
+prompt = "Each non-director, non-counselor staff member takes three 30-minute 'break's today, in three different blocks."
+answer = "REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' FOR 30m DURING ANY_3_OF blocks.all"
+priority = "MUST_HAPPEN"
+alternatives = ["REQUEST EACH_OF {staff.all - (staff.directors + staff.counselors)} DO 'break' FOR 30m DURING ANY_3_OF blocks.all"]
+wrong = ["REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' DURING ANY_3_OF blocks.all"]
+
+[[problem]]
+id = "count-at-most-one-archery"
+title = "Once is enough"
+prompt = "Tyson runs Archery 1 & 2 at most once today."
+answer = "REQUEST AT_MOST 1 staff.tyson DO activities.clinics.archery_1_2"
+wrong = ["REQUEST AT_MOST 2 staff.tyson DO activities.clinics.archery_1_2"]
+
+[[problem]]
+id = "count-at-least-one-free-clinic"
+title = "One free clinic block"
+prompt = "Each counselor is free for at least one of the four clinic blocks today."
+answer = "REQUEST AT_LEAST 1 EACH_OF staff.counselors FREE DURING blocks.any_clinic"
+priority = "HIGH"
+alternatives = ["REQUEST EACH_OF staff.counselors FREE DURING ANY_1_OF blocks.any_clinic"]
+wrong = ["REQUEST AT_LEAST 2 EACH_OF staff.counselors FREE DURING blocks.any_clinic"]
+
+[[problem]]
+id = "count-hour-of-kitchen"
+title = "An hour in the kitchen"
+prompt = "Between them, the MFGs spend at least an hour on 'kitchen repair' today."
+answer = "REQUEST AT_LEAST 1h staff.mfgs DO 'kitchen repair'"
+alternatives = ["REQUEST AT_LEAST 60m staff.mfgs DO 'kitchen repair'"]
+wrong = ["REQUEST AT_LEAST 1h EACH_OF staff.mfgs DO 'kitchen repair'"]
+
+[[problem]]
+id = "count-at-most-one-in-office"
+title = "Not a crowd"
+prompt = "At most one director is in the 'office' during each clinic block."
+answer = "REQUEST AT_MOST 1 staff.directors DO 'office' DURING EACH_OF blocks.any_clinic"
+priority = "MUST_HAPPEN"
+wrong = ["REQUEST AT_MOST 1 staff.directors DO 'office' DURING blocks.any_clinic"]
+
+[[problem]]
+id = "count-two-busy-blocks-in-a-row"
+title = "Two in a row"
+prompt = "Charlton works on 'fence building' for two back-to-back blocks today."
+answer = "REQUEST AT_LEAST 2 staff.charlton DO 'fence building' CONSECUTIVE"
+alternatives = ["REQUEST AT_LEAST 2 staff.charlton DO 'fence building' DURING blocks.all CONSECUTIVE"]
+wrong = ["REQUEST AT_LEAST 2 staff.charlton DO 'fence building'"]
+
+[[problem]]
+id = "count-for-45"
+title = "Forty-five minutes"
+prompt = "Hailey does 'tack cleaning' for 45 minutes during rest hour."
+answer = "REQUEST staff.hailey DO 'tack cleaning' FOR 45m DURING blocks.rest_hour"
+wrong = ["REQUEST staff.hailey DO 'tack cleaning' FOR 30m DURING blocks.rest_hour"]
+
+[[problem]]
+id = "count-half-hour-decimal"
+title = "Hours with a point"
+prompt = "Dylan spends at least an hour and a half on 'archery maintenance' today. Write the length in hours."
+answer = "REQUEST AT_LEAST 1.5h staff.dylan DO 'archery maintenance'"
+alternatives = ["REQUEST AT_LEAST 90m staff.dylan DO 'archery maintenance'"]
+wrong = ["REQUEST AT_LEAST 1h staff.dylan DO 'archery maintenance'"]
+
+[[problem]]
+id = "count-no-more-than-four-busy"
+title = "Room to breathe"
+prompt = "Each director has at most four blocks with anything assigned today."
+answer = "REQUEST AT_MOST 4 EACH_OF staff.directors NOT FREE"
+priority = "HIGH"
+wrong = ["REQUEST AT_MOST 4 staff.directors NOT FREE"]
+
+[[problem]]
+id = "count-exactly-two-lifeguards-each-meal"
+title = "Two at every meal"
+prompt = "Exactly two village heroes do 'dining hall duty' at each meal."
+answer = "REQUEST EXACTLY 2 staff.village_heroes DO 'dining hall duty' DURING EACH_OF blocks.meals"
+priority = "MUST_HAPPEN"
+wrong = ["REQUEST AT_LEAST 2 staff.village_heroes DO 'dining hall duty' DURING EACH_OF blocks.meals"]

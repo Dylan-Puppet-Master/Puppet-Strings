@@ -1,0 +1,185 @@
+[level]
+name = "Splitting: EACH_OF"
+blurb = "One line that becomes many requests, each met or missed on its own."
+day = "2026-08-04"
+teaches = """
+EACH_OF <set>       a separate request for each one
+
+REQUEST EACH_OF staff.directors DO 'break' DURING ANY_1_OF blocks.all
+REQUEST staff.rob DO 'break' DURING EACH_OF {blocks.lunch + blocks.dinner}
+
+Read a request in three steps:
+  1. EACH_OF splits it into copies
+  2. ANY_n_OF chooses, once per copy
+  3. everyone chosen does it in every block chosen
+
+Below MUST_HAPPEN, ALL_OF is all-or-nothing; EACH_OF earns credit for each part.
+"""
+
+[[problem]]
+id = "each-director-break"
+title = "A break each"
+prompt = "Each director gets their own 'break' at some point today. They don't need to be together."
+answer = "REQUEST EACH_OF staff.directors DO 'break' DURING ANY_1_OF blocks.all"
+priority = "HIGH"
+hints = ["EACH_OF staff.directors makes one request per director.", "Each copy then chooses its own block with ANY_1_OF blocks.all."]
+explain = "Three separate requests. Each director's break can land in a different block, and each counts on its own."
+alternatives = [
+  "REQUEST EACH_OF {staff.david + staff.lisa + staff.matthew} DO 'break' DURING ANY_1_OF blocks.all",
+]
+wrong = [
+  "REQUEST ALL_OF staff.directors DO 'break' DURING ANY_1_OF blocks.all",
+  "REQUEST EACH_OF staff.directors DO 'break' DURING ANY_1_OF blocks.meals",
+]
+
+[[problem]]
+id = "each-vs-all-soft"
+title = "Credit for each"
+prompt = "Every MFG should be 'on call' during clinic 1. If one of them can't, the others still should — each one counts separately."
+answer = "REQUEST EACH_OF staff.mfgs DO 'on call' DURING blocks.clinic_1"
+priority = "MEDIUM"
+explain = "At a soft priority, ALL_OF would earn nothing unless all three are on call. EACH_OF earns a third for each."
+wrong = ["REQUEST ALL_OF staff.mfgs DO 'on call' DURING blocks.clinic_1"]
+
+[[problem]]
+id = "each-vs-all-together"
+title = "All or nothing"
+prompt = "The MFGs do 'tree removal' together during clinic 1 — it needs all three at once, or it's pointless."
+answer = "REQUEST ALL_OF staff.mfgs DO 'tree removal' DURING blocks.clinic_1"
+priority = "MEDIUM"
+explain = "Here only all three together will do, so it's ALL_OF: met or not, as one."
+wrong = ["REQUEST EACH_OF staff.mfgs DO 'tree removal' DURING blocks.clinic_1"]
+
+[[problem]]
+id = "each-block"
+title = "Every meal counts"
+prompt = "Leni does 'dish duty' at lunch and dinner, and each meal counts on its own."
+answer = "REQUEST staff.leni DO 'dish duty' DURING EACH_OF {blocks.lunch + blocks.dinner}"
+priority = "HIGH"
+wrong = [
+  "REQUEST staff.leni DO 'dish duty' DURING ALL_OF {blocks.lunch + blocks.dinner}",
+  "REQUEST staff.leni DO 'dish duty' DURING ANY_1_OF {blocks.lunch + blocks.dinner}",
+]
+
+[[problem]]
+id = "each-counselor-free-playstation"
+title = "Playstation for everyone"
+prompt = "Each counselor should have 'cabin time' during playstation. Every counselor counts separately."
+answer = "REQUEST EACH_OF staff.counselors DO 'cabin time' DURING blocks.playstation"
+priority = "HIGH"
+wrong = ["REQUEST ALL_OF staff.counselors DO 'cabin time' DURING blocks.playstation"]
+
+[[problem]]
+id = "each-day"
+title = "Every weekday"
+prompt = "Hailey does 'feed the horses' during breakfast on each weekday, Monday to Friday. Each day is its own request."
+answer = "REQUEST staff.hailey DO 'feed the horses' DURING blocks.breakfast ON EACH_OF {2026-08-03 .. 2026-08-07}"
+priority = "HIGH"
+hints = ["The dates are {2026-08-03 .. 2026-08-07}, and you want one request for each of them."]
+alternatives = ["REQUEST staff.hailey DO 'feed the horses' DURING blocks.breakfast ON EACH_OF {dates.session.six.week.one.monday .. dates.session.six.week.one.friday}"]
+wrong = ["REQUEST staff.hailey DO 'feed the horses' DURING blocks.breakfast ON ALL_OF {2026-08-03 .. 2026-08-07}"]
+
+[[problem]]
+id = "each-with-any-block"
+title = "Each gets one"
+prompt = "Each village leader does a 'cabin check' in one of the evening blocks — whichever suits each of them."
+answer = "REQUEST EACH_OF staff.village_leaders DO 'cabin check' DURING ANY_1_OF blocks.evening"
+priority = "MEDIUM"
+wrong = [
+  "REQUEST ALL_OF staff.village_leaders DO 'cabin check' DURING ANY_1_OF blocks.evening",
+  "REQUEST EACH_OF staff.village_leaders DO 'cabin check' DURING ALL_OF blocks.evening",
+]
+
+[[problem]]
+id = "each-pair-every-day"
+title = "The same pair, daily"
+prompt = "Paul and Peyton do 'range sweep' together during setup, on each day from Monday to Friday. Each day counts on its own."
+answer = "REQUEST ALL_OF {staff.paul + staff.peyton} DO 'range sweep' DURING blocks.setup ON EACH_OF {2026-08-03 .. 2026-08-07}"
+priority = "MEDIUM"
+wrong = ["REQUEST EACH_OF {staff.paul + staff.peyton} DO 'range sweep' DURING blocks.setup ON EACH_OF {2026-08-03 .. 2026-08-07}"]
+
+[[problem]]
+id = "each-person-each-meal"
+title = "People times meals"
+prompt = "Each EQ staff member does 'barn check' at each meal. Every person-and-meal counts separately."
+answer = "REQUEST EACH_OF staff.eq_staff DO 'barn check' DURING EACH_OF blocks.meals"
+priority = "LOW"
+explain = "Three people times three meals: nine little requests."
+wrong = ["REQUEST EACH_OF staff.eq_staff DO 'barn check' DURING ALL_OF blocks.meals"]
+
+[[problem]]
+id = "each-must-happen"
+title = "When it must happen"
+prompt = "At MUST_HAPPEN, every director has 'first aid refresher' during rest hour. (At MUST_HAPPEN, ALL_OF and EACH_OF build the same schedule — either is fine here.)"
+answer = "REQUEST EACH_OF staff.directors DO 'first aid refresher' DURING blocks.rest_hour"
+priority = "MUST_HAPPEN"
+explain = "A hard request must be met in full, so splitting it changes nothing. The difference only shows below MUST_HAPPEN."
+alternatives = ["REQUEST ALL_OF staff.directors DO 'first aid refresher' DURING blocks.rest_hour"]
+wrong = ["REQUEST ANY_1_OF staff.directors DO 'first aid refresher' DURING blocks.rest_hour"]
+
+[[problem]]
+id = "each-some-day"
+title = "Each some day"
+prompt = "Each MFG does a 'tool inventory' during rest hour on some day between Monday and Friday — each on whatever day suits them."
+answer = "REQUEST EACH_OF staff.mfgs DO 'tool inventory' DURING blocks.rest_hour ON ANY_1_OF {2026-08-03 .. 2026-08-07}"
+priority = "MEDIUM"
+wrong = ["REQUEST ALL_OF staff.mfgs DO 'tool inventory' DURING blocks.rest_hour ON ANY_1_OF {2026-08-03 .. 2026-08-07}"]
+
+[[problem]]
+id = "each-clinic-block"
+title = "Coverage in every clinic"
+prompt = "In each of the four clinic blocks, one of the directors does 'walkabout'. Each block counts separately."
+answer = "REQUEST ANY_1_OF staff.directors DO 'walkabout' DURING EACH_OF blocks.any_clinic"
+priority = "HIGH"
+explain = "EACH_OF splits first, then ANY_1_OF chooses once per copy — so each block gets its own director, maybe different ones."
+wrong = ["REQUEST ANY_1_OF staff.directors DO 'walkabout' DURING ALL_OF blocks.any_clinic"]
+
+[[problem]]
+id = "each-heroes-dinner"
+title = "Dinner duty for all"
+prompt = "Each village hero does 'table setting' during dinner, each counting on its own."
+answer = "REQUEST EACH_OF staff.village_heroes DO 'table setting' DURING blocks.dinner"
+priority = "LOW"
+wrong = ["REQUEST ALL_OF staff.village_heroes DO 'table setting' DURING blocks.dinner"]
+
+[[problem]]
+id = "each-names"
+title = "Each of three"
+prompt = "Kara, Khushi and Tala each do 'mail sorting' in one of the morning clinic blocks (1 or 2), each on their own."
+answer = "REQUEST EACH_OF {staff.kara + staff.khushi + staff.tala} DO 'mail sorting' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}"
+priority = "MEDIUM"
+wrong = ["REQUEST ALL_OF {staff.kara + staff.khushi + staff.tala} DO 'mail sorting' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}"]
+
+[[problem]]
+id = "each-evening-leader"
+title = "One per evening block"
+prompt = "In each evening block, one village leader does 'night patrol'. Each block counts separately."
+answer = "REQUEST ANY_1_OF staff.village_leaders DO 'night patrol' DURING EACH_OF blocks.evening"
+priority = "HIGH"
+wrong = ["REQUEST ALL_OF staff.village_leaders DO 'night patrol' DURING EACH_OF blocks.evening"]
+
+[[problem]]
+id = "each-two-per-meal"
+title = "Two per meal"
+prompt = "At each meal, two counselors do 'bus tables'. Each meal counts on its own."
+answer = "REQUEST ANY_2_OF staff.counselors DO 'bus tables' DURING EACH_OF blocks.meals"
+priority = "MEDIUM"
+wrong = ["REQUEST ANY_2_OF staff.counselors DO 'bus tables' DURING ALL_OF blocks.meals"]
+
+[[problem]]
+id = "each-staff-all-break"
+title = "Everyone gets a break"
+prompt = "Every single staff member gets a 'break' in one of today's clinic blocks. Each person counts separately."
+answer = "REQUEST EACH_OF staff.all DO 'break' DURING ANY_1_OF blocks.any_clinic"
+priority = "HIGH"
+hints = ["Everybody on staff this session is staff.all."]
+wrong = ["REQUEST EACH_OF staff.counselors DO 'break' DURING ANY_1_OF blocks.any_clinic"]
+
+[[problem]]
+id = "each-wednesday-thursday"
+title = "Two days, separately"
+prompt = "Donny does 'kayak repair' during clinic 4 on Wednesday and on Thursday, each day counting on its own."
+answer = "REQUEST staff.donny DO 'kayak repair' DURING blocks.clinic_4 ON EACH_OF {2026-08-05 + 2026-08-06}"
+priority = "MEDIUM"
+alternatives = ["REQUEST staff.donny DO 'kayak repair' DURING blocks.clinic_4 ON EACH_OF {dates.session.six.week.one.wednesday + dates.session.six.week.one.thursday}"]
+wrong = ["REQUEST staff.donny DO 'kayak repair' DURING blocks.clinic_4 ON ALL_OF {2026-08-05 + 2026-08-06}"]

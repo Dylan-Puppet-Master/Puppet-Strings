@@ -1,0 +1,171 @@
+[level]
+name = "Groups: ALL_OF"
+blurb = "Sets of people and blocks, taken all at once."
+day = "2026-08-04"
+teaches = """
+ALL_OF <set>        every one of them, together
+
+REQUEST ALL_OF staff.directors DO 'meeting' DURING blocks.rest_hour
+REQUEST ALL_OF {staff.rob + staff.vic} DO 'ropes check' DURING blocks.setup
+REQUEST staff.rob DO 'break' DURING ALL_OF blocks.meals
+
+• A category (staff.directors, blocks.meals) is a set
+• {a + b} makes a set out of names
+• A set in a request always says how it is taken: ALL_OF is all of them
+"""
+
+[[problem]]
+id = "together-directors-meeting"
+title = "Directors' meeting"
+prompt = "All the directors have a 'directors meeting' during rest hour."
+answer = "REQUEST ALL_OF staff.directors DO 'directors meeting' DURING blocks.rest_hour"
+hints = ["The directors are a category: staff.directors.", "A set needs a word in front saying how it is taken. For everyone, that's ALL_OF."]
+explain = "ALL_OF staff.directors means David, Lisa and Matthew, every one of them, together — met only if all three do it."
+alternatives = [
+  "REQUEST ALL_OF {staff.david + staff.lisa + staff.matthew} DO 'directors meeting' DURING blocks.rest_hour",
+]
+wrong = [
+  "REQUEST ANY_1_OF staff.directors DO 'directors meeting' DURING blocks.rest_hour",
+  "REQUEST ALL_OF {staff.david + staff.lisa} DO 'directors meeting' DURING blocks.rest_hour",
+]
+
+[[problem]]
+id = "together-rob-vic"
+title = "A pair"
+prompt = "Rob and Vic do a 'ropes check' together during setup."
+answer = "REQUEST ALL_OF {staff.rob + staff.vic} DO 'ropes check' DURING blocks.setup"
+hints = ["Put the two names in braces with a + between them: {staff.rob + staff.vic}.", "Then say ALL_OF in front, because both of them do it."]
+alternatives = ["REQUEST ALL_OF {staff.vic + staff.rob} DO 'ropes check' DURING blocks.setup"]
+wrong = ["REQUEST staff.rob DO 'ropes check' DURING blocks.setup"]
+
+[[problem]]
+id = "together-eq-staff"
+title = "Barn crew"
+prompt = "All of the EQ staff do 'barn chores' during breakfast."
+answer = "REQUEST ALL_OF staff.eq_staff DO 'barn chores' DURING blocks.breakfast"
+hints = ["The equestrian staff are staff.eq_staff."]
+alternatives = ["REQUEST ALL_OF {staff.hailey + staff.alexis + staff.alyce} DO 'barn chores' DURING blocks.breakfast"]
+wrong = ["REQUEST ALL_OF staff.mfgs DO 'barn chores' DURING blocks.breakfast"]
+
+[[problem]]
+id = "together-mfgs"
+title = "Maintenance crew"
+prompt = "The MFGs all do 'trail maintenance' during clinic 3."
+answer = "REQUEST ALL_OF staff.mfgs DO 'trail maintenance' DURING blocks.clinic_3"
+alternatives = ["REQUEST ALL_OF {staff.alan + staff.charlton + staff.connor} DO 'trail maintenance' DURING blocks.clinic_3"]
+wrong = ["REQUEST ALL_OF {staff.alan + staff.charlton} DO 'trail maintenance' DURING blocks.clinic_3"]
+
+[[problem]]
+id = "together-village-leaders"
+title = "Village leaders huddle"
+prompt = "Every village leader goes to a 'village huddle' during rest hour."
+answer = "REQUEST ALL_OF staff.village_leaders DO 'village huddle' DURING blocks.rest_hour"
+wrong = ["REQUEST ALL_OF staff.village_heroes DO 'village huddle' DURING blocks.rest_hour"]
+
+[[problem]]
+id = "together-three-names"
+title = "Kitchen help"
+prompt = "Kara, Khushi and Amber do 'kitchen help' during lunch."
+answer = "REQUEST ALL_OF {staff.kara + staff.khushi + staff.amber} DO 'kitchen help' DURING blocks.lunch"
+hints = ["{staff.kara + staff.khushi + staff.amber}"]
+alternatives = ["REQUEST ALL_OF {staff.amber + staff.kara + staff.khushi} DO 'kitchen help' DURING blocks.lunch"]
+wrong = ["REQUEST ALL_OF {staff.kara + staff.khushi} DO 'kitchen help' DURING blocks.lunch"]
+
+[[problem]]
+id = "together-all-meals"
+title = "Every meal"
+prompt = "Leah is on 'dish duty' at every meal today."
+answer = "REQUEST staff.leah DO 'dish duty' DURING ALL_OF blocks.meals"
+hints = ["The meals are a block category: blocks.meals.", "Sets of blocks need ALL_OF just like sets of people."]
+explain = "blocks.meals is breakfast, lunch and dinner. ALL_OF asks for all three."
+alternatives = ["REQUEST staff.leah DO 'dish duty' DURING ALL_OF {blocks.breakfast + blocks.lunch + blocks.dinner}"]
+wrong = ["REQUEST staff.leah DO 'dish duty' DURING ALL_OF {blocks.lunch + blocks.dinner}"]
+
+[[problem]]
+id = "together-two-blocks"
+title = "Morning shift"
+prompt = "Jana runs the 'camp store' during both clinic 1 and clinic 2."
+answer = "REQUEST staff.jana DO 'camp store' DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}"
+alternatives = ["REQUEST staff.jana DO 'camp store' DURING ALL_OF {blocks.clinic_2 + blocks.clinic_1}"]
+wrong = ["REQUEST staff.jana DO 'camp store' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}"]
+
+[[problem]]
+id = "together-evening"
+title = "Evening shift"
+prompt = "Tori is on 'night watch' for the whole evening — every evening block."
+answer = "REQUEST staff.tori DO 'night watch' DURING ALL_OF blocks.evening"
+hints = ["The evening blocks are a category: blocks.evening (embers and evening program)."]
+alternatives = ["REQUEST staff.tori DO 'night watch' DURING ALL_OF {blocks.embers + blocks.evening_program}"]
+wrong = ["REQUEST staff.tori DO 'night watch' DURING blocks.embers"]
+
+[[problem]]
+id = "together-clinic-blocks"
+title = "All the clinic blocks"
+prompt = "Charlton does 'shop inventory' in every clinic block today."
+answer = "REQUEST staff.charlton DO 'shop inventory' DURING ALL_OF blocks.any_clinic"
+hints = ["The clinic blocks are blocks.any_clinic."]
+alternatives = ["REQUEST staff.charlton DO 'shop inventory' DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2 + blocks.clinic_3 + blocks.clinic_4}"]
+wrong = ["REQUEST staff.charlton DO 'shop inventory' DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2 + blocks.clinic_3}"]
+
+[[problem]]
+id = "together-group-and-blocks"
+title = "Both at once"
+prompt = "The directors all do 'office hours' in both clinic 3 and clinic 4."
+answer = "REQUEST ALL_OF staff.directors DO 'office hours' DURING ALL_OF {blocks.clinic_3 + blocks.clinic_4}"
+explain = "Everyone chosen does it in every block chosen: three people, two blocks, six assignments."
+wrong = ["REQUEST ALL_OF staff.directors DO 'office hours' DURING blocks.clinic_3"]
+
+[[problem]]
+id = "together-category-plus-name"
+title = "Plus one"
+prompt = "The EQ staff and Lisa all do a 'horse walk' during playstation."
+answer = "REQUEST ALL_OF {staff.eq_staff + staff.lisa} DO 'horse walk' DURING blocks.playstation"
+hints = ["A category and a name can go in the same braces: {staff.eq_staff + staff.lisa}."]
+alternatives = ["REQUEST ALL_OF {staff.hailey + staff.alexis + staff.alyce + staff.lisa} DO 'horse walk' DURING blocks.playstation"]
+wrong = ["REQUEST ALL_OF staff.eq_staff DO 'horse walk' DURING blocks.playstation"]
+
+[[problem]]
+id = "together-two-categories"
+title = "Two crews"
+prompt = "The MFGs and the village leaders all do 'fire drill' during clinic 1."
+answer = "REQUEST ALL_OF {staff.mfgs + staff.village_leaders} DO 'fire drill' DURING blocks.clinic_1"
+wrong = ["REQUEST ALL_OF staff.mfgs DO 'fire drill' DURING blocks.clinic_1"]
+
+[[problem]]
+id = "together-lunch-and-dinner"
+title = "Two meals"
+prompt = "Gabe does 'salad bar' at lunch and at dinner."
+answer = "REQUEST staff.gabe DO 'salad bar' DURING ALL_OF {blocks.lunch + blocks.dinner}"
+wrong = ["REQUEST staff.gabe DO 'salad bar' DURING ALL_OF blocks.meals"]
+
+[[problem]]
+id = "together-on-wednesday"
+title = "Wednesday together"
+prompt = "On Wednesday, the directors all have a 'budget meeting' during rest hour."
+answer = "REQUEST ALL_OF staff.directors DO 'budget meeting' DURING blocks.rest_hour ON dates.session.six.week.one.wednesday"
+alternatives = ["REQUEST ALL_OF staff.directors DO 'budget meeting' DURING blocks.rest_hour ON 2026-08-05"]
+wrong = ["REQUEST ALL_OF staff.directors DO 'budget meeting' DURING blocks.rest_hour"]
+
+[[problem]]
+id = "together-all-blocks"
+title = "All day long"
+prompt = "Mogee is on 'kitchen' in every block of the day."
+answer = "REQUEST staff.mogee DO 'kitchen' DURING ALL_OF blocks.all"
+hints = ["Every block is blocks.all."]
+explain = "blocks.all holds every block on the day being scheduled."
+day = "2026-08-04"
+
+[[problem]]
+id = "together-order-doesnt-matter"
+title = "Any order"
+prompt = "Peyton and Paul do 'range setup' together during setup."
+answer = "REQUEST ALL_OF {staff.peyton + staff.paul} DO 'range setup' DURING blocks.setup"
+alternatives = ["REQUEST ALL_OF {staff.paul + staff.peyton} DO 'range setup' DURING blocks.setup"]
+wrong = ["REQUEST ALL_OF {staff.paul + staff.peyton} DO 'range setup' DURING blocks.breakfast"]
+
+[[problem]]
+id = "together-heroes-evening"
+title = "Hero huddle"
+prompt = "Every village hero goes to 'hero training' during embers."
+answer = "REQUEST ALL_OF staff.village_heroes DO 'hero training' DURING blocks.embers"
+wrong = ["REQUEST ALL_OF staff.permanent_heroes DO 'hero training' DURING blocks.embers"]

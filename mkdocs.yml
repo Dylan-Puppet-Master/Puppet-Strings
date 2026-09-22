@@ -27,6 +27,7 @@ nav:
   - Install and set up: install.md
   - The sheets: sheets.md
   - The request manager: app.md
+  - Learning Skedge: training.md
   - Same-day changes: same-day.md
   - Skedge reference: skedge.md
   - Skedge specification: spec.md
