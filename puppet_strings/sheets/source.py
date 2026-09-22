@@ -66,6 +66,21 @@ class Styled:
     column_widths: tuple[tuple[int, int, int], ...] = ()
     fills: tuple[Fill, ...] = field(default_factory=tuple)
 
+    def __post_init__(self) -> None:
+        """A frozen column may not cut a merged title in half, and Google says so.
+
+        The freeze is a line down the sheet and a merged cell cannot straddle it; asking
+        for both is a 400 from the API in the middle of publishing a day, which is the
+        worst place to find out. A view wanting a frozen column writes its title in the
+        first cell instead of merging it, where it overflows to the right and reads the
+        same.
+        """
+        if 0 < self.freeze_columns < self.title_span:
+            raise ValueError(
+                f"a title merged across {self.title_span} columns cannot be split by a "
+                f"freeze at column {self.freeze_columns}"
+            )
+
 
 class LoadError(Exception):
     """Bad or missing sheet data. The message names the sheet, tab, and cell or row."""

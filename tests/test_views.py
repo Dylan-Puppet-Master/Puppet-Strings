@@ -86,9 +86,10 @@ def test_staff_view(dataset):
 def test_the_staff_view_is_dressed_for_being_read(dataset):
     """It is the sheet everybody at camp opens, most of them looking for one row of it."""
     view = staff_view(dataset, rows(dataset))
-    blocks = len(view.rows[1]) - 1
-    assert view.title_span == blocks + 1 and view.bold_rows == (0, 1)
+    assert view.bold_rows == (0, 1)
     assert (view.freeze_rows, view.freeze_columns) == (2, 1) and view.wrap
+    # the title is not merged: Google refuses a frozen column that cuts a merged cell
+    assert view.title_span == 0
     assert [width for _, _, width in view.column_widths] == [150, 190]
     headings = {f.column: f.colour for f in view.fills if f.row == 1}
     assert headings[1] == colour(BLOCK_COLOURS, 0)  # the clinic view's colour for that block
@@ -97,6 +98,18 @@ def test_the_staff_view_is_dressed_for_being_read(dataset):
     assert names == set(range(1, len(view.rows)))  # every name sits in the name column's shade
     banded = {f.row for f in view.fills if f.column == 1 and f.colour == BANDING}
     assert banded == set(range(3, len(view.rows), 2))  # every other row, below the headings
+
+
+def test_a_frozen_column_may_not_cut_a_merged_title(dataset):
+    """Publishing is the worst place to learn this, so it is refused where it is written."""
+    import pytest
+
+    from puppet_strings.sheets.source import Styled
+
+    with pytest.raises(ValueError, match="cannot be split by a freeze"):
+        Styled(rows=[["a", "b"]], title_span=2, freeze_columns=1)
+    Styled(rows=[["a", "b"]], title_span=2, freeze_columns=2)  # the whole title is frozen
+    Styled(rows=[["a", "b"]], title_span=2)  # or the column is not
 
 
 def test_the_views_leave_out_whoever_is_not_at_camp(dataset):

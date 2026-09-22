@@ -61,10 +61,10 @@ def staff_view(
             here = sorted(by_staff_block.get((staff_id, block.id), []), key=lambda a: a.start)
             row.append(_cell(dataset, staff_id, block, here, remainder))
         rows.append(row)
-    columns = len(blocks) + 1
     return Styled(
         rows,
-        title_span=columns,
+        # not merged: the names are a frozen column, and a merged title cannot be cut by
+        # one. In the first cell it overflows across the empty row and reads the same.
         bold_rows=(0, HEADINGS_ROW),
         freeze_rows=2,
         freeze_columns=1,  # the names, so a row is still somebody's at the far end of the day
