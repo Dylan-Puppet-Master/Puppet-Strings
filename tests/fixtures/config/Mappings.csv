@@ -1,3 +1,3 @@
-mapping,keys,values,scale_min,scale_max,default
+mapping,keys,value,scale_min,scale_max,default
 preference,"staff, activities.clinics.all",numeric,1,5,3
 buddy,staff.counselor,{staff.all - staff.counselor},,,ANY_1_OF {staff.all - staff.counselor - staff.director}

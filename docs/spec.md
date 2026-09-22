@@ -449,16 +449,16 @@ agree with those sets in number, in namespace, and in membership. The one except
 staff member not working that day: they are in no category, so membership can't be judged
 and isn't checked.
 
-A mapping whose `values` are `numeric` goes only after `MAXIMIZE` or `MINIMIZE`. Its value
+A mapping whose `value` is `numeric` goes only after `MAXIMIZE` or `MINIMIZE`. Its value
 is normalized to 0–1 against the mapping's declared scale. A key it has no row for takes
 the mapping's default, which is the bottom of its scale unless the Mappings tab says
 otherwise.
 
-Any other mapping gives a name from the set its `values` names, and a call to it is a set
+Any other mapping gives a name from the set its `value` names, and a call to it is a set
 expression: it can stand wherever a set can, as a `set_` or inside `{…}`. The namespace a
-call gives is the namespace of its `values`. What it stands for is:
+call gives is the namespace of its `value`. What it stands for is:
 
-- the name its row gives, if there is a row and that name is in the `values` set that day.
+- the name its row gives, if there is a row and that name is in the `value` set that day.
   A row naming somebody not working that day is passed over.
 - otherwise the mapping's default, a Skedge phrase such as `ANY_1_OF {staff.office}`. A
   call standing alone with no quantifier stands for the whole phrase, quantifier and all.
@@ -468,7 +468,7 @@ call gives is the namespace of its `values`. What it stands for is:
 - with neither a row nor a default, an error.
 
 The Mappings tab is checked when the day loads: every key and value cell must name a name
-in its set, and the default must be within the `values`. The same exception applies to
+in its set, and the default must be within the `value` set. The same exception applies to
 staff not working that day.
 
 ## 10. Declarations

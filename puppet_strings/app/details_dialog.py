@@ -78,7 +78,7 @@ class MappingDialog(QDialog):
         self.resize(620, 560)
         self.index = self.source.read(CONFIG_SHEET, config.tabs["mappings"])
         row = self._index_row()
-        self.numeric = row.get("values", "").strip().lower() == NUMERIC
+        self.numeric = row.get("value", "").strip().lower() == NUMERIC
         self.default = self._default_box(row)
         table = self.source.read(CONFIG_SHEET, self.tab)
         self.header = table[0] if table else []
@@ -109,7 +109,7 @@ class MappingDialog(QDialog):
             box = QLineEdit(row.get("default", ""))
             box.setPlaceholderText("no default: every key needs a row")
             box.setToolTip(
-                f"What a key with no row gives, from {row.get('values', '')}: a name, or "
+                f"What a key with no row gives, from {row.get('value', '')}: a name, or "
                 "a phrase such as ANY_1_OF {staff.office}"
             )
             return box
@@ -185,8 +185,8 @@ def _labels(header: list[str], row: dict[str, str]) -> list[str]:
         number = name[len("key") :] if name.startswith("key") else ""
         if number.isdigit() and 0 < int(number) <= len(keys):
             shown.append(f"{name}: {keys[int(number) - 1]}")
-        elif name == "value" and row.get("values"):
-            shown.append(f"value: {row['values']}")
+        elif name == "value" and row.get("value"):
+            shown.append(f"value: {row['value']}")
         else:
             shown.append(name)
     return shown

@@ -267,7 +267,7 @@ def test_a_mapping_is_a_set_among_sets(dataset):
         ),
     ],
 )
-def test_a_mapping_is_checked_against_its_keys_and_values(dataset, skedge, message):
+def test_a_mapping_is_checked_against_its_keys_and_value(dataset, skedge, message):
     with pytest.raises(SkedgeError, match=re.escape(message)):
         resolve(dataset, skedge)
 

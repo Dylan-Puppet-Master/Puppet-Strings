@@ -1,15 +1,15 @@
 """Mappings: an index tab listing each mapping, plus one data tab per mapping.
 
-Index columns: mapping, keys, values, and scale_min, scale_max and default, which a
+Index columns: mapping, keys, value, and scale_min, scale_max and default, which a
 mapping may leave blank where they do not apply. `keys` is a comma-separated list of
-Skedge sets, one per key column; `values` is a Skedge set, or `numeric`.
+Skedge sets, one per key column; `value` is a Skedge set, or `numeric`.
 
 Data tab `mapping_<name>`: `key1`, `key2`, ... one per key, and `value`, all written as
 the other sheets write them (names, not identifiers).
 
 A mapping is read in two steps. Its tabs are parsed while the rest of the day is, into
 identifiers; once the day is built, `check_mappings` asks whether every row names what its
-keys and values say it may, which takes the day's own categories to answer.
+keys and value say it may, which takes the day's own categories to answer.
 """
 
 from dataclasses import replace
@@ -23,8 +23,8 @@ from puppet_strings.skedge.namespaces import DATES
 from puppet_strings.skedge.resolve import default_choice, domain, domain_namespace, judged
 
 INDEX = "Mappings"
-INDEX_COLUMNS = ("mapping", "keys", "values", "scale_min", "scale_max", "default")
-REQUIRED = ("mapping", "keys", "values")
+INDEX_COLUMNS = ("mapping", "keys", "value", "scale_min", "scale_max", "default")
+REQUIRED = ("mapping", "keys", "value")
 TAB_PREFIX = "mapping_"
 VALUE = "value"
 
@@ -42,13 +42,13 @@ def parse_mapping_index(table: Table) -> list[MappingTable]:
         keys = tuple(split_list(row["keys"]))
         if not keys:
             raise LoadError(f"{cell}: keys needs at least one set, such as staff.counselor")
-        values = row["values"].strip()
-        for text in keys + (() if values.lower() == NUMERIC else (values,)):
+        value = row["value"].strip()
+        for text in keys + (() if value.lower() == NUMERIC else (value,)):
             _namespace(text, cell)
-        if values.lower() == NUMERIC:
+        if value.lower() == NUMERIC:
             index.append(_numeric(row, keys, cell))
         else:
-            index.append(_named(row, keys, values, cell))
+            index.append(_named(row, keys, value, cell))
     return index
 
 
@@ -64,11 +64,11 @@ def _numeric(row: dict[str, str], keys: tuple[str, ...], cell: str) -> MappingTa
     return MappingTable(normalize(row["mapping"]), keys, NUMERIC, {}, low, high, default)
 
 
-def _named(row: dict[str, str], keys: tuple[str, ...], values: str, cell: str) -> MappingTable:
+def _named(row: dict[str, str], keys: tuple[str, ...], value: str, cell: str) -> MappingTable:
     if row.get("scale_min") or row.get("scale_max"):
-        raise LoadError(f"{cell}: only a numeric mapping has a scale; its values are {values}")
+        raise LoadError(f"{cell}: only a numeric mapping has a scale; its value is {value}")
     default = row.get("default") or None
-    return MappingTable(normalize(row["mapping"]), keys, values, {}, default=default)
+    return MappingTable(normalize(row["mapping"]), keys, value, {}, default=default)
 
 
 def parse_mapping(mapping: MappingTable, table: Table, date_order: str) -> MappingTable:
@@ -91,7 +91,7 @@ def parse_mapping(mapping: MappingTable, table: Table, date_order: str) -> Mappi
 
 def _value(mapping: MappingTable, text: str, cell: str, date_order: str) -> float | str:
     if not mapping.numeric:
-        return _identifier(text, domain_namespace(mapping.values), cell, date_order)
+        return _identifier(text, domain_namespace(mapping.value), cell, date_order)
     value = _number(text, cell)
     if not mapping.scale_min <= value <= mapping.scale_max:
         raise LoadError(
@@ -105,19 +105,19 @@ def check_mappings(dataset: Dataset) -> None:
 
     This is where a mapping is checked the way a request is: a key cell naming someone who
     is not a counselor, a buddy who is a counselor themselves, a default reaching outside
-    the values. Staff who are not working today are in no category today, so whether they
+    the value set. Staff who are not working today are in no category today, so whether they
     belong to one cannot be told and is not asked.
     """
     for mapping in dataset.mappings.values():
         where = f"{INDEX}/{TAB_PREFIX}{mapping.name}"
         sets = [_domain(text, dataset, f"{INDEX} row '{mapping.name}'") for text in mapping.keys]
-        gives = None if mapping.numeric else _domain(mapping.values, dataset, where)
+        gives = None if mapping.numeric else _domain(mapping.value, dataset, where)
         for key, value in mapping.rows.items():
             cell = f"{where} row {list(key)}"
             for item, (namespace, items), text in zip(key, sets, mapping.keys, strict=True):
                 _belongs(item, namespace, items, text, dataset, cell)
             if gives is not None:
-                _belongs(value, *gives, mapping.values, dataset, cell)
+                _belongs(value, *gives, mapping.value, dataset, cell)
         if gives is not None and mapping.default is not None:
             _check_default(mapping, gives, dataset)
 
@@ -130,13 +130,14 @@ def _check_default(mapping: MappingTable, gives: tuple, dataset: Dataset) -> Non
         raise LoadError(f"{cell}: default '{mapping.default}': {e.message}") from e
     if namespace != gives[0]:
         raise LoadError(
-            f"{cell}: default '{mapping.default}' names {namespace}, but the values are {gives[0]}"
+            f"{cell}: default '{mapping.default}' names {namespace}, "
+            f"but the value is from {gives[0]}"
         )
     outside = sorted(str(i) for i in items - gives[1] if judged(i, namespace, dataset))
     if outside:
         raise LoadError(
             f"{cell}: default '{mapping.default}' reaches '{outside[0]}', which is not in "
-            f"{mapping.values}"
+            f"{mapping.value}"
         )
 
 

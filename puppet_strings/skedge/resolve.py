@@ -408,7 +408,7 @@ def _mapping_note(mapping: MappingTable) -> str:
     keys = ", ".join(mapping.keys)
     if mapping.numeric:
         return f"{keys} -> {mapping.scale_min:g} to {mapping.scale_max:g}"
-    return f"{keys} -> {mapping.values}"
+    return f"{keys} -> {mapping.value}"
 
 
 def _note(namespace: str, name: str, named: Named) -> str:
@@ -581,7 +581,7 @@ def _score(statement: ast.Score, scope: _Scope) -> Score:
     mapping = _mapping(statement.mapping, scope)
     if not mapping.numeric:
         raise _error(
-            f"mappings.{mapping.name} gives a name from {mapping.values}, not a number, so "
+            f"mappings.{mapping.name} gives a name from {mapping.value}, not a number, so "
             "there is nothing to maximize or minimize",
             statement.mapping.pos,
         )
@@ -639,7 +639,7 @@ def _argument(arg: ast.Var | ast.Ref, scope: _Scope) -> tuple[Item, str]:
 
 
 def _gives(call: ast.Call, scope: _Scope) -> tuple[MappingTable, str, frozenset[Item]]:
-    """The mapping a call is to, and the namespace and set its values come from."""
+    """The mapping a call is to, and the namespace and set its value comes from."""
     mapping = _mapping(call.mapping, scope)
     if mapping.numeric:
         raise _error(
@@ -647,7 +647,7 @@ def _gives(call: ast.Call, scope: _Scope) -> tuple[MappingTable, str, frozenset[
             "or MINIMIZE rather than in a set",
             call.pos,
         )
-    namespace, items = _domain(mapping.values, scope.names, scope.dataset)
+    namespace, items = _domain(mapping.value, scope.names, scope.dataset)
     return mapping, namespace, items
 
 
@@ -689,7 +689,7 @@ def _default(text: str) -> ast.Selector:
 
 @cache
 def _domain_expr(text: str) -> tuple[str, ast.SetExpr | None]:
-    """A `keys` or `values` entry as its namespace and its set; a bare namespace has none."""
+    """A `keys` or `value` entry as its namespace and its set; a bare namespace has none."""
     if text.strip().lower() in KEY_NAMESPACES:
         return text.strip().lower(), None
     expr = parse_domain(text)
@@ -747,12 +747,12 @@ def _domain(text: str, names: "_Names", dataset: Dataset) -> tuple[str, frozense
 
 
 def domain_namespace(text: str) -> str:
-    """The namespace a Mappings tab `keys` or `values` entry names. Raises SkedgeError."""
+    """The namespace a Mappings tab `keys` or `value` entry names. Raises SkedgeError."""
     return _domain_expr(text)[0]
 
 
 def domain(text: str, dataset: Dataset) -> tuple[str, frozenset[Item]]:
-    """What a Mappings tab `keys` or `values` entry stands for today. Raises SkedgeError."""
+    """What a Mappings tab `keys` or `value` entry stands for today. Raises SkedgeError."""
     return _domain(text, _Names(dataset), dataset)
 
 

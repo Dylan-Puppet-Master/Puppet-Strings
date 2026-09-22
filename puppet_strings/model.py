@@ -367,7 +367,7 @@ class Request:
     home: str = ""
 
 
-NUMERIC = "numeric"  # what a mapping's `values` says when it gives a number, not a name
+NUMERIC = "numeric"  # what a mapping's `value` says when it gives a number, not a name
 
 
 @dataclass(frozen=True)
@@ -376,7 +376,7 @@ class MappingTable:
 
     `keys` are Skedge set expressions, one per key column, saying what each may hold:
     `staff.counselor`, `{staff.all - staff.counselor}`, or a bare namespace such as
-    `staff` for any name in it. `values` is the same for what a row gives, or `numeric`.
+    `staff` for any name in it. `value` is the same for what a row gives, or `numeric`.
 
     A numeric mapping is a scale of ratings: `rows` hold numbers between `scale_min` and
     `scale_max`, and `default` is what a key with no row is worth (the bottom of the scale
@@ -390,7 +390,7 @@ class MappingTable:
 
     name: str
     keys: tuple[str, ...]
-    values: str
+    value: str
     rows: Mapping[tuple[str, ...], float | str]
     scale_min: float | None = None
     scale_max: float | None = None
@@ -399,7 +399,7 @@ class MappingTable:
     @property
     def numeric(self) -> bool:
         """Whether a row is a number on a scale rather than a name."""
-        return self.values == NUMERIC
+        return self.value == NUMERIC
 
     @property
     def missing(self) -> float:

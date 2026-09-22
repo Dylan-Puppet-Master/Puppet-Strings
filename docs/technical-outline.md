@@ -248,12 +248,12 @@ HEROs; a metric is now a numeric mapping.)
 |---|---|---|
 | `mapping` | `enjoyment` | `buddy` |
 | `keys` | `staff, activities.clinics.all` | `staff.counselor` |
-| `values` | `numeric` | `{staff.all - staff.counselor}` |
+| `value` | `numeric` | `{staff.all - staff.counselor}` |
 | `scale_min` | `1` | |
 | `scale_max` | `5` | |
 | `default` | `3` | `ANY_1_OF {staff.all - staff.counselor - staff.director}` |
 
-`keys` and `values` are Skedge sets (or a bare namespace), so what a call may take and
+`keys` and `value` are Skedge sets (or a bare namespace), so what a call may take and
 give is checked like any other name. `mapping_enjoyment`:
 
 | key1 | key2 | value |

@@ -273,7 +273,7 @@ def test_mappings(dataset):
     assert preference.default == 3 and preference.missing == 3
     assert preference.normalized(("dylan", "riflery")) == 0.5  # no row, so the default
     buddy = dataset.mappings["buddy"]
-    assert not buddy.numeric and buddy.values == "{staff.all - staff.counselor}"
+    assert not buddy.numeric and buddy.value == "{staff.all - staff.counselor}"
     assert buddy.rows == {("dylan",): "alan", ("james",): "sarah"}
     assert buddy.default == "ANY_1_OF {staff.all - staff.counselor - staff.director}"
 
@@ -294,7 +294,7 @@ def test_mapping_default_column(source):
     assert mapping.default == 1
 
 
-MAPPINGS_HEADER = ["mapping", "keys", "values", "scale_min", "scale_max", "default"]
+MAPPINGS_HEADER = ["mapping", "keys", "value", "scale_min", "scale_max", "default"]
 
 
 @pytest.mark.parametrize(
@@ -353,7 +353,7 @@ def test_a_mapping_is_declared_with_sets_it_can_read(row, message):
         (
             "Mappings",
             [MAPPINGS_HEADER, ["buddy", "staff.counselor", "staff.all", "", "", "blocks.lunch"]],
-            "names blocks, but the values are staff",
+            "names blocks, but the value is from staff",
         ),
     ],
 )

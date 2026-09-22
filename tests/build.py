@@ -217,5 +217,5 @@ BUDDY_DEFAULT = "ANY_1_OF {staff.all - staff.counselor - staff.director}"
 def buddies(rows: dict[str, str], default: str | None = BUDDY_DEFAULT):
     """Each counselor's buddy HERO, who covers their cabin at dinner, by name."""
     table = {(normalize(c),): normalize(b) for c, b in rows.items()}
-    values = "{staff.all - staff.counselor}"
-    return {"buddy": MappingTable("buddy", ("staff.counselor",), values, table, default=default)}
+    value = "{staff.all - staff.counselor}"
+    return {"buddy": MappingTable("buddy", ("staff.counselor",), value, table, default=default)}

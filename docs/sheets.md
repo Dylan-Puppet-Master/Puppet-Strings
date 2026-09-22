@@ -321,7 +321,7 @@ it empty.
 
 **1. Add a row to the `Mappings` tab.**
 
-| mapping | keys | values | scale_min | scale_max | default |
+| mapping | keys | value | scale_min | scale_max | default |
 |---|---|---|---|---|---|
 | enjoyment | staff, activities.clinics.all | numeric | 1 | 5 | 3 |
 
@@ -329,7 +329,7 @@ it empty.
 |---|---|
 | `mapping` | A short name. It becomes `mappings.enjoyment` in requests, and names its tab `mapping_enjoyment`. |
 | `keys` | **Comma-separated.** What each key may be, as Skedge sets: one per argument the mapping takes. `staff, activities.clinics.all` means one rating per staff member per clinic. A bare namespace such as `staff` means any name in it; a set expression such as `{staff.all - staff.counselor}` narrows it down. |
-| `values` | `numeric` for a number, or a Skedge set the value must come from. |
+| `value` | `numeric` for a number, or a Skedge set the value must come from. |
 | `scale_min`, `scale_max` | Numeric mappings only. The lowest and highest rating you will ever enter. Ratings are converted to 0–1 against this scale, not against whatever ratings happen to exist, so adding a new rating never changes how the old ones weigh. Leave both blank for any other mapping. |
 | `default` | Optional. What a key with no row of its own gives. For a numeric mapping it is a number. Leave it blank and an unrated pair is worth `scale_min`, the bottom of the scale. Set it to the middle of the scale (3 of 1–5 above) and an unrated pair counts as ordinary rather than disliked. A default outside the scale is a load error. |
 
@@ -363,7 +363,7 @@ counselor to someone who isn't one.
 
 **1. Add a row to the `Mappings` tab.**
 
-| mapping | keys | values | scale_min | scale_max | default |
+| mapping | keys | value | scale_min | scale_max | default |
 |---|---|---|---|---|---|
 | buddy | staff.counselor | {staff.all - staff.counselor} | | | ANY_1_OF {staff.all - staff.counselor - staff.director} |
 
@@ -382,7 +382,7 @@ row: a request that asks about one without a row is an error.
 
 Every row is checked when the day loads, the same way a request is. A key that isn't a
 counselor, a buddy who is a counselor, a name that doesn't exist and a default that reaches
-outside the `values` are all load errors, and each one names the row. The one exception is
+outside the `value` set are all load errors, and each one names the row. The one exception is
 a person who is resting all day or away. They're in no category that day, so whether they
 are a counselor can't be checked, and it isn't. A buddy who is off that day is passed over
 for the default, so their cabin is still covered.
