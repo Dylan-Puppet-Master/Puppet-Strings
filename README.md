@@ -45,7 +45,7 @@ pip install -e .
 ```
 
 Then follow `docs/install.md` to make the Google OAuth client, create the Blocks,
-Calendar, Requests and Metrics tabs, and open `puppet-strings app` to sign in and choose
+Calendar, Requests and Mappings tabs, and open `puppet-strings app` to sign in and choose
 the spreadsheets from Drive.
 
 ## Use

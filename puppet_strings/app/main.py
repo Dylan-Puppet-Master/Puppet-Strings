@@ -32,8 +32,8 @@ from puppet_strings.app.busy import BusyDialog
 from puppet_strings.app.calendar_pane import SessionCalendar
 from puppet_strings.app.configure import ConfigureDialog
 from puppet_strings.app.conflicts import summary
-from puppet_strings.app.details import details, is_metric
-from puppet_strings.app.details_dialog import DetailsDialog, MetricDialog
+from puppet_strings.app.details import details, is_mapping
+from puppet_strings.app.details_dialog import DetailsDialog, MappingDialog
 from puppet_strings.app.editor import RequestEditor
 from puppet_strings.app.errors import summary as error_summary
 from puppet_strings.app.errors_panel import ErrorsPane
@@ -660,11 +660,11 @@ class MainWindow(QMainWindow):
         self.offerings = None
 
     def inspect_name(self, name: str) -> None:
-        """Open a name from the Namespaces pane: its metric table, or what it stands for."""
+        """Open a name from the Namespaces pane: its mapping table, or what it stands for."""
         if self.store.dataset is None:
             return
-        if is_metric(name):
-            MetricDialog(self.store.source, self.store.config, name.split(".")[-1], self).exec()
+        if is_mapping(name):
+            MappingDialog(self.store.source, self.store.config, name.split(".")[-1], self).exec()
             return
         found = details(name, self.store.dataset)
         if found is not None:

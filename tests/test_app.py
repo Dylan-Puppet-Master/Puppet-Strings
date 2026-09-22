@@ -239,7 +239,7 @@ def test_namespaces_panel_lists_namespaces(window):
         "blocks",
         "dates",
         "roles",
-        "metrics",
+        "mappings",
     ]
     assert names.topLevelItem(3).child(0).text(0).startswith("dates.")
     staff = names.topLevelItem(0)
@@ -1177,19 +1177,19 @@ def test_double_clicking_a_name_opens_what_it_stands_for(window, monkeypatch):
     assert shown and shown[0].subtitle == "Dylan, RAL 5"
 
 
-def test_double_clicking_a_metric_opens_its_table(window, monkeypatch):
+def test_double_clicking_a_mapping_opens_its_table(window, monkeypatch):
     from puppet_strings.app import main as main_module
 
     opened = []
     monkeypatch.setattr(
-        main_module, "MetricDialog", lambda *args, **kwargs: FakeDialog(opened, args[2])
+        main_module, "MappingDialog", lambda *args, **kwargs: FakeDialog(opened, args[2])
     )
-    metrics = next(
+    mappings = next(
         window.names.topLevelItem(i)
         for i in range(window.names.topLevelItemCount())
-        if window.names.topLevelItem(i).text(0) == "metrics"
+        if window.names.topLevelItem(i).text(0) == "mappings"
     )
-    window.names.itemDoubleClicked.emit(child(metrics, "metrics.preference"), 0)
+    window.names.itemDoubleClicked.emit(child(mappings, "mappings.preference"), 0)
     assert opened == ["preference"]
 
 

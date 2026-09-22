@@ -1,3 +1,5 @@
+import re
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -108,7 +110,7 @@ def test_negation_makes_a_pattern_of_pools(dataset):
     assert copies[0].statements[0].pattern.what is None and copies[0].statements[0].pattern.busy
 
 
-def test_patterns_conditions_and_metrics(dataset):
+def test_patterns_conditions_and_mappings(dataset):
     (copy,) = resolve(
         dataset,
         "EACH_OF s IN staff.director\n"
@@ -120,10 +122,10 @@ def test_patterns_conditions_and_metrics(dataset):
     copies = resolve(
         dataset,
         "PREFER EACH_OF s IN staff.counselor DO EACH_OF c IN activities.clinics.weapons "
-        "MAXIMIZE metrics.preference(s, c)",
+        "MAXIMIZE mappings.preference(s, c)",
     )
     assert copies[0].statements[0].key == ("dylan", "archery_1_2")
-    assert copies[0].statements[0].metric == "preference" and copies[0].statements[0].maximize
+    assert copies[0].statements[0].mapping == "preference" and copies[0].statements[0].maximize
 
 
 def test_set_operators(dataset):
@@ -196,7 +198,7 @@ def test_roles(dataset):
 
 def test_name_listing_matches_the_namespaces(dataset):
     listing = name_listing(dataset)
-    assert list(listing) == ["staff", "activities", "blocks", "dates", "roles", "metrics"]
+    assert list(listing) == ["staff", "activities", "blocks", "dates", "roles", "mappings"]
     assert ("all", "category, 21 members") in listing["staff"]
     assert ("all", "category, 20 members") in listing["activities"]
     assert ("clinics.all", "category, 16 members") in listing["activities"]
@@ -206,7 +208,75 @@ def test_name_listing_matches_the_namespaces(dataset):
     assert ("session.two.week.one.monday", "2026-09-28 (Monday)") in listing["dates"]
     assert ("season.mondays", "3 dates") in listing["dates"]
     assert ("trainee", "trainee") in listing["roles"]
-    assert ("preference", "scale 1-5") in listing["metrics"]
+    assert ("preference", "staff, activities.clinics.all -> 1 to 5") in listing["mappings"]
+    assert ("buddy", "staff.counselor -> {staff.all - staff.counselor}") in listing["mappings"]
+
+
+BUDDY = "EACH_OF c IN staff.counselor\nREQUEST {who} FREE DURING blocks.evening"
+
+
+def test_a_mapping_gives_its_row_or_else_its_default_as_written(dataset):
+    copies = resolve(dataset, BUDDY.format(who="mappings.buddy(c)"))
+    who = {copy.key: copy.statements[0].who for copy in copies}
+    assert (who["dylan"].items, who["dylan"].kind) == (("alan",), ALL)
+    assert (who["james"].items, who["james"].kind) == (("sarah",), ALL)
+    # Paul has no row, so his is the default: ANY_1_OF everyone but counselors and directors
+    assert who["paul"].kind == ANY and who["paul"].n == 1
+    everyone = set(dataset.staff_categories["all"])
+    assert set(who["paul"].items) == everyone - {"dylan", "james", "paul", "david", "lisa"}
+
+
+def test_a_mapping_is_a_set_among_sets(dataset):
+    text = "REQUEST ALL_OF {staff.office - mappings.buddy(staff.dylan)} FREE DURING blocks.evening"
+    (copy,) = resolve(dataset, text)
+    office = dataset.staff_categories["office"]
+    assert set(copy.statements[0].who.items) == office - {"alan"}
+
+
+@pytest.mark.parametrize(
+    ("skedge", "message"),
+    [
+        (
+            BUDDY.format(who="ALL_OF {staff.all - mappings.buddy(c)}"),
+            "its default is a choice the solver makes",
+        ),
+        (
+            "REQUEST mappings.buddy(staff.alan) FREE DURING blocks.evening",
+            "mappings.buddy takes staff.counselor here, and 'alan' is not in it",
+        ),
+        (
+            "REQUEST mappings.buddy(blocks.evening) FREE DURING blocks.evening",
+            "mappings.buddy takes a name from staff here, not blocks",
+        ),
+        (
+            "REQUEST mappings.buddy(staff.dylan, staff.james) FREE DURING blocks.evening",
+            "wrong number of arguments: mappings.buddy takes (staff.counselor), not 2",
+        ),
+        (
+            "REQUEST staff.dylan DO mappings.buddy(staff.james) DURING blocks.evening",
+            "expected a name from activities, but mappings.buddy gives one from staff",
+        ),
+        (
+            "PREFER staff.all DO activities.clinics.all MAXIMIZE mappings.buddy(staff.dylan)",
+            "not a number, so there is nothing to maximize or minimize",
+        ),
+        (
+            "REQUEST mappings.preference(staff.dylan, activities.clinics.riflery) FREE "
+            "DURING blocks.evening",
+            "mappings.preference gives a number, not a name",
+        ),
+    ],
+)
+def test_a_mapping_is_checked_against_its_keys_and_values(dataset, skedge, message):
+    with pytest.raises(SkedgeError, match=re.escape(message)):
+        resolve(dataset, skedge)
+
+
+def test_a_mapping_with_no_row_and_no_default_says_so(dataset):
+    buddy = replace(dataset.mappings["buddy"], default=None)
+    bare = replace(dataset, mappings={**dataset.mappings, "buddy": buddy})
+    with pytest.raises(SkedgeError, match="mappings.buddy has no row for paul, and no default"):
+        resolve(bare, BUDDY.format(who="mappings.buddy(c)"))
 
 
 def test_ast_positions_survive_into_errors(dataset):

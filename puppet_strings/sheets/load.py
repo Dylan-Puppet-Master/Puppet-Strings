@@ -8,8 +8,7 @@ from datetime import date
 from puppet_strings.config import Config
 from puppet_strings.exclude import apply_exclusions
 from puppet_strings.model import CalendarDay, Dataset, Span, block_runs_on
-from puppet_strings.names import normalize
-from puppet_strings.sheets import metrics as metrics_sheet
+from puppet_strings.sheets import mappings as mappings_sheet
 from puppet_strings.sheets.adjustments import parse_adjustments, resting_blocks
 from puppet_strings.sheets.blocks import ALL_BLOCKS, block_categories, parse_blocks
 from puppet_strings.sheets.cabin_acts import cabin_act_activities, parse_board
@@ -48,7 +47,7 @@ def load_dataset(source: Source, config: Config, target: date, history: bool = T
     is about to want them.
 
     Each spreadsheet is fetched with as few requests as possible; over Google Sheets, one
-    request per spreadsheet plus one for the metric tabs and one for past schedules.
+    request per spreadsheet plus one for the mapping tabs and one for past schedules.
 
     The cabin act sheets are a folder of their own, one per session and week, and the whole
     folder is read: they are fetched in parallel, so the dozens of small requests they take
@@ -78,7 +77,7 @@ def _config_tables(source: Source, config: Config) -> dict:
     tabs = config.tabs
     # The requests are not here: which of their tabs to read depends on the span the
     # target falls in, which the Calendar in this very batch is what says.
-    wanted = [tabs["blocks"], tabs["calendar"], tabs["metrics"]]
+    wanted = [tabs["blocks"], tabs["calendar"], tabs["mappings"]]
     if tabs["adjustments"] in source.tabs("config"):
         wanted.append(tabs["adjustments"])  # the tab is optional
     return source.read_many("config", wanted)
@@ -200,14 +199,12 @@ def _build(
         c: frozenset(a.id for a in clinics.values() if a.category == c) for c in clinic_categories
     }
 
-    def to_id(field: str, value: str) -> str:
-        return value if field == "date" else normalize(value)
-
-    index = metrics_sheet.parse_metric_index(config_tables[tabs["metrics"]])
-    tab_of = {m.name: f"{metrics_sheet.TAB_PREFIX}{m.name}" for m in index}
-    metric_tables = source.read_many("config", list(tab_of.values()))
-    metrics = {
-        m.name: metrics_sheet.parse_metric(m, metric_tables[tab_of[m.name]], to_id) for m in index
+    index = mappings_sheet.parse_mapping_index(config_tables[tabs["mappings"]])
+    tab_of = {m.name: f"{mappings_sheet.TAB_PREFIX}{m.name}" for m in index}
+    mapping_tables = source.read_many("config", list(tab_of.values()))
+    mappings = {
+        m.name: mappings_sheet.parse_mapping(m, mapping_tables[tab_of[m.name]], config.date_order)
+        for m in index
     }
 
     # Only the target's own day, unless the history is asked for: what happened on the days
@@ -231,7 +228,7 @@ def _build(
         spans=spans,
         offerings=offerings,
         requests=requests,
-        metrics=metrics,
+        mappings=mappings,
         published=schedules,
         baseline=baseline,
         adjustments=adjustments,
@@ -241,8 +238,11 @@ def _build(
     )
     # Last, because who is away for a day is written in the requests and the requests are
     # read here: every reader of a Dataset then sees one day, with the people an EXCLUDE
-    # takes out of it already out of it.
-    return apply_exclusions(dataset)
+    # takes out of it already out of it. The mappings are checked against that day, since
+    # whether a row belongs to its set is a question about the day's own categories.
+    dataset = apply_exclusions(dataset)
+    mappings_sheet.check_mappings(dataset)
+    return dataset
 
 
 def _reserve(namespace: str, names: Iterable[str], taken: Iterable[str]) -> None:

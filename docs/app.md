@@ -234,7 +234,7 @@ right-click, to insert the highlighted name at the cursor.
 | A staff category | Its members |
 | A clinic | What each position asks for, and everyone on the sheets who could hold it |
 | A cabin act | The same, for the day being scheduled, plus what the cabin act board wrote on its card. A cabin with nothing on that day says which days it does have |
-| A metric | Its table of ratings and what an unrated pairing is worth, both of which you can **edit**; Save writes the table to the metric tab and the default to the Metrics tab |
+| A mapping | Its table, with each key column headed by the set it takes, and what a key with no row gives: a number for a numeric mapping, a Skedge phrase such as `ANY_1_OF {staff.office}` for any other. You can **edit** both; Save writes the table to the mapping tab and the default to the Mappings tab |
 | A date or a role | Nothing. A date's note is the date and a role is a word |
 
 Opening an activity is worth the habit, since a request for one names nobody: it is where

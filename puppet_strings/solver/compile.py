@@ -275,9 +275,9 @@ class Compiler:
         if applies is False:
             return
         if isinstance(st, Score):
-            metric = self.dataset.metrics[st.metric]
+            mapping = self.dataset.mappings[st.mapping]
             sign = 1 if st.maximize else -1
-            coefficient = sign * round(SCALE * weight * metric.normalized(st.key))
+            coefficient = sign * round(SCALE * weight * mapping.normalized(st.key))
             if not coefficient:
                 return
             for m in self._matches(st.pattern, past=False):

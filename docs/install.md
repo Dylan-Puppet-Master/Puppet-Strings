@@ -95,9 +95,9 @@ Nothing needs sharing with anybody: you already have the sheets.
 
 ## 4. Create the config spreadsheet and the schedules folder
 
-Create a **config spreadsheet** with tabs named `Blocks`, `Calendar`, `Metrics` and, when
-you want it, `Adjustments`, with the exact columns in [The sheets](sheets.md). Each metric
-you add later gets its own extra tab of ratings, as that page explains. The Blocks tab
+Create a **config spreadsheet** with tabs named `Blocks`, `Calendar`, `Mappings` and, when
+you want it, `Adjustments`, with the exact columns in [The sheets](sheets.md). Each mapping
+you add later gets its own extra tab of rows, as that page explains. The Blocks tab
 needs a `cabin_act` row, which is the slot the cabin act sheets are scheduled into.
 
 Create a second spreadsheet called **Requests**, with a `Season Requests` tab; the rest of

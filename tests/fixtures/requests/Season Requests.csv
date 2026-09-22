@@ -4,7 +4,7 @@ morning:   REQUEST c DO 'counselor hour' FOR 1h DURING ANY_1_OF {blocks.clinic_1
 afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING ANY_1_OF {blocks.playstation + blocks.clinic_3}
 GAP morning TO afternoon AT_MOST 5h",MUST_HAPPEN,,"legal, counselors",Special daily requests,lucy,2026-09-01
 breaks,"Non-directors, non-counselors take three 30-minute breaks",REQUEST EACH_OF {staff.all - staff.director - staff.counselor} DO 'break' FOR 30m DURING ANY_3_OF blocks.all,MUST_HAPPEN,,legal,Special daily requests,,2026-09-01
-clinic-preference,Staff run clinics they prefer,"PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE metrics.preference(s, c)",MEDIUM,1,,Special weekly requests,,2026-09-01
+clinic-preference,Staff run clinics they prefer,"PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)",MEDIUM,1,,Special weekly requests,,2026-09-01
 clinic-variety,Do not repeat a clinic within a week,PREFER AT_MOST 1 EACH_OF staff.all DO EACH_OF activities.clinics.all ON {(dates.target - 6d) .. dates.target},MEDIUM,0.5,variety,Special weekly requests,,2026-09-01
 playstation-availability,Free as many non-directors as possible for playstation,REQUEST EACH_OF {staff.all - staff.director} FREE DURING blocks.playstation,HIGH,1,,Special daily requests,,2026-09-01
 dylan-off-ropes,Dylan stays off ropes this week,REQUEST staff.dylan NOT DO activities.clinics.ropes ON {2026-09-14 .. 2026-09-18},MUST_HAPPEN,,pin,Special weekly requests,dylan,2026-09-13

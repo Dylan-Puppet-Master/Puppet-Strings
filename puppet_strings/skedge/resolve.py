@@ -8,6 +8,7 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from difflib import get_close_matches
+from functools import cache
 
 from puppet_strings.model import (
     CARDINAL_WORDS,
@@ -15,6 +16,7 @@ from puppet_strings.model import (
     POSITION_ROLES,
     TRAINEE_ROLES,
     Dataset,
+    MappingTable,
 )
 from puppet_strings.names import normalize
 from puppet_strings.skedge import ast
@@ -24,12 +26,13 @@ from puppet_strings.skedge.namespaces import (
     CABIN_ACTS,
     CLINICS,
     DATES,
-    KEY_FIELDS,
-    METRICS,
+    KEY_NAMESPACES,
+    MAPPINGS,
     ROLES,
     STAFF,
 )
 from puppet_strings.skedge.namespaces import ALL as ALL_NAME  # `all`, not the quantifier
+from puppet_strings.skedge.parser import parse_default, parse_domain
 
 SESSION = "session"  # where a numbered main season span hangs in the `dates` tree
 OTHER = "other"  # where a span that is not a numbered session hangs
@@ -123,11 +126,11 @@ class Count:
 
 @dataclass(frozen=True)
 class Score:
-    """`PREFER <pattern> MAXIMIZE|MINIMIZE metrics.x(args)`, with the arguments as a key."""
+    """`PREFER <pattern> MAXIMIZE|MINIMIZE mappings.x(args)`, with the arguments as a key."""
 
     pattern: Pattern
     maximize: bool
-    metric: str
+    mapping: str
     key: tuple[str, ...]
     pos: ast.Pos
 
@@ -215,7 +218,7 @@ class _Names:
             BLOCKS: _members(dataset.blocks, dataset.block_categories),
             DATES: date_names(dataset),
             ROLES: {r: Named(frozenset({r}), True) for r in roles},
-            METRICS: {m: Named(frozenset({m}), True) for m in dataset.metrics},
+            MAPPINGS: {m: Named(frozenset({m}), True) for m in dataset.mappings},
         }
 
     def lookup(self, ref: ast.Ref, namespace: str) -> Named:
@@ -389,7 +392,7 @@ def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
             },
         },
         BLOCKS: {i: f"{b.start:%H:%M}-{b.end:%H:%M}" for i, b in dataset.blocks.items()},
-        METRICS: {m: f"scale {v.scale_min:g}-{v.scale_max:g}" for m, v in dataset.metrics.items()},
+        MAPPINGS: {m: _mapping_note(v) for m, v in dataset.mappings.items()},
     }
     listing = {}
     for namespace, names in _Names(dataset).spaces.items():
@@ -399,6 +402,13 @@ def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
         ]
         listing[namespace] = sorted(rows)
     return listing
+
+
+def _mapping_note(mapping: MappingTable) -> str:
+    keys = ", ".join(mapping.keys)
+    if mapping.numeric:
+        return f"{keys} -> {mapping.scale_min:g} to {mapping.scale_max:g}"
+    return f"{keys} -> {mapping.values}"
 
 
 def _note(namespace: str, name: str, named: Named) -> str:
@@ -441,7 +451,7 @@ class _Scope:
     def with_any(self, selector: ast.Selector) -> "_Scope":
         namespace = _namespace_of(selector.expr, self)
         items, single = _evaluate(selector.expr, namespace, self)
-        if single:
+        if single and not isinstance(selector.expr, ast.Call):
             raise _error("is one item and takes no quantifier", selector.pos)
         choice = Choice(_sorted(items), ANY, selector.n, selector.var, pos=selector.pos)
         return replace(self, anys={**self.anys, selector.var: (choice, namespace)})
@@ -454,7 +464,7 @@ def _expand(declaration: ast.Declaration, each: list, scope: _Scope) -> Iterator
     (namespace, selector), rest = each[0], each[1:]
     namespace = namespace or _namespace_of(selector.expr, scope)
     items, single = _evaluate(selector.expr, namespace, scope)
-    if single:
+    if single and not isinstance(selector.expr, ast.Call):
         raise _error("is one item and takes no quantifier", selector.pos)
     for item in _sorted(items):
         yield from _expand(declaration, rest, scope.with_each(selector, item, namespace))
@@ -568,14 +578,51 @@ def _condition(condition: ast.Condition, scope: _Scope) -> Condition:
 
 
 def _score(statement: ast.Score, scope: _Scope) -> Score:
-    metric = next(iter(scope.names.lookup(statement.metric, METRICS).items))
-    keys = scope.dataset.metrics[metric].keys
-    args = [_argument(a, scope) for a in statement.args]
-    if tuple(KEY_FIELDS.get(namespace, namespace) for _, namespace in args) != keys:
-        raise _error("metric arguments do not match its keys", statement.pos)
-    key = tuple(item.isoformat() if isinstance(item, date) else item for item, _ in args)
+    mapping = _mapping(statement.mapping, scope)
+    if not mapping.numeric:
+        raise _error(
+            f"mappings.{mapping.name} gives a name from {mapping.values}, not a number, so "
+            "there is nothing to maximize or minimize",
+            statement.mapping.pos,
+        )
+    key = _key(statement.args, mapping, scope, statement.pos)
     pattern = _pattern(statement.pattern, scope)
-    return Score(pattern, statement.maximize, metric, key, statement.pos)
+    return Score(pattern, statement.maximize, mapping.name, key, statement.pos)
+
+
+# -- mappings ---------------------------------------------------------------------------------
+
+
+def _mapping(ref: ast.Ref, scope: _Scope) -> MappingTable:
+    name = next(iter(scope.names.lookup(ref, MAPPINGS).items))
+    return scope.dataset.mappings[name]
+
+
+def _key(
+    args: tuple[ast.Var | ast.Ref, ...], mapping: MappingTable, scope: _Scope, pos: ast.Pos
+) -> tuple[str, ...]:
+    """The arguments of a call as the key of a row, each checked against its key's set."""
+    if len(args) != len(mapping.keys):
+        raise _error(
+            f"wrong number of arguments: mappings.{mapping.name} takes "
+            f"({', '.join(mapping.keys)}), not {len(args)}",
+            pos,
+        )
+    key = []
+    for arg, text in zip(args, mapping.keys, strict=True):
+        item, namespace = _argument(arg, scope)
+        expected, items = _domain(text, scope.names, scope.dataset)
+        if namespace != expected:
+            raise _error(
+                f"mappings.{mapping.name} takes a name from {expected} here, not {namespace}",
+                arg.pos,
+            )
+        if item not in items and judged(item, namespace, scope.dataset):
+            raise _error(
+                f"mappings.{mapping.name} takes {text} here, and '{item}' is not in it", arg.pos
+            )
+        key.append(item.isoformat() if isinstance(item, date) else item)
+    return tuple(key)
 
 
 def _argument(arg: ast.Var | ast.Ref, scope: _Scope) -> tuple[Item, str]:
@@ -583,12 +630,160 @@ def _argument(arg: ast.Var | ast.Ref, scope: _Scope) -> tuple[Item, str]:
         if arg.name in scope.vars:
             return scope.vars[arg.name]
         if arg.name in scope.anys:
-            raise _error("metric argument must be one item", arg.pos)
+            raise _error("mapping argument must be one item", arg.pos)
         raise _error(f"unknown variable '{arg.name}'", arg.pos)
     named = scope.names.lookup(arg, arg.namespace)
     if not named.single:
-        raise _error("metric argument must be one item", arg.pos)
+        raise _error("mapping argument must be one item", arg.pos)
     return next(iter(named.items)), arg.namespace
+
+
+def _gives(call: ast.Call, scope: _Scope) -> tuple[MappingTable, str, frozenset[Item]]:
+    """The mapping a call is to, and the namespace and set its values come from."""
+    mapping = _mapping(call.mapping, scope)
+    if mapping.numeric:
+        raise _error(
+            f"mappings.{mapping.name} gives a number, not a name, so it goes after MAXIMIZE "
+            "or MINIMIZE rather than in a set",
+            call.pos,
+        )
+    namespace, items = _domain(mapping.values, scope.names, scope.dataset)
+    return mapping, namespace, items
+
+
+def _lookup(call: ast.Call, namespace: str, scope: _Scope) -> Item | ast.Selector:
+    """What a call gives: the item its row names, or else the mapping's default phrase.
+
+    A row naming somebody who is not working today names nobody the day has, and they are
+    in no category, so the row is passed over for the default: a buddy who is resting is
+    covered by whoever the default says, the same as a cabin with no buddy written down.
+    """
+    mapping, gives, allowed = _gives(call, scope)
+    if namespace != gives:
+        raise _error(
+            f"expected a name from {namespace}, but mappings.{mapping.name} gives one from {gives}",
+            call.pos,
+        )
+    key = _key(call.args, mapping, scope, call.pos)
+    if key in mapping.rows:
+        value = mapping.rows[key]
+        item = date.fromisoformat(value) if gives == DATES else value
+        if item in allowed:
+            return item
+    if mapping.default is None:
+        raise _error(
+            f"mappings.{mapping.name} has no row for {', '.join(key)}, and no default", call.pos
+        )
+    return _default(mapping.default)
+
+
+def _default_scope(scope: "_Scope") -> "_Scope":
+    """A default is written on the Mappings tab, where no variable of a request reaches."""
+    return _Scope(scope.names, scope.dataset)
+
+
+@cache
+def _default(text: str) -> ast.Selector:
+    return parse_default(text)
+
+
+@cache
+def _domain_expr(text: str) -> tuple[str, ast.SetExpr | None]:
+    """A `keys` or `values` entry as its namespace and its set; a bare namespace has none."""
+    if text.strip().lower() in KEY_NAMESPACES:
+        return text.strip().lower(), None
+    expr = parse_domain(text)
+    first = _first_name(expr)
+    if first is None or _has_call(expr):
+        raise ast.SkedgeError(
+            f"'{text}' should be a namespace, such as staff, or a set of names, such as "
+            "{staff.all - staff.counselor}",
+            1,
+            1,
+        )
+    namespace = first.namespace if isinstance(first, ast.Ref) else DATES
+    if namespace not in KEY_NAMESPACES:
+        raise ast.SkedgeError(
+            f"'{text}' names {namespace}; a mapping takes and gives names from "
+            f"{', '.join(KEY_NAMESPACES)}",
+            1,
+            1,
+        )
+    return namespace, expr
+
+
+def _first_name(expr: ast.SetExpr) -> ast.Ref | ast.DateLiteral | None:
+    """The name a set's namespace is read from. None if a variable or a call comes first."""
+    if isinstance(expr, ast.Ref | ast.DateLiteral):
+        return expr
+    if isinstance(expr, ast.SetOp):
+        return _first_name(expr.left)
+    if isinstance(expr, ast.DateRange):
+        return _first_name(expr.start)
+    if isinstance(expr, ast.DateOffset):
+        return _first_name(expr.base)
+    return None
+
+
+def _has_call(expr: ast.SetExpr) -> bool:
+    """Whether a set leans on something only a request can supply: a variable or a call."""
+    if isinstance(expr, ast.Call | ast.Var):
+        return True
+    if isinstance(expr, ast.SetOp):
+        return _has_call(expr.left) or _has_call(expr.right)
+    if isinstance(expr, ast.DateRange):
+        return _has_call(expr.start) or _has_call(expr.end)
+    if isinstance(expr, ast.DateOffset):
+        return _has_call(expr.base)
+    return False
+
+
+def _domain(text: str, names: "_Names", dataset: Dataset) -> tuple[str, frozenset[Item]]:
+    namespace, expr = _domain_expr(text)
+    if expr is None:
+        return namespace, frozenset().union(*(n.items for n in names.spaces[namespace].values()))
+    items, _ = _evaluate(expr, namespace, _Scope(names, dataset))
+    return namespace, items
+
+
+def domain_namespace(text: str) -> str:
+    """The namespace a Mappings tab `keys` or `values` entry names. Raises SkedgeError."""
+    return _domain_expr(text)[0]
+
+
+def domain(text: str, dataset: Dataset) -> tuple[str, frozenset[Item]]:
+    """What a Mappings tab `keys` or `values` entry stands for today. Raises SkedgeError."""
+    return _domain(text, _Names(dataset), dataset)
+
+
+def default_choice(text: str, dataset: Dataset) -> tuple[str, frozenset[Item]]:
+    """A Mappings tab `default`, as the namespace and the items it chooses from.
+
+    Raises SkedgeError for a phrase a default cannot be: one with a variable in it, which
+    nothing on the Mappings tab can bind; an EACH_OF, which would make one call many; and a
+    set of several names with no quantifier to say how they are taken.
+    """
+    selector = _default(text)
+    if selector.quantifier == ast.EACH_OF:
+        raise _error("a default is one choice, so it takes no EACH_OF", selector.pos)
+    first = _first_name(selector.expr)
+    if first is None or _has_call(selector.expr):
+        raise _error("a default names names, not variables or mappings", selector.pos)
+    namespace = first.namespace if isinstance(first, ast.Ref) else DATES
+    items, single = _evaluate(selector.expr, namespace, _Scope(_Names(dataset), dataset))
+    if not single and selector.quantifier is None:
+        raise _error("a default of more than one name needs ALL_OF or ANY_n_OF", selector.pos)
+    return namespace, items
+
+
+def judged(item: Item, namespace: str, dataset: Dataset) -> bool:
+    """Whether today can say if an item belongs to a set. Of a person not working, it cannot.
+
+    A category holds only the staff working today, so somebody resting all day or away is
+    in none of them, and their being outside `staff.counselor` says nothing about whether
+    they are a counselor. Everything else is in its sets whatever the day.
+    """
+    return namespace != STAFF or item in dataset.staff_categories.get(ALL_NAME, dataset.staff)
 
 
 # -- selectors and sets -----------------------------------------------------------------------
@@ -604,6 +799,13 @@ def _choice(
     if selector.quantifier == ast.EACH_OF:
         return Choice((scope.each[selector.pos],), POOL if pool else ALL, pos=selector.pos)
     expr = selector.expr
+    if isinstance(expr, ast.Call) and selector.quantifier is None:
+        # A call standing on its own is its row's one item, or else its default as written,
+        # quantifier and all: a cabin with no buddy is covered by ANY_1_OF the office.
+        found = _lookup(expr, namespace, scope)
+        if isinstance(found, ast.Selector):
+            default = _choice(found, namespace, _default_scope(scope), pool, when)
+            return replace(default, pos=selector.pos)
     joined, bound = _split_bound(selector.expr, scope)
     if bound:
         return _with_bound(selector, joined, bound, namespace, scope, pool, when)
@@ -626,7 +828,7 @@ def _choice(
         if not single:
             raise _error("needs a quantifier: ALL_OF, ANY_n_OF or EACH_OF", selector.pos)
         return Choice(_sorted(items), ALL, pos=selector.pos)
-    if single:
+    if single and not isinstance(expr, ast.Call):
         raise _error("is one item and takes no quantifier", selector.pos)
     if selector.quantifier == ast.ALL_OF:
         return Choice(_sorted(items), ALL, pos=selector.pos)
@@ -728,6 +930,8 @@ def _evaluate(expr: ast.SetExpr, namespace: str, scope: _Scope) -> tuple[frozens
                 expr.pos,
             )
         raise _error(f"unknown variable '{expr.name}'", expr.pos)
+    if isinstance(expr, ast.Call):
+        return _call_items(expr, namespace, scope)
     if isinstance(expr, ast.DateLiteral):
         if namespace != DATES:
             raise _error(f"expected a name from {namespace}, not a date", expr.pos)
@@ -743,6 +947,27 @@ def _evaluate(expr: ast.SetExpr, namespace: str, scope: _Scope) -> tuple[frozens
     left, _ = _evaluate(expr.left, namespace, scope)
     right, _ = _evaluate(expr.right, namespace, scope)
     return {"+": left | right, "-": left - right, "&": left & right}[expr.op], False
+
+
+def _call_items(call: ast.Call, namespace: str, scope: _Scope) -> tuple[frozenset[Item], bool]:
+    """A call inside a set, or after a quantifier: what it gives, as a set.
+
+    A default that is a choice cannot be one. `{staff.office - mappings.buddy(c)}` asks who
+    is left once the buddy is taken out, and while the buddy is still the solver's to pick
+    from a set, nobody can say.
+    """
+    found = _lookup(call, namespace, scope)
+    if not isinstance(found, ast.Selector):
+        return frozenset({found}), True
+    if found.quantifier == ast.ANY_OF:
+        raise _error(
+            f"mappings.{call.mapping.name} has no row for this, and its default is a choice "
+            "the solver makes, which cannot stand where a set is wanted; write the call on "
+            "its own, with no quantifier and nothing added to it or taken from it",
+            call.pos,
+        )
+    items, single = _evaluate(found.expr, namespace, _default_scope(scope))
+    return items, single and found.quantifier is None
 
 
 def _one_date(expr: ast.SetExpr, scope: _Scope) -> date:
@@ -764,6 +989,8 @@ def _namespace_of(expr: ast.SetExpr, scope: _Scope) -> str:
         raise _error(f"unknown variable '{expr.name}'", expr.pos)
     if isinstance(expr, ast.SetOp):
         return _namespace_of(expr.left, scope)
+    if isinstance(expr, ast.Call):
+        return _gives(expr, scope)[1]
     return DATES
 
 

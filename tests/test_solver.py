@@ -7,11 +7,13 @@ from puppet_strings.config import Config
 from puppet_strings.model import Priority
 from puppet_strings.solver.solve import RequestError, solve
 from tests.build import (
+    BLOCKS,
     OK,
     SCAF,
     SHADOW,
     TARGET,
     TRAINER,
+    buddies,
     cabin_act,
     clinic,
     dataset,
@@ -649,9 +651,9 @@ def test_weights_trade_within_a_tier():
     assert where(run(ds), staff="dylan")[0].activity == "riflery"
 
 
-# -- amounts, metrics and past dates ---------------------------------------------------------
+# -- amounts, mappings and past dates --------------------------------------------------------
 
-PREFERENCE = "PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE metrics.preference(s, c)"
+PREFERENCE = "PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)"
 VARIETY = "PREFER AT_MOST 1 EACH_OF staff.all DO EACH_OF activities.clinics.all ON {(dates.target - 6d) .. dates.target}"
 
 
@@ -668,7 +670,7 @@ def test_variety_versus_preference(variety_weight, expected):
         [ARCHERY, CANDLE],
         offerings=[("Archery 1 & 2", ["clinic_2"]), ("Candle Making", ["clinic_2"])],
         published=published(yesterday, ("Dylan", "Archery 1 & 2", "first", "clinic_1")),
-        metrics=preference({("Dylan", "Archery 1 & 2"): 5, ("Dylan", "Candle Making"): 3}),
+        mappings=preference({("Dylan", "Archery 1 & 2"): 5, ("Dylan", "Candle Making"): 3}),
         requests=[
             request("clinic-preference", PREFERENCE, Priority.MEDIUM, 1),
             request("clinic-variety", VARIETY, Priority.MEDIUM, variety_weight),
@@ -690,12 +692,55 @@ def test_minimize_is_a_cost():
         ],
         [ARCHERY, CANDLE],
         offerings=[("Archery 1 & 2", ["clinic_2"]), ("Candle Making", ["clinic_2"])],
-        metrics=preference(
+        mappings=preference(
             {("Dylan", "Archery 1 & 2"): 5, ("Dylan", "Candle Making"): 1}, default=1
         ),
         requests=[request("dislike", PREFERENCE.replace("MAXIMIZE", "MINIMIZE"), Priority.MEDIUM)],
     )
     assert where(run(ds), staff="dylan")[0].activity == "candle_making"
+
+
+BUDDY = (
+    "REQUEST mappings.buddy(staff.dylan) DO 'cover dylan' DURING blocks.playstation\n"
+    "REQUEST mappings.buddy(staff.james) DO 'cover james' DURING blocks.playstation"
+)
+CABINS = {"counselor": ["Dylan", "James"], "director": ["David"]}
+
+
+def cover(result, cabin: str) -> str:
+    (assignment,) = where(result, activity=f"cover {cabin}")
+    return assignment.staff
+
+
+def test_a_buddy_covers_their_cabin_and_the_default_covers_one_without():
+    members = [staff(n) for n in ("Dylan", "James", "David", "Alan", "Sarah")]
+    ds = dataset(
+        members,
+        [],
+        categories=CABINS,
+        mappings=buddies({"Dylan": "Alan"}),
+        requests=[request("buddies", BUDDY, Priority.MUST_HAPPEN)],
+    )
+    result = run(ds)
+    assert cover(result, "dylan") == "alan"
+    # James has no buddy written down, so it is anyone neither a counselor nor a director,
+    # and Alan is already covering Dylan's cabin
+    assert cover(result, "james") == "sarah"
+
+
+def test_a_buddy_who_is_resting_is_covered_for_by_the_default():
+    members = [staff(n) for n in ("Dylan", "James", "David", "Alan", "Sarah", "Lucy")]
+    ds = dataset(
+        members,
+        [],
+        categories=CABINS,
+        mappings=buddies({"Dylan": "Alan", "James": "Sarah"}),
+        requests=[request("buddies", BUDDY, Priority.MUST_HAPPEN)],
+        rests={TARGET: {"alan": frozenset(BLOCKS)}},
+    )
+    result = run(ds)
+    assert cover(result, "dylan") == "lucy"
+    assert cover(result, "james") == "sarah"
 
 
 def test_past_assignments_count_toward_at_most():

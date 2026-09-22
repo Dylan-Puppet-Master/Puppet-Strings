@@ -19,16 +19,16 @@ request. After the last tier, the solver drops any assignment no request asked f
 |---|---|
 | `REQUEST` | `+1` if the declaration is met (each `EACH_OF` copy on its own) |
 | `PREFER <amount> …` | `−` how far the matches are from the amount, in assignments or hours |
-| `PREFER … MAXIMIZE metrics.x(…)` | `+` the metric's value for each match |
-| `PREFER … MINIMIZE metrics.x(…)` | `−` the metric's value for each match |
+| `PREFER … MAXIMIZE mappings.x(…)` | `+` the mapping's value for each match |
+| `PREFER … MINIMIZE mappings.x(…)` | `−` the mapping's value for each match |
 
-Each contribution is multiplied by the request's weight. A metric score is the sheet value
-normalized against the metric's declared scale, so on a 1–5 scale a 5 is worth 1 and a 3 is
+Each contribution is multiplied by the request's weight. A mapping score is the sheet value
+normalized against the numeric mapping's declared scale, so on a 1–5 scale a 5 is worth 1 and a 3 is
 worth 0.5. A `(DBL)` clinic is two assignments, one per block.
 
 ## The variety-versus-preference trade
 
-Both requests are `MEDIUM`. `clinic-preference` scores clinics by `metrics.preference` at
+Both requests are `MEDIUM`. `clinic-preference` scores clinics by `mappings.preference` at
 weight 1. `clinic-variety` prefers at most one run of each clinic per person in a rolling
 week, at weight 0.5.
 

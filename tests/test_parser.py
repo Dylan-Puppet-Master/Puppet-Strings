@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from puppet_strings.skedge import ast
-from puppet_strings.skedge.parser import parse, parse_duration
+from puppet_strings.skedge.parser import parse, parse_default, parse_domain, parse_duration
 from tests.examples import EXAMPLES
 
 
@@ -62,19 +62,39 @@ def test_amount_statements():
     assert isinstance(ast.clause(hours.pattern.clauses, ast.On).selector.expr, ast.DateRange)
 
 
-def test_metric_statement():
+def test_mapping_statement():
     (score,) = parse(
         "PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all "
-        "MINIMIZE metrics.preference(s, activities.clinics.riflery)"
+        "MINIMIZE mappings.preference(s, activities.clinics.riflery)"
     ).lines
     assert isinstance(score, ast.Score) and not score.maximize
-    assert score.metric == ast.Ref("metrics", "preference", ast.Pos(1, 79))
+    assert score.mapping == ast.Ref("mappings", "preference", ast.Pos(1, 79))
     assert score.args == (
-        ast.Var("s", ast.Pos(1, 98)),
-        ast.Ref("activities", "clinics.riflery", ast.Pos(1, 101)),
+        ast.Var("s", ast.Pos(1, 99)),
+        ast.Ref("activities", "clinics.riflery", ast.Pos(1, 102)),
     )
     assert (score.pattern.who.quantifier, score.pattern.who.var) == (ast.EACH_OF, "s")
     assert score.pattern.what.var == "c"
+
+
+def test_a_mapping_call_is_a_set():
+    (binding, request) = parse(
+        "EACH_OF c IN staff.counselor\n"
+        "REQUEST ALL_OF {staff.office - mappings.buddy(c)} FREE DURING blocks.evening"
+    ).lines
+    call = request.who.expr.right
+    assert call == ast.Call(
+        ast.Ref("mappings", "buddy", ast.Pos(2, 32)),
+        (ast.Var("c", ast.Pos(2, 47)),),
+        ast.Pos(2, 32),
+    )
+
+
+def test_mapping_cells_parse_on_their_own():
+    for text in ("{staff.all - staff.counselor}", "staff.all - staff.counselor"):
+        assert isinstance(parse_domain(text), ast.SetOp)  # the braces are optional
+    default = parse_default("ANY_1_OF {staff.all - staff.counselor}")
+    assert (default.quantifier, default.n) == (ast.ANY_OF, 1)
 
 
 def test_bindings_conditions_labels_and_gaps():

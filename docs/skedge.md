@@ -62,7 +62,7 @@ Names are dotted, lowercase `snake_case`. Sheet values become identifiers by the
 | `block` | Blocks and block categories (`blocks.meals`), plus `blocks.all` |
 | `date` | `dates.target`, and the nested scopes below |
 | `role` | `roles.first`, `roles.second`, …; `roles.lifeguard`, `roles.lifeguard_2`; `roles.shadow`, `roles.scaffolded`, `roles.trainee` |
-| `metric` | Metric tables, such as `metrics.preference` |
+| `mapping` | Mapping tables, such as `mappings.preference` and `mappings.buddy` |
 
 A name is either one thing or a set, and sets are always plural or collective
 (`blocks.all`, `dates.session.one.mondays`). There is no `blocks.any`: "any one block" is
@@ -275,18 +275,44 @@ is never more than three in a row.
 `REQUEST` and `PREFER` take the same amount and pattern. `REQUEST` is met or not, and can
 be `MUST_HAPPEN`. `PREFER` is never hard and is scored by how far off it is.
 
-### Metrics
+### Mappings
 
-`EACH_OF x IN <set>` gives each copy's item a name, so a metric can be told what to look
-up:
+A mapping is a table on the [Mappings tab](sheets.md#mappings-config-spreadsheet) that
+takes one or more names and gives back either a number or another name. You call it with
+one argument per key: `mappings.buddy(c)`. `EACH_OF x IN <set>` gives each copy's item a
+name, so a mapping can be told what to look up.
+
+A **numeric** mapping is a table of ratings, and is what `MAXIMIZE` and `MINIMIZE` score
+by:
 
 ```skedge
-PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE metrics.preference(s, c)
+PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)
 ```
 
 For each staff member `s` and clinic `c`, every assignment of `s` to `c` earns
-`metrics.preference(s, c)`, normalized to 0–1. `MINIMIZE` makes it a cost instead. A pair
-the metric has no row for is worth that metric's `default`.
+`mappings.preference(s, c)`, normalized to 0–1. `MINIMIZE` makes it a cost instead. A pair
+the mapping has no row for is worth that mapping's `default`.
+
+Any other mapping gives a **name**, and a call to it goes anywhere a name can. Each cabin
+has a buddy HERO who covers it at dinner, and `mappings.buddy` says who:
+
+```skedge
+# Every counselor's buddy covers their cabin at dinner.
+EACH_OF c IN staff.counselor
+REQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.evening
+```
+
+A counselor whose cabin has no row gets the mapping's `default`, which is a phrase such as
+`ANY_1_OF {staff.all - staff.counselor - staff.director}`: the call stands for that phrase,
+quantifier and all, so the solver picks one of them. So does a counselor whose buddy is
+resting or away that day, since a buddy who isn't at work can't cover anyone.
+
+The Mappings tab says what a mapping takes and gives, so a call is checked like any other
+name. `mappings.buddy(staff.alan)` is an error if Alan isn't a counselor, and so is
+`mappings.buddy(c)` written where an activity belongs. A call can also go inside a set,
+`ALL_OF {staff.office - mappings.buddy(c)}`, but only when it gives one name or an
+`ALL_OF` set. A default of `ANY_1_OF` is a choice the solver hasn't made yet, so nothing
+can be taken away from it.
 
 ## Several lines: variables, IF, UNLESS, GAP
 
@@ -562,7 +588,7 @@ Priority `MUST_HAPPEN`.
 ### Staff run clinics they prefer
 
 ```skedge
-PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE metrics.preference(s, c)
+PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)
 ```
 
 Priority `MEDIUM`, weight `1`.

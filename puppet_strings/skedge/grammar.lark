@@ -34,7 +34,8 @@ condition   : amount? pattern CONSECUTIVE?
 pattern     : pool _DO target clause*                            -> pattern_doing
             | pool FREE clause*                                  -> pattern_free
             | pool _NOT FREE clause*                             -> pattern_busy
-goal        : (MAXIMIZE | MINIMIZE) REF "(" arg ("," arg)* ")"
+goal        : (MAXIMIZE | MINIMIZE) call
+call        : REF "(" arg ("," arg)* ")"
 ?arg        : NAME | REF
 
 amount      : BOUND (INT | DURATION)
@@ -63,14 +64,19 @@ for_        : _FOR DURATION
 with_       : _WITH set_
 without     : _WITHOUT set_
 
-?set_       : REF | NAME | DATE | "{" setexpr "}"
+?set_       : REF | NAME | DATE | call | "{" setexpr "}"
 ?setexpr    : range (SETOP range)*     -> setop
 ?range      : primary ".." primary     -> date_range
             | primary
 ?primary    : date_atom OFFSET         -> date_offset
             | date_atom
             | "(" setexpr ")"
-?date_atom  : DATE | REF | NAME
+?date_atom  : DATE | REF | NAME | call
+
+// Two more ways in, for the cells of the Mappings tab rather than for a request: what a
+// key or a value may be, and what stands in for a key with no row.
+mapping_domain  : "{" setexpr "}" | setexpr
+mapping_default : chooser
 
 // The keywords. A leading `_` keeps the token out of the tree, the way an anonymous string
 // would; `.5` puts them above NAME, which lower case would otherwise be read as.

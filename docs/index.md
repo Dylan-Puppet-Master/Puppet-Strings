@@ -29,7 +29,7 @@ If the day is already published and someone turns up ill or short of sleep, see
 | Staff categories | A `Staff Categories` spreadsheet in each span's folder |
 | Tomorrow's clinics | The Offerings tab of that day's spreadsheet |
 | The grid a new day starts from | Offerings tab of Clinic_Schedule |
-| Blocks, calendar, requests, metrics, adjustments | The config spreadsheet |
+| Blocks, calendar, requests, mappings, adjustments | The config spreadsheet |
 | Published schedules | One spreadsheet per day, in the [schedules tree](sheets.md#the-schedules-tree) |
 | The code | This repository, one Python package |
 

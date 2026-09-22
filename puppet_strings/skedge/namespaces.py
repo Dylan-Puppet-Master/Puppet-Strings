@@ -11,7 +11,7 @@ ACTIVITIES = "activities"
 BLOCKS = "blocks"
 DATES = "dates"
 ROLES = "roles"
-METRICS = "metrics"
+MAPPINGS = "mappings"
 
 ALL = "all"  # every name in a namespace or one of its branches
 
@@ -20,6 +20,5 @@ ALL = "all"  # every name in a namespace or one of its branches
 CLINICS = "clinics"
 CABIN_ACTS = "cabin_acts"
 
-# A Metrics sheet `keys` cell names the fields of one assignment, so it stays singular:
-# an assignment has one staff member and one activity. This is how the two line up.
-KEY_FIELDS = {STAFF: "staff", ACTIVITIES: "activity", ROLES: "role", DATES: "date", BLOCKS: "block"}
+# What a mapping key may name: any namespace but `mappings` itself.
+KEY_NAMESPACES = (STAFF, ACTIVITIES, BLOCKS, DATES, ROLES)

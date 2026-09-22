@@ -367,29 +367,48 @@ class Request:
     home: str = ""
 
 
-@dataclass(frozen=True)
-class Metric:
-    """A numeric table keyed by assignment fields, with its declared scale.
+NUMERIC = "numeric"  # what a mapping's `values` says when it gives a number, not a name
 
-    `default` is what a key with no row is worth; without one that is the bottom of the
-    scale, so an unrated pairing scores nothing.
+
+@dataclass(frozen=True)
+class MappingTable:
+    """A table from keys to a value, declared on the Mappings tab.
+
+    `keys` are Skedge set expressions, one per key column, saying what each may hold:
+    `staff.counselor`, `{staff.all - staff.counselor}`, or a bare namespace such as
+    `staff` for any name in it. `values` is the same for what a row gives, or `numeric`.
+
+    A numeric mapping is a scale of ratings: `rows` hold numbers between `scale_min` and
+    `scale_max`, and `default` is what a key with no row is worth (the bottom of the scale
+    if it is None). Any other mapping gives a name: `rows` hold identifiers (a date's in
+    ISO form), and `default` is a Skedge phrase, such as `ANY_1_OF {staff.office}`, to
+    stand in for a key with no row, or None when every key needs one.
+
+    Key identifiers are strings throughout, a date's in ISO form, so a row reads the same
+    whichever namespace its keys come from.
     """
 
     name: str
     keys: tuple[str, ...]
-    scale_min: float
-    scale_max: float
-    values: Mapping[tuple[str, ...], float]
-    default: float | None = None
+    values: str
+    rows: Mapping[tuple[str, ...], float | str]
+    scale_min: float | None = None
+    scale_max: float | None = None
+    default: float | str | None = None
+
+    @property
+    def numeric(self) -> bool:
+        """Whether a row is a number on a scale rather than a name."""
+        return self.values == NUMERIC
 
     @property
     def missing(self) -> float:
-        """The value used for a key with no row."""
+        """The number used for a key with no row, in a numeric mapping."""
         return self.scale_min if self.default is None else self.default
 
     def normalized(self, key: tuple[str, ...]) -> float:
         """Value for this key scaled to 0..1, using the default when the key has no row."""
-        value = self.values.get(key, self.missing)
+        value = self.rows.get(key, self.missing)
         return (value - self.scale_min) / (self.scale_max - self.scale_min)
 
 
@@ -487,7 +506,7 @@ class Dataset:
     spans: tuple[Span, ...] = ()
     offerings: tuple[Offering, ...] = ()
     requests: tuple[Request, ...] = ()
-    metrics: Mapping[str, Metric] = field(default_factory=dict)
+    mappings: Mapping[str, MappingTable] = field(default_factory=dict)
     published: Mapping[date, tuple[Assignment, ...]] = field(default_factory=dict)
     baseline: tuple[Assignment, ...] | None = None
     adjustments: tuple[Adjustment, ...] = ()

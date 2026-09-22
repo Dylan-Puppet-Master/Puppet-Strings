@@ -7,14 +7,14 @@ request for an activity names nobody. So a name can be opened, and this works ou
 show for it.
 
 Dates and roles have nothing to add — a date's note is the date, and a role is a word — so
-they open nothing. Metrics open their table instead, because a metric is worth editing
+they open nothing. Mappings open their table instead, because a mapping is worth editing
 rather than reading.
 """
 
 from dataclasses import dataclass
 
 from puppet_strings.model import Activity, Dataset, SkillStatus, Staff
-from puppet_strings.skedge.namespaces import ACTIVITIES, CABIN_ACTS, CLINICS, METRICS, STAFF
+from puppet_strings.skedge.namespaces import ACTIVITIES, CABIN_ACTS, CLINICS, MAPPINGS, STAFF
 
 NOBODY = "nobody on the sheets today"
 CHECKED = "✓"  # how the Skills tab writes a plain checkoff, and how it is shown back
@@ -37,9 +37,9 @@ class Details:
     sections: tuple[Section, ...]
 
 
-def is_metric(name: str) -> bool:
-    """Whether a name opens its metric table rather than a popup."""
-    return name.startswith(f"{METRICS}.")
+def is_mapping(name: str) -> bool:
+    """Whether a name opens its mapping table rather than a popup."""
+    return name.startswith(f"{MAPPINGS}.")
 
 
 def details(name: str, dataset: Dataset) -> Details | None:
@@ -49,7 +49,7 @@ def details(name: str, dataset: Dataset) -> Details | None:
         return _staff(name, rest, dataset)
     if namespace == ACTIVITIES:
         return _activities(name, rest, dataset)
-    return None  # dates say the date, roles say the role, metrics open their table
+    return None  # dates say the date, roles say the role, mappings open their table
 
 
 # -- staff ------------------------------------------------------------------------------

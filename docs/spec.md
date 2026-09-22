@@ -110,7 +110,8 @@ condition   : amount? pattern CONSECUTIVE?
 pattern     : pool _DO target clause*                            -> pattern_doing
             | pool FREE clause*                                  -> pattern_free
             | pool _NOT FREE clause*                             -> pattern_busy
-goal        : (MAXIMIZE | MINIMIZE) REF "(" arg ("," arg)* ")"
+goal        : (MAXIMIZE | MINIMIZE) call
+call        : REF "(" arg ("," arg)* ")"
 ?arg        : NAME | REF
 
 amount      : BOUND (INT | DURATION)
@@ -139,14 +140,19 @@ for_        : _FOR DURATION
 with_       : _WITH set_
 without     : _WITHOUT set_
 
-?set_       : REF | NAME | DATE | "{" setexpr "}"
+?set_       : REF | NAME | DATE | call | "{" setexpr "}"
 ?setexpr    : range (SETOP range)*     -> setop
 ?range      : primary ".." primary     -> date_range
             | primary
 ?primary    : date_atom OFFSET         -> date_offset
             | date_atom
             | "(" setexpr ")"
-?date_atom  : DATE | REF | NAME
+?date_atom  : DATE | REF | NAME | call
+
+// Two more ways in, for the cells of the Mappings tab rather than for a request: what a
+// key or a value may be, and what stands in for a key with no row.
+mapping_domain  : "{" setexpr "}" | setexpr
+mapping_default : chooser
 
 // The keywords. A leading `_` keeps the token out of the tree, the way an anonymous string
 // would; `.5` puts them above NAME, which lower case would otherwise be read as.
@@ -214,7 +220,7 @@ normalizes to a built-in name, are a load error.
 | `blocks` | Blocks, block categories | `blocks.all` |
 | `dates` | | `dates.target`, and the scopes below |
 | `roles` | | `roles.first` … `roles.sixth`, `roles.lifeguard`, `roles.lifeguard_2` …, `roles.shadow`, `roles.scaffolded`, `roles.trainee` |
-| `metrics` | The metrics on the Metrics tab | |
+| `mappings` | The mappings on the Mappings tab | |
 
 A namespace is plural because it holds many names. `activities` has a branch per kind of
 activity, so `activities.clinics.archery_1_2` is a clinic and `activities.cabin_acts.p4`
@@ -277,7 +283,8 @@ scaffold becomes `scaffolded`, needing a shadow or no checkoff becomes `shadow`.
 
 ### 6.1 Set expressions
 
-A set is a name, a variable, a date, or an expression in braces. Inside braces `+`, `-` and
+A set is a name, a variable, a date, a mapping call such as `mappings.buddy(c)` (§9.2),
+or an expression in braces. Inside braces `+`, `-` and
 `&` combine sets left to right and parentheses group; mixing two different operators
 without parentheses is an error, so there is no precedence to remember. `a .. b` is an
 inclusive date range, and a single date may be offset by whole days. An offset or range
@@ -321,7 +328,7 @@ exactly as above. `ALL_OF` and `ANY_n_OF` are parse errors in a pattern.
 ### 6.4 Variables
 
 `EACH_OF x IN s` names the member each copy is about. `x` can then stand wherever a set
-can, and as a metric argument. Written inline, `x` is visible in that statement. Written on
+can, and as a mapping argument. Written inline, `x` is visible in that statement. Written on
 a line of its own, it is visible in every line of the declaration:
 
 | Binding line | Meaning |
@@ -405,8 +412,8 @@ next to each other in the Blocks sheet. `AT_LEAST` holds when some run reaches t
 | `REQUEST <requirement>` | when the requirement holds |
 | `REQUEST <amount> <pattern> [CONSECUTIVE]` | when the condition holds |
 | `PREFER <amount> <pattern> [CONSECUTIVE]` | by degree: the closer the matches are to the amount, the better |
-| `PREFER <pattern> MAXIMIZE metrics.x(args)` | by degree: each match earns the metric's value |
-| `PREFER <pattern> MINIMIZE metrics.x(args)` | by degree: each match costs the metric's value |
+| `PREFER <pattern> MAXIMIZE mappings.x(args)` | by degree: each match earns the mapping's value |
+| `PREFER <pattern> MINIMIZE mappings.x(args)` | by degree: each match costs the mapping's value |
 | `EXCLUDE <who> DO '<label>' [DURING] [ON]` | not met or unmet: applied (§9.2) |
 
 A `REQUEST` is all or nothing. To get partial credit from a `REQUEST`, split it with
@@ -434,13 +441,35 @@ Nothing in an `EXCLUDE` is chosen, so `ANY_n_OF` is refused in every position. I
 clause but `DURING` and `ON`, holds no `IF`, no `GAP` and no label, is the only statement
 in its declaration, and its priority is `MUST_HAPPEN`.
 
-### 9.2 Metrics
+### 9.2 Mappings
 
-A metric call names its keys: `metrics.preference(s, c)`. Each argument is an item or a
-variable bound by `EACH_OF`, and the arguments must agree in number and namespace with the
-metric's key columns on the Metrics tab. The value is normalized to 0–1 against the
-metric's declared scale. A key the metric has no row for takes the metric's default, which
-is the bottom of its scale unless the Metrics tab says otherwise.
+A mapping call names its keys: `mappings.preference(s, c)`. Each argument is an item or a
+variable bound by `EACH_OF`. The Mappings tab gives each key a set, and the arguments must
+agree with those sets in number, in namespace, and in membership. The one exception is a
+staff member not working that day: they are in no category, so membership can't be judged
+and isn't checked.
+
+A mapping whose `values` are `numeric` goes only after `MAXIMIZE` or `MINIMIZE`. Its value
+is normalized to 0–1 against the mapping's declared scale. A key it has no row for takes
+the mapping's default, which is the bottom of its scale unless the Mappings tab says
+otherwise.
+
+Any other mapping gives a name from the set its `values` names, and a call to it is a set
+expression: it can stand wherever a set can, as a `set_` or inside `{…}`. The namespace a
+call gives is the namespace of its `values`. What it stands for is:
+
+- the name its row gives, if there is a row and that name is in the `values` set that day.
+  A row naming somebody not working that day is passed over.
+- otherwise the mapping's default, a Skedge phrase such as `ANY_1_OF {staff.office}`. A
+  call standing alone with no quantifier stands for the whole phrase, quantifier and all.
+  Anywhere else (inside `{…}`, or after a quantifier), a default that is `ANY_n_OF` is an
+  error, because the solver hasn't chosen yet and the set can't be worked out. `ALL_OF`
+  and single-name defaults are their sets.
+- with neither a row nor a default, an error.
+
+The Mappings tab is checked when the day loads: every key and value cell must name a name
+in its set, and the default must be within the `values`. The same exception applies to
+staff not working that day.
 
 ## 10. Declarations
 
@@ -519,7 +548,7 @@ Within a tier, a declaration (or each `EACH_OF` copy of it) contributes:
 |---|---|
 | `REQUEST` | 1 if the declaration is met, 0 otherwise |
 | `PREFER <amount> …` | minus its **miss**: how far the matches are from the amount, in assignments, or in hours when the amount is a duration |
-| `PREFER … MAXIMIZE` | the sum of the metric's value over the matches |
+| `PREFER … MAXIMIZE` | the sum of the mapping's value over the matches |
 | `PREFER … MINIMIZE` | minus that sum |
 
 Each contribution is multiplied by the request's weight, a positive number defaulting to 1
@@ -567,7 +596,7 @@ The solver schedules `dates.target`.
 Every error names the line and column. The parser reports what it expected, which covers
 `ALL_OF` or `ANY_n_OF` inside a pattern or to the right of `NOT`, `PREFER` with a
 requirement, a label on a `PREFER`, `CONSECUTIVE` without a pattern, and `MAXIMIZE` without
-a metric call. The validator and the solver report:
+a mapping call. The validator and the solver report:
 
 | Message | Condition |
 |---|---|
@@ -588,8 +617,15 @@ a metric call. The validator and the solver report:
 | `FREE has no instance` | `WITH` or `WITHOUT` after `FREE`. |
 | `amount must be at least 1` | `AT_LEAST 0`. |
 | `write NOT DO` | `AT_MOST 0`, `EXACTLY 0`. |
-| `metric arguments do not match its keys` | Wrong number or namespace of arguments. |
-| `metric argument must be one item` | A set, or an `ANY_2_OF` variable, as an argument. |
+| `wrong number of arguments` | A mapping call with more or fewer arguments than the mapping has keys. |
+| `takes a name from` | A mapping argument from the wrong namespace. |
+| `is not in it` | A mapping argument outside its key's set. |
+| `mapping argument must be one item` | A set, or an `ANY_2_OF` variable, as an argument. |
+| `gives one from` | A mapping call where a name from another namespace belongs. |
+| `gives a number, not a name` | A numeric mapping called where a set belongs. |
+| `there is nothing to maximize or minimize` | `MAXIMIZE` or `MINIMIZE` of a mapping that gives names. |
+| `and no default` | A mapping call whose key has no row, of a mapping with no default. |
+| `its default is a choice` | A call falling back to an `ANY_n_OF` default inside a set or after a quantifier. |
 | `PREFER needs a priority it can be weighed at` | A `PREFER` in a `MUST_HAPPEN` declaration; use `REQUEST AT_MOST`, `AT_LEAST` or `EXACTLY`. |
 | `weight must be positive` | A weight of zero or less. |
 | `unknown requester` | A `requester` field naming nobody on the Skills sheet. |

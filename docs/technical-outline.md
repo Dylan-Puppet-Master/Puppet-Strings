@@ -25,7 +25,7 @@ Puppet Strings is one Python package, `puppet_strings`, exposed two ways: a comm
  Staff Categories  ├───────────────────►│ load_dataset │◄────┤ cli/  (puppet-strings)│
  Offerings tab     │                    └──────┬───────┘     └──────────┬───────────┘
  Blocks, Calendar  │                           │ Dataset                │
- Requests, Metrics─┘                           ▼                        │
+ Requests, Mappings┘                           ▼                        │
  Published (past) ─────────────────────► skedge/ parse+validate         │
                                                │ Declarations           │
                                                ▼                        │
@@ -60,7 +60,7 @@ clinic_data      = "1bcCFIBqL77HbPiY1nOM2cqzZ0YC9fhRcdBi4TwZS0-E"
 clinic_schedule  = "1h_iOC7oqe43QFkpgoS-D-oFzP_r8G1EtDmrxvc83-o8"   # Offerings tab only
 skills           = "1SAjIEMtNwdpDWcKkBp8wrEt9BjQJ6kaeHW00zJcBQPs"
 staff_categories = "1Z92mJG-AbXKBX_jq5DKztNLVDXPUyL-licZWGvkVPXs"
-config           = "<new spreadsheet: Blocks, Calendar, Requests, Metrics>"
+config           = "<new spreadsheet: Blocks, Calendar, Requests, Mappings>"
 published        = "<new spreadsheet: one tab per published date>"
 
 # Chosen in the Configure pane and kept in settings.json instead, which wins over these.
@@ -236,27 +236,32 @@ One row per request. Columns match the request fields.
 | `weight` | number | Blank means 1. Rejected with `MUST_HAPPEN`. |
 | `created` | ISO date | Set by the app on creation. |
 
-### 2.8 Metrics (new, read)
+### 2.8 Mappings (new, read)
 
-An index tab `Metrics` plus one data tab per metric.
+An index tab `Mappings` plus one data tab per mapping. (These were *metrics* until
+2026-09-22, when a mapping that gives a name rather than a number was needed for buddy
+HEROs; a metric is now a numeric mapping.)
 
-`Metrics`:
+`Mappings`:
 
-| Column | Example |
-|---|---|
-| `metric` | `enjoyment` |
-| `keys` | `staff, activity` |
-| `scale_min` | `1` |
-| `scale_max` | `5` |
+| Column | Example | Example |
+|---|---|---|
+| `mapping` | `enjoyment` | `buddy` |
+| `keys` | `staff, activities.clinics.all` | `staff.counselor` |
+| `values` | `numeric` | `{staff.all - staff.counselor}` |
+| `scale_min` | `1` | |
+| `scale_max` | `5` | |
+| `default` | `3` | `ANY_1_OF {staff.all - staff.counselor - staff.director}` |
 
-`metric_enjoyment`:
+`keys` and `values` are Skedge sets (or a bare namespace), so what a call may take and
+give is checked like any other name. `mapping_enjoyment`:
 
-| staff | activity | value |
+| key1 | key2 | value |
 |---|---|---|
 | Dylan | Archery 1 & 2 | 5 |
 | Dylan | Candle Making | 3 |
 
-Values are sheet names, not identifiers, so the Puppet Master can paste from other sheets. Normalized score = `(value − scale_min) / (scale_max − scale_min)`. An assignment with no row scores 0. Values outside the scale are a load error.
+Keys and values are sheet names, not identifiers, so the Puppet Master can paste from other sheets. Normalized score = `(value − scale_min) / (scale_max − scale_min)`. A key with no row takes the `default`. Values outside the scale, and cells outside their sets, are load errors. The [sheets page](sheets.md#mappings-config-spreadsheet) is the full reference.
 
 ### 2.9 The schedules tree (new, read and written)
 
@@ -296,7 +301,7 @@ puppet_strings/
 ├── config.py            # config.toml loading, paths
 ├── names.py             # normalize(), Namespace lookup, collision check
 ├── model.py             # dataclasses: Staff, Activity, Position, Block, CalendarDay,
-│                        #   Request, Assignment, Metric, Dataset
+│                        #   Request, Assignment, MappingTable, Dataset
 ├── sheets/
 │   ├── source.py        # Table = list[list[str]]; SheetsSource (gspread), CsvSource
 │   ├── clinic_data.py   # one parse function per sheet, table -> model objects
@@ -306,7 +311,7 @@ puppet_strings/
 │   ├── blocks.py
 │   ├── calendar.py
 │   ├── requests.py      # read and write
-│   ├── metrics.py
+│   ├── mappings.py
 │   ├── published.py     # read past dates; write date tab and views
 │   └── load.py          # load_dataset(source, target_date) -> Dataset
 ├── skedge/

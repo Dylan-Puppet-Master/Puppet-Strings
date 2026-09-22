@@ -12,7 +12,7 @@ from puppet_strings.model import (
     Assignment,
     Block,
     Dataset,
-    Metric,
+    MappingTable,
     Offering,
     Position,
     Priority,
@@ -111,7 +111,7 @@ def dataset(
     requests=(),
     published=None,
     categories=None,
-    metrics=None,
+    mappings=None,
     target=TARGET,
     blocks=None,
     rests=None,
@@ -178,7 +178,7 @@ def dataset(
         spans=(span,),
         offerings=tuple(Offering(normalize(a), tuple(b)) for a, b in offerings),
         requests=tuple(requests),
-        metrics=metrics or {},
+        mappings=mappings or {},
         published=published or {},
         resting=rests,
     )
@@ -205,6 +205,17 @@ def published(day, *rows, blocks=None):
 
 
 def preference(values: dict[tuple[str, str], float], default: float | None = None):
-    """A 1-5 preference metric keyed by staff and activity."""
+    """A 1-5 preference mapping keyed by staff and clinic."""
     table = {(normalize(s), normalize(a)): v for (s, a), v in values.items()}
-    return {"preference": Metric("preference", ("staff", "activity"), 1, 5, table, default)}
+    keys = ("staff", "activities.clinics.all")
+    return {"preference": MappingTable("preference", keys, "numeric", table, 1, 5, default)}
+
+
+BUDDY_DEFAULT = "ANY_1_OF {staff.all - staff.counselor - staff.director}"
+
+
+def buddies(rows: dict[str, str], default: str | None = BUDDY_DEFAULT):
+    """Each counselor's buddy HERO, who covers their cabin at dinner, by name."""
+    table = {(normalize(c),): normalize(b) for c, b in rows.items()}
+    values = "{staff.all - staff.counselor}"
+    return {"buddy": MappingTable("buddy", ("staff.counselor",), values, table, default=default)}

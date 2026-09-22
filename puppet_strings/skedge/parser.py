@@ -10,13 +10,32 @@ from lark.exceptions import VisitError
 from puppet_strings.skedge import ast
 
 _GRAMMAR = (Path(__file__).parent / "grammar.lark").read_text()
-_parser = Lark(_GRAMMAR, parser="lalr", propagate_positions=True)
+_parser = Lark(
+    _GRAMMAR,
+    parser="lalr",
+    propagate_positions=True,
+    start=["start", "mapping_domain", "mapping_default"],
+)
 
 
 def parse(text: str) -> ast.Declaration:
     """Parse Skedge text. Raises SkedgeError with the position of the first problem."""
+    return _parse(text, "start")
+
+
+def parse_domain(text: str) -> ast.SetExpr:
+    """A Mappings tab `keys` or `values` entry: a set, with or without its braces."""
+    return _parse(text, "mapping_domain")
+
+
+def parse_default(text: str) -> ast.Selector:
+    """A Mappings tab `default`: a set to take, with the quantifier to take it by."""
+    return _parse(text, "mapping_default")
+
+
+def _parse(text: str, start: str):
     try:
-        tree = _parser.parse(text)
+        tree = _parser.parse(text, start=start)
     except UnexpectedInput as e:
         line, column = _position(e, text)
         raise ast.SkedgeError(_describe(e), line, column) from e
@@ -198,12 +217,12 @@ class _Builder(Transformer):
         return ast.Count(prefer, amount, pattern, _is(items[-1], "CONSECUTIVE"), _pos(meta))
 
     def prefer_score(self, meta, items):
-        pattern, (maximize, metric, args) = items
-        return ast.Score(pattern, maximize, metric, args, _pos(meta))
+        pattern, (maximize, call) = items
+        return ast.Score(pattern, maximize, call.mapping, call.args, _pos(meta))
 
     def goal(self, meta, items):
-        direction, metric, *args = items
-        return direction.type == "MAXIMIZE", _atom(metric), tuple(_atom(a) for a in args)
+        direction, call = items
+        return direction.type == "MAXIMIZE", call
 
     def amount(self, meta, items):
         bound, value = items
@@ -266,6 +285,16 @@ class _Builder(Transformer):
         return ast.Without(_pos(meta), _atom(items[0]))
 
     # -- set expressions --------------------------------------------------------------------
+
+    def call(self, meta, items):
+        mapping, *args = items
+        return ast.Call(_atom(mapping), tuple(_atom(a) for a in args), _pos(meta))
+
+    def mapping_domain(self, meta, items):
+        return _atom(items[0])
+
+    def mapping_default(self, meta, items):
+        return items[0]
 
     def setop(self, meta, items):
         result = _atom(items[0])

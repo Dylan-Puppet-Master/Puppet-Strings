@@ -294,42 +294,49 @@ lives here rather than in a request. The tab is optional; without it nobody is a
 | 2026-06-15 | Alesa | all day | | sick |
 | 2026-06-15 | Vic | | 1 | short sleep |
 
-## Metrics (config spreadsheet)
+## Mappings (config spreadsheet)
 
-A metric is a table of ratings the solver can score assignments with, such as how much
-each staff member prefers each clinic. A request uses it with `MAXIMIZE` or `MINIMIZE`,
-for example `PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE
-metrics.preference(s, c)`.
+A mapping is a table that takes one or more names and gives back a value. There are two
+kinds:
 
-Metrics take **two kinds of tab** in the config spreadsheet:
+- A **numeric** mapping gives a number, such as how much each staff member enjoys each
+  clinic. A request scores assignments with it using `MAXIMIZE` or `MINIMIZE`:
+  `PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE
+  mappings.preference(s, c)`.
+- Any other mapping gives a **name**, such as each counselor's buddy HERO, who covers their
+  cabin at dinner. A request can put the call anywhere a name goes:
+  `REQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.evening`.
 
-1. **One tab named `Metrics`** that lists every metric you have and the scale its ratings
-   use. Think of it as a table of contents. It has one row per metric.
-2. **One tab per metric holding the ratings themselves**, named `metric_` followed by the
-   metric's name: `metric_enjoyment`.
+Mappings take **two kinds of tab** in the config spreadsheet:
 
-If you have no metrics yet, create the `Metrics` tab with just its header row and leave it
-empty.
+1. **One tab named `Mappings`** that lists every mapping you have, what it takes and what
+   it gives. Think of it as a table of contents. It has one row per mapping.
+2. **One tab per mapping holding the rows themselves**, named `mapping_` followed by the
+   mapping's name: `mapping_enjoyment`.
 
-### Step by step: an enjoyment metric
+If you have no mappings yet, create the `Mappings` tab with just its header row and leave
+it empty.
 
-**1. Add a row to the `Metrics` tab.**
+### Step by step: an enjoyment mapping
 
-| metric | keys | scale_min | scale_max | default |
-|---|---|---|---|---|
-| enjoyment | staff, activity | 1 | 5 | 3 |
+**1. Add a row to the `Mappings` tab.**
+
+| mapping | keys | values | scale_min | scale_max | default |
+|---|---|---|---|---|---|
+| enjoyment | staff, activities.clinics.all | numeric | 1 | 5 | 3 |
 
 | Column | What to put there |
 |---|---|
-| `metric` | A short name. It becomes `metrics.enjoyment` in requests, and names the ratings tab `metric_enjoyment`. |
-| `keys` | **Comma-separated.** What each rating is about. `staff, activity` means one rating per staff member per clinic. Choose from `staff`, `activity`, `role`, `date`, `block`. |
-| `scale_min`, `scale_max` | The lowest and highest rating you will ever enter. Ratings are converted to 0–1 against this scale, not against whatever ratings happen to exist, so adding a new rating never changes how the old ones weigh. |
-| `default` | Optional. What a pair with no row of its own is worth. Leave it blank and an unrated pair is worth `scale_min`, the bottom of the scale. Set it to the middle of the scale (3 of 1–5 above) and an unrated pair counts as ordinary rather than disliked. A default outside the scale is a load error. |
+| `mapping` | A short name. It becomes `mappings.enjoyment` in requests, and names its tab `mapping_enjoyment`. |
+| `keys` | **Comma-separated.** What each key may be, as Skedge sets: one per argument the mapping takes. `staff, activities.clinics.all` means one rating per staff member per clinic. A bare namespace such as `staff` means any name in it; a set expression such as `{staff.all - staff.counselor}` narrows it down. |
+| `values` | `numeric` for a number, or a Skedge set the value must come from. |
+| `scale_min`, `scale_max` | Numeric mappings only. The lowest and highest rating you will ever enter. Ratings are converted to 0–1 against this scale, not against whatever ratings happen to exist, so adding a new rating never changes how the old ones weigh. Leave both blank for any other mapping. |
+| `default` | Optional. What a key with no row of its own gives. For a numeric mapping it is a number. Leave it blank and an unrated pair is worth `scale_min`, the bottom of the scale. Set it to the middle of the scale (3 of 1–5 above) and an unrated pair counts as ordinary rather than disliked. A default outside the scale is a load error. |
 
-**2. Create a tab named `metric_enjoyment`.** Give it one column for each key you listed,
-in any order, plus a `value` column:
+**2. Create a tab named `mapping_enjoyment`.** Give it one column per key, headed `key1`,
+`key2` and so on in the order the `keys` cell lists them, and then a `value` column:
 
-| staff | activity | value |
+| key1 | key2 | value |
 |---|---|---|
 | Dylan | Archery 1 & 2 | 5 |
 | Dylan | Candle Making | 3 |
@@ -340,14 +347,45 @@ Skedge identifiers, so you can paste rows from elsewhere. A value outside the sc
 load error.
 
 **3. There is no step 3.** A staff-and-clinic pair with no row of its own is worth the
-`default`, so you only need rows for the ratings you actually have. A second metric, say
-`variety_need` keyed by `staff`, is another row on the `Metrics` tab and another tab named
-`metric_variety_need` with columns `staff` and `value`.
+`default`, so you only need rows for the ratings you actually have. A second mapping, say
+`variety_need` keyed by `staff`, is another row on the `Mappings` tab and another tab named
+`mapping_variety_need` with columns `key1` and `value`.
 
 The default matters more than it looks. With a blank default, every clinic nobody has
 rated sits at the bottom of the scale, so the solver treats "not rated yet" as "disliked"
 and crowds people onto the few clinics that are rated. A default in the middle of the
 scale says "no opinion", and only the ratings you actually enter pull for or against.
+
+### Step by step: buddy HEROs
+
+A cabin has the same buddy for the whole session, so the buddies are a mapping from each
+counselor to someone who isn't one.
+
+**1. Add a row to the `Mappings` tab.**
+
+| mapping | keys | values | scale_min | scale_max | default |
+|---|---|---|---|---|---|
+| buddy | staff.counselor | {staff.all - staff.counselor} | | | ANY_1_OF {staff.all - staff.counselor - staff.director} |
+
+For a mapping that gives a name, the `default` is a Skedge phrase: what a call stands for
+when its key has no row. `ANY_1_OF {…}` lets the solver pick anyone from that set. A
+single name such as `staff.alan` also works, and so does `ALL_OF {…}`. A default of more
+than one name needs its quantifier. Leave the `default` blank and every counselor needs a
+row: a request that asks about one without a row is an error.
+
+**2. Create a tab named `mapping_buddy`.**
+
+| key1 | value |
+|---|---|
+| Dylan | Alan |
+| James | Sarah |
+
+Every row is checked when the day loads, the same way a request is. A key that isn't a
+counselor, a buddy who is a counselor, a name that doesn't exist and a default that reaches
+outside the `values` are all load errors, and each one names the row. The one exception is
+a person who is resting all day or away. They're in no category that day, so whether they
+are a counselor can't be checked, and it isn't. A buddy who is off that day is passed over
+for the default, so their cabin is still covered.
 
 ## The schedules tree
 

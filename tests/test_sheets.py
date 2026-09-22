@@ -1,3 +1,4 @@
+import re
 from datetime import date, time
 
 import pytest
@@ -25,6 +26,7 @@ from puppet_strings.sheets.skills import (
 from puppet_strings.sheets.source import (
     DAY_FIRST,
     MONTH_FIRST,
+    CsvSource,
     LoadError,
     parse_date,
     parse_time,
@@ -263,29 +265,121 @@ def test_requests_reject_weight_on_hard():
         parse_requests(table)
 
 
-def test_metrics(dataset):
-    preference = dataset.metrics["preference"]
-    assert preference.keys == ("staff", "activity")
+def test_mappings(dataset):
+    preference = dataset.mappings["preference"]
+    assert preference.keys == ("staff", "activities.clinics.all") and preference.numeric
     assert preference.normalized(("dylan", "archery_1_2")) == 1.0
     assert preference.normalized(("dylan", "candle_making")) == 0.5
     assert preference.default == 3 and preference.missing == 3
     assert preference.normalized(("dylan", "riflery")) == 0.5  # no row, so the default
+    buddy = dataset.mappings["buddy"]
+    assert not buddy.numeric and buddy.values == "{staff.all - staff.counselor}"
+    assert buddy.rows == {("dylan",): "alan", ("james",): "sarah"}
+    assert buddy.default == "ANY_1_OF {staff.all - staff.counselor - staff.director}"
 
 
-def test_metric_default_column(source):
-    from puppet_strings.sheets.metrics import parse_metric_index
+def test_mapping_default_column(source):
+    from puppet_strings.sheets.mappings import parse_mapping_index
 
-    table = source.read("config", "Metrics")
+    table = source.read("config", "Mappings")
     header, row = table[0], table[1]
     blank = [header, [c if header[i] != "default" else "" for i, c in enumerate(row)]]
-    (metric,) = parse_metric_index(blank)
-    assert metric.default == 1 and metric.normalized(("anyone", "anything")) == 0.0
+    (mapping,) = parse_mapping_index(blank)
+    assert mapping.default == 1 and mapping.normalized(("anyone", "anything")) == 0.0
     outside = [header, [c if header[i] != "default" else "9" for i, c in enumerate(row)]]
-    with pytest.raises(LoadError, match="default 9.0 is outside 1.0..5.0"):
-        parse_metric_index(outside)
+    with pytest.raises(LoadError, match="default 9 is outside 1..5"):
+        parse_mapping_index(outside)
     without_column = [[c for c in header if c != "default"], row[: len(header) - 1]]
-    (metric,) = parse_metric_index(without_column)
-    assert metric.default == 1
+    (mapping,) = parse_mapping_index(without_column)
+    assert mapping.default == 1
+
+
+MAPPINGS_HEADER = ["mapping", "keys", "values", "scale_min", "scale_max", "default"]
+
+
+@pytest.mark.parametrize(
+    ("row", "message"),
+    [
+        (["x", "staff", "numeric", "", "", ""], "a numeric mapping needs scale_min and scale_max"),
+        (["x", "staff", "staff", "1", "5", ""], "only a numeric mapping has a scale"),
+        (["x", "", "staff", "", "", ""], "keys needs at least one set"),
+        (["x", "mappings.buddy", "staff", "", "", ""], "names mappings"),
+        (["x", "staff", "{staff.all - s}", "", "", ""], "should be a namespace"),
+        (["x", "staff", "{staff.all -", "", "", ""], "unexpected input"),
+    ],
+)
+def test_a_mapping_is_declared_with_sets_it_can_read(row, message):
+    from puppet_strings.sheets.mappings import parse_mapping_index
+
+    with pytest.raises(LoadError, match=re.escape(message)):
+        parse_mapping_index([MAPPINGS_HEADER, row])
+
+
+@pytest.mark.parametrize(
+    ("tab", "rows", "message"),
+    [
+        ("mapping_buddy", [["key1", "value"], ["Dylan", "James"]], "'james' is not in {staff"),
+        (
+            "mapping_buddy",
+            [["key1", "value"], ["Alan", "Sarah"]],
+            "'alan' is not in staff.counselor",
+        ),
+        (
+            "mapping_buddy",
+            [["key1", "value"], ["Dyaln", "Sarah"]],
+            "'dyaln' is not a name in staff",
+        ),
+        ("mapping_buddy", [["staff", "value"]], "missing columns ['key1']"),
+        (
+            "Mappings",
+            [MAPPINGS_HEADER, ["buddy", "staff.counselor", "staff.all", "", "", "staff.all"]],
+            "a default of more than one name needs ALL_OF or ANY_n_OF",
+        ),
+        (
+            "Mappings",
+            [
+                MAPPINGS_HEADER,
+                [
+                    "buddy",
+                    "staff.counselor",
+                    "{staff.support - staff.director}",
+                    "",
+                    "",
+                    "ANY_1_OF staff.director",
+                ],
+            ],
+            "reaches 'david', which is not in {staff.support - staff.director}",
+        ),
+        (
+            "Mappings",
+            [MAPPINGS_HEADER, ["buddy", "staff.counselor", "staff.all", "", "", "blocks.lunch"]],
+            "names blocks, but the values are staff",
+        ),
+    ],
+)
+def test_a_mapping_is_checked_against_the_day(fixtures_copy, tab, rows, message):
+    from puppet_strings.sheets.load import load_dataset
+    from tests.conftest import CONFIG, TARGET
+
+    source = CsvSource(fixtures_copy)
+    source.write("config", tab, rows)
+    with pytest.raises(LoadError, match=re.escape(message)):
+        load_dataset(source, CONFIG, TARGET)
+
+
+def test_a_mapping_row_for_someone_resting_is_not_judged(fixtures_copy):
+    """Staff resting all day are in no category, so whether they are a counselor is moot."""
+    from puppet_strings.sheets.load import load_dataset
+    from tests.conftest import CONFIG, TARGET
+
+    source = CsvSource(fixtures_copy)
+    rest = [
+        ["date", "staff", "resting", "RAL_penalty", "note"],
+        [str(TARGET), "Rob", "all day", "", ""],
+    ]
+    source.write("config", "Adjustments", rest)
+    source.write("config", "mapping_buddy", [["key1", "value"], ["Dylan", "Rob"]])
+    assert load_dataset(source, CONFIG, TARGET).mappings["buddy"].rows == {("dylan",): "rob"}
 
 
 def test_published_round_trip(dataset, source):

@@ -1,6 +1,6 @@
-"""The popups a name in the Namespaces pane opens: what it stands for, and metric tables.
+"""The popups a name in the Namespaces pane opens: what it stands for, and mapping tables.
 
-A metric is the one name worth changing rather than reading, so its popup is the table
+A mapping is the one name worth changing rather than reading, so its popup is the table
 itself, editable, written straight back to its tab. Everything else is a reading: who is in
 a category, what an activity asks for, what the cabin act board wrote on a card.
 """
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QTableWidget,
     QTableWidgetItem,
@@ -23,11 +24,12 @@ from PySide6.QtWidgets import (
 
 from puppet_strings.app.details import Details
 from puppet_strings.config import Config
-from puppet_strings.sheets.metrics import INDEX_COLUMNS, TAB_PREFIX
-from puppet_strings.sheets.source import Source
+from puppet_strings.model import NUMERIC
+from puppet_strings.sheets.mappings import INDEX_COLUMNS, TAB_PREFIX
+from puppet_strings.sheets.source import Source, split_list
 
 CONFIG_SHEET = "config"
-SPARE_ROWS = 5  # blank rows at the bottom of a metric table, to add ratings without ceremony
+SPARE_ROWS = 5  # blank rows at the bottom of a mapping table, to add rows without ceremony
 
 
 class DetailsDialog(QDialog):
@@ -60,31 +62,33 @@ class DetailsDialog(QDialog):
         layout.addWidget(buttons)
 
 
-class MetricDialog(QDialog):
-    """One metric's ratings, as they are on its tab, editable.
+class MappingDialog(QDialog):
+    """One mapping's rows, as they are on its tab, editable.
 
-    The tab is read again rather than rebuilt from the loaded metric: the sheet holds names
-    and the loaded metric holds identifiers, and showing what is written is the only way to
+    The tab is read again rather than rebuilt from the loaded mapping: the sheet holds names
+    and the loaded mapping holds identifiers, and showing what is written is the only way to
     edit it and put it back unchanged apart from the edit.
     """
 
-    def __init__(self, source: Source, config: Config, metric: str, parent=None) -> None:
+    def __init__(self, source: Source, config: Config, mapping: str, parent=None) -> None:
         super().__init__(parent)
-        self.source, self.config, self.metric = source, config, metric
-        self.tab = f"{TAB_PREFIX}{metric}"
-        self.setWindowTitle(f"metrics.{metric}")
+        self.source, self.config, self.mapping = source, config, mapping
+        self.tab = f"{TAB_PREFIX}{mapping}"
+        self.setWindowTitle(f"mappings.{mapping}")
         self.resize(620, 560)
-        self.index = self.source.read(CONFIG_SHEET, config.tabs["metrics"])
-        self.default = self._default_box()
+        self.index = self.source.read(CONFIG_SHEET, config.tabs["mappings"])
+        row = self._index_row()
+        self.numeric = row.get("values", "").strip().lower() == NUMERIC
+        self.default = self._default_box(row)
         table = self.source.read(CONFIG_SHEET, self.tab)
         self.header = table[0] if table else []
         body = table[1:]
         self.grid = QTableWidget(len(body) + SPARE_ROWS, max(len(self.header), 1))
-        self.grid.setHorizontalHeaderLabels(self.header)
+        self.grid.setHorizontalHeaderLabels(_labels(self.header, row))
         self.grid.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        for r, row in enumerate(body):
+        for r, cells in enumerate(body):
             for c in range(len(self.header)):
-                self.grid.setItem(r, c, QTableWidgetItem(row[c] if c < len(row) else ""))
+                self.grid.setItem(r, c, QTableWidgetItem(cells[c] if c < len(cells) else ""))
         for r in range(len(body), len(body) + SPARE_ROWS):
             for c in range(len(self.header)):
                 self.grid.setItem(r, c, QTableWidgetItem(""))
@@ -92,37 +96,50 @@ class MetricDialog(QDialog):
         buttons.accepted.connect(self.save)
         buttons.rejected.connect(self.reject)
         form = QFormLayout()
-        form.addRow("Worth when nothing is written down", self.default)
+        form.addRow("When nothing is written down", self.default)
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel(f"<b>metrics.{metric}</b><br>{self.tab}, on the config sheet"))
+        layout.addWidget(QLabel(f"<b>mappings.{mapping}</b><br>{self.tab}, on the config sheet"))
         layout.addWidget(self.grid)
         layout.addLayout(form)
         layout.addWidget(buttons)
 
-    def _default_box(self) -> QDoubleSpinBox:
-        """The metric's default, held between the ends of its own scale."""
-        row = self._index_row()
+    def _default_box(self, row: dict[str, str]) -> QDoubleSpinBox | QLineEdit:
+        """A number held between the ends of its scale, or a Skedge phrase to stand in."""
+        if not self.numeric:
+            box = QLineEdit(row.get("default", ""))
+            box.setPlaceholderText("no default: every key needs a row")
+            box.setToolTip(
+                f"What a key with no row gives, from {row.get('values', '')}: a name, or "
+                "a phrase such as ANY_1_OF {staff.office}"
+            )
+            return box
         low, high = (_number(row.get(name)) for name in ("scale_min", "scale_max"))
         box = QDoubleSpinBox()
         box.setDecimals(2)
         box.setRange(low, high)
-        box.setToolTip(f"What a pairing with no row is worth, between {low:g} and {high:g}")
+        box.setToolTip(f"What a key with no row is worth, between {low:g} and {high:g}")
         box.setValue(_number(row.get("default")) if row.get("default") else low)
         return box
 
+    def default_text(self) -> str:
+        """The default as it is written back to the Mappings tab."""
+        if isinstance(self.default, QLineEdit):
+            return self.default.text().strip()
+        return _trim(self.default.value())
+
     def _index_row(self) -> dict[str, str]:
-        """The row on the Metrics index tab for this metric, as a dict."""
+        """The row on the Mappings index tab for this mapping, as a dict."""
         header = [c.strip() for c in self.index[0]] if self.index else []
         for cells in self.index[1:]:
             row = dict(zip(header, [*cells, *[""] * len(header)], strict=False))
-            if row.get("metric", "").strip() == self.metric:
+            if row.get("mapping", "").strip() == self.mapping:
                 return row
         return {}
 
     def index_rows(self) -> list[list[str]]:
-        """The Metrics index tab with this metric's default as the box now says.
+        """The Mappings index tab with this mapping's default as the box now says.
 
-        A metric declared with no `default` column gets one, because a default it cannot be
+        A mapping declared with no `default` column gets one, because a default it cannot be
         given is no better than no box at all.
         """
         header = [c.strip() for c in self.index[0]] if self.index else list(INDEX_COLUMNS)
@@ -131,8 +148,8 @@ class MetricDialog(QDialog):
         written = [header]
         for cells in self.index[1:]:
             row = [*cells, *[""] * (len(header) - len(cells))][: len(header)]
-            if row[header.index("metric")].strip() == self.metric:
-                row[header.index("default")] = _trim(self.default.value())
+            if row[header.index("mapping")].strip() == self.mapping:
+                row[header.index("default")] = self.default_text()
             written.append(row)
         return written
 
@@ -149,14 +166,30 @@ class MetricDialog(QDialog):
         return [list(self.header), *written]
 
     def save(self) -> None:
-        """Write the ratings and the default back, and say so rather than closing quietly."""
+        """Write the rows and the default back, and say so rather than closing quietly."""
         try:
             self.source.write(CONFIG_SHEET, self.tab, self.rows())
-            self.source.write(CONFIG_SHEET, self.config.tabs["metrics"], self.index_rows())
+            self.source.write(CONFIG_SHEET, self.config.tabs["mappings"], self.index_rows())
         except Exception as e:  # noqa: BLE001 - shown to the user, never swallowed
-            QMessageBox.critical(self, "Could not save the metric", str(e))
+            QMessageBox.critical(self, "Could not save the mapping", str(e))
             return
         self.accept()
+
+
+def _labels(header: list[str], row: dict[str, str]) -> list[str]:
+    """Column headings that say what each key column holds: `key1: staff.counselor`."""
+    keys = split_list(row.get("keys", ""))
+    shown = []
+    for column in header:
+        name = column.strip()
+        number = name[len("key") :] if name.startswith("key") else ""
+        if number.isdigit() and 0 < int(number) <= len(keys):
+            shown.append(f"{name}: {keys[int(number) - 1]}")
+        elif name == "value" and row.get("values"):
+            shown.append(f"value: {row['values']}")
+        else:
+            shown.append(name)
+    return shown
 
 
 def _number(text: str | None) -> float:

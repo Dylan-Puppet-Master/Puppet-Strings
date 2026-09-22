@@ -86,7 +86,16 @@ class SetOp:
     pos: Pos
 
 
-SetExpr = Ref | Var | DateLiteral | DateOffset | DateRange | SetOp
+@dataclass(frozen=True)
+class Call:
+    """`mappings.buddy(c)`: what a mapping gives for these arguments, one per key."""
+
+    mapping: Ref
+    args: tuple["Var | Ref", ...]
+    pos: Pos
+
+
+SetExpr = Ref | Var | DateLiteral | DateOffset | DateRange | SetOp | Call
 
 
 @dataclass(frozen=True)
@@ -214,11 +223,11 @@ class Count:
 
 @dataclass(frozen=True)
 class Score:
-    """`PREFER <pattern> MAXIMIZE|MINIMIZE metrics.x(args)`."""
+    """`PREFER <pattern> MAXIMIZE|MINIMIZE mappings.x(args)`, of a numeric mapping."""
 
     pattern: Pattern
     maximize: bool
-    metric: Ref
+    mapping: Ref
     args: tuple[Var | Ref, ...]
     pos: Pos
 
@@ -340,7 +349,7 @@ def selectors(line: Line) -> Iterator[tuple[str | None, Selector]]:
 
 
 def set_exprs(line: Line) -> Iterator[SetExpr]:
-    """Every set expression a line holds, including WITH, WITHOUT and metric arguments."""
+    """Every set expression a line holds, including WITH, WITHOUT and mapping arguments."""
     for _, selector in selectors(line):
         yield selector.expr
     for part in (line, *patterns(line)):
@@ -364,3 +373,6 @@ def vars_in(expr: SetExpr) -> Iterator[Var]:
         yield from vars_in(expr.end)
     elif isinstance(expr, DateOffset):
         yield from vars_in(expr.base)
+    elif isinstance(expr, Call):
+        for arg in expr.args:
+            yield from vars_in(arg)

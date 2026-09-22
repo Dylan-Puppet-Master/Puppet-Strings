@@ -5,7 +5,8 @@ from datetime import date
 
 import pytest
 
-from puppet_strings.app.details import details, is_metric
+from puppet_strings.app.details import details, is_mapping
+from tests.build import BUDDY_DEFAULT
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -70,49 +71,49 @@ def test_dates_and_roles_open_nothing(dataset, name):
     assert details(name, dataset) is None
 
 
-def test_a_metric_opens_its_table_instead(dataset):
-    assert is_metric("metrics.preference")
-    assert not is_metric("staff.dylan")
-    assert details("metrics.preference", dataset) is None
+def test_a_mapping_opens_its_table_instead(dataset):
+    assert is_mapping("mappings.preference")
+    assert not is_mapping("staff.dylan")
+    assert details("mappings.preference", dataset) is None
 
 
-def test_the_metric_table_is_edited_and_written_back(fixtures_copy):
+def test_the_mapping_table_is_edited_and_written_back(fixtures_copy):
     pytest.importorskip("PySide6")
     from PySide6.QtWidgets import QApplication, QTableWidgetItem
 
-    from puppet_strings.app.details_dialog import MetricDialog
+    from puppet_strings.app.details_dialog import MappingDialog
     from puppet_strings.config import Config
     from puppet_strings.sheets.source import CsvSource
 
     QApplication.instance() or QApplication([])
     source = CsvSource(fixtures_copy)
-    dialog = MetricDialog(source, Config(), "preference")
-    assert dialog.header == ["staff", "activity", "value"]
-    before = len(source.read("config", "metric_preference"))
+    dialog = MappingDialog(source, Config(), "preference")
+    assert dialog.header == ["key1", "key2", "value"]
+    before = len(source.read("config", "mapping_preference"))
     last = len([r for r in dialog.rows() if any(r)])
     for column, text in enumerate(("Dylan", "Riflery", "5")):
         dialog.grid.setItem(last - 1, column, QTableWidgetItem(text))
     dialog.save()
-    written = source.read("config", "metric_preference")
-    assert written[0] == ["staff", "activity", "value"]
+    written = source.read("config", "mapping_preference")
+    assert written[0] == ["key1", "key2", "value"]
     assert written[-1] == ["Dylan", "Riflery", "5"]
     assert len(written) == before + 1
 
 
-def test_the_metric_table_keeps_what_it_was_given(fixtures_copy):
+def test_the_mapping_table_keeps_what_it_was_given(fixtures_copy):
     """Saving without editing rewrites the tab unchanged, blank rows dropped."""
     pytest.importorskip("PySide6")
     from PySide6.QtWidgets import QApplication
 
-    from puppet_strings.app.details_dialog import MetricDialog
+    from puppet_strings.app.details_dialog import MappingDialog
     from puppet_strings.config import Config
     from puppet_strings.sheets.source import CsvSource
 
     QApplication.instance() or QApplication([])
     source = CsvSource(fixtures_copy)
-    before = source.read("config", "metric_preference")
-    MetricDialog(source, Config(), "preference").save()
-    assert source.read("config", "metric_preference") == before
+    before = source.read("config", "mapping_preference")
+    MappingDialog(source, Config(), "preference").save()
+    assert source.read("config", "mapping_preference") == before
 
 
 def test_the_target_date_is_what_a_cabin_act_is_shown_for(source):
@@ -125,35 +126,57 @@ def test_the_target_date_is_what_a_cabin_act_is_shown_for(source):
     assert rows(found, "It asks for")["first: Sarah"] == "Sarah"
 
 
-def test_the_metric_default_is_editable(fixtures_copy):
+def test_the_mapping_default_is_editable(fixtures_copy):
     pytest.importorskip("PySide6")
     from PySide6.QtWidgets import QApplication
 
-    from puppet_strings.app.details_dialog import MetricDialog
+    from puppet_strings.app.details_dialog import MappingDialog
     from puppet_strings.config import Config
-    from puppet_strings.sheets.metrics import parse_metric_index
+    from puppet_strings.sheets.mappings import parse_mapping_index
     from puppet_strings.sheets.source import CsvSource
 
     QApplication.instance() or QApplication([])
     source = CsvSource(fixtures_copy)
-    dialog = MetricDialog(source, Config(), "preference")
-    assert dialog.default.value() == 3  # what the Metrics tab says now
+    dialog = MappingDialog(source, Config(), "preference")
+    assert dialog.default.value() == 3  # what the Mappings tab says now
     assert (dialog.default.minimum(), dialog.default.maximum()) == (1, 5)  # its own scale
     dialog.default.setValue(4)
     dialog.save()
-    written = parse_metric_index(source.read("config", "Metrics"))
-    assert [m.default for m in written] == [4.0]
+    written = parse_mapping_index(source.read("config", "Mappings"))
+    assert [m.default for m in written] == [4.0, BUDDY_DEFAULT]
 
 
-def test_a_metric_default_cannot_leave_its_scale(fixtures_copy):
+def test_a_named_mapping_default_is_a_phrase(fixtures_copy):
     pytest.importorskip("PySide6")
     from PySide6.QtWidgets import QApplication
 
-    from puppet_strings.app.details_dialog import MetricDialog
+    from puppet_strings.app.details_dialog import MappingDialog
+    from puppet_strings.config import Config
+    from puppet_strings.sheets.mappings import parse_mapping_index
+    from puppet_strings.sheets.source import CsvSource
+
+    QApplication.instance() or QApplication([])
+    source = CsvSource(fixtures_copy)
+    dialog = MappingDialog(source, Config(), "buddy")
+    assert dialog.default.text() == BUDDY_DEFAULT
+    heading = dialog.grid.horizontalHeaderItem(0).text()
+    assert heading == "key1: staff.counselor"  # says what the column holds
+    dialog.default.setText("ANY_1_OF staff.office")
+    dialog.save()
+    written = parse_mapping_index(source.read("config", "Mappings"))
+    assert written[1].default == "ANY_1_OF staff.office"
+    assert source.read("config", "mapping_buddy")[0] == ["key1", "value"]  # not the headings
+
+
+def test_a_mapping_default_cannot_leave_its_scale(fixtures_copy):
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication
+
+    from puppet_strings.app.details_dialog import MappingDialog
     from puppet_strings.config import Config
     from puppet_strings.sheets.source import CsvSource
 
     QApplication.instance() or QApplication([])
-    dialog = MetricDialog(CsvSource(fixtures_copy), Config(), "preference")
+    dialog = MappingDialog(CsvSource(fixtures_copy), Config(), "preference")
     dialog.default.setValue(99)
     assert dialog.default.value() == 5
