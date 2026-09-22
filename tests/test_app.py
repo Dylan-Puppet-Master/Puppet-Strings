@@ -771,6 +771,33 @@ def test_the_calendar_starts_its_weeks_where_camp_does(window):
     assert window.calendar.row_start(3).toString("yyyy-MM-dd") == "2026-09-13"
 
 
+def test_the_calendar_starts_on_sunday_before_a_sheet_has_been_read(app):
+    """The window paints before the load finishes, and camp's week begins on a Sunday."""
+    from PySide6.QtCore import Qt
+
+    from puppet_strings.app.calendar_pane import SessionCalendar
+
+    fresh = SessionCalendar()
+    assert fresh.firstDayOfWeek() == Qt.Sunday  # whatever the machine's locale says
+    fresh.setFirstDayOfWeek(Qt.Wednesday)
+    fresh.show_dataset(None)  # a load that got nowhere leaves the pane the week it knows
+    assert fresh.firstDayOfWeek() == Qt.Sunday
+
+
+def test_a_date_off_the_calendar_takes_the_week_of_the_nearest_camp_day(window):
+    """The window opens on tomorrow, which in March is no camp day at all."""
+    from datetime import date
+
+    from PySide6.QtCore import Qt
+
+    from puppet_strings.app.calendar_pane import _span_start
+
+    calendar = window.store.dataset.calendar
+    assert _span_start(calendar, date(2026, 3, 1)) == date(2026, 9, 13)  # session 1, not 1 Jan
+    window.calendar.show_calendar(calendar, date(2026, 3, 1))
+    assert window.calendar.firstDayOfWeek() == Qt.Sunday
+
+
 def test_the_calendar_is_numbered_even_when_the_load_fails(app, fixtures_copy, monkeypatch):
     """The Calendar sheet says which week of which session a date is; nothing else does."""
     monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: None)

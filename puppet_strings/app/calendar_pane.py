@@ -22,11 +22,24 @@ INK = QColor(palette.INK)  # a shaded cell needs its own text colour; the palett
 ROWS = range(1, 7)  # row 0 of the grid holds the weekday names
 
 
+CAMP_WEEK_STARTS = Qt.Sunday  # what camp calls the first day of the week
+
+
 def _span_start(calendar: dict, target: date | None) -> date | None:
-    """The first day of the span the target falls in, or of the earliest span there is."""
+    """The first day of the span the date being scheduled falls in.
+
+    A date off the calendar -- tomorrow, before the season starts, which is what the window
+    opens on -- takes the span of the nearest camp day to it rather than the first span of
+    the year. The point of the question is which weeks the pane is showing, and the weeks
+    it is showing are the ones around the date being looked at.
+    """
     if not calendar:
         return None
-    span = calendar[target].span if target in calendar else calendar[min(calendar)].span
+    if target is None:
+        target = min(calendar)
+    if target not in calendar:
+        target = min(calendar, key=lambda day: (abs((day - target).days), day))
+    span = calendar[target].span
     return min((d for d, day in calendar.items() if day.span == span), default=None)
 
 
@@ -61,6 +74,10 @@ class SessionCalendar(QCalendarWidget):
     def __init__(self) -> None:
         super().__init__()
         self.days: dict[date, tuple[int, int]] = {}
+        # Before any sheet is read there is no span to take the week from, and Qt would
+        # otherwise begin it wherever the machine's locale says -- Monday on a great many
+        # of them, which is not the week anybody here counts in.
+        self.setFirstDayOfWeek(CAMP_WEEK_STARTS)
         self.setGridVisible(True)
         self.setVerticalHeaderFormat(QCalendarWidget.ISOWeekNumbers)  # keeps the column
         view = self.findChild(QTableView, "qt_calendar_calendarview")
@@ -119,16 +136,18 @@ class SessionCalendar(QCalendarWidget):
         """Begin each grid row on the weekday the span being looked at begins on.
 
         A row is labelled with one session and week, so a row has to *be* one week of one
-        span. Left alone, Qt begins the week wherever the machine's locale says — Sunday
-        here, Monday on a great many others — and a grid whose rows straddle two camp weeks
-        has rows that are labelled right for six days out of seven.
+        span. Left alone, Qt begins the week wherever the machine's locale says — Monday on
+        a great many machines — and a grid whose rows straddle two camp weeks has rows that
+        are labelled right for six days out of seven.
 
         Camp's own week is the one thing that settles it: a span runs seven days at a time
-        from its start date, so that start's weekday is where a row begins.
+        from its start date, so that start's weekday is where a row begins. With no sheet
+        read yet, or none covering the date, the week starts on Sunday, which is the week
+        camp counts in and what the pane shows while a load is still running.
         """
         start = _span_start(calendar, target)
-        if start is not None:
-            self.setFirstDayOfWeek(Qt.DayOfWeek(start.weekday() + 1))  # Qt counts Monday as 1
+        first = Qt.DayOfWeek(start.weekday() + 1) if start else CAMP_WEEK_STARTS  # Monday is 1
+        self.setFirstDayOfWeek(first)
 
     def week_of_row(self, row: int) -> tuple[int | None, int | None]:
         """The session and week the grid's row falls in, from its first camp day."""

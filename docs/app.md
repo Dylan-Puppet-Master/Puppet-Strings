@@ -212,6 +212,11 @@ shaded. Down its left-hand side, each week is labelled with the session and week
 is built from, rather than the week of the year. Click any date to insert it into the
 Skedge editor at the cursor, as `2026-06-15`.
 
+Its rows begin on the weekday the span being looked at begins on, so that a row *is* one
+week of one session and the label beside it is true of all seven days. Camp's weeks start
+on a Sunday, and so does the pane before any sheet has been read, whatever the machine's
+own idea of the first day of the week is.
+
 **Saving a request about other dates.** A request does not have to be about the date being
 scheduled: `ON ALL_OF dates.session.two.week.one.all` is a perfectly good request to write in
 the middle of session 1. It will do nothing to the schedule you are about to solve, though,
