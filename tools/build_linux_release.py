@@ -1,4 +1,4 @@
-"""Package the Linux executable with a desktop launcher and icon."""
+"""Package the Linux executable with an installation script and icon."""
 
 from __future__ import annotations
 
@@ -16,8 +16,31 @@ PACKAGE_DIR = DIST / "puppet-strings-linux-package"
 ARCHIVE = DIST / "puppet-strings-linux.tar.gz"
 
 
+INSTALL_SCRIPT = """\
+#!/bin/sh
+
+APP_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+
+mkdir -p "$HOME/.local/share/applications"
+
+cat > "$HOME/.local/share/applications/puppet-strings.desktop" <<EOF
+[Desktop Entry]
+Name=Puppet Strings
+Comment=Puppet Strings
+Exec=$APP_DIR/puppet-strings-linux
+Icon=$APP_DIR/puppet-strings.png
+Terminal=false
+Type=Application
+Categories=Utility;
+StartupNotify=true
+EOF
+
+chmod +x "$APP_DIR/puppet-strings-linux"
+"""
+
+
 def main() -> None:
-    """Package the Linux executable, icon, and desktop launcher as a tar.gz."""
+    """Package the Linux executable, icon, and installation script as a tar.gz."""
     if not SOURCE.is_file():
         raise SystemExit(f"Missing executable: {SOURCE}")
 
@@ -41,21 +64,9 @@ def main() -> None:
 
     shutil.copy2(ICON, PACKAGE_DIR / "puppet-strings.png")
 
-    desktop = PACKAGE_DIR / "puppet-strings.desktop"
-    desktop.write_text(
-        """\
-[Desktop Entry]
-Name=Puppet Strings
-Comment=Puppet Strings
-Exec=./puppet-strings-linux
-Icon=./puppet-strings.png
-Terminal=false
-Type=Application
-Categories=Utility;
-StartupNotify=true
-""",
-        encoding="utf-8",
-    )
+    install_script = PACKAGE_DIR / "install.sh"
+    install_script.write_text(INSTALL_SCRIPT, encoding="utf-8")
+    install_script.chmod(install_script.stat().st_mode | 0o111)
 
     with tarfile.open(ARCHIVE, "w:gz") as tar:
         tar.add(
