@@ -373,9 +373,7 @@ def test_publishing_puts_a_panel_up_and_writes_on_a_thread(window, app, monkeypa
     said = []
     monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: said.append(a[2]))
     result = Result(feasible=True, assignments=())
-    dialog = ScheduleDialog(
-        window.store.source, window.store.config, window.store.current, result
-    )
+    dialog = ScheduleDialog(window.store.source, window.store.config, window.store.current, result)
     dialog.publish_button.click()
     assert dialog.busy is not None and dialog.busy.isVisible()  # up while it is written
     assert not dialog.busy.cancel_button.isVisible()  # half a published day is no better
@@ -384,9 +382,7 @@ def test_publishing_puts_a_panel_up_and_writes_on_a_thread(window, app, monkeypa
     app.processEvents()
     assert dialog.busy is None and said == ["Published 2026-09-16."]
     assert dialog.already_published
-    written = window.store.source.read(
-        "root/2026/Main Season/Session 1/Wednesday_1", "Staff View"
-    )
+    written = window.store.source.read("root/2026/Main Season/Session 1/Wednesday_1", "Staff View")
     assert written[1][0] == "Staff"
 
 
