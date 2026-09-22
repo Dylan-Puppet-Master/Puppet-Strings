@@ -342,6 +342,11 @@ GAP morning TO afternoon AT_MOST 5h
 `GAP a TO b AT_LEAST 0m` is plain ordering. Real start and end times are compared, so a
 one-hour task may slide around inside its 75-minute block to make a gap work.
 
+Durations are written in minutes, hours or days: `30m`, `1.5h`, `2d`. A gap is measured
+within the day being scheduled, which is the only day a solve builds, so a gap of a day or
+more is a way of saying the two cannot both happen on the same day: `GAP first TO second
+AT_LEAST 2d` holds on any day that does not hold both of them.
+
 ### A statement over several lines
 
 A statement can be written on as many lines as it reads well on. A line beginning with a

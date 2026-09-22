@@ -57,14 +57,15 @@ Skedge has two statements and two ways of talking about assignments.
 | Quoted task | Single quotes, any text but a quote: `'archery maintenance'` |
 | Date | `2026-06-14` |
 | Day offset | A sign, a number and `d`: `- 6d`, `+2d` |
-| Duration | A number and `m` or `h`: `30m`, `2h`, `1.5h` |
+| Duration | A number and `m`, `h` or `d`: `30m`, `2h`, `1.5h`, `2d` |
 | Set expression | In braces: `+` union, `-` difference, `&` intersection, `..` date range, `( )` group |
 | Comment | `#` to the end of the line |
 
 Spaces and tabs separate tokens and are otherwise ignored. A line break ends a line; blank
 lines are ignored. A declaration is one or more lines.
 
-A duration must be a whole number of minutes: `1.5h` is 90 minutes, `1.25m` is an error.
+A duration must be a whole number of minutes: `1.5h` is 90 minutes, `1d` is 1,440, and
+`1.25m` is an error.
 
 ## 4. Grammar
 
@@ -146,7 +147,7 @@ CONSECUTIVE : "CONSECUTIVE"
 SETOP       : "+" | "-" | "&"
 OFFSET.2    : /[+-][ \t]*\d+d/
 DATE.3      : /\d{4}-\d{2}-\d{2}/
-DURATION.2  : /\d+(\.\d+)?[mh]/
+DURATION.2  : /\d+(\.\d+)?[mhd]/
 STRING      : /'[^']*'/
 REF.2       : /[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+/
 NAME        : /[a-z_][a-z0-9_]*/
@@ -415,12 +416,17 @@ whether or not the requirements are met. A condition governs both.
 
 ### 10.1 GAP
 
-`GAP a TO b <bound> <duration>` is read separately on each date. On a date where both
-requirements have assignments, every assignment of `a` must end before any of `b` starts,
-and the time from the end of the last `a` to the start of the first `b` must meet the
-bound. `GAP a TO b AT_LEAST 0m` is plain ordering, and the one place a zero amount is
+`GAP a TO b <bound> <duration>` is read on the date being scheduled. Where both
+requirements have assignments on it, every assignment of `a` must end before any of `b`
+starts, and the time from the end of the last `a` to the start of the first `b` must meet
+the bound. `GAP a TO b AT_LEAST 0m` is plain ordering, and the one place a zero amount is
 allowed. The times compared are real starts and ends, so a task shorter than its block may
 sit anywhere in it to satisfy a gap.
+
+A gap is measured inside that one day, because that one day is all a solve builds. A
+duration in days is therefore a way of saying the two cannot share a day: `AT_LEAST 1d`
+can only hold where `a` and `b` do not both have an assignment on the date being
+scheduled.
 
 ## 11. What can exist
 

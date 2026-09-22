@@ -65,10 +65,13 @@ _TERMINAL_NAMES = {
 }
 
 
+MINUTES_IN = {"m": 1, "h": 60, "d": 60 * 24}
+
+
 def parse_duration(text: str) -> int:
-    """`30m`, `2h`, `1.5h` -> minutes."""
+    """`30m`, `2h`, `1.5h`, `2d` -> minutes."""
     number, unit = float(text[:-1]), text[-1]
-    minutes = number * 60 if unit == "h" else number
+    minutes = number * MINUTES_IN[unit]
     if minutes != int(minutes):
         raise ValueError(f"duration '{text}' is not a whole number of minutes")
     return int(minutes)

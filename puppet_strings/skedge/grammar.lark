@@ -71,7 +71,7 @@ CONSECUTIVE : "CONSECUTIVE"
 SETOP       : "+" | "-" | "&"
 OFFSET.2    : /[+-][ \t]*\d+d/
 DATE.3      : /\d{4}-\d{2}-\d{2}/
-DURATION.2  : /\d+(\.\d+)?[mh]/
+DURATION.2  : /\d+(\.\d+)?[mhd]/
 STRING      : /'[^']*'/
 REF.2       : /[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+/
 NAME        : /[a-z_][a-z0-9_]*/

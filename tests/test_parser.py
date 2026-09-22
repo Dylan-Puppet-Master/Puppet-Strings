@@ -132,10 +132,30 @@ def test_comments_and_blank_lines():
 
 
 @pytest.mark.parametrize(
-    ("text", "minutes"), [("30m", 30), ("2h", 120), ("1.5h", 90), ("0.5h", 30)]
+    ("text", "minutes"),
+    [("30m", 30), ("2h", 120), ("1.5h", 90), ("0.5h", 30), ("1d", 1440), ("2d", 2880)],
 )
 def test_parse_duration(text, minutes):
     assert parse_duration(text) == minutes
+
+
+def test_a_gap_may_be_written_in_days():
+    """`48h` and `2d` are the same gap; days are how anybody says two nights apart."""
+    text = (
+        "first:  REQUEST staff.rob DO 'setup' FOR 1h DURING blocks.clinic_1\n"
+        "second: REQUEST staff.rob DO 'strike' FOR 1h DURING blocks.clinic_2\n"
+        "GAP first TO second AT_LEAST {amount}"
+    )
+    (days,) = parse(text.format(amount="2d")).gaps
+    (hours,) = parse(text.format(amount="48h")).gaps
+    assert days.amount == hours.amount
+    assert days.amount.value == 2880 and days.amount.duration
+
+
+def test_a_day_offset_is_still_an_offset_and_not_a_duration():
+    """`- 6d` inside a set is an offset from a date; only the lexer tells them apart."""
+    (line,) = parse("REQUEST staff.rob DO 'x' DURING blocks.a ON {dates.target - 6d}").lines
+    assert line.clauses[1].selector.expr.days == -6
 
 
 @pytest.mark.parametrize(
