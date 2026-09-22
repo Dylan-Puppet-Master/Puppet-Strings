@@ -105,9 +105,14 @@ def _atom(item) -> ast.SetExpr:
 
 
 def _quantifier(token: Token) -> tuple[str, int | None]:
+    """The quantifier a token stands for, in the one case the tree holds it in.
+
+    A keyword may be written in either case, so what the token says is upper-cased before
+    anything is compared with it: `each_of` and `EACH_OF` are the same quantifier.
+    """
     if token.type == "ANY_N_OF":
         return ast.ANY_OF, int(str(token)[len("ANY_") : -len("_OF")])
-    return str(token), None
+    return str(token).upper(), None
 
 
 def _duration(token: Token) -> int:
@@ -199,8 +204,8 @@ class _Builder(Transformer):
     def amount(self, meta, items):
         bound, value = items
         if value.type == "DURATION":
-            return ast.Amount(str(bound), _duration(value), True, _pos(meta))
-        return ast.Amount(str(bound), int(value), False, _pos(meta))
+            return ast.Amount(str(bound).upper(), _duration(value), True, _pos(meta))
+        return ast.Amount(str(bound).upper(), int(value), False, _pos(meta))
 
     # -- patterns ---------------------------------------------------------------------------
 

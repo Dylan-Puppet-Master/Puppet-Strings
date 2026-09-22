@@ -44,13 +44,13 @@ def test_the_spec_carries_the_grammar_the_parser_uses():
 
 
 def test_every_keyword_the_spec_lists_is_in_the_grammar():
-    keywords = re.search(r"\| Keyword \| Upper case: (.*?) \|", SPEC).group(1)
-    listed = re.findall(r"`([A-Za-z_]+)`", keywords)
+    keywords = re.search(r"\| Keyword \| Either case, upper by convention: (.*?) \|", SPEC)
+    listed = re.findall(r"`([A-Za-z_]+)`", keywords.group(1))
     assert len(listed) > 20
     grammar = GRAMMAR.read_text()
     for keyword in listed:
-        terminal = "ANY_N_OF" if keyword == "ANY_n_OF" else f'"{keyword}"'
-        assert terminal in grammar, f"{keyword} is not a keyword of the grammar"
+        word = "ANY_[1-9][0-9]*_OF" if keyword == "ANY_n_OF" else keyword
+        assert f"/{word}\\b/i" in grammar, f"{keyword} is not a keyword of the grammar"
 
 
 def test_every_namespace_the_spec_lists_exists(dataset):

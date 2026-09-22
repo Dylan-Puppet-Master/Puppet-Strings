@@ -44,6 +44,12 @@ A single thing (`staff.rob`, `blocks.clinic_1`, `2026-09-21`) needs no quantifie
 `IF` / `UNLESS` make a request conditional, and `GAP` puts time between two requirements.
 That is the whole language.
 
+Keywords are written in upper case here and everywhere else, which is what makes a request
+skimmable, but they are read in either case: `request staff.dylan do 'x' during
+blocks.clinic_1` is the same request, and the editor colours it the same. Names, variables
+and labels are lower case, so none of them may be spelled like a keyword — `on` is `ON`,
+whatever was meant by it.
+
 ## Names
 
 Names are dotted, lowercase `snake_case`. Sheet values become identifiers by the rule in

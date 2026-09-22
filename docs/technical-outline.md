@@ -734,6 +734,13 @@ Recorded so the outline matches the code.
   `MUST_HAPPEN` requests: a conflict is a day that cannot be built, which takes two
   promises that cannot both be kept. Everything softer is the solver's to weigh and the
   report's to explain.
+- **Keywords read in either case** (Puppet Master, 2026-09-21). Every keyword is its own
+  terminal at priority 5, written `/WORD\b/i`, rather than an anonymous string. The `i`
+  makes `request` and `REQUEST` one word; the priority puts it above `NAME`, which lower
+  case would otherwise be lexed as; and the `\b` keeps it to whole words, so `format` is a
+  variable and not `FOR` followed by `mat`. The parser upper-cases what a quantifier or a
+  bound token says before comparing it, so the tree holds one spelling however it was
+  typed. The highlighter matches case-insensitively for the same reason.
 - **A gap reaches back into the published days** (Puppet Master, 2026-09-21). `Made` held
   only the assignments a requirement makes on the target date, so a `GAP` between two
   labeled requirements was a within-the-day comparison, and a request whose first half had

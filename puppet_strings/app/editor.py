@@ -35,15 +35,19 @@ KEYWORDS = (
 
 
 class SkedgeHighlighter(QSyntaxHighlighter):
-    """Colors keywords, names, strings, dates, durations and comments."""
+    """Colors keywords, names, strings, dates, durations and comments.
+
+    Keywords are coloured in whichever case they are written in, because Skedge reads them
+    in whichever case they are written in: a request typed in lower case is a request, and
+    a box that only colours the shouted version says otherwise.
+    """
 
     def __init__(self, document) -> None:
         super().__init__(document)
+        keywords = QRegularExpression(r"\b(" + KEYWORDS + r")\b")
+        keywords.setPatternOptions(QRegularExpression.CaseInsensitiveOption)
         self.rules = [
-            (
-                QRegularExpression(r"\b(" + KEYWORDS + r")\b"),
-                _format(palette.KEYWORD, bold=True),
-            ),
+            (keywords, _format(palette.KEYWORD, bold=True)),
             (QRegularExpression(r"\b[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+"), _format(palette.NAME)),
             (QRegularExpression(r"'[^']*'"), _format(palette.STRING)),
             (

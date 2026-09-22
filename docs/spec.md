@@ -50,7 +50,7 @@ Skedge has two statements and two ways of talking about assignments.
 
 | Element | Form |
 |---|---|
-| Keyword | Upper case: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `GAP`, `TO`, `DO`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY_n_OF`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
+| Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `GAP`, `TO`, `DO`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY_n_OF`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
 | Quantifier | `ALL_OF`, `EACH_OF`, and `ANY_n_OF` for any whole `n` from 1: `ANY_1_OF`, `ANY_3_OF` |
 | Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session.four.week.two.monday` |
 | Variable, label | A bare identifier: `s`, `morning`. A label is followed by a colon. |
@@ -75,29 +75,37 @@ or a clause a statement cannot take, is a parse error and not a validation rule.
 
 ```lark
 // Skedge grammar. See docs/skedge.md for the language reference.
+//
+// Every keyword is case-insensitive: `REQUEST` and `request` are one word. Upper case is
+// the convention, and is what the docs and the examples are written in, but nobody should
+// have a request refused over a shift key. Names, variables and labels stay lower case,
+// and so cannot be spelled like a keyword: `on` reads as `ON` whatever was meant by it.
+//
+// Each keyword is a terminal of its own at a priority above NAME, and ends in `\b` so that
+// it only ever takes a whole word: `format` is a name, not `FOR` and then `mat`.
 
 start       : _NL* line (_NL+ line)* _NL*
 ?line       : binding | if_ | unless | labeled | request | prefer | gap
 
-binding     : (EACH_OF | ANY_N_OF) NAME "IN" set_
-if_         : "IF" condition
-unless      : "UNLESS" condition
+binding     : (EACH_OF | ANY_N_OF) NAME _IN set_
+if_         : _IF condition
+unless      : _UNLESS condition
 labeled     : NAME ":" request
-gap         : "GAP" NAME "TO" NAME amount
+gap         : _GAP NAME _TO NAME amount
 
-request     : "REQUEST" chooser "DO" do_target do_clause*         -> request_do
-            | "REQUEST" chooser do_clause*                        -> request_activity
-            | "REQUEST" chooser FREE do_clause*                   -> request_free
-            | "REQUEST" chooser "NOT" "DO" target clause*         -> request_not_do
-            | "REQUEST" chooser "NOT" FREE clause*                -> request_not_free
-            | "REQUEST" amount pattern CONSECUTIVE?               -> request_count
-prefer      : "PREFER" amount pattern CONSECUTIVE?                -> prefer_count
-            | "PREFER" pattern goal                               -> prefer_score
+request     : _REQUEST chooser _DO do_target do_clause*           -> request_do
+            | _REQUEST chooser do_clause*                         -> request_activity
+            | _REQUEST chooser FREE do_clause*                    -> request_free
+            | _REQUEST chooser _NOT _DO target clause*            -> request_not_do
+            | _REQUEST chooser _NOT FREE clause*                  -> request_not_free
+            | _REQUEST amount pattern CONSECUTIVE?                -> request_count
+prefer      : _PREFER amount pattern CONSECUTIVE?                 -> prefer_count
+            | _PREFER pattern goal                                -> prefer_score
 condition   : amount? pattern CONSECUTIVE?
 
-pattern     : pool "DO" target clause*                           -> pattern_doing
+pattern     : pool _DO target clause*                            -> pattern_doing
             | pool FREE clause*                                  -> pattern_free
-            | pool "NOT" FREE clause*                            -> pattern_busy
+            | pool _NOT FREE clause*                             -> pattern_busy
 goal        : (MAXIMIZE | MINIMIZE) REF "(" arg ("," arg)* ")"
 ?arg        : NAME | REF
 
@@ -106,26 +114,26 @@ amount      : BOUND (INT | DURATION)
 // Left of NOT, and in a positive REQUEST, quantifiers choose.
 ?do_target  : chooser | STRING
 ?do_clause  : during_c | on_c | as_role_c | for_ | with_ | without
-during_c    : "DURING" chooser
-on_c        : "ON" chooser
-as_role_c   : "AS_ROLE" chooser
+during_c    : _DURING chooser
+on_c        : _ON chooser
+as_role_c   : _AS_ROLE chooser
 chooser     : (ALL_OF | ANY_N_OF)? set_
             | EACH_OF set_
-            | EACH_OF NAME "IN" set_
+            | EACH_OF NAME _IN set_
 
 // In a pattern, a set is a pool; only EACH_OF may precede it.
 ?target     : pool | STRING
 ?clause     : during | on | as_role | for_ | with_ | without
-during      : "DURING" pool
-on          : "ON" pool
-as_role     : "AS_ROLE" pool
+during      : _DURING pool
+on          : _ON pool
+as_role     : _AS_ROLE pool
 pool        : set_
             | EACH_OF set_
-            | EACH_OF NAME "IN" set_
+            | EACH_OF NAME _IN set_
 
-for_        : "FOR" DURATION
-with_       : "WITH" set_
-without     : "WITHOUT" set_
+for_        : _FOR DURATION
+with_       : _WITH set_
+without     : _WITHOUT set_
 
 ?set_       : REF | NAME | DATE | "{" setexpr "}"
 ?setexpr    : range (SETOP range)*     -> setop
@@ -136,14 +144,32 @@ without     : "WITHOUT" set_
             | "(" setexpr ")"
 ?date_atom  : DATE | REF | NAME
 
-BOUND       : "AT_LEAST" | "AT_MOST" | "EXACTLY"
-ALL_OF      : "ALL_OF"
-EACH_OF     : "EACH_OF"
-ANY_N_OF    : /ANY_[1-9][0-9]*_OF/
-FREE        : "FREE"
-MAXIMIZE    : "MAXIMIZE"
-MINIMIZE    : "MINIMIZE"
-CONSECUTIVE : "CONSECUTIVE"
+// The keywords. A leading `_` keeps the token out of the tree, the way an anonymous string
+// would; `.5` puts them above NAME, which lower case would otherwise be read as.
+_REQUEST.5  : /REQUEST\b/i
+_PREFER.5   : /PREFER\b/i
+_IF.5       : /IF\b/i
+_UNLESS.5   : /UNLESS\b/i
+_GAP.5      : /GAP\b/i
+_TO.5       : /TO\b/i
+_DO.5       : /DO\b/i
+_NOT.5      : /NOT\b/i
+_IN.5       : /IN\b/i
+_DURING.5   : /DURING\b/i
+_ON.5       : /ON\b/i
+_AS_ROLE.5  : /AS_ROLE\b/i
+_FOR.5      : /FOR\b/i
+_WITH.5     : /WITH\b/i
+_WITHOUT.5  : /WITHOUT\b/i
+BOUND.5     : /AT_LEAST\b/i | /AT_MOST\b/i | /EXACTLY\b/i
+ALL_OF.5    : /ALL_OF\b/i
+EACH_OF.5   : /EACH_OF\b/i
+ANY_N_OF.5  : /ANY_[1-9][0-9]*_OF\b/i
+FREE.5      : /FREE\b/i
+MAXIMIZE.5  : /MAXIMIZE\b/i
+MINIMIZE.5  : /MINIMIZE\b/i
+CONSECUTIVE.5 : /CONSECUTIVE\b/i
+
 SETOP       : "+" | "-" | "&"
 OFFSET.2    : /[+-][ \t]*\d+d/
 DATE.3      : /\d{4}-\d{2}-\d{2}/
@@ -159,7 +185,7 @@ COMMENT     : /#[^\n]*/
 // continuation of the one above, and the newline before it is nothing. EACH_OF and
 // ANY_n_OF are deliberately not on the list: they begin a binding line of their own, and
 // a line starting with a bare name may be a label, so neither can continue anything.
-_CONTINUES  : /(\r?\n[ \t]*)+(?=(DO|NOT|FREE|DURING|ON|AS_ROLE|FOR|WITH|WITHOUT|IN|TO|CONSECUTIVE|ALL_OF|MAXIMIZE|MINIMIZE)\b|[+&}),]|\.\.|-[ \t]*[a-z_{(])/
+_CONTINUES  : /(\r?\n[ \t]*)+(?=(?i:DO|NOT|FREE|DURING|ON|AS_ROLE|FOR|WITH|WITHOUT|IN|TO|CONSECUTIVE|ALL_OF|MAXIMIZE|MINIMIZE)\b|[+&}),]|\.\.|-[ \t]*[a-z_{(])/
 _NL         : /(\r?\n[ \t]*)+/
 %import common.INT
 %import common.WS_INLINE

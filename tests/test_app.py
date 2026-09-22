@@ -1031,3 +1031,26 @@ def test_the_editor_keeps_a_request_on_its_own_tab(window):
     assert any(row[0] == "breaks" for row in season)  # written back where it was
     editor.clear()
     assert editor.home_box.currentText() == "S1 Special"  # a new one is this session's
+
+
+def coloured(edit, word: str) -> str:
+    """The colour the highlighter paints one word of the Skedge box in."""
+    text = edit.toPlainText()
+    at = text.index(word)
+    block = edit.document().findBlock(at)
+    start = at - block.position()
+    for run in block.layout().formats():
+        if run.start <= start < run.start + run.length:
+            return run.format.foreground().color().name()
+    return ""
+
+
+def test_a_keyword_is_coloured_in_whichever_case_it_is_written_in(window):
+    """Skedge reads `request` and `REQUEST` alike, so the editor colours them alike."""
+    edit = window.editor.skedge_edit
+    edit.setPlainText("request staff.dylan do 'x' during blocks.clinic_1")
+    assert coloured(edit, "request") == palette.KEYWORD
+    assert coloured(edit, "during") == palette.KEYWORD
+    assert coloured(edit, "staff.dylan") == palette.NAME
+    edit.setPlainText("REQUEST staff.dylan DO 'x' DURING blocks.clinic_1")
+    assert coloured(edit, "REQUEST") == palette.KEYWORD

@@ -152,6 +152,27 @@ def test_a_gap_may_be_written_in_days():
     assert days.amount.value == 2880 and days.amount.duration
 
 
+def test_a_keyword_may_be_written_in_either_case():
+    """Upper case is the convention; lower case is the same request, not an error."""
+    shouted = parse("REQUEST ALL_OF staff.counselor DO 'x' FOR 30m DURING ANY_1_OF blocks.all")
+    quiet = parse("request all_of staff.counselor do 'x' for 30m during any_1_of blocks.all")
+    assert shouted == quiet
+    (binding, line) = parse(
+        "each_of c in staff.counselor\nrequest c not free during blocks.clinic_1"
+    ).lines
+    assert binding.selector.quantifier == ast.EACH_OF and line.negated
+    (count,) = parse("prefer at_most 2 staff.all do 'break' consecutive").lines
+    assert count.amount.bound == ast.AT_MOST and count.consecutive
+
+
+def test_a_name_that_starts_with_a_keyword_is_still_a_name():
+    """`FOR` ends at a word boundary, so `format` is one word and not two."""
+    (binding, _) = parse(
+        "each_of format in staff.counselor\nrequest format do 'x' during blocks.a"
+    ).lines
+    assert binding.selector.var == "format"
+
+
 def test_a_day_offset_is_still_an_offset_and_not_a_duration():
     """`- 6d` inside a set is an offset from a date; only the lexer tells them apart."""
     (line,) = parse("REQUEST staff.rob DO 'x' DURING blocks.a ON {dates.target - 6d}").lines
