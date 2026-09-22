@@ -225,6 +225,7 @@ def _build(
         baseline=baseline,
         adjustments=adjustments,
         resting=resting,
+        away=frozenset(away),
         warnings=tuple(warnings),
     )
 

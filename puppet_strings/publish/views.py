@@ -26,17 +26,21 @@ HEADINGS_ROW = 1  # row 0 is the title; row 1 names the blocks
 def staff_view(
     dataset: Dataset, assignments: tuple[Assignment, ...], remainder: str = DEFAULT_REMAINDER
 ) -> Table:
-    """One row per staff member, one column per block.
+    """One row per staff member at camp, one column per block.
 
     A block's cell lists the person's tasks in time order, joined by ", then ". Time in the
     block that no task covers is labeled with `remainder` (DYOW/WPs by default).
+
+    Only the staff the span's Staff Categories sheet names get a row. The Skills sheet keeps
+    everyone who has ever worked here, and a schedule listing people who are not at camp
+    this session is a schedule people have to read past.
     """
     blocks = dataset.blocks_on(dataset.target)
     rows: Table = [["Staff"] + [_label(b.id) for b in blocks]]
     by_staff_block: dict[tuple[str, str], list[Assignment]] = {}
     for a in assignments:
         by_staff_block.setdefault((a.staff, a.block), []).append(a)
-    for staff_id in sorted(dataset.staff, key=lambda s: dataset.staff[s].name):
+    for staff_id in sorted(dataset.at_camp, key=lambda s: dataset.staff[s].name):
         row = [dataset.staff[staff_id].name]
         for block in blocks:
             here = sorted(by_staff_block.get((staff_id, block.id), []), key=lambda a: a.start)
@@ -142,9 +146,10 @@ def clinic_view(
 
     bold.append(len(rows))
     busy = {(a.staff, a.block) for a in assignments}
-    free = {
-        b: [names[s] for s in sorted(names, key=names.get) if (s, b) not in busy] for b in blocks
-    }
+    # Free means free and here: somebody this span does not have is not spare, and listing
+    # them under DYOW/WPs on every block of the day is how a name nobody knows gets read out.
+    here = sorted(dataset.at_camp, key=lambda s: names[s])
+    free = {b: [names[s] for s in here if (s, b) not in busy] for b in blocks}
     rows += _stack(remainder, free, blocks)
     return Styled(
         rows,

@@ -70,6 +70,17 @@ def test_staff_view(dataset):
     assert {row[0]: row for row in custom[1:]}["James"][6] == "own work, then break"
 
 
+def test_the_views_leave_out_whoever_is_not_at_camp(dataset):
+    """A Skills row the span's Staff Categories sheet does not name is nobody's to read."""
+    from dataclasses import replace
+
+    away = replace(dataset, away=frozenset({"rob", "paul"}))
+    names = [row[0] for row in staff_view(away, rows(dataset))[1:]]
+    assert "Rob" not in names and "Paul" not in names and "Dylan" in names
+    free = [cell for row in clinic_view(away, ()).rows for cell in row]
+    assert "Rob" not in free and "Dylan" in free
+
+
 def test_clinic_view(dataset):
     view = clinic_view(dataset, rows(dataset))
     table = view.rows

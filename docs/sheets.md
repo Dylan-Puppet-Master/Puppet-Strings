@@ -415,8 +415,10 @@ Ad hoc tasks are written in quotes (`'counselor hour'`).
 
 These tabs are overwritten on every publish:
 
-- **Staff View**: one row per staff member, one column per block, with each block's tasks
-  in time order and `DYOW/WPs` for unused time.
+- **Staff View**: one row per staff member at camp, one column per block, with each block's
+  tasks in time order and `DYOW/WPs` for unused time. Only the people the span's Staff
+  Categories sheet names get a row; the Skills sheet keeps everyone who has ever worked
+  here, and the ones it lists who are not here this session are left off both views.
 - **Clinic View**: the printable clinic schedule. A merged title (`Day 4, Session 1 -
   Wednesday`), a header of clinic blocks, then one row per clinic grouped by category in
   Clinic_Data order with a blank row between groups. A clinic with two positions takes two

@@ -492,7 +492,17 @@ class Dataset:
     baseline: tuple[Assignment, ...] | None = None
     adjustments: tuple[Adjustment, ...] = ()
     resting: Mapping[date, Mapping[str, frozenset[str]]] = field(default_factory=dict)
+    # Who the span's Staff Categories sheet does not name, and so is not at camp this span.
+    # The Skills sheet keeps everyone who ever worked here, and the ones who have left or
+    # are here another session are nothing to do with this day: they hold no assignment,
+    # and nothing published says their name. An empty set is everybody being here.
+    away: frozenset[str] = frozenset()
     warnings: tuple[str, ...] = ()
+
+    @property
+    def at_camp(self) -> tuple[str, ...]:
+        """The staff this span has, in Skills sheet order. A day is only ever about them."""
+        return tuple(i for i in self.staff if i not in self.away)
 
     @property
     def today_adjustments(self) -> tuple[Adjustment, ...]:

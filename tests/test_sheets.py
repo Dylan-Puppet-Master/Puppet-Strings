@@ -608,6 +608,7 @@ def test_somebody_in_no_category_is_away(fixtures_copy):
     assert loaded.staff["alan"].resting_blocks == {b.id for b in loaded.blocks_on(loaded.target)}
     assert not loaded.holds("alan", loaded.target, "clinic_1")
     assert any("in no category this span, so they are away" in w for w in loaded.warnings)
+    assert "alan" in loaded.away and "alan" not in loaded.at_camp  # and off the published views
 
 
 def test_split_requests_reads_an_id_for_the_tab_it_belongs_on(tmp_path):
