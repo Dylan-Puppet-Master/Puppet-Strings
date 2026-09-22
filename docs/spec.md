@@ -50,7 +50,7 @@ Skedge has two statements and two ways of talking about assignments.
 
 | Element | Form |
 |---|---|
-| Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY_n_OF`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
+| Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `AND`, `OR`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY_n_OF`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
 | Quantifier | `ALL_OF`, `EACH_OF`, and `ANY_n_OF` for any whole `n` from 1: `ANY_1_OF`, `ANY_3_OF` |
 | Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session.four.week.two.monday` |
 | Variable, label | A bare identifier: `s`, `morning`. A label is followed by a colon. |
@@ -88,8 +88,8 @@ start       : _NL* line (_NL+ line)* _NL*
 ?line       : binding | if_ | unless | labeled | request | prefer | gap | exclude
 
 binding     : (EACH_OF | ANY_N_OF) NAME _IN set_
-if_         : _IF condition
-unless      : _UNLESS condition
+if_         : _IF _NL* condition
+unless      : _UNLESS _NL* condition
 labeled     : NAME ":" request
 gap         : _GAP NAME _TO NAME amount
 
@@ -105,7 +105,12 @@ prefer      : _PREFER amount pattern CONSECUTIVE?                 -> prefer_coun
 // Who is not at camp for part of a day, and what to write where they would have been.
 // It takes a quoted label rather than an activity: they are not doing anything here.
 exclude     : _EXCLUDE chooser _DO STRING do_clause*
-condition   : amount? pattern CONSECUTIVE?
+
+// A condition is one test, or several joined by AND or by OR. Mixing the two needs
+// parentheses, as mixing set operators does, so there is no precedence to remember.
+?condition  : term ((AND | OR) _NL* term)*        -> junction
+?term       : test | "(" _NL* condition ")"
+test        : amount? pattern CONSECUTIVE?
 
 pattern     : pool _DO target clause*                            -> pattern_doing
             | pool FREE clause*                                  -> pattern_free
@@ -180,6 +185,8 @@ FREE.5      : /FREE\b/i
 MAXIMIZE.5  : /MAXIMIZE\b/i
 MINIMIZE.5  : /MINIMIZE\b/i
 CONSECUTIVE.5 : /CONSECUTIVE\b/i
+AND.5       : /AND\b/i
+OR.5        : /OR\b/i
 
 SETOP       : "+" | "-" | "&"
 OFFSET.2    : /[+-][ \t]*\d+d/
@@ -192,11 +199,12 @@ NAME        : /[a-z_][a-z0-9_]*/
 COMMENT     : /#[^\n]*/
 
 // A statement may be written over as many lines as it reads well on. A line beginning
-// with a word that continues a statement -- DO, DURING, ON, FOR, a set operator -- is a
-// continuation of the one above, and the newline before it is nothing. EACH_OF and
+// with a word that continues a statement -- DO, DURING, ON, FOR, AND, a set operator -- is
+// a continuation of the one above, and the newline before it is nothing. A line ending in
+// IF, UNLESS, AND, OR or an opening parenthesis runs on into the next, by the grammar. EACH_OF and
 // ANY_n_OF are deliberately not on the list: they begin a binding line of their own, and
 // a line starting with a bare name may be a label, so neither can continue anything.
-_CONTINUES  : /(\r?\n[ \t]*)+(?=(?i:DO|NOT|FREE|DURING|ON|AS_ROLE|FOR|WITH|WITHOUT|IN|TO|CONSECUTIVE|ALL_OF|MAXIMIZE|MINIMIZE)\b|[+&}),]|\.\.|-[ \t]*[a-z_{(])/
+_CONTINUES  : /(\r?\n[ \t]*)+(?=(?i:DO|NOT|FREE|DURING|ON|AS_ROLE|FOR|WITH|WITHOUT|IN|TO|CONSECUTIVE|ALL_OF|MAXIMIZE|MINIMIZE|AND|OR)\b|[+&}),]|\.\.|-[ \t]*[a-z_{(])/
 _NL         : /(\r?\n[ \t]*)+/
 %import common.INT
 %import common.WS_INLINE
@@ -479,9 +487,15 @@ A declaration is lines of these kinds, in any order.
 |---|---|---|
 | Statement | `[label:] REQUEST …` or `PREFER …` | §9. Only a positive `REQUEST … DO` may be labeled. |
 | Binding | `EACH_OF x IN s`, `ANY_n_OF x IN s` | §6.4. |
-| Condition | `IF [amount] <pattern> [CONSECUTIVE]` | The statements apply only when this holds. With no amount, it holds when there is a match. |
-| Negative condition | `UNLESS [amount] <pattern> [CONSECUTIVE]` | The statements apply only when this does not hold. |
+| Condition | `IF <test>` | The statements apply only when this holds. |
+| Negative condition | `UNLESS <test>` | The statements apply only when this does not hold. |
 | Gap | `GAP a TO b <amount>` | Relates the assignments of the `REQUEST` labeled `a` to those of the one labeled `b`. |
+
+A test is `[amount] <pattern> [CONSECUTIVE]`, which with no amount holds when there is a
+match, or several tests joined by `AND` (all hold) or by `OR` (at least one does).
+Parentheses group, and mixing `AND` with `OR` requires them. A condition may run over as
+many lines as it reads well on: a line may end in `IF`, `UNLESS`, `AND`, `OR` or `(`, and
+a line beginning with `AND` or `OR` continues the one above.
 
 A declaration needs at least one statement and takes at most one condition, and may mix
 `REQUEST` and `PREFER` statements freely: one piece of plain English often needs several
@@ -612,6 +626,7 @@ a mapping call. The validator and the solver report:
 | `unknown variable` | A bare identifier no `IN` binds. |
 | `variable bound twice` | Two bindings of one identifier. |
 | `mixed set operators need parentheses` | `{a + b & c}` and the like. |
+| `mixed AND and OR need parentheses` | `IF a AND b OR c`. |
 | `AS_ROLE needs an activity` | `AS_ROLE` with a quoted task or `FREE`. |
 | `FOR needs a quoted task` | `FOR` with any other target. |
 | `FREE has no instance` | `WITH` or `WITHOUT` after `FREE`. |

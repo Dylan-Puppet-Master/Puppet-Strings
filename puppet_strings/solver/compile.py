@@ -39,7 +39,9 @@ from puppet_strings.skedge.resolve import (
     Count,
     Exclusion,
     Forbid,
+    Junction,
     Pattern,
+    Predicate,
     Requirement,
     Resolved,
     Score,
@@ -265,9 +267,16 @@ class Compiler:
     def _applies(self, condition: Condition | None, name: str) -> Literal:
         if condition is None:
             return True
-        amount = condition.amount or ONE_MATCH
-        holds = self._holds(amount, condition.pattern, condition.consecutive, f"if:{name}")
+        holds = self._test(condition.test, f"if:{name}")
         return _negate(holds) if condition.unless else holds
+
+    def _test(self, test: Predicate | Junction, name: str) -> Literal:
+        """A literal true when a condition's test holds: AND and OR over its predicates."""
+        if isinstance(test, Junction):
+            parts = [self._test(part, f"{name}.{i}") for i, part in enumerate(test.parts)]
+            return self._all_of(parts, name) if test.all else self._any_of(parts, name)
+        amount = test.amount or ONE_MATCH
+        return self._holds(amount, test.pattern, test.consecutive, name)
 
     # -- PREFER --------------------------------------------------------------------------------
 

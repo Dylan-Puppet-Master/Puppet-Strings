@@ -101,9 +101,14 @@ def _check_line(line: ast.Line) -> None:
         if not line.amount.duration:
             raise _error("GAP needs a duration", line.amount.pos)
         return
-    amount = getattr(line, "amount", None)
-    if amount is not None:
-        _check_amount(amount)
+    amounts = (
+        [p.amount for p in ast.predicates(line.test)]
+        if isinstance(line, ast.Condition)
+        else [getattr(line, "amount", None)]
+    )
+    for amount in amounts:
+        if amount is not None:
+            _check_amount(amount)
     for pattern in ast.patterns(line):
         _check_clauses(pattern.clauses, pattern.what)
 

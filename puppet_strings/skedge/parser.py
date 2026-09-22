@@ -161,15 +161,28 @@ class _Builder(Transformer):
         return ast.Binding(selector, _pos(meta))
 
     def if_(self, meta, items):
-        return replace(items[0], pos=_pos(meta))
+        return ast.Condition(False, _test(items[0]), _pos(meta))
 
     def unless(self, meta, items):
-        return replace(items[0], unless=True, pos=_pos(meta))
+        return ast.Condition(True, _test(items[0]), _pos(meta))
 
-    def condition(self, meta, items):
+    def junction(self, meta, items):
+        test = items[0]
+        if len(items) == 1:
+            return ast.Condition(False, test, test.pos)
+        ops = items[1::2]
+        for op in ops:
+            if str(op).upper() != str(ops[0]).upper():
+                raise ast.SkedgeError("mixed AND and OR need parentheses", op.line, op.column)
+        junction = ast.Junction(
+            ops[0].type == "AND", tuple(_test(x) for x in items[::2]), _pos(meta)
+        )
+        return ast.Condition(False, junction, _pos(meta))
+
+    def test(self, meta, items):
         amount = items[0] if isinstance(items[0], ast.Amount) else None
         pattern = next(x for x in items if isinstance(x, ast.Pattern))
-        return ast.Condition(False, amount, pattern, _is(items[-1], "CONSECUTIVE"), _pos(meta))
+        return ast.Predicate(amount, pattern, _is(items[-1], "CONSECUTIVE"), _pos(meta))
 
     def labeled(self, meta, items):
         name, statement = items
@@ -312,6 +325,15 @@ class _Builder(Transformer):
         offset = str(items[1]).replace(" ", "").replace("\t", "")
         days = int(offset[1:-1])
         return ast.DateOffset(_atom(items[0]), days if offset[0] == "+" else -days, _pos(meta))
+
+
+def _test(item) -> ast.Test:
+    """A condition's test: what `junction` built, less the Condition it wrapped it in.
+
+    A parenthesised condition is one term of the condition around it, so what the rule
+    returns has to be unwrapped wherever it is used.
+    """
+    return item.test if isinstance(item, ast.Condition) else item
 
 
 def _target(item) -> ast.Selector | ast.Task:

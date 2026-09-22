@@ -34,6 +34,8 @@ KEYWORD_WORDS = (
     "EXCLUDE",
     "IF",
     "UNLESS",
+    "AND",
+    "OR",
     "GAP",
     "TO",
     "DO",

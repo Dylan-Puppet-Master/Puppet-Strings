@@ -147,13 +147,28 @@ class Exclusion:
 
 
 @dataclass(frozen=True)
-class Condition:
-    """`IF` or (`unless`) `UNLESS`, resolved. Without an amount it asks for one match."""
+class Predicate:
+    """One test of a condition, resolved. Without an amount it asks for one match."""
 
-    unless: bool
     amount: ast.Amount | None
     pattern: Pattern
     consecutive: bool
+
+
+@dataclass(frozen=True)
+class Junction:
+    """Tests joined by `AND` (`all`) or by `OR`, resolved."""
+
+    all: bool
+    parts: tuple["Predicate | Junction", ...]
+
+
+@dataclass(frozen=True)
+class Condition:
+    """`IF` or (`unless`) `UNLESS`, resolved."""
+
+    unless: bool
+    test: Predicate | Junction
 
 
 Statement = Requirement | Forbid | Count | Score | Exclusion
@@ -572,8 +587,13 @@ def _staff(expr: ast.SetExpr, scope: _Scope) -> frozenset[str]:
 
 
 def _condition(condition: ast.Condition, scope: _Scope) -> Condition:
-    pattern = _pattern(condition.pattern, scope)
-    return Condition(condition.unless, condition.amount, pattern, condition.consecutive)
+    return Condition(condition.unless, _test(condition.test, scope))
+
+
+def _test(test: ast.Test, scope: _Scope) -> Predicate | Junction:
+    if isinstance(test, ast.Junction):
+        return Junction(test.all, tuple(_test(part, scope) for part in test.parts))
+    return Predicate(test.amount, _pattern(test.pattern, scope), test.consecutive)
 
 
 def _score(statement: ast.Score, scope: _Scope) -> Score:

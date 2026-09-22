@@ -1155,6 +1155,34 @@ def test_if_with_an_amount_over_a_run():
     assert len(result.unsatisfied) == 1
 
 
+def test_and_or_join_conditions():
+    members = [staff("David", archery_1_2=OK), staff("Lisa")]
+    categories = {"director": ["David"], "office": ["Lisa"]}
+
+    def desk(joined):
+        text = (
+            f"IF staff.director FREE DURING blocks.clinic_1\n{joined} staff.lisa FREE DURING blocks.clinic_2\n"
+            "REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1"
+        )
+        ds = dataset(members, [ARCHERY], categories=categories, requests=[request("desk", text)])
+        return where(run(ds), activity="front desk")
+
+    # Lisa is free in clinic 2 whatever happens, so OR holds and AND holds too.
+    assert desk("AND") and desk("OR")
+    busy = (
+        "IF staff.director NOT FREE DURING blocks.clinic_1\n{} staff.lisa FREE DURING blocks.clinic_2\n"
+        "REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1"
+    )
+    for joined, expected in (("AND", False), ("OR", True)):
+        ds = dataset(
+            members,
+            [ARCHERY],
+            categories=categories,
+            requests=[request("desk", busy.format(joined))],
+        )
+        assert bool(where(run(ds), activity="front desk")) is expected
+
+
 # -- the time horizon ------------------------------------------------------------------------
 
 MAINTENANCE = "REQUEST staff.dylan DO 'archery maintenance' DURING ANY_1_OF blocks.all ON ANY_1_OF {2026-09-16 .. 2026-09-17}"

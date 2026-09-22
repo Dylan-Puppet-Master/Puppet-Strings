@@ -41,7 +41,7 @@ A single thing (`staff.rob`, `blocks.clinic_1`, `2026-09-21`) needs no quantifie
 `ON` means the day being scheduled.
 
 `NOT DO` forbids, `FREE` means nothing to do (and `NOT FREE` something), `WITH` / `WITHOUT` say who is alongside,
-`IF` / `UNLESS` make a request conditional, `GAP` puts time between two requirements, and
+`IF` / `UNLESS` make a request conditional (`AND` / `OR` join conditions), `GAP` puts time between two requirements, and
 `EXCLUDE` takes somebody out of the day altogether. That is the whole language.
 
 Keywords are written in upper case here and everywhere else, which is what makes a request
@@ -330,6 +330,22 @@ REQUEST s FREE DURING blocks.clinic_1
 amount: `IF AT_LEAST 3 s DO …`). `UNLESS` is the opposite. Published past days are
 facts, so an `IF` about yesterday is simply true or false.
 
+Conditions join with `AND` (every one holds) and `OR` (at least one does), and a long one
+reads best a test to a line:
+
+```skedge
+# If two counselors are on break at once and Dylan is free at lunch, he covers the desk.
+IF
+AT_LEAST 2 staff.counselor DO 'break' DURING EACH_OF blocks.all
+AND
+staff.dylan FREE DURING blocks.lunch
+REQUEST staff.dylan DO 'front desk' DURING blocks.lunch
+```
+
+Mixing the two needs parentheses, the way mixing set operators does, so there is no
+precedence to remember: `IF (a AND b) OR c`. `AND` and `OR` are keywords like any other,
+so a line beginning with either continues the condition above it.
+
 ```skedge
 # Someone from the office covers the front desk in clinic 1, unless a director is free then.
 UNLESS staff.director FREE DURING blocks.clinic_1
@@ -394,7 +410,7 @@ gap; it is checked on the day it turns into.
 
 A statement can be written on as many lines as it reads well on. A line beginning with a
 word that continues a statement — `DO`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`,
-`WITHOUT`, `NOT`, `FREE`, `IN`, `TO`, `ALL_OF`, `CONSECUTIVE` — or with a set operator or a
+`WITHOUT`, `NOT`, `FREE`, `IN`, `TO`, `ALL_OF`, `CONSECUTIVE`, `AND`, `OR` — or with a set operator or a
 closing brace, carries on the line above it. Nothing needs indenting, and where a statement
 fits on one line it can stay there.
 

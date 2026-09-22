@@ -113,13 +113,39 @@ def test_bindings_conditions_labels_and_gaps():
         2,
         "p",
     )
-    assert unless.unless and unless.consecutive and unless.amount.value == 3
-    assert unless.pattern.who.expr == ast.Var("p", ast.Pos(2, 19))
+    assert unless.unless and unless.test.consecutive and unless.test.amount.value == 3
+    assert unless.test.pattern.who.expr == ast.Var("p", ast.Pos(2, 19))
     assert (first.label, last.label) == ("first", "last") and first.pos == ast.Pos(3, 8)
     assert gap == ast.Gap(
         "first", "last", ast.Amount(ast.AT_LEAST, 0, True, ast.Pos(5, 19)), ast.Pos(5, 1)
     )
-    assert not if_.unless and if_.amount is None and if_.pattern.what is None
+    assert not if_.unless and if_.test.amount is None and if_.test.pattern.what is None
+
+
+def test_conditions_join_with_and_and_or_over_several_lines():
+    (if_, _) = parse(
+        "IF\n"
+        "AT_LEAST 2 staff.counselor DO 'break' DURING EACH_OF blocks.all CONSECUTIVE\n"
+        "AND\n"
+        "staff.dylan FREE DURING blocks.lunch\n"
+        "REQUEST staff.rob DO 'x' DURING blocks.lunch"
+    ).lines
+    assert isinstance(if_.test, ast.Junction) and if_.test.all
+    first, second = if_.test.parts
+    assert first.consecutive and first.amount.value == 2 and second.pattern.what is None
+    (unless, _) = parse(
+        "UNLESS (staff.a FREE and staff.b FREE)\n"
+        "OR staff.c FREE\n"
+        "REQUEST staff.rob DO 'x' DURING blocks.lunch"
+    ).lines
+    assert unless.unless and not unless.test.all
+    assert [type(p) for p in unless.test.parts] == [ast.Junction, ast.Predicate]
+    assert len(list(ast.predicates(unless.test))) == 3
+
+
+def test_mixing_and_with_or_needs_parentheses():
+    with pytest.raises(ast.SkedgeError, match="mixed AND and OR need parentheses"):
+        parse("IF staff.a FREE AND staff.b FREE OR staff.c FREE\nREQUEST staff.rob FREE")
 
 
 def test_set_expressions():

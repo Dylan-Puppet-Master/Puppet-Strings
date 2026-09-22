@@ -258,13 +258,42 @@ class Binding:
 
 
 @dataclass(frozen=True)
+class Predicate:
+    """`[amount] <pattern> [CONSECUTIVE]`: one thing a condition asks about."""
+
+    amount: Amount | None
+    pattern: Pattern
+    consecutive: bool
+    pos: Pos
+
+
+@dataclass(frozen=True)
+class Junction:
+    """`a AND b AND …` or, without `all`, `a OR b OR …`."""
+
+    all: bool
+    parts: tuple["Test", ...]
+    pos: Pos
+
+
+Test = Predicate | Junction
+
+
+def predicates(test: Test) -> Iterator[Predicate]:
+    """The predicates a test is made of, in source order."""
+    if isinstance(test, Junction):
+        for part in test.parts:
+            yield from predicates(part)
+    else:
+        yield test
+
+
+@dataclass(frozen=True)
 class Condition:
     """`IF …` or, with `unless`, `UNLESS …`."""
 
     unless: bool
-    amount: Amount | None
-    pattern: Pattern
-    consecutive: bool
+    test: Test
     pos: Pos
 
 
@@ -320,8 +349,10 @@ def clause(clauses: tuple[Clause, ...], kind: type) -> Clause | None:
 
 def patterns(line: Line) -> tuple[Pattern, ...]:
     """The patterns a line contains."""
-    if isinstance(line, Count | Score | Condition):
+    if isinstance(line, Count | Score):
         return (line.pattern,)
+    if isinstance(line, Condition):
+        return tuple(p.pattern for p in predicates(line.test))
     return ()
 
 
