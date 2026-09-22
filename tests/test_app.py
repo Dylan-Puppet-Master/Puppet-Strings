@@ -1202,9 +1202,7 @@ def test_every_keyword_the_grammar_has_is_a_keyword_to_the_editor():
 
     from puppet_strings.app.editor import KEYWORD_WORDS, is_keyword
 
-    grammar = (
-        Path(puppet_strings.__file__).parent / "skedge" / "grammar.lark"
-    ).read_text()
+    grammar = (Path(puppet_strings.__file__).parent / "skedge" / "grammar.lark").read_text()
     words = set(re.findall(r"/([A-Z_]+)\\b/i", grammar))
     assert len(words) > 20
     assert words <= set(KEYWORD_WORDS), sorted(words - set(KEYWORD_WORDS))

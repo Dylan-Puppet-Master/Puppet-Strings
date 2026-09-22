@@ -54,26 +54,43 @@ def source(monkeypatch):
     src.sheet_ids = {"config": "id"}
     src._open = {"config": spreadsheet}
     src._tabs = {}
+    src._folders, src._discovered = {}, set()
     src.folder_ids = {}
     return src, spreadsheet
 
 
-def test_read_many_uses_one_batch_call_and_caches_tabs(source):
+def test_read_many_asks_for_the_values_and_nothing_else(source):
+    """A read is one request. What tabs a spreadsheet has is a question of its own, and a
+    load reads a spreadsheet per published day, so asking it too would double the day."""
     src, spreadsheet = source
     tables = src.read_many("config", ["Blocks", "Empty", "Calendar"])
     assert tables == {"Blocks": [["a", "b"], ["1"]], "Empty": [], "Calendar": [["date"]]}
-    assert spreadsheet.calls == ["worksheets", ("batch", ("'Blocks'", "'Empty'", "'Calendar'"))]
+    assert spreadsheet.calls == [("batch", ("'Blocks'", "'Empty'", "'Calendar'"))]
     assert src.read("config", "Blocks") == [["a", "b"], ["1"]]
-    assert spreadsheet.calls.count("worksheets") == 1
+    assert "worksheets" not in spreadsheet.calls
     assert src.read_many("config", []) == {}
+    assert spreadsheet.calls.count(("batch", ("'Blocks'",))) == 1  # and no request for nothing
 
 
 def test_missing_tab_is_a_load_error(source):
-    src, _ = source
+    """The failed read is what asks what tabs there are, so the message still names it."""
+    src, spreadsheet = source
     with pytest.raises(LoadError, match="no tab 'Nope'"):
         src.read("config", "Nope")
+    assert "worksheets" in spreadsheet.calls  # asked once the read had failed, not before
     with pytest.raises(LoadError, match="no spreadsheet chosen"):
         src.read("published", "x")
+
+
+def test_a_read_that_fails_for_another_reason_says_what_happened(source):
+    src, spreadsheet = source
+
+    def refuse(ranges):
+        raise RuntimeError("the network went away")
+
+    spreadsheet.values_batch_get = refuse
+    with pytest.raises(LoadError, match="the network went away"):
+        src.read("config", "Blocks")
 
 
 class StyleWorksheet:
@@ -214,6 +231,7 @@ def sheets_source(tree, **config):
     src.sheet_ids = config.get("sheet_ids", {})
     src.folder_ids = {"root": "root"}
     src._open, src._tabs = {}, {}
+    src._folders, src._discovered = {}, set()
     src._drive = FakeDrive(tree)
     return src
 

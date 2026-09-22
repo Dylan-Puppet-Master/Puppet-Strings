@@ -231,6 +231,8 @@ class SheetsSource:
         self.folder_ids = folders or {}
         self._open: dict[str, object] = {}
         self._tabs: dict[str, list[str]] = {}
+        self._folders: dict[tuple[str, tuple[str, ...]], str] = {}  # where a path is in Drive
+        self._discovered: set[tuple[str, int]] = set()
         self._drive = None
 
     @property
@@ -300,6 +302,8 @@ class SheetsSource:
         """
         if root not in self.folder_ids:
             raise LoadError(f"{root}: no folder chosen; pick one in Configure")
+        if (root, year) in self._discovered:
+            return  # asked and answered: which spreadsheet is which is a thing of the tree
         found: dict[str, str] = {}
         for path in ((), (str(year),)):  # the year wins, so it is looked at second
             for title, key in self.documents(root, path).items():
@@ -307,6 +311,7 @@ class SheetsSource:
                 if role is not None:
                     found[role] = key
         self.sheet_ids = {**self.sheet_ids, **found}  # what is in the tree is the truth
+        self._discovered.add((root, year))
 
     def name(self, role: str, key: str) -> None:
         """Point a role at a Drive id, as `discover` does from the names in the tree."""
@@ -349,18 +354,32 @@ class SheetsSource:
         self._tabs.pop(key, None)
 
     def _walk(self, root: str, path: tuple[str, ...], make: bool) -> str | None:
-        """The folder id at `root/<path>`, made on the way down when `make`."""
+        """The folder id at `root/<path>`, made on the way down when `make`.
+
+        Every folder found is remembered for the rest of the run, prefixes included. A
+        folder's id does not change while the window is open, and the tree is walked again
+        for every span a load looks back over: `2027/Main Season/Session 3` is three Drive
+        questions, of which the first two have the same answer as they did for session 2.
+
+        What is *in* a folder is not remembered, only where the folder is, so a day added
+        to the tree is still found by the next load.
+        """
         if root not in self.folder_ids:
             raise LoadError(f"{root}: no folder chosen; pick one in Configure")
         here = self.folder_ids[root]
-        for name in path:
+        for depth, name in enumerate(path):
+            step = (root, path[: depth + 1])
+            if step in self._folders:
+                here = self._folders[step]
+                continue
             if make:
                 here = self.drive.folder(here, name).id
-                continue
-            found = self.drive.child(here, name, FOLDER_MIME)
-            if found is None:
-                return None
-            here = found.id
+            else:
+                found = self.drive.child(here, name, FOLDER_MIME)
+                if found is None:
+                    return None  # not remembered: it may be made before the next load
+                here = found.id
+            self._folders[step] = here
         return here
 
     def tabs(self, sheet: str) -> list[str]:
@@ -374,18 +393,35 @@ class SheetsSource:
         return self.read_many(sheet, [tab])[tab]
 
     def read_many(self, sheet: str, tabs: list[str]) -> dict[str, Table]:
-        """All values of several worksheets in one request."""
+        """All values of several worksheets in one request.
+
+        The values are asked for straight out, without asking first what tabs the
+        spreadsheet has. That question is a request of its own, and a load reads a
+        spreadsheet per published day and per cabin act sheet, so asking it every time
+        doubles the number of requests a day costs. It is asked only when the read fails,
+        which is the one time the answer says anything: it is what names the missing tab.
+        """
         if not tabs:
             return {}
-        missing = [tab for tab in tabs if tab not in self.tabs(sheet)]
-        if missing:
-            raise LoadError(f"{sheet}: no tab {', '.join(repr(t) for t in missing)}")
         ranges = [f"'{tab}'" for tab in tabs]
-        response = self._spreadsheet(sheet).values_batch_get(ranges)
+        try:
+            response = self._spreadsheet(sheet).values_batch_get(ranges)
+        except Exception as e:  # noqa: BLE001 - re-raised, once it can say what was wrong
+            raise self._why_not(sheet, tabs, e) from e
         tables = {}
         for tab, value_range in zip(tabs, response.get("valueRanges", []), strict=True):
             tables[tab] = [list(row) for row in value_range.get("values", [])]
         return tables
+
+    def _why_not(self, sheet: str, tabs: list[str], failure: Exception) -> LoadError:
+        """Why a read failed, in the words the Puppet Master can do something about."""
+        try:
+            missing = [tab for tab in tabs if tab not in self.tabs(sheet)]
+        except Exception:  # noqa: BLE001 - the first failure is the one worth reporting
+            missing = []
+        if missing:
+            return LoadError(f"{sheet}: no tab {', '.join(repr(t) for t in missing)}")
+        return LoadError(f"{sheet}: could not be read ({failure})")
 
     def write(self, sheet: str, tab: str, table: Table) -> None:
         """Clear and refill a worksheet, adding it if missing."""

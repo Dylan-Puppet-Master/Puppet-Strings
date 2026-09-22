@@ -727,6 +727,16 @@ Recorded so the outline matches the code.
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
   leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
   is what keeps the pane quiet enough to be worth reading.
+- **A read is one request** (Puppet Master, 2026-09-22). `read_many` asked Google what
+  tabs a spreadsheet had before asking for the values, which is a second round trip per
+  spreadsheet — and a load opens one spreadsheet per published day and per cabin act
+  sheet, so by late August that question was half the traffic of a reload. The values are
+  now asked for outright and the tab list is fetched only when that fails, which is the
+  one time the answer says anything: it is what names the missing tab. `_walk` also
+  remembers where each folder of the tree is, prefixes included, so looking back over four
+  spans walks `2027/Main Season` once rather than four times, and `discover` runs once per
+  root and year. Measured over a modelled season, a reload 70 published days in goes from
+  143 API calls to 73.
 - **EXCLUDE takes somebody out of the day** (Puppet Master, 2026-09-22). A day off is not
   something to ask the solver for, so `EXCLUDE <who> DO '<label>' [DURING] [ON]` is applied
   rather than compiled. `puppet_strings/exclude.py` resolves every `EXCLUDE` on the sheet
