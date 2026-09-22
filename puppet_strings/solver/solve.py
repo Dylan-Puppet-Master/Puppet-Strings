@@ -15,7 +15,8 @@ from puppet_strings.solver.structural import add_structural_constraints
 from puppet_strings.solver.tiers import Cancel, Cancelled, Deadline, solve_tiers
 from puppet_strings.solver.variables import Slot, Variables
 
-__all__ = ["Cancel", "Cancelled", "RequestError", "solve"]  # Cancel and Cancelled live in tiers
+# Cancel and Cancelled live in tiers
+__all__ = ["Cancel", "Cancelled", "RequestError", "build_model", "solve"]
 
 
 class RequestError(Exception):
@@ -49,9 +50,6 @@ def solve(
     # a solve is right about who is here however its dataset was put together.
     dataset = apply_exclusions(dataset)
     deadline = Deadline(config.time_limit_seconds)
-    model = cp_model.CpModel()
-    variables = Variables(model, dataset)
-    compiler = Compiler(model, variables, dataset)
     copies = []
     for request in dataset.requests:
         try:
@@ -60,15 +58,7 @@ def solve(
             raise RequestError(request, e) from e
         copies += [(request, copy) for copy in resolved]
     _check_adhoc_tasks(copies)
-    compiler.prepare(copies)
-    active = set()
-    for request, copy in copies:
-        cancel.check()  # building the model is the part that holds the interpreter
-        if compiler.compile(request, copy):
-            active.add(request.id)
-    compiler.close()
-    variables.finish()
-    add_structural_constraints(model, variables, dataset)
+    model, variables, compiler, active = build_model(dataset, copies, cancel)
     baseline = dataset.baseline if same_day else None
     if baseline is not None:
         _hold_to(model, compiler, variables, baseline)
@@ -109,6 +99,29 @@ def solve(
         changes=_changes(baseline, assignments),
         tier_scores=outcome.scores or {},
     )
+
+
+def build_model(dataset: Dataset, copies: list[tuple[Request, Resolved]], cancel=None):
+    """The model for these request copies, its variables and compiler, and what is active.
+
+    The last is the ids of the requests active on the target date. Everything a solve adds
+    on top -- holding to a published day, the hints, the tiers -- is left to the caller, so
+    anything else that needs the solver's own model of some requests builds it the same way.
+    """
+    cancel = cancel or Cancel()
+    model = cp_model.CpModel()
+    variables = Variables(model, dataset)
+    compiler = Compiler(model, variables, dataset)
+    compiler.prepare(copies)
+    active = set()
+    for request, copy in copies:
+        cancel.check()  # building the model is the part that holds the interpreter
+        if compiler.compile(request, copy):
+            active.add(request.id)
+    compiler.close()
+    variables.finish()
+    add_structural_constraints(model, variables, dataset)
+    return model, variables, compiler, active
 
 
 def _check_adhoc_tasks(copies: list[tuple[Request, Resolved]]) -> None:

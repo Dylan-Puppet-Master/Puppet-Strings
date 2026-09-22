@@ -8,7 +8,12 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-DEFAULT_PATH = Path("~/.config/puppet_strings/training.json")
+from puppet_strings.settings import settings_path
+
+
+def default_path() -> Path:
+    """Beside the app's own settings, wherever those are kept."""
+    return settings_path().parent / "training.json"
 
 
 @dataclass
@@ -27,7 +32,7 @@ class Progress:
     problems: dict[str, Attempt] = field(default_factory=dict)
     current: str = ""
     welcomed: bool = False
-    path: Path = DEFAULT_PATH
+    path: Path = field(default_factory=default_path)
 
     def of(self, problem_id: str) -> Attempt:
         """The record of a problem, made empty the first time it is asked for."""
@@ -48,8 +53,9 @@ class Progress:
             pass
 
 
-def load_progress(path: Path = DEFAULT_PATH) -> Progress:
+def load_progress(path: Path | None = None) -> Progress:
     """The saved progress, or a fresh start if there is none or it cannot be read."""
+    path = path or default_path()
     try:
         data = json.loads(path.expanduser().read_text())
         problems = {k: Attempt(**v) for k, v in data.get("problems", {}).items()}

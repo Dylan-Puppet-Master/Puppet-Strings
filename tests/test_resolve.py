@@ -296,3 +296,17 @@ def test_each_of_the_cabin_acts_is_only_the_ones_on_the_day(dataset):
         "ON EACH_OF {2026-09-14 .. 2026-09-18}",
     )
     assert len(week) == 3  # Monday's, Wednesday's and Friday's; the 28th is another week
+
+
+def test_a_bound_cabin_act_on_another_day_is_no_copy(dataset):
+    bound = resolve(
+        dataset, "EACH_OF a IN activities.cabin_acts.all\nREQUEST a DURING blocks.cabin_act"
+    )
+    assert [c.statements[0].what.items for c in bound] == [("cabin_act_m2_2026_09_16",)]
+    conditioned = resolve(
+        dataset,
+        "EACH_OF a IN activities.cabin_acts.all\n"
+        "IF staff.dylan DO a DURING blocks.cabin_act\n"
+        "REQUEST staff.dylan FREE DURING blocks.lunch",
+    )
+    assert len(conditioned) == 1

@@ -44,7 +44,6 @@ from puppet_strings.skedge.resolve import (
     Choice,
     Count,
     Exclusion,
-    Forbid,
     Pattern,
     Requirement,
     Resolved,
@@ -52,12 +51,10 @@ from puppet_strings.skedge.resolve import (
     is_prefer,
 )
 from puppet_strings.skedge.validate import validate_request
-from puppet_strings.solver.compile import Compiler
-from puppet_strings.solver.structural import add_structural_constraints
-from puppet_strings.solver.variables import Slot, Variables
+from puppet_strings.solver.solve import build_model
+from puppet_strings.solver.variables import Literal, Slot, Variables
 
 FILLER = "other duties"  # what the universe keeps somebody busy with, when not asked for more
-SAMPLES = 8  # schedules tried in each direction on each date
 MOST_DOERS = 12  # people offered the named tasks in a universe, beyond what is asked of them
 MOST_ACTIVITIES = 8  # a category of clinics is sampled down to this many
 SECONDS = 1.5  # for one sample; any schedule will do, so a good one is plenty
@@ -103,15 +100,18 @@ def check_answer(
     expected_copies = _resolve(expected, priority, dataset)
     if _canon_copies(answer_copies, dataset) == _canon_copies(expected_copies, dataset):
         return Verdict(True, "Correct")
-    shape = _shape_difference(answer_copies, expected_copies, priority, dataset)
+    dates = _dates(expected_copies)
+    shape = _shape_difference(answer_copies, expected_copies, dates, priority, dataset)
     if shape is not None:
         return Verdict(False, "Not quite", shape)
     rng = random.Random(seed)
-    for day in _test_dates(expected_copies, target, dataset):
+    for day in _test_dates(dates, target, dataset):
         on_day = datasets(day)
-        answer_on_day = _resolve(answer, priority, on_day)
-        expected_on_day = _resolve(expected, priority, on_day)
-        found = _tell_apart(on_day, answer_on_day, expected_on_day, rng)
+        if day == target:
+            both = answer_copies, expected_copies
+        else:
+            both = _resolve(answer, priority, on_day), _resolve(expected, priority, on_day)
+        found = _tell_apart(on_day, *both, priority, rng)
         if found is not None:
             return _counterexample(on_day, *found)
     return Verdict(True, "Correct")
@@ -128,8 +128,8 @@ def _resolve(text: str, priority: Priority, dataset: Dataset) -> tuple[Resolved,
 def _canon(value, names: dict[str, str], day: tuple[str, ...] = ()):
     """A value with everything that does not change its meaning taken out.
 
-    Positions, labels and the key of a copy go; a variable keeps only the order it was first
-    met in, so two requests binding `s` and `who` the same way are the same. A choice of one
+    Positions and the key of a copy go; a variable or a GAP label keeps only the order it was
+    first met in, so two requests binding `s` and `who` the same way are the same. A choice of one
     item is that item however it was quantified, and `ANY_n_OF` of n items is all of them.
     A pattern with no DURING is about every block of `day`, which is what it would say if it
     named them all.
@@ -146,11 +146,20 @@ def _canon(value, names: dict[str, str], day: tuple[str, ...] = ()):
         var = names.setdefault(value.var, f"v{len(names)}") if value.var else None
         parts = _canon(value.parts, names, day)
         return ("choice", items, kind, n if kind == ANY else None, var, parts)
+    if isinstance(value, ast.Gap):
+        amount = (value.amount.bound, value.amount.value, value.amount.duration)
+        return ("gap", _label(value.first, names), _label(value.second, names), amount)
     if is_dataclass(value):
-        # a statement's label only names it for GAP; an EXCLUDE's is what the schedule says
-        skip = {"pos", "key"} if isinstance(value, Exclusion) else {"pos", "label", "key"}
-        kept = (getattr(value, f.name) for f in fields(value) if f.name not in skip)
-        return (type(value).__name__, *(_canon(v, names, day) for v in kept))
+        parts = []
+        for f in fields(value):
+            field = getattr(value, f.name)
+            if f.name in ("pos", "key"):
+                continue
+            if f.name == "label" and not isinstance(value, Exclusion):
+                parts.append(_label(field, names))  # an EXCLUDE's is what the schedule says
+            else:
+                parts.append(_canon(field, names, day))
+        return (type(value).__name__, *parts)
     if isinstance(value, frozenset | set):
         return tuple(sorted((_canon(v, names, day) for v in value), key=repr))
     if isinstance(value, dict):
@@ -159,6 +168,11 @@ def _canon(value, names: dict[str, str], day: tuple[str, ...] = ()):
     if isinstance(value, tuple | list):
         return tuple(_canon(v, names, day) for v in value)
     return value
+
+
+def _label(label: str | None, names: dict[str, str]) -> str | None:
+    """A GAP label, known only by the order it was first met in."""
+    return names.setdefault(f"label:{label}", f"l{len(names)}") if label else None
 
 
 def _canon_copies(copies: tuple[Resolved, ...], dataset: Dataset) -> list:
@@ -171,12 +185,14 @@ def _statements(copies) -> Iterator:
         yield from copy.statements
 
 
-def _shape_difference(answer, expected, priority: Priority, dataset: Dataset) -> str | None:
+def _shape_difference(
+    answer, expected, wanted_dates: frozenset[date], priority: Priority, dataset: Dataset
+) -> str | None:
     """What the samples cannot see, compared directly. None when nothing differs."""
-    kinds = sorted(_kind(st) for st in _statements(answer))
-    wanted = sorted(_kind(st) for st in _statements(expected))
-    if set(kinds) != set(wanted):
-        return _kind_advice(set(kinds), set(wanted))
+    kinds = {_kind(st) for st in _statements(answer)}
+    wanted = {_kind(st) for st in _statements(expected)}
+    if kinds != wanted:
+        return _kind_advice(kinds, wanted)
     if _scores(answer) != _scores(expected) or _away(answer, dataset) != _away(expected, dataset):
         return (
             "It is the right kind of statement, but it is about something different. Check "
@@ -187,7 +203,7 @@ def _shape_difference(answer, expected, priority: Priority, dataset: Dataset) ->
             "The tasks in it last a different length of time. Check each FOR against the "
             "request: a task with no FOR fills its whole block."
         )
-    dates, wanted_dates = _dates(answer), _dates(expected)
+    dates = _dates(answer)
     if dates != wanted_dates:
         missing, extra = sorted(wanted_dates - dates), sorted(dates - wanted_dates)
         words = []
@@ -281,8 +297,6 @@ def _dates(copies) -> frozenset[date]:
 def _on(statement) -> tuple:
     if isinstance(statement, Requirement | Exclusion):
         return statement.on.items
-    if isinstance(statement, Forbid):
-        return statement.pattern.on.items
     return statement.pattern.on.items
 
 
@@ -304,14 +318,14 @@ def _copies(n: int) -> str:
     return "one request" if n == 1 else f"{n} separate requests"
 
 
-def _test_dates(expected, target: date, dataset: Dataset) -> list[date]:
+def _test_dates(dates: frozenset[date], target: date, dataset: Dataset) -> list[date]:
     """The problem's own day, and the last other day the request is about, if it has one.
 
     The last day matters because a request that may still be met later is only forced on
     the last day it can be met, and that is where a "some day" and a "that day" part.
     """
     days = [target]
-    later = sorted(d for d in _dates(expected) if d != target and d in dataset.calendar)
+    later = sorted(d for d in dates if d != target and d in dataset.calendar)
     if later:
         days.append(later[-1])
     return days
@@ -329,22 +343,28 @@ class _Sample:
     starts: dict[Slot, int]
 
 
-def _tell_apart(dataset: Dataset, answer, expected, rng: random.Random):
+def _tell_apart(dataset: Dataset, answer, expected, priority: Priority, rng: random.Random):
     """A sample that meets one and not the other, and which one it meets; or None."""
     answer, expected = _judged(answer), _judged(expected)
     universe = _universe(dataset, answer, expected, rng)
-    answer = _meetable(dataset, answer, universe, rng)
-    expected = _meetable(dataset, expected, universe, rng)
-    # The two directions take turns, so that a difference the fullest day shows in the
-    # second is found before the first has run through every one of its samples.
-    directions = [(expected, answer, False), (answer, expected, True)]
-    for index in range(SAMPLES):
-        for first, second, answer_met in list(directions):
-            sample = _sample(dataset, first, second, universe, rng, index)
+    if not priority.hard:
+        answer = _meetable(dataset, answer, universe, rng)
+        expected = _meetable(dataset, expected, universe, rng)
+    # One model requiring each side, with the other free: samples of the expected request
+    # are checked against the answer's model, and the other way round. Each is built once;
+    # a sample only changes what it aims for. The two take turns, so that a difference the
+    # fullest day shows in the second is found before the first has run through its aims.
+    requiring = {
+        False: _build(dataset, expected, answer, universe),
+        True: _build(dataset, answer, expected, universe),
+    }
+    live = [False, True]  # whether the day being sampled is one the answer meets
+    for aim in AIMS:
+        for answer_met in list(live):
+            sample = _sample(requiring[answer_met], universe, rng, aim)
             if sample is None:
-                directions.remove((first, second, answer_met))  # nothing meets it today
-                continue
-            if not _meets(dataset, second, first, universe, sample):
+                live.remove(answer_met)  # nothing meets that side today
+            elif not _meets(requiring[not answer_met], sample):
                 return sample, answer_met, universe
     return None
 
@@ -356,20 +376,22 @@ def _meetable(dataset: Dataset, copies, universe, rng) -> tuple[Resolved, ...]:
     nobody can staff — a cabin act asking for a skill nobody here has — leaves the rest
     still worth meeting. Held all at once, it would make every day look the same.
     """
-    if len(copies) < 2 or _sample(dataset, copies, (), universe, rng, 0) is not None:
+    if len(copies) < 2:
         return copies
-    model, _, compiler = _build(dataset, (), copies, universe)
-    met = {c.request.id: c.sat for c in compiler.compiled if c.request.id.startswith("soft")}
-    live = [sat for sat in met.values() if not isinstance(sat, bool)]
-    model.Maximize(sum(live))
+    built = _build(dataset, (), copies, universe)
+    live = [sat for sat in built.soft.values() if not isinstance(sat, bool)]
+    built.model.Maximize(sum(live))
     solver = _solver(rng)
-    status = solver.Solve(model)
+    status = solver.Solve(built.model)
     if status == cp_model.INFEASIBLE:
         return ()
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return copies  # out of time: judge them as they are rather than not at all
-    held = {i for i, sat in met.items() if sat is True or (sat is not False and solver.Value(sat))}
-    return tuple(copy for i, copy in enumerate(copies) if f"soft:{i}" in held)
+    return tuple(
+        copy
+        for i, copy in enumerate(copies)
+        if (sat := built.soft.get(i, True)) is True or (sat is not False and solver.Value(sat))
+    )
 
 
 def _judged(copies: tuple[Resolved, ...]) -> tuple[Resolved, ...]:
@@ -419,8 +441,8 @@ def _universe(dataset: Dataset, answer, expected, rng: random.Random) -> _Univer
     target = dataset.target
     blocks = _blocks(dataset, mine, theirs)
     # Clinics run in the blocks the day offers clinics in, and anywhere a request puts them.
-    offered = {b for o in dataset.offerings for b in o.blocks}
-    runs = [b for b in blocks if b in offered | mine["blocks"] | theirs["blocks"]]
+    offered = {b for o in dataset.offerings for b in o.blocks} | mine["blocks"] | theirs["blocks"]
+    runs = [b for b in blocks if b in offered]
     on = Choice((target,), ALL)
     copies = []
     for s in staff:
@@ -452,8 +474,19 @@ def _blocks(dataset: Dataset, mine: dict, theirs: dict) -> list[str]:
 
 
 def _asking(who: Choice, what, during: Choice, on: Choice) -> Resolved:
-    requirement = Requirement(who, what, during, on, None, None, None, None, None, DEFAULT_POS)
-    return Resolved("", {}, (requirement,), None, ())
+    requirement = Requirement(
+        who=who,
+        what=what,
+        during=during,
+        on=on,
+        role=None,
+        minutes=None,
+        with_=None,
+        without=None,
+        label=None,
+        pos=DEFAULT_POS,
+    )
+    return Resolved(key="", bindings={}, statements=(requirement,), condition=None, gaps=())
 
 
 def _mentions(dataset: Dataset, copies) -> dict[str, set]:
@@ -489,13 +522,10 @@ def _mentions(dataset: Dataset, copies) -> dict[str, set]:
                 walk(v)
 
     walk(copies)
-    found["staff"] = {s for s in found["staff"] if _working(dataset, s)}
-    return found
-
-
-def _working(dataset: Dataset, staff_id: str) -> bool:
     today = {b.id for b in dataset.blocks_on(dataset.target)}
-    return not today <= dataset.staff[staff_id].resting_blocks
+    # somebody resting all day can be given nothing, so they tell nothing apart
+    found["staff"] = {s for s in found["staff"] if not today <= dataset.staff[s].resting_blocks}
+    return found
 
 
 def _pick(mine: set, theirs: set, most: int, rng: random.Random) -> list:
@@ -507,29 +537,33 @@ def _pick(mine: set, theirs: set, most: int, rng: random.Random) -> list:
     half = max(most // 2, most - len(shared))
     chosen = differing[:half]
     chosen += shared[: most - len(chosen)]
-    chosen += [x for x in differing[half:]][: most - len(chosen)]
+    chosen += differing[half:][: most - len(chosen)]
     return sorted(chosen)
 
 
-def _build(dataset: Dataset, hard, soft, universe: _Universe):
-    """A model with `hard` required, `soft` and the universe free to hold or not."""
-    model = cp_model.CpModel()
-    variables = Variables(model, dataset)
-    compiler = Compiler(model, variables, dataset)
+@dataclass(frozen=True)
+class _Built:
+    """A model with its variables, and the literal each soft copy is met by, by position."""
+
+    model: cp_model.CpModel
+    variables: Variables
+    soft: dict[int, Literal]
+
+
+def _build(dataset: Dataset, hard, soft, universe: _Universe) -> _Built:
+    """The solver's own model with `hard` required, and `soft` and the universe free."""
     must = Request("hard", "", "", Priority.MUST_HAPPEN)
     around = Request("universe", "", "", Priority.LOW)
+    maybe = [Request(f"soft {i}", "", "", Priority.LOW) for i in range(len(soft))]
     copies = (
         [(must, c) for c in hard]
-        + [(Request(f"soft:{i}", "", "", Priority.LOW), c) for i, c in enumerate(soft)]
+        + list(zip(maybe, soft, strict=True))
         + [(around, c) for c in universe.copies]
     )
-    compiler.prepare(copies)
-    for request, copy in copies:
-        compiler.compile(request, copy)
-    compiler.close()
-    variables.finish()
-    add_structural_constraints(model, variables, dataset)
-    return model, variables, compiler
+    model, variables, compiler, _ = build_model(dataset, copies)
+    position = {id(request): i for i, request in enumerate(maybe)}
+    met = {position[id(c.request)]: c.sat for c in compiler.compiled if id(c.request) in position}
+    return _Built(model, variables, met)
 
 
 # What each sample aims for, in turn: the emptiest day, choosing what only one side names
@@ -539,22 +573,18 @@ def _build(dataset: Dataset, hard, soft, universe: _Universe):
 AIMS = ("fewest+", "fewest-", "most", "random+", "fewest+", "random", "fewest-", "random+")
 
 
-def _sample(dataset: Dataset, hard, soft, universe: _Universe, rng, index: int) -> _Sample | None:
-    """A schedule meeting `hard`, aimed as `AIMS` says for this turn."""
-    model, variables, _ = _build(dataset, hard, soft, universe)
-    aim = AIMS[index % len(AIMS)]
+def _sample(built: _Built, universe: _Universe, rng, aim: str) -> _Sample | None:
+    """A schedule meeting what the model requires, aimed as `aim` says."""
     weights = {}
-    for slot, var in variables.x.items():
+    for slot, var in built.variables.x.items():
+        differs = {slot.staff, slot.activity, slot.block} & universe.differing
         if aim == "most":
             weight = 10 + rng.random()
         elif aim.startswith("random"):
-            weight = rng.uniform(-10, 10)
-            if aim == "random+" and {slot.staff, slot.activity, slot.block} & universe.differing:
-                weight += 16
+            weight = rng.uniform(-10, 10) + (16 if aim == "random+" and differs else 0)
         else:
             weight = -10 - 2 * rng.random()
-            differs = {slot.staff, slot.activity, slot.block} & universe.differing
-            if differs and aim != "fewest":
+            if differs:
                 # worth doing for its own sake, or worth even less than anything else
                 weight += 16 if aim == "fewest+" else -6
         if slot.activity == FILLER:
@@ -564,32 +594,34 @@ def _sample(dataset: Dataset, hard, soft, universe: _Universe, rng, index: int) 
             # an empty day, and cheap enough on a full one not to stop a clinic running
             weight = -1 if aim == "most" or aim.startswith("random") else -30
         weights.setdefault(var.Index(), (weight, var))
-    model.Maximize(sum(round(100 * w) * var for w, var in weights.values()))
+    built.model.ClearObjective()
+    built.model.Maximize(sum(round(100 * w) * var for w, var in weights.values()))
     solver = _solver(rng)
-    status = solver.Solve(model)
-    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+    if solver.Solve(built.model) not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return None
-    on = frozenset(slot for slot, var in variables.x.items() if solver.Value(var))
+    on = frozenset(slot for slot, var in built.variables.x.items() if solver.Value(var))
     sizes, starts = {}, {}
     for slot in on:
-        interval = variables.intervals[slot]
+        interval = built.variables.intervals[slot]
         if interval.partial:
             sizes[slot] = solver.Value(interval.size)
             starts[slot] = solver.Value(interval.start)
     return _Sample(on, sizes, starts)
 
 
-def _meets(dataset: Dataset, hard, soft, universe: _Universe, sample: _Sample) -> bool:
-    """Whether `hard` holds on the sample, with every assignment and length held to it."""
-    model, variables, _ = _build(dataset, hard, soft, universe)
-    for slot, var in variables.x.items():
-        model.Add(var == (1 if slot in sample.on else 0))
-    if not sample.on <= set(variables.x):
+def _meets(built: _Built, sample: _Sample) -> bool:
+    """Whether what the model requires holds on the sample, every assignment held to it."""
+    x = built.variables.x
+    if not sample.on <= x.keys():
         return False  # the sample holds something this model cannot, which it does not allow
+    model = built.model.Clone()  # the fixed assignments are for this sample alone
+    model.ClearObjective()
+    same = model.GetIntVarFromProtoIndex
+    for slot, var in x.items():
+        model.Add(same(var.Index()) == (1 if slot in sample.on else 0))
     for slot, size in sample.sizes.items():
-        model.Add(variables.intervals[slot].size == size)
-    status = _solver(random.Random(0)).Solve(model)
-    return status != cp_model.INFEASIBLE
+        model.Add(same(built.variables.intervals[slot].size.Index()) == size)
+    return _solver(random.Random(0)).Solve(model) != cp_model.INFEASIBLE
 
 
 def _solver(rng: random.Random) -> cp_model.CpSolver:
@@ -617,15 +649,15 @@ def _counterexample(dataset: Dataset, sample: _Sample, answer_met: bool, univers
                 minutes=sample.sizes.get(slot, block.minutes),
             )
         )
-    headline = "Not quite"
-    if answer_met:
-        detail = "This day meets your request but not the one asked for."
-    else:
-        detail = "This day meets the request asked for, but not yours."
+    detail = (
+        "This day meets your request but not the one asked for."
+        if answer_met
+        else "This day meets the request asked for, but not yours."
+    )
     people = sorted({a.staff for a in schedule} | set(universe.staff))
     return Verdict(
         False,
-        headline,
+        "Not quite",
         detail,
         schedule=tuple(schedule),
         answer_met=answer_met,

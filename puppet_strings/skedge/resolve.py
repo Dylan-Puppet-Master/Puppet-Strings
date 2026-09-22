@@ -5,6 +5,7 @@ copies of the declaration. A copy is what the solver compiles.
 """
 
 from collections.abc import Iterator, Mapping
+from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from difflib import get_close_matches
@@ -474,9 +475,9 @@ class _Scope:
 
 def _expand(declaration: ast.Declaration, each: list, scope: _Scope) -> Iterator[Resolved]:
     if not each:
-        copy = _copy(declaration, scope)
-        if not _another_day(copy, scope.dataset):
-            yield copy
+        # a cabin act split out of a season's worth that is not on these days is no copy
+        with suppress(_AnotherDay):
+            yield _copy(declaration, scope)
         return
     (namespace, selector), rest = each[0], each[1:]
     namespace = namespace or _namespace_of(selector.expr, scope)
@@ -486,23 +487,14 @@ def _expand(declaration: ast.Declaration, each: list, scope: _Scope) -> Iterator
         yield from _expand(declaration, rest, scope.with_each(selector, item, namespace))
 
 
-def _another_day(copy: Resolved, dataset: Dataset) -> bool:
-    """Whether a copy is about a cabin act on a day the copy is not about.
+class _AnotherDay(Exception):
+    """An EACH_OF item is an activity that is not on the days its statement is about.
 
     `EACH_OF activities.cabin_acts.all` splits over every act of the season, because which
-    days each statement is about is not known until the copy is made. A copy whose act
+    days a statement is about is only known once its ON is resolved. A copy whose act
     belongs to another day asks for nothing that can happen on its own days, so it is no
     copy at all -- rather than a request to run Friday's act on Wednesday.
     """
-    for statement in copy.statements:
-        for part in (statement, getattr(statement, "pattern", None)):
-            what = getattr(part, "what", None)
-            if not isinstance(what, Choice) or not what.items:
-                continue
-            days = {dataset.activities[i].day for i in what.items if i in dataset.activities}
-            if days and None not in days and not days & set(part.on.items):
-                return True
-    return False
 
 
 def _copy(declaration: ast.Declaration, scope: _Scope) -> Resolved:
@@ -822,7 +814,10 @@ def _choice(
     when: tuple[Item, ...] = (),
 ) -> Choice:
     if selector.quantifier == ast.EACH_OF:
-        return Choice((scope.each[selector.pos],), POOL if pool else ALL, pos=selector.pos)
+        item = scope.each[selector.pos]
+        if namespace == ACTIVITIES and not _on_those_days(frozenset({item}), True, when, scope)[0]:
+            raise _AnotherDay
+        return Choice((item,), POOL if pool else ALL, pos=selector.pos)
     expr = selector.expr
     if isinstance(expr, ast.Call) and selector.quantifier is None:
         # A call standing on its own is its row's one item, or else its default as written,
@@ -847,6 +842,8 @@ def _choice(
         items = frozenset(d for d in items if d in scope.dataset.calendar)
     if namespace == ACTIVITIES:
         items, single = _on_those_days(items, single, when, scope)
+        if not items and isinstance(expr, ast.Var):
+            raise _AnotherDay  # a name EACH_OF bound to an act on another day
     if pool:
         return Choice(_sorted(items), POOL, pos=selector.pos)
     if selector.quantifier is None:

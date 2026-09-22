@@ -24,10 +24,11 @@ from puppet_strings.config import load_config  # noqa: E402
 from puppet_strings.names import normalize  # noqa: E402
 from puppet_strings.session import open_source  # noqa: E402
 from puppet_strings.sheets.calendar import parse_calendar  # noqa: E402
-from puppet_strings.sheets.load import CABIN_ACTS_FOLDER, load_dataset  # noqa: E402
+from puppet_strings.sheets.load import load_dataset  # noqa: E402
 from puppet_strings.sheets.requests import COLUMNS, REQUESTS_SHEET, SEASON_TAB  # noqa: E402
 from puppet_strings.sheets.schedules import ROOT  # noqa: E402
-from puppet_strings.sheets.source import CsvSource, LoadError  # noqa: E402
+from puppet_strings.sheets.source import CsvSource, LoadError, _too_fast  # noqa: E402
+from puppet_strings.training import session as training  # noqa: E402
 
 OUT = Path(__file__).resolve().parent.parent / "puppet_strings" / "training" / "data"
 DROPPED_TABS = {"Assignments", "Staff View", "Clinic View", "Report", "Changes"}
@@ -58,11 +59,14 @@ class Recorder:
             self.out.write(self._path(sheet), tab, [])  # a day nobody has solved
             return []
         if (sheet, tab) not in self.cache:
-            table = _patiently(lambda: self.inner.read(sheet, tab))
-            self.cache[sheet, tab] = table
-            if sheet != REQUESTS_SHEET:
-                self.out.write(self._path(sheet), tab, table)
+            self._keep(sheet, tab, _patiently(lambda: self.inner.read(sheet, tab)))
         return self.cache[sheet, tab]
+
+    def _keep(self, sheet, tab, table) -> None:
+        """Remember a tab, and write it as CSV unless it holds the requests."""
+        self.cache[sheet, tab] = table
+        if sheet != REQUESTS_SHEET:
+            self.out.write(self._path(sheet), tab, table)
 
     def tabs(self, sheet):
         """A spreadsheet's tab names."""
@@ -74,9 +78,7 @@ class Recorder:
         if missing:
             tables = _patiently(lambda: self.inner.read_many(sheet, missing))
             for tab, table in tables.items():
-                self.cache[sheet, tab] = table
-                if sheet != REQUESTS_SHEET:
-                    self.out.write(self._path(sheet), tab, table)
+                self._keep(sheet, tab, table)
         return {t: self.cache[sheet, t] for t in tabs}
 
     def read_all(self, sheets, tab):
@@ -108,7 +110,7 @@ def _patiently(call):
         try:
             return call()
         except Exception as e:  # noqa: BLE001 - only the quota is waited out
-            if "429" not in str(e):
+            if not _too_fast(e):
                 raise
             print("  waiting out the read quota")
             time.sleep(30)
@@ -117,7 +119,7 @@ def _patiently(call):
 
 def _prune_mappings(out: CsvSource, config, day) -> None:
     """Drop the mapping rows that name somebody who was not on staff that session."""
-    config = replace(config, folders={"root": ROOT, "cabin_acts": CABIN_ACTS_FOLDER})
+    config = replace(config, folders=training.CONFIG.folders)  # read as the trainer reads it
     while True:
         try:
             load_dataset(out, config, day, history=False)

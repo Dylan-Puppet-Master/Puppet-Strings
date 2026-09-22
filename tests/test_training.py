@@ -44,7 +44,9 @@ def test_the_answer_is_valid_and_can_be_met(problem):
     if not problem.priority.hard:
         # below MUST_HAPPEN a split request is met a copy at a time, and some may not be
         copies = check._meetable(ds, copies, universe, random.Random(0))
-    assert copies and check._sample(ds, copies, (), universe, random.Random(0), 0) is not None
+    assert copies
+    built = check._build(ds, copies, (), universe)
+    assert check._sample(built, universe, random.Random(0), check.AIMS[0]) is not None
 
 
 @pytest.mark.parametrize(

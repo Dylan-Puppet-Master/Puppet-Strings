@@ -15,10 +15,6 @@ from PySide6.QtWidgets import QCalendarWidget, QStyledItemDelegate, QTableView
 from puppet_strings.app import palette
 from puppet_strings.model import Dataset
 
-CAMP_DAY = QColor(palette.CAMP_DAY)
-TEXT = QColor(palette.TEXT)
-QUIET = QColor(palette.QUIET)
-INK = QColor(palette.INK)  # a shaded cell needs its own text colour; the palette is not asked
 ROWS = range(1, 7)  # row 0 of the grid holds the weekday names
 
 
@@ -71,8 +67,10 @@ class SessionCalendar(QCalendarWidget):
 
     picked = Signal(date)
 
-    def __init__(self) -> None:
+    def __init__(self, colours=palette) -> None:
+        """`colours` is a module of colour names laid out like `app.palette`."""
         super().__init__()
+        self.colours = colours
         self.days: dict[date, tuple[int, int]] = {}
         # Before any sheet is read there is no span to take the week from, and Qt would
         # otherwise begin it wherever the machine's locale says -- Monday on a great many
@@ -95,11 +93,11 @@ class SessionCalendar(QCalendarWidget):
         days a week anyway: it is the shading that says which days are camp days.
         """
         day = QTextCharFormat()
-        day.setForeground(TEXT)
+        day.setForeground(QColor(self.colours.TEXT))
         for weekday in Qt.DayOfWeek:
             self.setWeekdayTextFormat(weekday, day)
         heading = QTextCharFormat()
-        heading.setForeground(QUIET)
+        heading.setForeground(QColor(self.colours.QUIET))
         self.setHeaderTextFormat(heading)
 
     def show_dataset(self, dataset: Dataset | None) -> None:
@@ -123,8 +121,10 @@ class SessionCalendar(QCalendarWidget):
         self.days = {d: (day.session, day.week) for d, day in calendar.items()}
         self._start_weeks_where_camp_does(calendar, target)
         camp_day = QTextCharFormat()
-        camp_day.setBackground(CAMP_DAY)
-        camp_day.setForeground(INK)  # a cell with a colour of its own says what to write on it
+        camp_day.setBackground(QColor(self.colours.CAMP_DAY))
+        # a shaded cell needs its own text colour: a cell with a colour of its own says what
+        # to write on it, and the palette is not asked
+        camp_day.setForeground(QColor(self.colours.INK))
         for day in calendar:
             self.setDateTextFormat(QDate(day), camp_day)
         if target is not None:

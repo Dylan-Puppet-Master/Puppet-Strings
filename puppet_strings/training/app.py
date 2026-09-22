@@ -43,14 +43,13 @@ from PySide6.QtWidgets import (
 )
 
 from puppet_strings.app.calendar_pane import SessionCalendar
-from puppet_strings.app.details import details
+from puppet_strings.app.details import details, is_mapping
 from puppet_strings.app.details_dialog import DetailsDialog
 from puppet_strings.app.editor import SkedgeEdit, SkedgeHighlighter
 from puppet_strings.app.namespaces_panel import NamespacesPanel
 from puppet_strings.app.worker import Worker
 from puppet_strings.model import Dataset, Request
 from puppet_strings.skedge.ast import SkedgeError
-from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.training import style
 from puppet_strings.training.check import FILLER, Verdict, check_answer
@@ -73,54 +72,6 @@ def run_training() -> int:
     return app.exec()
 
 
-class TrainerHighlighter(SkedgeHighlighter):
-    """The request manager's Skedge colouring, repainted for a light page."""
-
-    COLOURS = (style.KEYWORD, style.NAME, style.STRING, style.NUMBER, style.COMMENT)
-
-    def __init__(self, document) -> None:
-        super().__init__(document)
-        # the rules come in the order keyword, name, string, number, comment
-        self.rules = [
-            (pattern, _format(colour, bold=i == 0, italic=i == 4))
-            for i, ((pattern, _), colour) in enumerate(zip(self.rules, self.COLOURS, strict=True))
-        ]
-
-
-def _format(colour: str, bold: bool = False, italic: bool = False) -> QTextCharFormat:
-    fmt = QTextCharFormat()
-    fmt.setForeground(QColor(colour))
-    if bold:
-        fmt.setFontWeight(QFont.Bold)
-    fmt.setFontItalic(italic)
-    return fmt
-
-
-class TrainerCalendar(SessionCalendar):
-    """The request manager's calendar, shaded for a light page."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        ink = QTextCharFormat()
-        ink.setForeground(QColor(style.INK))
-        for weekday in Qt.DayOfWeek:
-            self.setWeekdayTextFormat(weekday, ink)
-
-    def show_calendar(self, calendar: dict, target: date | None = None) -> None:
-        """Shade the session's days in the trainer's own colour."""
-        super().show_calendar(calendar, target)
-        camp_day = QTextCharFormat()
-        camp_day.setBackground(QColor(style.CAMP_DAY))
-        camp_day.setForeground(QColor(style.INK))
-        for day in calendar:
-            self.setDateTextFormat(QDate(day), camp_day)
-        if target is not None:
-            today = QTextCharFormat(camp_day)
-            today.setFontWeight(QFont.Bold)
-            today.setBackground(QColor(style.HIGHLIGHT))
-            self.setDateTextFormat(QDate(target), today)
-
-
 class NamesPane(QWidget):
     """Every name in the session, with a box to find one by any part of it."""
 
@@ -128,7 +79,12 @@ class NamesPane(QWidget):
         super().__init__()
         self.search = QLineEdit()
         self.search.setPlaceholderText("Find a name")
-        self.search.textChanged.connect(self._filter)
+        # the tree is refiltered once typing pauses, not on every key
+        self.pause = QTimer(self)
+        self.pause.setSingleShot(True)
+        self.pause.setInterval(200)
+        self.pause.timeout.connect(lambda: self._filter(self.search.text()))
+        self.search.textChanged.connect(self.pause.start)
         self.tree = NamespacesPanel()
         self.tree.setHeaderLabels(["name", "what it is"])
         layout = QVBoxLayout(self)
@@ -153,6 +109,14 @@ class NamesPane(QWidget):
         while iterator.value():
             items.append(iterator.value())
             iterator += 1
+        self.tree.setUpdatesEnabled(False)  # one relayout at the end, not one per item
+        try:
+            self._show_matching(items, text)
+        finally:
+            self.tree.setUpdatesEnabled(True)
+
+    @staticmethod
+    def _show_matching(items: list[QTreeWidgetItem], text: str) -> None:
         for item in items:
             item.setHidden(bool(text))
         if not text:
@@ -177,6 +141,7 @@ class TrainingWindow(QMainWindow):
         self.levels = levels
         self.progress = progress
         self.problems = [p for level in levels for p in level.problems]
+        self.by_id = {p.id: p for p in self.problems}
         self.level_of = {p.id: level for level in levels for p in level.problems}
         self.items: dict[str, QTreeWidgetItem] = {}
         self.problem: Problem | None = None
@@ -198,10 +163,12 @@ class TrainingWindow(QMainWindow):
         self.timer.setSingleShot(True)
         self.timer.setInterval(400)
         self.timer.timeout.connect(self._validate)
-        self.editor.textChanged.connect(self._edited)
+        self.editor.textChanged.connect(self.timer.start)
+        self.validated: tuple | None = None  # what the line under the editor is about
 
-        start = self.progress.current or self._first_unsolved().id
-        self.open_problem(next((p for p in self.problems if p.id == start), self.problems[0]))
+        unsolved = (p for p in self.problems if not self.progress.of(p.id).solved)
+        start = self.by_id.get(self.progress.current) or next(unsolved, self.problems[0])
+        self.open_problem(start)
 
     # -- building -------------------------------------------------------------------------
 
@@ -304,7 +271,7 @@ class TrainingWindow(QMainWindow):
         layout.addLayout(chips)
 
         self.editor = SkedgeEdit()
-        self.highlighter = TrainerHighlighter(self.editor.document())
+        self.highlighter = SkedgeHighlighter(self.editor.document(), style)
         self.editor.setPlaceholderText(
             "Write your request here. Start typing a name and pick it from the list."
         )
@@ -352,7 +319,7 @@ class TrainingWindow(QMainWindow):
         calendar_page = QWidget()
         calendar_layout = QVBoxLayout(calendar_page)
         calendar_layout.setContentsMargins(0, 8, 0, 0)
-        self.calendar = TrainerCalendar()
+        self.calendar = SessionCalendar(style)
         self.calendar.setMinimumHeight(280)
         self.calendar.picked.connect(lambda day: self._insert(day.isoformat()))
         self.today_label = QLabel()
@@ -381,7 +348,7 @@ class TrainingWindow(QMainWindow):
         self._keep_draft()
         self.problem = problem
         self.progress.current = problem.id
-        self.progress.save()
+        self.progress.save()  # the draft left behind and where the trainee now is, together
         self.hints_shown = 0
         level = self.level_of[problem.id]
         number = self.levels.index(level) + 1
@@ -400,7 +367,7 @@ class TrainingWindow(QMainWindow):
         self._load_day(problem.day)
         attempt = self.progress.of(problem.id)
         self.editor.blockSignals(True)
-        self.editor.setPlainText(attempt.draft or problem.starter)
+        self.editor.setPlainText(attempt.draft)
         self.editor.blockSignals(False)
         self.hint_button.setText(f"Hint ({len(problem.hints)})" if problem.hints else "Hint")
         self.hint_button.setEnabled(bool(problem.hints))
@@ -421,15 +388,17 @@ class TrainingWindow(QMainWindow):
             QApplication.restoreOverrideCursor()
         self.names.show_dataset(self.data)
         self.calendar.show_calendar(self.data.calendar, day)
+        target = QTextCharFormat(self.calendar.dateTextFormat(QDate(day)))
+        target.setFontWeight(QFont.Bold)
+        target.setBackground(QColor(style.HIGHLIGHT))
+        self.calendar.setDateTextFormat(QDate(day), target)
         self.today_label.setText(f"<b>dates.target</b> is {day:%A, %B} {day.day}.")
-        self.editor.set_names(
-            [f"{ns}.{name}" for ns, rows in name_listing(self.data).items() for name, _ in rows]
-        )
+        self.editor.set_dataset(self.data)
 
     def _picked(self, item: QTreeWidgetItem) -> None:
         problem_id = item.data(0, Qt.UserRole)
         if problem_id:
-            self.open_problem(next(p for p in self.problems if p.id == problem_id))
+            self.open_problem(self.by_id[problem_id])
         else:
             item.setExpanded(not item.isExpanded())
 
@@ -442,23 +411,19 @@ class TrainingWindow(QMainWindow):
             return
         self.open_problem(after)
 
-    def _first_unsolved(self) -> Problem:
-        unsolved = (p for p in self.problems if not self.progress.of(p.id).solved)
-        return next(unsolved, self.problems[0])
-
     def _keep_draft(self) -> None:
+        """Remember what is written; the caller saves, once, with whatever else changed."""
         if self.problem is not None:
             self.progress.of(self.problem.id).draft = self.editor.toPlainText()
-            self.progress.save()
 
     # -- writing ---------------------------------------------------------------------------
-
-    def _edited(self) -> None:
-        self.timer.start()
 
     def _validate(self) -> None:
         """Say whether Skedge can read what is written, as it is typed."""
         text = self.editor.toPlainText()
+        if self.validated == (text, self.problem.id):
+            return  # nothing has changed since it was last said
+        self.validated = (text, self.problem.id)
         if not text.strip():
             self._say("", style.SOFT)
             return
@@ -479,7 +444,7 @@ class TrainingWindow(QMainWindow):
         self.editor.setFocus()
 
     def _inspect(self, name: str) -> None:
-        if name.startswith("mappings."):
+        if is_mapping(name):
             MappingView(self.data, name.split(".", 1)[1], self).exec()
             return
         found = details(name, self.data)
@@ -532,7 +497,7 @@ class TrainingWindow(QMainWindow):
             self._move_cursor(verdict.error.line, verdict.error.column)
             return
         self._feedback("bad", verdict.headline, verdict.detail)
-        if verdict.schedule or verdict.staff:
+        if verdict.staff:
             self.feedback_layout.addWidget(DayTable(self.data, verdict))
             if verdict.day is not None and verdict.day != problem.day:
                 note = QLabel(f"This is {verdict.day:%A, %B} {verdict.day.day}.")
@@ -624,9 +589,9 @@ class TrainingWindow(QMainWindow):
                 elif attempt.tries:
                     mark, colour = TRIED, style.SUN
                 else:
-                    mark, colour = NEW, style.SOFT
+                    mark, colour = NEW, style.INK
                 item.setText(0, f"{mark}  {problem.title}")
-                item.setForeground(0, QColor(colour if mark != NEW else style.INK))
+                item.setForeground(0, QColor(colour))
             top.setText(0, f"{level_index + 1}. {level.name}   {done}/{len(level.problems)}")
             solved += done
         self.bar.setValue(solved)
@@ -658,6 +623,7 @@ class TrainingWindow(QMainWindow):
     def closeEvent(self, event) -> None:  # noqa: N802
         """Keep what was written before going."""
         self._keep_draft()
+        self.progress.save()
         super().closeEvent(event)
 
 
@@ -665,7 +631,7 @@ class DayTable(QTableWidget):
     """A counterexample: a day the solver built, one row per person, one column per block."""
 
     def __init__(self, data: Dataset, verdict: Verdict) -> None:
-        blocks = sorted(data.blocks_on(verdict.day or data.target), key=lambda b: b.start_minute)
+        blocks = sorted(data.blocks_on(verdict.day), key=lambda b: b.start_minute)
         held = {}
         for a in verdict.schedule:
             held.setdefault((a.staff, a.block), []).append(a)

@@ -25,6 +25,8 @@ BERRY_BG = "#fde8ea"
 SKY = "#e8f3f6"  # the camp's speech bubble
 CAMP_DAY = "#d9efe9"
 HIGHLIGHT = "#bfe3dc"
+TEXT = INK  # the names the shared widgets take their colours by (see app.palette)
+QUIET = SOFT
 
 # Skedge colouring on a light page
 KEYWORD = "#1d6f66"
@@ -73,7 +75,6 @@ QLabel[role="chip"] {{
 QLabel[role="bubble"] {{
     background: {SKY}; border-radius: 14px; padding: 14px 18px; font-size: 13pt;
 }}
-QFrame[role="card"] {{ background: {CARD}; border: 1px solid {LINE}; border-radius: 16px; }}
 QFrame[role="good"] {{ background: {LEAF_BG}; border: 1px solid {LEAF}; border-radius: 14px; }}
 QFrame[role="hint"] {{ background: {SUN_BG}; border: 1px solid {SUN}; border-radius: 14px; }}
 QFrame[role="bad"] {{ background: {BERRY_BG}; border: 1px solid {BERRY}; border-radius: 14px; }}
@@ -108,12 +109,6 @@ QHeaderView::section {{
     background: {PAPER}; color: {SOFT}; border: none; border-bottom: 1px solid {LINE};
     padding: 4px 6px;
 }}
-QTabWidget::pane {{ border: none; }}
-QTabBar::tab {{
-    background: transparent; color: {SOFT}; padding: 6px 14px; border: none;
-    border-bottom: 2px solid transparent;
-}}
-QTabBar::tab:selected {{ color: {INK}; border-bottom: 2px solid {ACCENT}; }}
 QProgressBar {{
     background: {LINE}; border: none; border-radius: 5px; height: 10px; text-align: center;
     color: transparent;

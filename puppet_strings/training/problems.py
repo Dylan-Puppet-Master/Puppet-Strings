@@ -31,7 +31,6 @@ class Problem:
     explain: str = ""
     alternatives: tuple[str, ...] = ()
     wrong: tuple[str, ...] = ()
-    starter: str = ""  # what the editor opens with, for a problem about finishing a request
 
 
 @dataclass(frozen=True)
@@ -70,5 +69,4 @@ def _problem(data: dict, day: date) -> Problem:
         explain=data.get("explain", "").strip(),
         alternatives=tuple(a.strip() for a in data.get("alternatives", ())),
         wrong=tuple(w.strip() for w in data.get("wrong", ())),
-        starter=data.get("starter", "").strip(),
     )

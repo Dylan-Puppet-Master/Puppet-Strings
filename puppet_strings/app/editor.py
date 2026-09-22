@@ -75,19 +75,20 @@ class SkedgeHighlighter(QSyntaxHighlighter):
     a box that only colours the shouted version says otherwise.
     """
 
-    def __init__(self, document) -> None:
+    def __init__(self, document, colours=palette) -> None:
+        """`colours` is a module of colour names laid out like `app.palette`."""
         super().__init__(document)
         keywords = QRegularExpression(r"\b(" + KEYWORDS + r")\b")
         keywords.setPatternOptions(QRegularExpression.CaseInsensitiveOption)
         self.rules = [
-            (keywords, _format(palette.KEYWORD, bold=True)),
-            (QRegularExpression(r"\b[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+"), _format(palette.NAME)),
-            (QRegularExpression(r"'[^']*'"), _format(palette.STRING)),
+            (keywords, _format(colours.KEYWORD, bold=True)),
+            (QRegularExpression(r"\b[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+"), _format(colours.NAME)),
+            (QRegularExpression(r"'[^']*'"), _format(colours.STRING)),
             (
                 QRegularExpression(r"\b\d{4}-\d{2}-\d{2}\b|\b\d+(\.\d+)?[mhd]\b"),
-                _format(palette.NUMBER),
+                _format(colours.NUMBER),
             ),
-            (QRegularExpression(r"#[^\n]*"), _format(palette.COMMENT, italic=True)),
+            (QRegularExpression(r"#[^\n]*"), _format(colours.COMMENT, italic=True)),
         ]
 
     def highlightBlock(self, text: str) -> None:  # noqa: N802
@@ -141,6 +142,11 @@ class SkedgeEdit(QPlainTextEdit):
         self.every: list[str] = []
         self.but_dates: list[str] = []
         self.showing: list[str] | None = None
+
+    def set_dataset(self, dataset: Dataset | None) -> None:
+        """Suggest every name the dataset has, or none without one."""
+        listing = name_listing(dataset).items() if dataset is not None else ()
+        self.set_names([f"{ns}.{name}" for ns, rows in listing for name, _ in rows])
 
     def set_names(self, names: list[str]) -> None:
         """The names to suggest, as `namespace.name`. Reuses the model, leaving no garbage."""
@@ -288,16 +294,7 @@ class RequestEditor(QWidget):
         self._fill_homes(request_tabs(dataset.this_span) if dataset else ())
         self.groups = list(groups or [])
         self.requester_names.setStringList(sorted(dataset.staff) if dataset else [])
-        names = (
-            []
-            if dataset is None
-            else [
-                f"{namespace}.{name}"
-                for namespace, rows in name_listing(dataset).items()
-                for name, _ in rows
-            ]
-        )
-        self.skedge_edit.set_names(names)
+        self.skedge_edit.set_dataset(dataset)
         self.validate()
 
     def _fill_homes(self, tabs: tuple[str, ...], keep: str = "") -> None:
