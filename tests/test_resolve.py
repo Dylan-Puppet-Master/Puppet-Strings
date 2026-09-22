@@ -284,3 +284,15 @@ def test_ast_positions_survive_into_errors(dataset):
         resolve(dataset, "REQUEST staff.dylan DO activities.clinics.nope DURING blocks.clinic_1")
     assert (info.value.line, info.value.column) == (1, 24)
     assert isinstance(ast.Pos(1, 24), ast.Pos)
+
+
+def test_each_of_the_cabin_acts_is_only_the_ones_on_the_day(dataset):
+    copies = resolve(dataset, "REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act")
+    days = [dataset.activities[c.statements[0].what.items[0]].day for c in copies]
+    assert days == [dataset.target]
+    week = resolve(
+        dataset,
+        "REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act "
+        "ON EACH_OF {2026-09-14 .. 2026-09-18}",
+    )
+    assert len(week) == 3  # Monday's, Wednesday's and Friday's; the 28th is another week

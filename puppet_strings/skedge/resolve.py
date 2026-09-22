@@ -474,7 +474,9 @@ class _Scope:
 
 def _expand(declaration: ast.Declaration, each: list, scope: _Scope) -> Iterator[Resolved]:
     if not each:
-        yield _copy(declaration, scope)
+        copy = _copy(declaration, scope)
+        if not _another_day(copy, scope.dataset):
+            yield copy
         return
     (namespace, selector), rest = each[0], each[1:]
     namespace = namespace or _namespace_of(selector.expr, scope)
@@ -482,6 +484,25 @@ def _expand(declaration: ast.Declaration, each: list, scope: _Scope) -> Iterator
     _no_quantifier_on_one(selector.expr, single, selector.pos)
     for item in _sorted(items):
         yield from _expand(declaration, rest, scope.with_each(selector, item, namespace))
+
+
+def _another_day(copy: Resolved, dataset: Dataset) -> bool:
+    """Whether a copy is about a cabin act on a day the copy is not about.
+
+    `EACH_OF activities.cabin_acts.all` splits over every act of the season, because which
+    days each statement is about is not known until the copy is made. A copy whose act
+    belongs to another day asks for nothing that can happen on its own days, so it is no
+    copy at all -- rather than a request to run Friday's act on Wednesday.
+    """
+    for statement in copy.statements:
+        for part in (statement, getattr(statement, "pattern", None)):
+            what = getattr(part, "what", None)
+            if not isinstance(what, Choice) or not what.items:
+                continue
+            days = {dataset.activities[i].day for i in what.items if i in dataset.activities}
+            if days and None not in days and not days & set(part.on.items):
+                return True
+    return False
 
 
 def _copy(declaration: ast.Declaration, scope: _Scope) -> Resolved:
