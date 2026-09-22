@@ -299,7 +299,7 @@ lives here rather than in a request. The tab is optional; without it nobody is a
 
 A metric is a table of ratings the solver can score assignments with, such as how much
 each staff member prefers each clinic. A request uses it with `MAXIMIZE` or `MINIMIZE`,
-for example `PREFER EACH_OF s IN staff.all DOING EACH_OF c IN activities.clinics.all MAXIMIZE
+for example `PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE
 metrics.preference(s, c)`.
 
 Metrics take **two kinds of tab** in the config spreadsheet:

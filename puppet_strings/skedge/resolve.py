@@ -67,7 +67,7 @@ class Choice:
 
 @dataclass(frozen=True)
 class Pattern:
-    """`<who> DOING <what> …`, `<who> FREE …` or (`busy`) `<who> NOT FREE …`, resolved."""
+    """`<who> DO <what> …`, `<who> FREE …` or (`busy`) `<who> NOT FREE …`, resolved."""
 
     who: Choice
     what: Choice | ast.Task | None

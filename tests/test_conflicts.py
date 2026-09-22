@@ -127,7 +127,7 @@ def test_a_choice_the_solver_makes_is_not_a_conflict(dataset):
         # a preference, which never has to hold
         req(
             "wish",
-            "PREFER AT_MOST 1 staff.dylan DOING activities.clinics.riflery",
+            "PREFER AT_MOST 1 staff.dylan DO activities.clinics.riflery",
             Priority.HIGH,
         ),
     ]

@@ -43,14 +43,14 @@ Skedge has two statements and two ways of talking about assignments.
 |---|---|
 | `REQUEST` | A constraint that is either met or not met. |
 | `PREFER` | A soft constraint that can be partly met. |
-| `<who> DO <what> …` | A **requirement**: these people do this. Quantifiers *choose* who, what and when. |
-| `<who> DOING <what> …` | A **pattern**: the assignments in which these people are doing this. A pattern matches assignments; nothing in it chooses. |
+| `<who> DO <what> …` after `REQUEST <chooser>` | A **requirement**: these people do this. Quantifiers *choose* who, what and when. |
+| `<who> DO <what> …` after an amount | A **pattern**: the assignments in which these people are doing this. A pattern matches assignments; nothing in it chooses. |
 
 ## 3. Lexical structure
 
 | Element | Form |
 |---|---|
-| Keyword | Upper case: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `GAP`, `TO`, `DO`, `DOING`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY_n_OF`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
+| Keyword | Upper case: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `GAP`, `TO`, `DO`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY_n_OF`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
 | Quantifier | `ALL_OF`, `EACH_OF`, and `ANY_n_OF` for any whole `n` from 1: `ANY_1_OF`, `ANY_3_OF` |
 | Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session.four.week.two.monday` |
 | Variable, label | A bare identifier: `s`, `morning`. A label is followed by a colon. |
@@ -95,7 +95,7 @@ prefer      : "PREFER" amount pattern CONSECUTIVE?                -> prefer_coun
             | "PREFER" pattern goal                               -> prefer_score
 condition   : amount? pattern CONSECUTIVE?
 
-pattern     : pool "DOING" target clause*                        -> pattern_doing
+pattern     : pool "DO" target clause*                           -> pattern_doing
             | pool FREE clause*                                  -> pattern_free
             | pool "NOT" FREE clause*                            -> pattern_busy
 goal        : (MAXIMIZE | MINIMIZE) REF "(" arg ("," arg)* ")"
@@ -333,14 +333,14 @@ Clauses of a requirement:
 
 ## 8. Patterns
 
-`<who> DOING <what> [clauses]` matches every assignment that passes all of its parts.
+`<who> DO <what> [clauses]` matches every assignment that passes all of its parts.
 `<who> FREE [clauses]` matches every (staff, block, date) in which the staff member is
 free, and `<who> NOT FREE [clauses]` every one in which they are busy. A clause left out does not filter, except `ON`.
 
 | Part | Passes an assignment when |
 |---|---|
 | `<who>` | its staff member is in the pool |
-| `DOING <what>` | its activity is in the pool, or is that quoted task |
+| `DO <what>` | its activity is in the pool, or is that quoted task |
 | `DURING`, `ON`, `AS_ROLE` | its block, date, role is in the pool |
 | `FOR <duration>` | its length is exactly the duration |
 | `WITH <staff>` | someone else in the set holds an assignment on the same instance |

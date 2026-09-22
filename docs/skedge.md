@@ -27,7 +27,7 @@ And two ways to talk about assignments:
 |---|---|
 | `<what> DURING <blocks> ON <dates>` | An **activity requirement**: this activity happens, then. It names nobody, because the activity already says who may run it. |
 | `<who> DO <what> DURING <blocks> ON <dates>` | A **requirement**: these people do this, then. |
-| `<who> DOING <what> …` | A **pattern**: all the assignments where these people are doing this. Used for counting, scoring and conditions. |
+| `<amount> <who> DO <what> …` | A **pattern**, with how many of it you want: all the assignments where these people are doing this. Used for counting, scoring and conditions. |
 
 In a requirement, every set of names says out loud how it is meant:
 
@@ -251,17 +251,18 @@ exactly one of them, so three such breaks are three times as bad as one.
 "X only if Y is there too" is always "X `NOT DO` it `WITHOUT` Y". At `MUST_HAPPEN` these
 are hard rules; at a soft priority they are wishes.
 
-## Patterns: `<who> DOING <what>`
+## Patterns: `<who> DO <what>`
 
-A pattern describes assignments without asking for them. Sets in a pattern are pools
-("any of these"), and the only quantifier is `EACH_OF`. Put an amount in front and it
+A pattern describes assignments without asking for them. It is the same `DO` a requirement
+is written with; what makes it a pattern is the amount in front of it. Sets in a pattern
+are pools ("any of these"), and the only quantifier is `EACH_OF`. Put an amount in front and it
 becomes something you can request or prefer:
 
 | Request | Meaning |
 |---|---|
-| `REQUEST AT_MOST 2 staff.all DOING 'break' DURING EACH_OF blocks.all` | Never more than two people on break at once. Met or not. |
-| `PREFER AT_MOST 8 EACH_OF staff.all DOING activities.clinics.all ON dates.session.one.all` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
-| `REQUEST AT_LEAST 2h staff.james DOING 'dance practice' ON {2026-09-16 .. 2026-09-17}` | James's dance practice adds up to two hours. |
+| `REQUEST AT_MOST 2 staff.all DO 'break' DURING EACH_OF blocks.all` | Never more than two people on break at once. Met or not. |
+| `PREFER AT_MOST 8 EACH_OF staff.all DO activities.clinics.all ON dates.session.one.all` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
+| `REQUEST AT_LEAST 2h staff.james DO 'dance practice' ON {2026-09-16 .. 2026-09-17}` | James's dance practice adds up to two hours. |
 
 An amount is `AT_LEAST`, `AT_MOST` or `EXACTLY`, then a number of assignments or a length
 of time. Add `CONSECUTIVE` at the end and it is measured over back-to-back blocks on one
@@ -277,7 +278,7 @@ be `MUST_HAPPEN`. `PREFER` is never hard and is scored by how far off it is.
 up:
 
 ```skedge
-PREFER EACH_OF s IN staff.all DOING EACH_OF c IN activities.clinics.all MAXIMIZE metrics.preference(s, c)
+PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE metrics.preference(s, c)
 ```
 
 For each staff member `s` and clinic `c`, every assignment of `s` to `c` earns
@@ -297,7 +298,7 @@ REQUEST s FREE DURING blocks.clinic_1
 ```
 
 `IF <pattern>` makes the request apply only when the pattern has a match (or meets an
-amount: `IF AT_LEAST 3 s DOING …`). `UNLESS` is the opposite. Published past days are
+amount: `IF AT_LEAST 3 s DO …`). `UNLESS` is the opposite. Published past days are
 facts, so an `IF` about yesterday is simply true or false.
 
 ```skedge
@@ -492,7 +493,7 @@ Cam VL is trained on candle making for two unbroken hours some day this week.
 additional to the clinic's positions.
 
 ```skedge
-REQUEST AT_LEAST 2h staff.cam_vl DOING activities.clinics.candle_making AS_ROLE roles.trainee ON {2026-09-14 .. 2026-09-18} CONSECUTIVE
+REQUEST AT_LEAST 2h staff.cam_vl DO activities.clinics.candle_making AS_ROLE roles.trainee ON {2026-09-14 .. 2026-09-18} CONSECUTIVE
 ```
 
 Priority `HIGH`.
@@ -508,7 +509,7 @@ Priority `MUST_HAPPEN`.
 ### Staff run clinics they prefer
 
 ```skedge
-PREFER EACH_OF s IN staff.all DOING EACH_OF c IN activities.clinics.all MAXIMIZE metrics.preference(s, c)
+PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE metrics.preference(s, c)
 ```
 
 Priority `MEDIUM`, weight `1`.
@@ -519,7 +520,7 @@ Each person should run each clinic at most once in any seven days; every repeat 
 point. Shares a tier with the preference request so the two trade off.
 
 ```skedge
-PREFER AT_MOST 1 EACH_OF staff.all DOING EACH_OF activities.clinics.all ON {(dates.target - 6d) .. dates.target}
+PREFER AT_MOST 1 EACH_OF staff.all DO EACH_OF activities.clinics.all ON {(dates.target - 6d) .. dates.target}
 ```
 
 Priority `MEDIUM`, weight `0.5`.
@@ -527,7 +528,7 @@ Priority `MEDIUM`, weight `0.5`.
 ### Rotate ropes positions
 
 ```skedge
-PREFER AT_MOST 3 EACH_OF staff.ropes_level_2 DOING activities.clinics.ropes AS_ROLE EACH_OF {roles.first + roles.second} ON dates.session.one.all
+PREFER AT_MOST 3 EACH_OF staff.ropes_level_2 DO activities.clinics.ropes AS_ROLE EACH_OF {roles.first + roles.second} ON dates.session.one.all
 ```
 
 Priority `LOW`.
@@ -535,7 +536,7 @@ Priority `LOW`.
 ### Balance clinic workload
 
 ```skedge
-PREFER AT_MOST 8 EACH_OF staff.all DOING activities.clinics.all ON dates.session.one.all
+PREFER AT_MOST 8 EACH_OF staff.all DO activities.clinics.all ON dates.session.one.all
 ```
 
 Priority `MEDIUM`, weight `0.25`.
@@ -543,7 +544,7 @@ Priority `MEDIUM`, weight `0.25`.
 ### Never more than three clinics in a row
 
 ```skedge
-REQUEST AT_MOST 3 EACH_OF staff.all DOING activities.clinics.all CONSECUTIVE
+REQUEST AT_MOST 3 EACH_OF staff.all DO activities.clinics.all CONSECUTIVE
 ```
 
 Priority `MUST_HAPPEN`.
@@ -587,7 +588,7 @@ Priority `HIGH`, weight `2`.
 ### Never more than two people on break at once
 
 ```skedge
-REQUEST AT_MOST 2 staff.all DOING 'break' DURING EACH_OF blocks.all
+REQUEST AT_MOST 2 staff.all DO 'break' DURING EACH_OF blocks.all
 ```
 
 Priority `MUST_HAPPEN`.
@@ -643,7 +644,7 @@ Priority `MUST_HAPPEN`.
 
 ```skedge
 EACH_OF s IN staff.all
-IF AT_LEAST 3 s DOING activities.clinics.all CONSECUTIVE
+IF AT_LEAST 3 s DO activities.clinics.all CONSECUTIVE
 REQUEST s FREE DURING ANY_1_OF blocks.all
 ```
 

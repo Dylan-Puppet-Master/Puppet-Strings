@@ -175,7 +175,7 @@ class Amount:
 
 @dataclass(frozen=True)
 class Pattern:
-    """`<who> DOING <what> …`, `<who> FREE …` or `<who> NOT FREE …` (`busy`)."""
+    """`<who> DO <what> …`, `<who> FREE …` or `<who> NOT FREE …` (`busy`)."""
 
     who: Selector
     what: Target

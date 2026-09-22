@@ -47,31 +47,31 @@ def test_negation_and_free():
 
 
 def test_amount_statements():
-    (count,) = parse("REQUEST AT_MOST 2 staff.all DOING 'break' DURING EACH_OF blocks.all").lines
+    (count,) = parse("REQUEST AT_MOST 2 staff.all DO 'break' DURING EACH_OF blocks.all").lines
     assert isinstance(count, ast.Count) and not count.prefer and not count.consecutive
     assert count.amount == ast.Amount(ast.AT_MOST, 2, False, ast.Pos(1, 9))
     assert count.pattern.who.quantifier is None and count.pattern.what == ast.Task("break")
     (hours,) = parse(
-        "PREFER AT_LEAST 2h staff.cam_vl DOING activities.clinics.candle_making "
+        "PREFER AT_LEAST 2h staff.cam_vl DO activities.clinics.candle_making "
         "AS_ROLE roles.trainee ON {2026-09-14 .. 2026-09-18} CONSECUTIVE"
     ).lines
     assert hours.prefer and hours.consecutive
     assert hours.amount == ast.Amount(ast.AT_LEAST, 120, True, ast.Pos(1, 8))
     role = ast.clause(hours.pattern.clauses, ast.AsRole).selector.expr
-    assert role == ast.Ref("roles", "trainee", ast.Pos(1, 80))
+    assert role == ast.Ref("roles", "trainee", ast.Pos(1, 77))
     assert isinstance(ast.clause(hours.pattern.clauses, ast.On).selector.expr, ast.DateRange)
 
 
 def test_metric_statement():
     (score,) = parse(
-        "PREFER EACH_OF s IN staff.all DOING EACH_OF c IN activities.clinics.all "
+        "PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all "
         "MINIMIZE metrics.preference(s, activities.clinics.riflery)"
     ).lines
     assert isinstance(score, ast.Score) and not score.maximize
-    assert score.metric == ast.Ref("metrics", "preference", ast.Pos(1, 82))
+    assert score.metric == ast.Ref("metrics", "preference", ast.Pos(1, 79))
     assert score.args == (
-        ast.Var("s", ast.Pos(1, 101)),
-        ast.Ref("activities", "clinics.riflery", ast.Pos(1, 104)),
+        ast.Var("s", ast.Pos(1, 98)),
+        ast.Ref("activities", "clinics.riflery", ast.Pos(1, 101)),
     )
     assert (score.pattern.who.quantifier, score.pattern.who.var) == (ast.EACH_OF, "s")
     assert score.pattern.what.var == "c"
@@ -80,7 +80,7 @@ def test_metric_statement():
 def test_bindings_conditions_labels_and_gaps():
     lines = parse(
         "ANY_2_OF p IN staff.counselor\n"
-        "UNLESS AT_LEAST 3 p DOING activities.clinics.all CONSECUTIVE\n"
+        "UNLESS AT_LEAST 3 p DO activities.clinics.all CONSECUTIVE\n"
         "first: REQUEST p DO 'campfire setup' DURING blocks.clinic_4\n"
         "last:  REQUEST p DO 'campfire teardown' DURING blocks.evening\n"
         "GAP first TO last AT_LEAST 0m\n"
@@ -164,11 +164,12 @@ def test_a_day_offset_is_still_an_offset_and_not_a_duration():
         ("REQUEST staff.rob DO", "expected one of", 1, 21),
         ("REQUEST staff.rob DO 'x' DURING blocks.a ON 2026-13-01", "invalid date", 1, 45),
         ("REQUEST staff.rob DO 'x' FOR 1.25m DURING blocks.a", "whole number of minutes", 1, 30),
-        ("PREFER staff.rob DO 'x' DURING blocks.a", "expected one of", 1, 18),
+        # a PREFER with no amount is a score, so what is missing is the goal
+        ("PREFER staff.rob DO 'x' DURING blocks.a", "expected one of", 1, 40),
         ("REQUEST staff.rob NOT DO ANY_1_OF activities.clinics.all", "expected one of", 1, 26),
-        ("morning: PREFER AT_MOST 1 staff.all DOING 'x'", "expected one of", 1, 10),
+        ("morning: PREFER AT_MOST 1 staff.all DO 'x'", "expected one of", 1, 10),
         ("REQUEST AT_MOST 1 staff.all CONSECUTIVE", "expected one of", 1, 29),
-        ("PREFER staff.all DOING 'x' MAXIMIZE", "expected one of", 1, 36),
+        ("PREFER staff.all DO 'x' MAXIMIZE", "expected one of", 1, 33),
         (
             "REQUEST staff.rob DO 'x' DURING {blocks.a + blocks.b & blocks.c}",
             "mixed set operators",

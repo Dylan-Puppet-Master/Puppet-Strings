@@ -29,7 +29,7 @@ from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
 
 KEYWORDS = (
-    "REQUEST|PREFER|IF|UNLESS|GAP|TO|DO|DOING|NOT|FREE|DURING|ON|AS_ROLE|FOR|WITH|WITHOUT|IN|"
+    "REQUEST|PREFER|IF|UNLESS|GAP|TO|DO|NOT|FREE|DURING|ON|AS_ROLE|FOR|WITH|WITHOUT|IN|"
     "ALL_OF|ANY_[0-9]+_OF|EACH_OF|AT_LEAST|AT_MOST|EXACTLY|CONSECUTIVE|MAXIMIZE|MINIMIZE"
 )
 

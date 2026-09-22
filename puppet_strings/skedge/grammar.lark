@@ -19,7 +19,7 @@ prefer      : "PREFER" amount pattern CONSECUTIVE?                -> prefer_coun
             | "PREFER" pattern goal                               -> prefer_score
 condition   : amount? pattern CONSECUTIVE?
 
-pattern     : pool "DOING" target clause*                        -> pattern_doing
+pattern     : pool "DO" target clause*                           -> pattern_doing
             | pool FREE clause*                                  -> pattern_free
             | pool "NOT" FREE clause*                            -> pattern_busy
 goal        : (MAXIMIZE | MINIMIZE) REF "(" arg ("," arg)* ")"

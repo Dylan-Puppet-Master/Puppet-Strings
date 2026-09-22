@@ -112,14 +112,14 @@ def test_patterns_conditions_and_metrics(dataset):
     (copy,) = resolve(
         dataset,
         "EACH_OF s IN staff.director\n"
-        "IF AT_LEAST 3 s DOING activities.clinics.all CONSECUTIVE\n"
+        "IF AT_LEAST 3 s DO activities.clinics.all CONSECUTIVE\n"
         "REQUEST s FREE DURING ANY_1_OF blocks.all",
     )[:1]
     assert copy.condition.amount.value == 3 and copy.condition.consecutive
     assert copy.condition.pattern.who.items == ("david",)
     copies = resolve(
         dataset,
-        "PREFER EACH_OF s IN staff.counselor DOING EACH_OF c IN activities.clinics.weapons "
+        "PREFER EACH_OF s IN staff.counselor DO EACH_OF c IN activities.clinics.weapons "
         "MAXIMIZE metrics.preference(s, c)",
     )
     assert copies[0].statements[0].key == ("dylan", "archery_1_2")
@@ -189,7 +189,7 @@ def test_roles(dataset):
     assert copy.statements[0].role.items == ("trainee",)
     (copy,) = resolve(
         dataset,
-        "PREFER AT_MOST 3 staff.rob DOING activities.clinics.ropes AS_ROLE EACH_OF {roles.first + roles.second}",
+        "PREFER AT_MOST 3 staff.rob DO activities.clinics.ropes AS_ROLE EACH_OF {roles.first + roles.second}",
     )[:1]
     assert copy.key == "first" and copy.statements[0].pattern.role.kind == POOL
 
