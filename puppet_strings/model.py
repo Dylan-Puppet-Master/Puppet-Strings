@@ -370,6 +370,11 @@ class Request:
 NUMERIC = "numeric"  # what a mapping's `value` says when it gives a number, not a name
 
 
+def is_numeric(value: str) -> bool:
+    """Whether a Mappings tab `value` says the mapping gives numbers rather than names."""
+    return value.strip().lower() == NUMERIC
+
+
 @dataclass(frozen=True)
 class MappingTable:
     """A table from keys to a value, declared on the Mappings tab.
@@ -399,7 +404,7 @@ class MappingTable:
     @property
     def numeric(self) -> bool:
         """Whether a row is a number on a scale rather than a name."""
-        return self.value == NUMERIC
+        return is_numeric(self.value)
 
     @property
     def missing(self) -> float:

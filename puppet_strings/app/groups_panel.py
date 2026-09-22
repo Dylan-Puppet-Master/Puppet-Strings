@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 from puppet_strings.app import palette
 from puppet_strings.app.groups import ALL, DEFAULT_GROUPS, UNGROUPED
-from puppet_strings.app.requests_model import REQUEST_IDS
+from puppet_strings.app.requests_model import REQUEST_IDS, request_ids
 from puppet_strings.app.store import RequestStore
 from puppet_strings.sheets.requests import request_tabs
 
@@ -71,11 +71,11 @@ class GroupList(QListWidget):
         what is being dropped on.
         """
         super().dragMoveEvent(event)
-        if self._group_at(event) is None:
-            self._aim(None)
+        shelf = self._shelf_at(event)
+        self._aim(shelf)
+        if shelf is None:
             event.ignore()
             return
-        self._aim(self.itemAt(event.position().toPoint()))
         event.setDropAction(Qt.MoveAction)
         event.accept()
 
@@ -87,14 +87,18 @@ class GroupList(QListWidget):
     def dropEvent(self, event) -> None:  # noqa: N802
         """Move the dragged requests onto the group they were let go over."""
         self._aim(None)
-        group = self._group_at(event)
-        if group is None:
+        shelf = self._shelf_at(event)
+        if shelf is None:
             event.ignore()
             return
-        ids = bytes(event.mimeData().data(REQUEST_IDS)).decode().split("\n")
         event.setDropAction(Qt.MoveAction)
         event.accept()
-        self.dropped.emit([i for i in ids if i], group)
+        self.dropped.emit(request_ids(event.mimeData()), shelf.data(Qt.UserRole))
+
+    def clear(self) -> None:
+        """Empty the list, and with it the group aimed at, whose item is about to go."""
+        self.target = None
+        super().clear()
 
     def paintEvent(self, event) -> None:  # noqa: N802
         """Draw the list, then outline the group a drop would land on."""
@@ -117,13 +121,12 @@ class GroupList(QListWidget):
             self.target = item
             self.viewport().update()
 
-    def _group_at(self, event) -> str | None:
+    def _shelf_at(self, event) -> QListWidgetItem | None:
         """The group under the pointer, or None if a drop there would mean nothing."""
         if not event.mimeData().hasFormat(REQUEST_IDS):
             return None
         item = self.itemAt(event.position().toPoint())
-        group = item.data(Qt.UserRole) if item else None
-        return None if group in (None, ALL) else group
+        return None if item is None or item.data(Qt.UserRole) == ALL else item
 
 
 class GroupsPane(QWidget):
@@ -171,7 +174,6 @@ class GroupsPane(QWidget):
         """Rebuild the list from the store, staying on the group that was picked."""
         wanted = keep or self.current
         self.list.blockSignals(True)
-        self.list.target = None  # its item is about to be deleted
         self.list.clear()
         ungrouped = sum(1 for r in self.store.requests if not r.group)
         self._add(ALL, len(self.store.requests))

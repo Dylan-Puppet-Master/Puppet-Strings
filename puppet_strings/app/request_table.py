@@ -11,6 +11,7 @@ from PySide6.QtGui import QColor, QDrag, QFont, QFontMetrics, QPainter, QPainter
 from PySide6.QtWidgets import QTableView
 
 from puppet_strings.app import palette
+from puppet_strings.app.requests_model import request_ids
 
 WIDEST = 220  # past this a request's id is elided rather than the token grown
 PAD = 10  # between the token's edge and its writing
@@ -83,10 +84,8 @@ class RequestTable(QTableView):
         data = self.model().mimeData(indexes)
         if data is None:
             return
-        rows = sorted({i.row() for i in indexes})
-        ids = [str(self.model().index(r, 0).data()) for r in rows]
         drag = QDrag(self)
         drag.setMimeData(data)
-        drag.setPixmap(drag_token(ids, self.font(), self.devicePixelRatioF()))
+        drag.setPixmap(drag_token(request_ids(data), self.font(), self.devicePixelRatioF()))
         drag.setHotSpot(BESIDE)
         drag.exec(supported, Qt.MoveAction)

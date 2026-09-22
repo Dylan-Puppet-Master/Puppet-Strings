@@ -12,6 +12,11 @@ COLUMNS = ("id", "priority", "group", "tags", "requester", "valid", "description
 REQUEST_IDS = "application/x-puppet-strings-requests"  # what a dragged row carries
 
 
+def request_ids(data: QMimeData) -> list[str]:
+    """The ids a drag of rows carries, in the order they were picked up."""
+    return [i for i in bytes(data.data(REQUEST_IDS)).decode().split("\n") if i]
+
+
 class RequestsModel(QAbstractTableModel):
     """One row per request in the store."""
 

@@ -12,15 +12,17 @@ identifiers; once the day is built, `check_mappings` asks whether every row name
 keys and value say it may, which takes the day's own categories to answer.
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import replace
 from datetime import date
 
-from puppet_strings.model import NUMERIC, Dataset, MappingTable
+from puppet_strings.model import NUMERIC, Dataset, MappingTable, is_numeric
 from puppet_strings.names import normalize
 from puppet_strings.sheets.source import LoadError, Table, header_rows, parse_date, split_list
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.namespaces import DATES
-from puppet_strings.skedge.resolve import default_choice, domain, domain_namespace, judged
+from puppet_strings.skedge.resolve import Domains, domain_namespace, judged
 
 INDEX = "Mappings"
 INDEX_COLUMNS = ("mapping", "keys", "value", "scale_min", "scale_max", "default")
@@ -43,12 +45,11 @@ def parse_mapping_index(table: Table) -> list[MappingTable]:
         if not keys:
             raise LoadError(f"{cell}: keys needs at least one set, such as staff.counselor")
         value = row["value"].strip()
-        for text in keys + (() if value.lower() == NUMERIC else (value,)):
-            _namespace(text, cell)
-        if value.lower() == NUMERIC:
-            index.append(_numeric(row, keys, cell))
-        else:
-            index.append(_named(row, keys, value, cell))
+        numeric = is_numeric(value)
+        for text in keys if numeric else (*keys, value):
+            with _as_load_error(cell):
+                domain_namespace(text)
+        index.append(_numeric(row, keys, cell) if numeric else _named(row, keys, value, cell))
     return index
 
 
@@ -108,26 +109,26 @@ def check_mappings(dataset: Dataset) -> None:
     the value set. Staff who are not working today are in no category today, so whether they
     belong to one cannot be told and is not asked.
     """
+    domains = Domains(dataset)
     for mapping in dataset.mappings.values():
         where = f"{INDEX}/{TAB_PREFIX}{mapping.name}"
-        sets = [_domain(text, dataset, f"{INDEX} row '{mapping.name}'") for text in mapping.keys]
-        gives = None if mapping.numeric else _domain(mapping.value, dataset, where)
+        sets = [_domain(text, domains, f"{INDEX} row '{mapping.name}'") for text in mapping.keys]
+        gives = None if mapping.numeric else _domain(mapping.value, domains, where)
         for key, value in mapping.rows.items():
             cell = f"{where} row {list(key)}"
             for item, (namespace, items), text in zip(key, sets, mapping.keys, strict=True):
-                _belongs(item, namespace, items, text, dataset, cell)
+                _belongs(item, namespace, items, text, domains, cell)
             if gives is not None:
-                _belongs(value, *gives, mapping.value, dataset, cell)
+                _belongs(value, *gives, mapping.value, domains, cell)
         if gives is not None and mapping.default is not None:
-            _check_default(mapping, gives, dataset)
+            _check_default(mapping, gives, domains)
 
 
-def _check_default(mapping: MappingTable, gives: tuple, dataset: Dataset) -> None:
+def _check_default(mapping: MappingTable, gives: tuple, domains: Domains) -> None:
     cell = f"{INDEX} row '{mapping.name}'"
-    try:
-        namespace, items = default_choice(mapping.default, dataset)
-    except SkedgeError as e:
-        raise LoadError(f"{cell}: default '{mapping.default}': {e.message}") from e
+    dataset = domains.dataset
+    with _as_load_error(f"{cell}: default '{mapping.default}'"):
+        namespace, items = domains.default(mapping.default)
     if namespace != gives[0]:
         raise LoadError(
             f"{cell}: default '{mapping.default}' names {namespace}, "
@@ -141,29 +142,29 @@ def _check_default(mapping: MappingTable, gives: tuple, dataset: Dataset) -> Non
         )
 
 
-def _belongs(item, namespace, items, text, dataset, cell) -> None:
+def _belongs(item, namespace, items, text, domains: Domains, cell) -> None:
     """A key or value cell must name something, and something its set holds."""
     found = date.fromisoformat(item) if namespace == DATES else item
     if found in items:
         return
-    if found not in domain(namespace, dataset)[1]:
+    if found not in domains.of(namespace)[1]:
         raise LoadError(f"{cell}: '{item}' is not a name in {namespace}")
-    if judged(found, namespace, dataset):
+    if judged(found, namespace, domains.dataset):
         raise LoadError(f"{cell}: '{item}' is not in {text}")
 
 
-def _domain(text: str, dataset: Dataset, cell: str) -> tuple:
-    try:
-        return domain(text, dataset)
-    except SkedgeError as e:
-        raise LoadError(f"{cell}: '{text}': {e.message}") from e
+def _domain(text: str, domains: Domains, cell: str) -> tuple:
+    with _as_load_error(f"{cell}: '{text}'"):
+        return domains.of(text)
 
 
-def _namespace(text: str, cell: str) -> str:
+@contextmanager
+def _as_load_error(where: str) -> Iterator[None]:
+    """A Skedge error in a Mappings cell, told as a load error that says which cell."""
     try:
-        return domain_namespace(text)
+        yield
     except SkedgeError as e:
-        raise LoadError(f"{cell}: {e.message}") from e
+        raise LoadError(f"{where}: {e.message}") from e
 
 
 def _identifier(text: str, namespace: str, where: str, date_order: str) -> str:

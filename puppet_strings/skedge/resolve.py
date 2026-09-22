@@ -220,6 +220,7 @@ class _Names:
             ROLES: {r: Named(frozenset({r}), True) for r in roles},
             MAPPINGS: {m: Named(frozenset({m}), True) for m in dataset.mappings},
         }
+        self.domains: dict[str, tuple[str, frozenset[Item]]] = {}  # by `keys`/`value` text
 
     def lookup(self, ref: ast.Ref, namespace: str) -> Named:
         if ref.namespace != namespace:
@@ -451,8 +452,7 @@ class _Scope:
     def with_any(self, selector: ast.Selector) -> "_Scope":
         namespace = _namespace_of(selector.expr, self)
         items, single = _evaluate(selector.expr, namespace, self)
-        if single and not isinstance(selector.expr, ast.Call):
-            raise _error("is one item and takes no quantifier", selector.pos)
+        _no_quantifier_on_one(selector.expr, single, selector.pos)
         choice = Choice(_sorted(items), ANY, selector.n, selector.var, pos=selector.pos)
         return replace(self, anys={**self.anys, selector.var: (choice, namespace)})
 
@@ -464,8 +464,7 @@ def _expand(declaration: ast.Declaration, each: list, scope: _Scope) -> Iterator
     (namespace, selector), rest = each[0], each[1:]
     namespace = namespace or _namespace_of(selector.expr, scope)
     items, single = _evaluate(selector.expr, namespace, scope)
-    if single and not isinstance(selector.expr, ast.Call):
-        raise _error("is one item and takes no quantifier", selector.pos)
+    _no_quantifier_on_one(selector.expr, single, selector.pos)
     for item in _sorted(items):
         yield from _expand(declaration, rest, scope.with_each(selector, item, namespace))
 
@@ -682,9 +681,7 @@ def _default_scope(scope: "_Scope") -> "_Scope":
     return _Scope(scope.names, scope.dataset)
 
 
-@cache
-def _default(text: str) -> ast.Selector:
-    return parse_default(text)
+_default = cache(parse_default)
 
 
 @cache
@@ -693,15 +690,14 @@ def _domain_expr(text: str) -> tuple[str, ast.SetExpr | None]:
     if text.strip().lower() in KEY_NAMESPACES:
         return text.strip().lower(), None
     expr = parse_domain(text)
-    first = _first_name(expr)
-    if first is None or _has_call(expr):
+    if _needs_request(expr):
         raise ast.SkedgeError(
             f"'{text}' should be a namespace, such as staff, or a set of names, such as "
             "{staff.all - staff.counselor}",
             1,
             1,
         )
-    namespace = first.namespace if isinstance(first, ast.Ref) else DATES
+    namespace = _namespace_of(expr, None)
     if namespace not in KEY_NAMESPACES:
         raise ast.SkedgeError(
             f"'{text}' names {namespace}; a mapping takes and gives names from "
@@ -712,38 +708,21 @@ def _domain_expr(text: str) -> tuple[str, ast.SetExpr | None]:
     return namespace, expr
 
 
-def _first_name(expr: ast.SetExpr) -> ast.Ref | ast.DateLiteral | None:
-    """The name a set's namespace is read from. None if a variable or a call comes first."""
-    if isinstance(expr, ast.Ref | ast.DateLiteral):
-        return expr
-    if isinstance(expr, ast.SetOp):
-        return _first_name(expr.left)
-    if isinstance(expr, ast.DateRange):
-        return _first_name(expr.start)
-    if isinstance(expr, ast.DateOffset):
-        return _first_name(expr.base)
-    return None
-
-
-def _has_call(expr: ast.SetExpr) -> bool:
+def _needs_request(expr: ast.SetExpr) -> bool:
     """Whether a set leans on something only a request can supply: a variable or a call."""
-    if isinstance(expr, ast.Call | ast.Var):
-        return True
-    if isinstance(expr, ast.SetOp):
-        return _has_call(expr.left) or _has_call(expr.right)
-    if isinstance(expr, ast.DateRange):
-        return _has_call(expr.start) or _has_call(expr.end)
-    if isinstance(expr, ast.DateOffset):
-        return _has_call(expr.base)
-    return False
+    return any(isinstance(node, ast.Var | ast.Call) for node in ast.nodes(expr))
 
 
 def _domain(text: str, names: "_Names", dataset: Dataset) -> tuple[str, frozenset[Item]]:
-    namespace, expr = _domain_expr(text)
-    if expr is None:
-        return namespace, frozenset().union(*(n.items for n in names.spaces[namespace].values()))
-    items, _ = _evaluate(expr, namespace, _Scope(names, dataset))
-    return namespace, items
+    """What a `keys` or `value` entry stands for, worked out once for all the calls to it."""
+    if text not in names.domains:
+        namespace, expr = _domain_expr(text)
+        if expr is None:
+            spaces = names.spaces[namespace].values()
+            names.domains[text] = namespace, frozenset().union(*(n.items for n in spaces))
+        else:
+            names.domains[text] = namespace, _evaluate(expr, namespace, _Scope(names, dataset))[0]
+    return names.domains[text]
 
 
 def domain_namespace(text: str) -> str:
@@ -751,29 +730,34 @@ def domain_namespace(text: str) -> str:
     return _domain_expr(text)[0]
 
 
-def domain(text: str, dataset: Dataset) -> tuple[str, frozenset[Item]]:
-    """What a Mappings tab `keys` or `value` entry stands for today. Raises SkedgeError."""
-    return _domain(text, _Names(dataset), dataset)
+class Domains:
+    """What the Mappings tab's entries stand for on one day, each worked out once."""
 
+    def __init__(self, dataset: Dataset) -> None:
+        self.dataset = dataset
+        self.names = _Names(dataset)
 
-def default_choice(text: str, dataset: Dataset) -> tuple[str, frozenset[Item]]:
-    """A Mappings tab `default`, as the namespace and the items it chooses from.
+    def of(self, text: str) -> tuple[str, frozenset[Item]]:
+        """A `keys` or `value` entry, as its namespace and its items. Raises SkedgeError."""
+        return _domain(text, self.names, self.dataset)
 
-    Raises SkedgeError for a phrase a default cannot be: one with a variable in it, which
-    nothing on the Mappings tab can bind; an EACH_OF, which would make one call many; and a
-    set of several names with no quantifier to say how they are taken.
-    """
-    selector = _default(text)
-    if selector.quantifier == ast.EACH_OF:
-        raise _error("a default is one choice, so it takes no EACH_OF", selector.pos)
-    first = _first_name(selector.expr)
-    if first is None or _has_call(selector.expr):
-        raise _error("a default names names, not variables or mappings", selector.pos)
-    namespace = first.namespace if isinstance(first, ast.Ref) else DATES
-    items, single = _evaluate(selector.expr, namespace, _Scope(_Names(dataset), dataset))
-    if not single and selector.quantifier is None:
-        raise _error("a default of more than one name needs ALL_OF or ANY_n_OF", selector.pos)
-    return namespace, items
+    def default(self, text: str) -> tuple[str, frozenset[Item]]:
+        """A `default`, as the namespace and the items it chooses from.
+
+        Raises SkedgeError for a phrase a default cannot be: one with a variable in it,
+        which nothing on the Mappings tab can bind; an EACH_OF, which would make one call
+        many; and a set of several names with no quantifier to say how they are taken.
+        """
+        selector = _default(text)
+        if selector.quantifier == ast.EACH_OF:
+            raise _error("a default is one choice, so it takes no EACH_OF", selector.pos)
+        if _needs_request(selector.expr):
+            raise _error("a default names names, not variables or mappings", selector.pos)
+        namespace = _namespace_of(selector.expr, None)
+        items, single = _evaluate(selector.expr, namespace, _Scope(self.names, self.dataset))
+        if not single and selector.quantifier is None:
+            raise _error("a default of more than one name needs ALL_OF or ANY_n_OF", selector.pos)
+        return namespace, items
 
 
 def judged(item: Item, namespace: str, dataset: Dataset) -> bool:
@@ -828,11 +812,20 @@ def _choice(
         if not single:
             raise _error("needs a quantifier: ALL_OF, ANY_n_OF or EACH_OF", selector.pos)
         return Choice(_sorted(items), ALL, pos=selector.pos)
-    if single and not isinstance(expr, ast.Call):
-        raise _error("is one item and takes no quantifier", selector.pos)
+    _no_quantifier_on_one(expr, single, selector.pos)
     if selector.quantifier == ast.ALL_OF:
         return Choice(_sorted(items), ALL, pos=selector.pos)
     return Choice(_sorted(items), ANY, selector.n, pos=selector.pos)
+
+
+def _no_quantifier_on_one(expr: ast.SetExpr, single: bool, pos: ast.Pos) -> None:
+    """A name that is one item takes no quantifier; a call may.
+
+    A call's row is one item, but its default can be a choice, and which of the two a call
+    comes to changes from day to day.
+    """
+    if single and not isinstance(expr, ast.Call):
+        raise _error("is one item and takes no quantifier", pos)
 
 
 def _split_bound(expr: ast.SetExpr, scope: _Scope) -> tuple[ast.SetExpr | None, tuple]:
@@ -977,8 +970,11 @@ def _one_date(expr: ast.SetExpr, scope: _Scope) -> date:
     return next(iter(items))
 
 
-def _namespace_of(expr: ast.SetExpr, scope: _Scope) -> str:
-    """The namespace a binding line's set belongs to, from the first name in it."""
+def _namespace_of(expr: ast.SetExpr, scope: _Scope | None) -> str:
+    """The namespace a binding line's set belongs to, from the first name in it.
+
+    Only a variable or a call needs the scope, so a set with neither is asked with None.
+    """
     if isinstance(expr, ast.Ref):
         return expr.namespace
     if isinstance(expr, ast.Var):

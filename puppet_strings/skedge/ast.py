@@ -361,18 +361,22 @@ def set_exprs(line: Line) -> Iterator[SetExpr]:
         yield from line.args
 
 
-def vars_in(expr: SetExpr) -> Iterator[Var]:
-    """The variables an expression mentions."""
-    if isinstance(expr, Var):
-        yield expr
-    elif isinstance(expr, SetOp):
-        yield from vars_in(expr.left)
-        yield from vars_in(expr.right)
+def nodes(expr: SetExpr) -> Iterator[SetExpr]:
+    """An expression and every expression inside it, the left of each before the right."""
+    yield expr
+    if isinstance(expr, SetOp):
+        yield from nodes(expr.left)
+        yield from nodes(expr.right)
     elif isinstance(expr, DateRange):
-        yield from vars_in(expr.start)
-        yield from vars_in(expr.end)
+        yield from nodes(expr.start)
+        yield from nodes(expr.end)
     elif isinstance(expr, DateOffset):
-        yield from vars_in(expr.base)
+        yield from nodes(expr.base)
     elif isinstance(expr, Call):
         for arg in expr.args:
-            yield from vars_in(arg)
+            yield from nodes(arg)
+
+
+def vars_in(expr: SetExpr) -> Iterator[Var]:
+    """The variables an expression mentions."""
+    return (node for node in nodes(expr) if isinstance(node, Var))

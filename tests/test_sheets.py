@@ -8,6 +8,7 @@ from puppet_strings.names import normalize
 from puppet_strings.sheets.blocks import parse_blocks
 from puppet_strings.sheets.calendar import calendar_days, parse_calendar
 from puppet_strings.sheets.clinic_data import parse_clinics
+from puppet_strings.sheets.mappings import INDEX_COLUMNS
 from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import assignment_rows, parse_published
 from puppet_strings.sheets.requests import (
@@ -294,7 +295,7 @@ def test_mapping_default_column(source):
     assert mapping.default == 1
 
 
-MAPPINGS_HEADER = ["mapping", "keys", "value", "scale_min", "scale_max", "default"]
+MAPPINGS_HEADER = list(INDEX_COLUMNS)
 
 
 @pytest.mark.parametrize(

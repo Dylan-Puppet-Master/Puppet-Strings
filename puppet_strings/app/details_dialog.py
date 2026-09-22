@@ -24,8 +24,8 @@ from PySide6.QtWidgets import (
 
 from puppet_strings.app.details import Details
 from puppet_strings.config import Config
-from puppet_strings.model import NUMERIC
-from puppet_strings.sheets.mappings import INDEX_COLUMNS, TAB_PREFIX
+from puppet_strings.model import is_numeric
+from puppet_strings.sheets.mappings import INDEX_COLUMNS, TAB_PREFIX, key_columns
 from puppet_strings.sheets.source import Source, split_list
 
 CONFIG_SHEET = "config"
@@ -78,7 +78,7 @@ class MappingDialog(QDialog):
         self.resize(620, 560)
         self.index = self.source.read(CONFIG_SHEET, config.tabs["mappings"])
         row = self._index_row()
-        self.numeric = row.get("value", "").strip().lower() == NUMERIC
+        self.numeric = is_numeric(row.get("value", ""))
         self.default = self._default_box(row)
         table = self.source.read(CONFIG_SHEET, self.tab)
         self.header = table[0] if table else []
@@ -123,9 +123,9 @@ class MappingDialog(QDialog):
 
     def default_text(self) -> str:
         """The default as it is written back to the Mappings tab."""
-        if isinstance(self.default, QLineEdit):
-            return self.default.text().strip()
-        return _trim(self.default.value())
+        if self.numeric:
+            return _trim(self.default.value())
+        return self.default.text().strip()
 
     def _index_row(self) -> dict[str, str]:
         """The row on the Mappings index tab for this mapping, as a dict."""
@@ -179,12 +179,12 @@ class MappingDialog(QDialog):
 def _labels(header: list[str], row: dict[str, str]) -> list[str]:
     """Column headings that say what each key column holds: `key1: staff.counselor`."""
     keys = split_list(row.get("keys", ""))
+    sets = dict(zip(key_columns(len(keys)), keys, strict=True))
     shown = []
     for column in header:
         name = column.strip()
-        number = name[len("key") :] if name.startswith("key") else ""
-        if number.isdigit() and 0 < int(number) <= len(keys):
-            shown.append(f"{name}: {keys[int(number) - 1]}")
+        if name in sets:
+            shown.append(f"{name}: {sets[name]}")
         elif name == "value" and row.get("value"):
             shown.append(f"value: {row['value']}")
         else:

@@ -24,7 +24,7 @@ def parse(text: str) -> ast.Declaration:
 
 
 def parse_domain(text: str) -> ast.SetExpr:
-    """A Mappings tab `keys` or `values` entry: a set, with or without its braces."""
+    """A Mappings tab `keys` or `value` entry: a set, with or without its braces."""
     return _parse(text, "mapping_domain")
 
 
