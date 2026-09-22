@@ -33,6 +33,7 @@ Terminal=false
 Type=Application
 Categories=Utility;
 StartupNotify=true
+StartupWMClass=puppet-strings-linux
 EOF
 
 chmod +x "$APP_DIR/puppet-strings-linux"
