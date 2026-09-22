@@ -115,10 +115,17 @@ date alone, so you can check next Monday without changing what Solve would build
 The staff and activity filters use the names a request resolves to, so filtering by
 `dylan` finds requests written for `staff.counselor` as well.
 
-## Conflicts
+## Errors
 
-**The conflicts pane.** Along the bottom, every place two requests contradict each other,
-found without solving. Each heading is one collision — one person, one date, one block —
+**The errors pane.** Along the bottom, everything wrong with the requests that can be seen
+without solving. Two kinds of thing sit in it: **conflicts**, where two requests cannot
+both be kept, and **errors**, where one request on its own asks for something the sheets
+rule out. Both name a slot and the requests to go and look at, and double-clicking a row
+opens that request in the editor.
+
+### Conflicts
+
+Every place two requests contradict each other. Each heading is one collision — one person, one date, one block —
 and everything under it belongs to that collision: the requests caught in it and the
 reasons they cannot all hold. A request in two collisions appears under both.
 Double-click one to open it in the editor.
@@ -137,7 +144,7 @@ things that cannot both be true.
 | Asked to be free and to be busy | `FREE` beside `NOT FREE` in one block |
 | Two things at once that do not fit | two `FOR` tasks whose minutes exceed the block, or two clinics in one block |
 
-![The conflicts pane](img/conflicts.png)
+![The errors pane](img/conflicts.png)
 
 Sharing a slot is not by itself a collision: two requests asking for the same clinic agree,
 and two half-hour tasks fit in one block quite happily. What they say has to be impossible.
@@ -147,6 +154,32 @@ blocks.all` and every `PREFER` leave the solver room to move, and moving things 
 other is its job, so they are never reported. What is left is worth looking at: a request
 saved into a collision says so in the toolbar as it saves. A request can also contradict
 itself, now that one request may hold several statements, and that shows up the same way.
+
+### Errors
+
+One request, on its own, asking for something that cannot happen. Every name in it exists —
+the validator has already said so — and it is still wrong:
+
+| What it catches | Example |
+|---|---|
+| Somebody who is not checked off | `REQUEST staff.henry DO activities.clinics.aerial_silks DURING blocks.clinic_3` when Henry has no aerial silks checkoff, or not the RAL the position needs, or is not one of the people a cabin act's card asks for |
+| A position the activity does not have | `AS_ROLE roles.third` on a clinic with two positions |
+| A clinic the day does not run then | `DURING blocks.clinic_3` when the day's Offerings tab runs it in clinic 1, or does not run it at all |
+
+The error says which sheet answers it — the Skills sheet for a checkoff, the day's
+Offerings tab for a block — and, where the day runs the clinic somewhere else, which block
+that is, since that is usually what was meant.
+
+The same two rules apply as to conflicts. Only what is **settled** is read: `ANY_1_OF
+staff.all` names nobody in particular, so nobody in particular is unqualified — the solver
+picks somebody who is checked off, and that is its job. And a day with nothing offered yet
+is not a day of errors: until **Load offerings** has been pressed nothing is offered, which
+is one thing to see to rather than fifty.
+
+Asking for somebody who is not checked off is not a `MUST_HAPPEN` question, so an error is
+listed whatever the request's priority: at `MUST_HAPPEN` the day will not solve, and at any
+other priority the request is simply never met, which is worth knowing before rather than
+after.
 
 The pane is not a substitute for solving. It finds what is plain on paper; the solver
 finds the rest and names the requests it could not meet.

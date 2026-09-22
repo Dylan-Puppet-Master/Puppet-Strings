@@ -562,9 +562,7 @@ def request_drag(window, ids):
 
 def over(pane, group):
     """The middle of a group's row in the pane, where a drop on it would land."""
-    row = next(
-        i for i in range(pane.list.count()) if pane.list.item(i).data(Qt.UserRole) == group
-    )
+    row = next(i for i in range(pane.list.count()) if pane.list.item(i).data(Qt.UserRole) == group)
     return pane.list.visualItemRect(pane.list.item(row)).center()
 
 
@@ -814,8 +812,10 @@ def test_the_calendar_is_numbered_even_when_the_load_fails(app, fixtures_copy, m
 # -- conflicts ------------------------------------------------------------------------------
 
 
-PIN_RIFLERY = (
-    "REQUEST staff.dylan DO activities.clinics.riflery DURING blocks.clinic_1 ON dates.target"
+# Dylan is checked off on archery and the day runs it in clinic 1, so the only thing wrong
+# with this request is whatever it is put beside.
+PIN_ARCHERY = (
+    "REQUEST staff.dylan DO activities.clinics.archery_1_2 DURING blocks.clinic_1 ON dates.target"
 )
 DYLAN_FREE = "REQUEST staff.dylan FREE DURING blocks.clinic_1 ON dates.target"
 
@@ -844,44 +844,75 @@ def tree_rows(pane):
 
 
 def test_the_conflicts_pane_starts_empty(window):
-    assert window.conflicts.topLevelItemCount() == 0
-    assert window.conflicts_dock.windowTitle() == "Conflicts"
+    assert window.errors.topLevelItemCount() == 0
+    assert window.errors_dock.windowTitle() == "Errors"
     assert "No conflicts" in window.status_label.text()
+    assert "No errors" in window.status_label.text()
 
 
 def test_saving_a_contradiction_groups_it_in_the_pane(window):
-    riflery = save_request(window, "Dylan on riflery", PIN_RIFLERY)
-    assert window.conflicts.topLevelItemCount() == 0
+    riflery = save_request(window, "Dylan on archery", PIN_ARCHERY)
+    assert window.errors.topLevelItemCount() == 0
     free = save_request(window, "Dylan is free", DYLAN_FREE)
     assert "it conflicts with 1 other request(s)" in window.status_label.text()
-    (heading, children) = tree_rows(window.conflicts)[0]
+    (heading, children) = tree_rows(window.errors)[0]
     assert heading == "dylan · Wed 2026-09-16 · clinic_1"
     assert children[:2] == [riflery, free]  # grouped under the collision
-    assert window.conflicts_dock.windowTitle() == "Conflicts (1)"
-    heading = window.conflicts.topLevelItem(0)
-    assert heading.text(2) == "must be free, and is asked to do riflery"
+    assert window.errors_dock.windowTitle() == "Errors (1)"
+    heading = window.errors.topLevelItem(0)
+    assert heading.text(2) == "must be free, and is asked to do archery_1_2"
     assert heading.childCount() == 2  # one reason, so it is said once, in the heading
 
 
 def test_a_contradiction_the_solver_can_settle_is_not_a_conflict(window):
     """Only MUST_HAPPEN requests can make a day impossible, so only they are reported."""
-    save_request(window, "Dylan on riflery", PIN_RIFLERY)
+    save_request(window, "Dylan on archery", PIN_ARCHERY)
     save_request(window, "Dylan is free", DYLAN_FREE, priority="HIGH")
-    assert window.conflicts.topLevelItemCount() == 0
-    assert window.conflicts_dock.windowTitle() == "Conflicts"
+    assert window.errors.topLevelItemCount() == 0
+    assert window.errors_dock.windowTitle() == "Errors"
+
+
+BAD_RIFLERY = (
+    "REQUEST staff.dylan DO activities.clinics.riflery DURING blocks.clinic_2 ON dates.target"
+)
+
+
+def test_the_pane_holds_errors_beside_the_conflicts(window):
+    """One request asking for the impossible belongs on the same list as two that disagree."""
+    saved = save_request(window, "Dylan on riflery", BAD_RIFLERY, priority="HIGH")
+    assert "2 error(s) in it" in window.status_label.text()
+    rows = tree_rows(window.errors)
+    assert [children for _, children in rows] == [[saved], [saved]]
+    headings = [heading for heading, _ in rows]
+    assert "dylan" in headings[0] and "clinic_2" in headings[1]
+    assert window.errors_dock.windowTitle() == "Errors (2)"
+    said = [window.errors.topLevelItem(i).text(2) for i in range(2)]
+    assert "not checked off on 'riflery' (Skills sheet)" in said[0]
+    assert "Riflery is not offered in clinic_2" in said[1]
+    window.editor.clear()
+    window.errors.itemDoubleClicked.emit(window.errors.topLevelItem(0).child(0), 0)
+    assert window.editor.original_id == saved  # the row under an error opens it
+
+
+def test_an_error_goes_when_the_request_that_asks_for_it_does(window):
+    saved = save_request(window, "Dylan on riflery", BAD_RIFLERY, priority="HIGH")
+    window.editor.show_request(window.model.request(saved))
+    window.editor.delete_button.click()
+    assert window.errors.topLevelItemCount() == 0
+    assert window.errors_dock.windowTitle() == "Errors"
 
 
 def test_a_request_appears_under_every_collision_it_is_in(window, monkeypatch):
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Save)  # other dates
     wednesday = [
         save_request(window, "Dylan is free", DYLAN_FREE),
-        save_request(window, "Dylan on riflery", PIN_RIFLERY),
+        save_request(window, "Dylan on archery", PIN_ARCHERY),
     ]
     friday = [
-        save_request(window, "Friday riflery", PIN_RIFLERY.replace("dates.target", "2026-09-18")),
+        save_request(window, "Friday archery", PIN_ARCHERY.replace("dates.target", "2026-09-18")),
         save_request(window, "Friday free", DYLAN_FREE.replace("dates.target", "2026-09-18")),
     ]
-    rows = tree_rows(window.conflicts)
+    rows = tree_rows(window.errors)
     assert [heading for heading, _ in rows] == [
         "dylan · Wed 2026-09-16 · clinic_1",
         "dylan · Fri 2026-09-18 · clinic_1",
@@ -893,40 +924,40 @@ def test_a_request_appears_under_every_collision_it_is_in(window, monkeypatch):
 
 
 def test_deleting_a_request_clears_its_conflict(window):
-    save_request(window, "Dylan on riflery", PIN_RIFLERY)
+    save_request(window, "Dylan on archery", PIN_ARCHERY)
     free = save_request(window, "Dylan is free", DYLAN_FREE)
-    assert window.conflicts.topLevelItemCount() == 1
+    assert window.errors.topLevelItemCount() == 1
     window.editor.show_request(window.model.request(free))
     window.editor.delete_button.click()
-    assert window.conflicts.topLevelItemCount() == 0
-    assert window.conflicts_dock.windowTitle() == "Conflicts"
+    assert window.errors.topLevelItemCount() == 0
+    assert window.errors_dock.windowTitle() == "Errors"
 
 
 def conflict_child(window, request_id):
     """The row for one request under the first collision in the pane."""
-    heading = window.conflicts.topLevelItem(0)
+    heading = window.errors.topLevelItem(0)
     rows = (heading.child(i) for i in range(heading.childCount()))
     return next(row for row in rows if row.text(0) == request_id)
 
 
 def test_double_clicking_a_conflict_opens_that_request(window):
-    riflery = save_request(window, "Dylan on riflery", PIN_RIFLERY)
+    riflery = save_request(window, "Dylan on archery", PIN_ARCHERY)
     save_request(window, "Dylan is free", DYLAN_FREE)
     window.editor.clear()
-    window.conflicts.itemDoubleClicked.emit(conflict_child(window, riflery), 0)
+    window.errors.itemDoubleClicked.emit(conflict_child(window, riflery), 0)
     assert window.editor.original_id == riflery
-    heading = window.conflicts.topLevelItem(0)
-    window.conflicts.itemDoubleClicked.emit(heading, 0)  # the heading is not a request
+    heading = window.errors.topLevelItem(0)
+    window.errors.itemDoubleClicked.emit(heading, 0)  # the heading is not a request
     assert window.editor.original_id == riflery
 
 
 def test_a_conflicting_request_opens_even_when_the_group_hides_it(window):
-    save_request(window, "Dylan on riflery", PIN_RIFLERY)
+    save_request(window, "Dylan on archery", PIN_ARCHERY)
     free = save_request(window, "Dylan is free", DYLAN_FREE)
     pick_group(window, "Special daily requests")
     assert free not in visible_ids(window)
     window.editor.clear()
-    window.conflicts.itemDoubleClicked.emit(conflict_child(window, free), 0)
+    window.errors.itemDoubleClicked.emit(conflict_child(window, free), 0)
     assert window.editor.original_id == free
 
 
@@ -962,7 +993,7 @@ def test_a_save_that_is_called_off_leaves_the_editor_alone(window, monkeypatch):
 
 
 def test_saving_shows_a_conflict_in_the_confirmation(window):
-    save_request(window, "Dylan on riflery", PIN_RIFLERY)
+    save_request(window, "Dylan on archery", PIN_ARCHERY)
     save_request(window, "Dylan is free", DYLAN_FREE)
     assert "it conflicts with 1 other request(s)" in window.editor.status.text()
 
@@ -1106,7 +1137,7 @@ def test_a_conflict_heading_says_what_to_write_on_it(app):
     from datetime import date as _date
 
     from puppet_strings.app.conflicts import Conflict
-    from puppet_strings.app.conflicts_panel import _group
+    from puppet_strings.app.errors_panel import _group
 
     clash = Conflict("dylan", _date(2026, 9, 16), "clinic_1", ("both at once",), ("a", "b"))
     heading = _group(clash, {})

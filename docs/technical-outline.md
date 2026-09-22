@@ -727,6 +727,17 @@ Recorded so the outline matches the code.
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
   leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
   is what keeps the pane quiet enough to be worth reading.
+- **The conflicts pane became the errors pane** (Puppet Master, 2026-09-21). Two requests
+  disagreeing is not the only thing that is wrong on paper and invisible until a solve:
+  `REQUEST staff.henry DO activities.clinics.aerial_silks DURING blocks.clinic_3` validates
+  -- every name in it exists -- and is still impossible if Henry has no checkoff, or if the
+  day's Offerings tab does not run aerial silks in clinic 3. `app/errors.py` reads the same
+  resolved copies the conflict finder does and asks those two questions of every settled
+  `REQUEST … DO`; `app/errors_panel.py` (was `conflicts_panel.py`) shows conflicts and
+  errors in one tree, since both name a slot and the requests to go and look at. Both
+  checks are skipped where the solver has a choice, and the offering check is skipped
+  entirely when the day offers nothing at all, which is one thing to see to rather than a
+  pane full of the same sentence.
 - **Only what must happen can conflict** (Puppet Master, 2026-09-21). The first version
   compared every claim on a slot whatever its priority, so a `LOW` preference crossing a
   `HIGH` promise was reported as a conflict although the solver settles it by dropping the

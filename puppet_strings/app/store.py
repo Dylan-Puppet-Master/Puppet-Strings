@@ -5,6 +5,7 @@ from datetime import date
 from itertools import count
 
 from puppet_strings.app.conflicts import Conflict, find_conflicts
+from puppet_strings.app.errors import Problem, find_errors
 from puppet_strings.app.facets import Facets, resolve_request
 from puppet_strings.app.group_tabs import GroupTabs
 from puppet_strings.app.groups import DEFAULT_GROUPS, clean, same_group
@@ -122,6 +123,13 @@ class RequestStore:
         if self.dataset is None:
             return ()
         return find_conflicts(self.requests, self.resolved, self.dataset)
+
+    @property
+    def errors(self) -> tuple[Problem, ...]:
+        """Where one request on its own asks for something the sheets rule out."""
+        if self.dataset is None:
+            return ()
+        return find_errors(self.requests, self.resolved, self.dataset)
 
     def save(self, request: Request, original_id: str | None) -> Request:
         """Add or replace a request and write the tabs it and its neighbours live on.

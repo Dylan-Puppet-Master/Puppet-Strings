@@ -103,14 +103,14 @@ def _claims(statement, request: Request, dataset: Dataset):
 
 
 def _requirement_claims(statement: Requirement, request: Request, dataset: Dataset):
-    if not _forced(statement.who) or not _forced(statement.on):
+    if not forced(statement.who) or not forced(statement.on):
         return
-    if statement.during is not None and not _forced(statement.during):
+    if statement.during is not None and not forced(statement.during):
         return
     if statement.what is None:
         claim = Claim(request.id, FREE)
     else:
-        target = _one_target(statement.what)
+        target = one_target(statement.what)
         if target is None:
             return  # the solver picks the activity, so nothing here is settled
         claim = Claim(request.id, DO, target, minutes=statement.minutes)
@@ -120,7 +120,7 @@ def _requirement_claims(statement: Requirement, request: Request, dataset: Datas
 
 def _forbid_claims(statement: Forbid, request: Request, dataset: Dataset):
     pattern = statement.pattern
-    if not _forced(statement.who) or not pattern.on.items:
+    if not forced(statement.who) or not pattern.on.items:
         return
     if pattern.busy:  # REQUEST … NOT FREE: something must happen here
         claim = Claim(request.id, BUSY)
@@ -149,12 +149,16 @@ def _slots(staff_ids, dates, blocks, dataset: Dataset, claim: Claim):
                     yield (staff_id, day, block), claim
 
 
-def _forced(choice: Choice) -> bool:
-    """Whether a selector settles the matter: every item, rather than some of them."""
+def forced(choice: Choice) -> bool:
+    """Whether a selector settles the matter: every item, rather than some of them.
+
+    The errors pane asks the same question of the same statements, so it is one answer
+    here rather than two that could come to differ.
+    """
     return choice.kind == ALL and bool(choice.items)
 
 
-def _one_target(what) -> str | None:
+def one_target(what) -> str | None:
     """The single activity or quoted task a requirement names, if it names one."""
     if isinstance(what, ast.Task):
         return what.text

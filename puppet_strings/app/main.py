@@ -32,10 +32,11 @@ from puppet_strings.app.busy import BusyDialog
 from puppet_strings.app.calendar_pane import SessionCalendar
 from puppet_strings.app.configure import ConfigureDialog
 from puppet_strings.app.conflicts import summary
-from puppet_strings.app.conflicts_panel import ConflictsPane
 from puppet_strings.app.details import details, is_metric
 from puppet_strings.app.details_dialog import DetailsDialog, MetricDialog
 from puppet_strings.app.editor import RequestEditor
+from puppet_strings.app.errors import summary as error_summary
+from puppet_strings.app.errors_panel import ErrorsPane
 from puppet_strings.app.facets import facets
 from puppet_strings.app.groups import ALL, UNGROUPED
 from puppet_strings.app.groups_panel import GroupsPane
@@ -228,8 +229,8 @@ class MainWindow(QMainWindow):
         self.groups.chosen.connect(self._group_chosen)
         self.groups.dropped.connect(self._set_group)
         self.groups.retabbed.connect(lambda _: self.editor_new_if_empty())
-        self.conflicts = ConflictsPane()
-        self.conflicts.picked.connect(self.show_request)
+        self.errors = ErrorsPane()
+        self.errors.picked.connect(self.show_request)
 
         self._build_toolbar()
         left = QWidget()
@@ -254,9 +255,9 @@ class MainWindow(QMainWindow):
         calendar_dock = QDockWidget("Calendar: click a date to insert it", self)
         calendar_dock.setWidget(self.calendar)
         self.addDockWidget(Qt.RightDockWidgetArea, calendar_dock)
-        self.conflicts_dock = QDockWidget("Conflicts", self)
-        self.conflicts_dock.setWidget(self.conflicts)
-        self.addDockWidget(Qt.BottomDockWidgetArea, self.conflicts_dock)
+        self.errors_dock = QDockWidget("Errors", self)
+        self.errors_dock.setWidget(self.errors)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.errors_dock)
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Main")
@@ -403,12 +404,13 @@ class MainWindow(QMainWindow):
                 return
         self.editor.show_request(request)  # filtered out of the table, but still editable
 
-    def refresh_conflicts(self) -> tuple:
-        """Show the requests that contradict each other, and return them."""
-        found = self.store.conflicts
-        self.conflicts.show_conflicts(found, self.store.requests)
-        self.conflicts_dock.setWindowTitle(f"Conflicts ({len(found)})" if found else "Conflicts")
-        return found
+    def refresh_errors(self) -> tuple:
+        """Show everything wrong with the requests, and return the conflicts and errors."""
+        conflicts, errors = self.store.conflicts, self.store.errors
+        self.errors.show_problems(conflicts, errors, self.store.requests)
+        count = len(conflicts) + len(errors)
+        self.errors_dock.setWindowTitle(f"Errors ({count})" if count else "Errors")
+        return conflicts, errors
 
     def _group_chosen(self, group: str) -> None:
         """Show the group the pane switched to."""
@@ -449,14 +451,14 @@ class MainWindow(QMainWindow):
         """The requests moved: the table, both panes and the filters all follow.
 
         Every way of changing them — saving, deleting, regrouping, loading the offerings —
-        ends here, so none of them can forget a pane. Returns the conflicts found, which is
-        what a caller that has just saved something wants to know about.
+        ends here, so none of them can forget a pane. Returns the conflicts and the errors
+        found, which is what a caller that has just saved something wants to know about.
         """
         self.model.refresh()
         self.groups.refresh()
         self.editor.set_dataset(self.store.dataset, self.store.groups)
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
-        found = self.refresh_conflicts()
+        found = self.refresh_errors()
         self.apply_filters()
         return found
 
@@ -543,13 +545,14 @@ class MainWindow(QMainWindow):
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
         self.calendar.show_dataset(dataset)
         self._refresh_same_day()
-        found = self.refresh_conflicts()
+        conflicts, errors = self.refresh_errors()
         today = [a.describe(dataset.staff[a.staff].name) for a in dataset.today_adjustments]
         state = "published" if dataset.baseline is not None else "not published"
         parts = [
             f"Loaded {len(self.store.requests)} requests",
             f"{dataset.target} is {state}",
-            summary(found),
+            summary(conflicts),
+            error_summary(errors),
         ]
         self._say(". ".join(parts + today + list(dataset.warnings)))
 
@@ -722,9 +725,11 @@ class MainWindow(QMainWindow):
             saved = self.store.save(request, original_id)
         finally:
             QApplication.restoreOverrideCursor()
-        found = self._requests_changed()
-        clashes = [c for c in found if saved.id in c.requests]
+        conflicts, errors = self._requests_changed()
+        clashes = [c for c in conflicts if saved.id in c.requests]
+        wrong = [e for e in errors if e.request == saved.id]
         note = f"; it conflicts with {len(clashes)} other request(s)" if clashes else ""
+        note += f"; {len(wrong)} error(s) in it" if wrong else ""
         self.editor.saved_as(saved, note)  # last, so nothing else overwrites the confirmation
         self.status_label.setText(f"  Saved {saved.id}{note}")
 
