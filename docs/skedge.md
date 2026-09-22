@@ -343,10 +343,23 @@ GAP morning TO afternoon AT_MOST 5h
 `GAP a TO b AT_LEAST 0m` is plain ordering. Real start and end times are compared, so a
 one-hour task may slide around inside its 75-minute block to make a gap work.
 
-Durations are written in minutes, hours or days: `30m`, `1.5h`, `2d`. A gap is measured
-within the day being scheduled, which is the only day a solve builds, so a gap of a day or
-more is a way of saying the two cannot both happen on the same day: `GAP first TO second
-AT_LEAST 2d` holds on any day that does not hold both of them.
+Durations are written in minutes, hours or days: `30m`, `1.5h`, `2d`. A gap can reach
+across days, which is what the longer units are for:
+
+```skedge
+first_meeting:  REQUEST ALL_OF {staff.dylan + staff.sarah} DO 'meeting'
+DURING ANY_1_OF blocks.all ON ANY_1_OF {2026-09-14 .. 2026-09-16}
+second_meeting: REQUEST ALL_OF {staff.dylan + staff.sarah} DO 'meeting'
+DURING ANY_1_OF blocks.all ON ANY_1_OF {2026-09-16 .. 2026-09-18}
+GAP first_meeting TO second_meeting AT_LEAST 40h
+```
+
+One day is scheduled at a time, so what this does day by day is: while both meetings are
+still ahead, neither is forced and the solver may put the first one in. Once the first has
+been published, the day it went on is what the gap is measured from — the second cannot go
+anywhere nearer to it than forty hours, so it waits for a day that is far enough away. A
+date later than the one being scheduled holds nothing yet, so it is never the near end of a
+gap; it is checked on the day it turns into.
 
 ### A statement over several lines
 

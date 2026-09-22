@@ -734,6 +734,16 @@ Recorded so the outline matches the code.
   `MUST_HAPPEN` requests: a conflict is a day that cannot be built, which takes two
   promises that cannot both be kept. Everything softer is the solver's to weigh and the
   report's to explain.
+- **A gap reaches back into the published days** (Puppet Master, 2026-09-21). `Made` held
+  only the assignments a requirement makes on the target date, so a `GAP` between two
+  labeled requirements was a within-the-day comparison, and a request whose first half had
+  already happened yesterday was compared against nothing. `Made` times are now counted
+  from midnight on the target date, which makes yesterday negative, and a labeled
+  requirement satisfied by a published day contributes that day's real times
+  (`_was_made`). Dates after the target still hold nothing and cannot be one end of a gap;
+  they are checked on the day they turn into, when the other end is published. This is what
+  makes a duration in days worth writing: `GAP first TO second AT_LEAST 40h` now means the
+  forty hours it says.
 - **One clock for the whole solve** (Puppet Master, 2026-09-18). `time_limit_seconds` used
   to be handed to every pass, so a day with five tiers could take five times the setting.
   A `Deadline` now starts in `solve()`, before the model is built, and each pass asks it

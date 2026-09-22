@@ -329,6 +329,46 @@ def test_gap_at_most_rejects_the_far_pair():
     assert hour == {"clinic_1", "clinic_3"}  # clinic_1 -> clinic_4 is 5h15
 
 
+MEETINGS = (
+    "first: REQUEST staff.dylan DO 'meeting' FOR 1h\n"
+    "DURING ANY_1_OF blocks.any_clinic ON ANY_1_OF {{{yesterday} .. {target}}}\n"
+    "second: REQUEST staff.dylan DO 'meeting' FOR 1h DURING ANY_1_OF blocks.any_clinic\n"
+    "GAP first TO second AT_LEAST {gap}"
+)
+
+
+def meetings(gap: str):
+    """Two meetings, the first of which may already have happened yesterday afternoon."""
+    yesterday = TARGET - timedelta(days=1)
+    text = MEETINGS.format(yesterday=yesterday, target=TARGET, gap=gap)
+    return dataset(
+        [staff("Dylan")],
+        [],
+        requests=[request("meetings", text, Priority.MUST_HAPPEN)],
+        published=published(yesterday, ("Dylan", "'meeting'", None, "clinic_4", 60)),
+    )
+
+
+def test_a_gap_is_measured_from_the_day_the_first_meeting_was_published_on():
+    """A gap reaches back into a published day: 16:45 yesterday is where it is counted from.
+
+    The first meeting is allowed to be yesterday's, which it is, so the second must be at
+    least a day and a half after 16:45 — and today has no such block, so nothing today can
+    hold it.
+    """
+    result = solve(meetings("36h"), CONFIG)
+    assert not result.feasible and result.conflicts == ("meetings",)
+
+
+def test_the_same_gap_is_met_when_the_published_meeting_is_far_enough_back():
+    """16:45 yesterday to 15:45 today is 23 hours, which is room enough for a 20-hour gap."""
+    result = solve(meetings("20h"), CONFIG)
+    assert result.feasible and ids(result.unsatisfied) == []
+    # yesterday's meeting answers `first`, so only the second one is scheduled today
+    (today,) = [a for a in result.assignments if a.activity == "meeting"]
+    assert today.block == "clinic_4" and today.start.strftime("%H:%M") == "15:45"
+
+
 def test_the_same_person_sets_up_and_tears_down():
     text = (
         "ANY_1_OF p IN staff.all\n"

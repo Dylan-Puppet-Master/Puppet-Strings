@@ -416,17 +416,21 @@ whether or not the requirements are met. A condition governs both.
 
 ### 10.1 GAP
 
-`GAP a TO b <bound> <duration>` is read on the date being scheduled. Where both
-requirements have assignments on it, every assignment of `a` must end before any of `b`
-starts, and the time from the end of the last `a` to the start of the first `b` must meet
-the bound. `GAP a TO b AT_LEAST 0m` is plain ordering, and the one place a zero amount is
-allowed. The times compared are real starts and ends, so a task shorter than its block may
-sit anywhere in it to satisfy a gap.
+`GAP a TO b <bound> <duration>` compares the assignments of the two labeled requirements.
+Every assignment of `a` must end before any of `b` starts, and the time from the end of the
+last `a` to the start of the first `b` must meet the bound. `GAP a TO b AT_LEAST 0m` is
+plain ordering, and the one place a zero amount is allowed. The times compared are real
+starts and ends, so a task shorter than its block may sit anywhere in it to satisfy a gap.
 
-A gap is measured inside that one day, because that one day is all a solve builds. A
-duration in days is therefore a way of saying the two cannot share a day: `AT_LEAST 1d`
-can only hold where `a` and `b` do not both have an assignment on the date being
-scheduled.
+A gap spans days. Times are counted from midnight on the date being scheduled, so an
+assignment on a published day behind it is a negative time: 16:00 yesterday is −480. A
+requirement whose `ON` reaches back is met by what that day already holds, and the gap is
+measured from it, which is how `AT_LEAST 40h` between two meetings is read against the
+meeting that actually happened.
+
+A date *after* the one being scheduled holds nothing yet and so cannot be one end of a
+gap. A requirement that defers to such a date is checked on the day it lands on, by which
+time it is a published assignment like any other.
 
 ## 11. What can exist
 

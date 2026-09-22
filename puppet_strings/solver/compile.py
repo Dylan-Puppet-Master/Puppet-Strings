@@ -48,6 +48,7 @@ from puppet_strings.solver.variables import Literal, Slot, Variables
 
 SCALE = 1000
 DEFER_BONUS = 1  # for acting early on a deferrable request; sits in the last tier
+MINUTES_PER_DAY = 24 * 60
 MINUTES_PER_HOUR = 60
 ONE_MATCH = ast.Amount(ast.AT_LEAST, 1, False, DEFAULT_POS)
 
@@ -77,7 +78,12 @@ class Match:
 
 @dataclass(frozen=True)
 class Made:
-    """One assignment a requirement makes on the target date, with its times, for GAP."""
+    """One assignment a requirement makes, with its times, for GAP.
+
+    `start` and `end` are minutes from midnight on the target date, so a published day
+    behind the target is negative: 16:00 yesterday is -480. A gap is a distance between two
+    assignments, and a distance only means anything if both are measured from one place.
+    """
 
     literal: Literal
     start: int | cp_model.IntVar
@@ -303,7 +309,10 @@ class Compiler:
         ):
             conds = [active, on, on_b, on_s, on_w, on_r]
             if d < target:
-                self._imply(conds, self._was_held(s, w, r, d, b, st))
+                held = self._was_held(s, w, r, d, b, st)
+                self._imply(conds, held)
+                if held and st.label:
+                    made += self._was_made(s, w, r, d, b, conds, name)
                 continue
             if not self.dataset.holds(s, d, b):
                 if loose is None:
@@ -330,6 +339,27 @@ class Compiler:
         if target in dates:
             self._bonus(dates[target])
         return made, self._any_of(later, f"later:{name}")
+
+    def _was_made(self, s, w, r, d: date, b: str, conds: list, name: str) -> list[Made]:
+        """What a published day already holds, timed for a GAP that reaches across days.
+
+        Only a labeled requirement asks, because only a label can be one end of a gap. The
+        times are the ones published, offset by how far back the day is, so `AT_LEAST 40h`
+        between two meetings is read against the meeting that actually happened rather than
+        against nothing.
+        """
+        if w is None:
+            return []
+        activity = w.text if isinstance(w, ast.Task) else w
+        offset = (d - self.dataset.target).days * MINUTES_PER_DAY
+        literal = self._all_of(conds, f"was:{name}:{s}:{d}:{b}")
+        made = []
+        for a in self.variables.was_member(s, activity, d, b):
+            if r is not None and r != TRAINEE and a.role != r:
+                continue
+            start = offset + a.start.hour * 60 + a.start.minute
+            made.append(Made(literal, start, start + a.minutes))
+        return made
 
     def _loose(self, st: Requirement) -> Choice | None:
         """The one chooser a requirement can count rather than choose, if it has one.
