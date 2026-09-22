@@ -169,13 +169,21 @@ fresh request; **Delete** removes the selected one. Every save rewrites the tabs
 requests on screen came off, which the **on tab** box is what chooses between: this
 session's `Special` tab, or `Season Requests` for something that holds all season.
 
-**Name completion.** Type a namespace and a dot in the Skedge box, such as `staff.`, and a
-list of names appears and narrows as you keep typing.
+**Name completion.** Start typing any part of a name in the Skedge box and a list of names
+appears and narrows as you keep typing. The namespace is optional: `dyl` finds
+`staff.dylan`, `clinic_3` finds `blocks.clinic_3`, and `riflery` finds
+`activities.clinics.riflery`. Typing a namespace and a dot, such as `staff.`, lists
+everything in it.
 
 ![Completing a staff name](img/completer.png)
  Enter or Tab takes the highlighted
 name, Escape closes the list. The names offered are exactly the ones the validator
 accepts, so anything the list gives you is spelled right.
+
+Dates are the one exception: they are only offered once `dates.` has been typed. A date is
+usually written as a date or picked off the calendar pane, and a season's worth of them
+answering to a bare word would bury whatever else was being looked for. Keywords are not
+looked up either, so `do` is a word being written rather than a search.
 
 **Namespaces.** The panel on the right lists every valid name with a one-line note: a staff
 member's name, how many members a category has, a block's times, a date. Press Enter, or

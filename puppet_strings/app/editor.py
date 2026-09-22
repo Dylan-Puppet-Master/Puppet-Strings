@@ -28,10 +28,40 @@ from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
 
-KEYWORDS = (
-    "REQUEST|PREFER|IF|UNLESS|GAP|TO|DO|NOT|FREE|DURING|ON|AS_ROLE|FOR|WITH|WITHOUT|IN|"
-    "ALL_OF|ANY_[0-9]+_OF|EACH_OF|AT_LEAST|AT_MOST|EXACTLY|CONSECUTIVE|MAXIMIZE|MINIMIZE"
+KEYWORD_WORDS = (
+    "REQUEST",
+    "PREFER",
+    "IF",
+    "UNLESS",
+    "GAP",
+    "TO",
+    "DO",
+    "NOT",
+    "FREE",
+    "DURING",
+    "ON",
+    "AS_ROLE",
+    "FOR",
+    "WITH",
+    "WITHOUT",
+    "IN",
+    "ALL_OF",
+    "EACH_OF",
+    "AT_LEAST",
+    "AT_MOST",
+    "EXACTLY",
+    "CONSECUTIVE",
+    "MAXIMIZE",
+    "MINIMIZE",
 )
+ANY_N_OF = r"ANY_[0-9]+_OF"
+KEYWORDS = "|".join((*KEYWORD_WORDS, ANY_N_OF))
+
+
+def is_keyword(word: str) -> bool:
+    """Whether a word is a Skedge keyword, in whichever case it is written."""
+    shouted = word.upper()
+    return shouted in KEYWORD_WORDS or re.fullmatch(ANY_N_OF, shouted) is not None
 
 
 class SkedgeHighlighter(QSyntaxHighlighter):
@@ -76,9 +106,20 @@ def _format(color: str, bold: bool = False, italic: bool = False) -> QTextCharFo
 
 
 class SkedgeEdit(QPlainTextEdit):
-    """The Skedge text box, which suggests names once a namespace and a dot are typed."""
+    """The Skedge text box, which suggests the names that match what is being typed.
 
-    PARTIAL_NAME = re.compile(r"[a-z_][a-z0-9_]*(\.[a-z0-9_]*)+$")
+    Typing `dylan` offers `staff.dylan`: the namespace is part of the name, but it is not
+    what anybody has in mind when they go looking for somebody, and typing `staff.` first
+    to find out how a name is spelled is a thing to remember rather than a help.
+
+    The dates are the exception, and are only suggested once `dates.` has been typed. A
+    date is written as a date most of the time, the calendar pane beside the box is how one
+    is picked, and a bare word offering half the season buries the name being looked for.
+    """
+
+    PARTIAL_NAME = re.compile(r"[a-z_][a-z0-9_]*(\.[a-z0-9_]*)*$")
+    DATES = "dates."
+    SHORTEST = 2  # letters before a bare word suggests anything; one letter is every name
 
     def __init__(self) -> None:
         super().__init__()
@@ -88,13 +129,30 @@ class SkedgeEdit(QPlainTextEdit):
         self.completer.setWidget(self)
         self.completer.setCompletionMode(QCompleter.PopupCompletion)
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
+        # A name is suggested by any part of it, so `dylan` finds `staff.dylan` and
+        # `riflery` finds `activities.clinics.riflery`.
+        self.completer.setFilterMode(Qt.MatchContains)
         self.names = QStringListModel([], self.completer)
         self.completer.setModel(self.names)
         self.completer.activated.connect(self._insert_completion)
+        self.every: list[str] = []
+        self.but_dates: list[str] = []
+        self.showing: list[str] | None = None
 
     def set_names(self, names: list[str]) -> None:
         """The names to suggest, as `namespace.name`. Reuses the model, leaving no garbage."""
+        self.every = list(names)
+        self.but_dates = [n for n in self.every if not n.startswith(self.DATES)]
+        self.showing = None
+        self.names.setStringList(self.every)
+
+    def _offer(self, names: list[str]) -> None:
+        """Put a list in the completer's model, if it is not the one already there."""
+        if self.showing is names:
+            return
+        self.showing = names
         self.names.setStringList(names)
+        self.completer.setCompletionPrefix("")  # the old prefix was narrowing the old list
 
     def keyPressEvent(self, event) -> None:  # noqa: N802
         """Type as usual, but leave the popup its own keys and suggest after each change."""
@@ -110,9 +168,10 @@ class SkedgeEdit(QPlainTextEdit):
         typed = self.toPlainText()[: self.textCursor().position()]
         match = self.PARTIAL_NAME.search(typed)
         popup = self.completer.popup()
-        if match is None:
+        if match is None or not self._worth_offering(match.group()):
             popup.hide()
             return
+        self._offer(self.every if "." in match.group() else self.but_dates)
         if match.group() != self.completer.completionPrefix():
             self.completer.setCompletionPrefix(match.group())
             popup.setCurrentIndex(self.completer.completionModel().index(0, 0))
@@ -122,6 +181,17 @@ class SkedgeEdit(QPlainTextEdit):
         rect = self.cursorRect()
         rect.setWidth(popup.sizeHintForColumn(0) + popup.verticalScrollBar().sizeHint().width())
         self.completer.complete(rect)
+
+    def _worth_offering(self, fragment: str) -> bool:
+        """Whether a fragment is one to look names up by.
+
+        A namespace and a dot always are. A bare word has to be long enough to narrow
+        anything down, and must not be a keyword: `do` is a word being written, not a
+        search for every name with `do` in it.
+        """
+        if "." in fragment:
+            return True
+        return len(fragment) >= self.SHORTEST and not is_keyword(fragment)
 
     def _insert_completion(self, completion: str) -> None:
         cursor = self.textCursor()

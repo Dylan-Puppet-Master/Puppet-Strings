@@ -137,12 +137,49 @@ def completions(editor):
 def test_completer_opens_after_a_namespace_and_a_dot(window):
     editor = window.editor
     editor.clear()
-    QTest.keyClicks(editor.skedge_edit, "REQUEST staff")
-    assert not editor.skedge_edit.completer.popup().isVisible()
-    QTest.keyClicks(editor.skedge_edit, ".")
+    QTest.keyClicks(editor.skedge_edit, "REQUEST staff.")
     assert editor.skedge_edit.completer.completionPrefix() == "staff."
     assert "staff.dylan" in completions(editor) and "staff.counselor" in completions(editor)
     assert "activities.clinics.riflery" not in completions(editor)
+
+
+def test_completer_finds_a_name_without_its_namespace(window):
+    """Nobody thinks of Dylan as `staff.dylan`, so typing `dylan` is enough to find him."""
+    editor = window.editor
+    editor.clear()
+    QTest.keyClicks(editor.skedge_edit, "REQUEST dyl")
+    assert completions(editor) == ["staff.dylan"]
+    editor.skedge_edit.completer.activated.emit("staff.dylan")
+    assert editor.skedge_edit.toPlainText() == "REQUEST staff.dylan"
+    editor.skedge_edit.setPlainText("")
+    QTest.keyClicks(editor.skedge_edit, "DURING clinic_3")
+    assert completions(editor) == ["blocks.clinic_3"]
+    editor.skedge_edit.setPlainText("")
+    QTest.keyClicks(editor.skedge_edit, "AS_ROLE seco")
+    assert completions(editor) == ["roles.second"]
+
+
+def test_a_bare_word_never_suggests_a_date(window):
+    """A date is written as a date or picked off the calendar; the season would bury a name."""
+    editor = window.editor
+    editor.clear()
+    QTest.keyClicks(editor.skedge_edit, "ON mond")
+    assert completions(editor) == []
+    QTest.keyClicks(editor.skedge_edit, "ay")
+    assert not editor.skedge_edit.completer.popup().isVisible()
+    editor.skedge_edit.setPlainText("")
+    QTest.keyClicks(editor.skedge_edit, "ON dates.session.one.mond")
+    assert completions(editor) == ["dates.session.one.mondays"]
+
+
+def test_a_keyword_being_typed_is_not_a_name_being_looked_up(window):
+    """`do` is a word on its way to being written, not a search for every name with do in it."""
+    editor = window.editor
+    editor.clear()
+    for text in ("REQUEST staff.dylan do", "REQUEST staff.dylan DO 'x' during", "prefer"):
+        editor.skedge_edit.setPlainText("")
+        QTest.keyClicks(editor.skedge_edit, text)
+        assert not editor.skedge_edit.completer.popup().isVisible(), text
 
 
 def test_completer_narrows_as_the_name_is_typed(window):
