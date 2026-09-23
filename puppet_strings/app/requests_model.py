@@ -135,6 +135,8 @@ class RequestFilter(QSortFilterProxyModel):
             return False
         if not (self.staff or self.activity or self.date):
             return True
+        if self.store.dataset is None:
+            return False  # no date loaded: nothing to resolve a name or a date against
         facet = self.store.facet(request)
         if self.staff and self.staff not in facet.staff:
             return False

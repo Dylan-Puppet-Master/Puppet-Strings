@@ -130,7 +130,10 @@ changing what Solve would build.
 Unticked, the table lists every request in the file, whatever date it is scoped to: other
 days' clinics, other sessions' requests, all of them. The ones scoped away from the target
 date can be opened, edited, moved between groups and deleted, but Solve only ever uses the
-ones read on the target date.
+ones read on the target date. This works with no date loaded too, before the first Reload
+or on a date camp is not running: ticked, the table is empty, since nothing happens on that
+date; unticked, it lists every request. Editing one needs a camp day loaded, since that is
+what its Skedge is checked against.
 
 The staff and activity filters use the names a request resolves to, so filtering by
 `dylan` finds requests written for `staff.counselor` as well.

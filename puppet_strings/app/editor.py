@@ -326,6 +326,8 @@ class RequestEditor(QWidget):
                 box.addItem(describe(scope), scope)
             wanted = keep if isinstance(keep, Scope) else self.dataset.scope(keep or DEFAULT_SCOPE)
             box.setCurrentIndex(offered.index(wanted))  # findData cannot compare a Scope
+        elif isinstance(keep, Scope):  # no date loaded, but a request still has its own
+            box.addItem(describe(keep), keep)
         box.blockSignals(False)
 
     def show_request(self, request: Request) -> None:

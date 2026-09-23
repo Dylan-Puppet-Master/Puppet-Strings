@@ -1532,3 +1532,27 @@ def test_the_group_counts_follow_the_filters(window):
     window.text_filter.setText("")
     window.date_check.setChecked(False)
     assert counts()[ALL] == len(window.store.every) == window.store.book.count()
+
+
+def test_before_any_load_unticking_lists_the_whole_file(app, fixtures_copy):
+    """The requests file is on this computer, so it needs no date to be listed."""
+    window = make_window(fixtures_copy, loaded=False)
+    assert window.store.dataset is None and window.proxy.rowCount() == 0  # no date: nothing on it
+    window.date_check.setChecked(False)
+    assert window.proxy.rowCount() == window.store.book.count() > 0
+
+
+def test_a_date_camp_is_not_running_still_lists_every_request(window, monkeypatch):
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+    window.date_edit.setDate(QDate(2026, 12, 25))
+    window.reload()
+    window.wait_for_load()
+    assert window.store.dataset is None and window.store.requests == []
+    assert window.proxy.rowCount() == 0  # nothing happens on it
+    window.date_check.setChecked(False)
+    assert window.proxy.rowCount() == window.store.book.count() > 0
+    window.staff_filter.setCurrentIndex(1)  # a filter with nothing to resolve names against
+    assert window.proxy.rowCount() == 0
+    window.staff_filter.setCurrentIndex(0)
+    window.table.selectRow(0)  # a request opens, scope and all, with no date loaded
+    assert window.editor.original_id and window.editor.scope_box.count() == 1

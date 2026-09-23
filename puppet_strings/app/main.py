@@ -244,6 +244,7 @@ class MainWindow(QMainWindow):
         self.errors_dock.setWidget(self.errors)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.errors_dock)
         self._say("Pick a target date and press Reload.")
+        self._list_file()
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Main")
@@ -605,6 +606,19 @@ class MainWindow(QMainWindow):
         self.status_label.setText(f"  {message}")
         self.status_label.setToolTip(message)
 
+    def _list_file(self) -> None:
+        """Show the requests file with no date loaded: every request, none to be solved."""
+        try:
+            self.store.list_file()
+        except LoadError as e:
+            self._say(str(e))
+            return
+        self.editor.set_dataset(None, self.store.groups)
+        self.names.show_dataset(None)
+        self.model.refresh()
+        self._fill_combo(self.tag_filter, "any tag", self.store.tags)
+        self.apply_filters()  # which recounts the groups
+
     def _load_failed(self, message: str) -> None:
         self.failed_target = self.loader.target  # before the box, which takes the focus
         self.end_progress()
@@ -612,9 +626,14 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Could not load", message)
 
     def _not_a_camp_day(self, message: str) -> None:
-        """A date camp is not running is a date to change, not a sheet to go and fix."""
+        """A date camp is not running is a date to change, not a sheet to go and fix.
+
+        Nothing happens on it, so the table empties of the day it was showing; untick
+        "on date" and it lists every request in the file.
+        """
         self.failed_target = self.loader.target
         self.end_progress()
+        self._list_file()
         self._say(message)
         QMessageBox.warning(self, "Not a camp day", message)
 

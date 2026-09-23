@@ -94,6 +94,17 @@ class RequestStore:
         for request in self.requests:
             self._index(request)
 
+    def list_file(self) -> None:
+        """With no date loaded, hold every request in the file, none of them to be solved.
+
+        The file is on this computer, so listing it needs no sheets: before the first load,
+        or after a date camp is not running, the table can still show everything there is.
+        Raises LoadError for a file this version cannot read.
+        """
+        self.dataset, self.imported = None, 0
+        self.requests, self.elsewhere = [], list(self.book.every())
+        self.facets, self.resolved = {}, {}
+
     def _index(self, request: Request) -> None:
         """Work out what one request means: its facets, and the copies it resolves to."""
         self.facets[request.id], self.resolved[request.id] = resolve_request(request, self.dataset)
