@@ -50,6 +50,8 @@ title = "Cabin act day"
 prompt = "Every cabin act on today's board runs in the cabin act block, each on its own, and at least one director stays free then to handle problems."
 answer = "REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act\nPREFER AT_LEAST 1 staff.directors FREE DURING blocks.cabin_act"
 priority = "HIGH"
+hints = ["The REQUEST lines of a request stand or fall together, and EACH_OF copies all of them. Should a busy director count against every cabin act?"]
+explain = "A PREFER is weighed on its own. As a second REQUEST, a director being busy would miss all of the cabin acts along with it."
 wrong = ["REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act\nREQUEST ANY_1_OF staff.directors FREE DURING blocks.cabin_act"]
 
 [[problem]]
@@ -127,6 +129,7 @@ id = "big-trainee-with-trainer"
 title = "Trainee with a trainer"
 prompt = "Caroline trains on the Climbing Wall during clinic 1, and Alan is first on the wall then."
 answer = "REQUEST staff.caroline DO activities.clinics.climbing_wall AS_ROLE roles.trainee DURING blocks.clinic_1\nREQUEST staff.alan DO activities.clinics.climbing_wall AS_ROLE roles.first DURING blocks.clinic_1"
+explain = "The two REQUEST lines stand or fall together: the request is met only when Caroline and Alan are both on the wall."
 wrong = ["REQUEST staff.caroline DO activities.clinics.climbing_wall AS_ROLE roles.trainee DURING blocks.clinic_1\nREQUEST staff.alan DO activities.clinics.climbing_wall AS_ROLE roles.second DURING blocks.clinic_1"]
 
 [[problem]]

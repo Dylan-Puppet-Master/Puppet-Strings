@@ -29,12 +29,13 @@ wrong = [
 
 [[problem]]
 id = "free-day-off"
-title = "A day off"
-prompt = "Vic has Thursday off: nothing assigned in any block that day."
+title = "Clear all day"
+prompt = "Vic is on call all Thursday: at camp, but with nothing assigned in any block."
 answer = "REQUEST staff.vic FREE DURING ALL_OF blocks.all ON dates.session.six.week.one.thursday"
 priority = "MUST_HAPPEN"
 hints = ["Free in every block: FREE DURING ALL_OF blocks.all."]
 alternatives = ["REQUEST staff.vic FREE DURING ALL_OF blocks.all ON 2026-08-06", "REQUEST staff.vic FREE DURING EACH_OF blocks.all ON 2026-08-06"]
+explain = "FREE is somebody at camp with nothing to do. Somebody away for the day is an EXCLUDE, which comes later."
 wrong = ["REQUEST staff.vic FREE DURING ANY_1_OF blocks.all ON 2026-08-06"]
 
 [[problem]]

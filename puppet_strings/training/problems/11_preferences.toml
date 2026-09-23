@@ -59,13 +59,13 @@ priority = "LOW"
 wrong = ["PREFER EACH_OF s IN staff.village_heroes DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)"]
 
 [[problem]]
-id = "prefer-free-playstation"
+id = "prefer-free-counselors-playstation"
 title = "Free if possible"
-prompt = "We'd rather Rob were free at playstation, if it can be managed."
-answer = "PREFER AT_LEAST 1 staff.rob FREE DURING blocks.playstation"
+prompt = "We'd like at least three counselors free at playstation. Two is better than one, and one is better than none."
+answer = "PREFER AT_LEAST 3 staff.counselors FREE DURING blocks.playstation"
 priority = "HIGH"
-explain = "A PREFER with an amount of one is a gentle wish for a single thing."
-wrong = ["REQUEST staff.rob FREE DURING blocks.playstation"]
+explain = "Each counselor short of three costs a little. A REQUEST would score two free the same as none."
+wrong = ["REQUEST AT_LEAST 3 staff.counselors FREE DURING blocks.playstation"]
 
 [[problem]]
 id = "prefer-at-most-one-break-at-once"

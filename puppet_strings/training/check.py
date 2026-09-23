@@ -249,10 +249,12 @@ def _kind_advice(have: set[str], want: set[str]) -> str:
     if "EXCLUDE" in have - want:
         return "EXCLUDE takes someone out of the day. This one asks for something instead."
     if want - have and all(k.startswith("PREFER") for k in want - have):
-        return (
-            "This one is a wish that can be partly met — closer is better — so it is a PREFER, "
-            "not a REQUEST."
-        )
+        if "REQUEST" in want:
+            return (
+                "Part of this is a PREFER. The REQUEST lines of a request stand or fall "
+                "together; a PREFER is weighed on its own, so missing it costs nothing else."
+            )
+        return "This one is scored by how close it comes, so it is a PREFER, not a REQUEST."
     if "REQUEST" in want - have:
         return "This one is met or not met, so it is a REQUEST rather than a PREFER."
     return f"This needs {', '.join(sorted(want))}; the answer has {', '.join(sorted(have))}."

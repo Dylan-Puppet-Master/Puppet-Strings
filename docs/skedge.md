@@ -219,7 +219,7 @@ REQUEST EACH_OF staff.counselor NOT DO activities.clinics.candle_making
 | Request | Meaning |
 |---|---|
 | `REQUEST staff.dylan NOT DO activities.clinics.ropes` | Dylan does no ropes clinic today. |
-| `REQUEST staff.dylan FREE DURING ALL_OF blocks.all ON 2026-09-16` | A day off. |
+| `REQUEST staff.dylan FREE DURING ALL_OF blocks.all ON 2026-09-16` | At camp with nothing assigned all day. Somebody away is an [`EXCLUDE`](#exclude-somebody-who-is-not-here). |
 | `REQUEST EACH_OF {staff.all - staff.director} FREE DURING blocks.playstation` | Each non-director should have nothing on during playstation. |
 | `REQUEST EACH_OF staff.counselor NOT FREE DURING blocks.clinic_1` | Every counselor has something to do in clinic 1. |
 
@@ -708,7 +708,7 @@ Priority `HIGH`.
 ### Day off
 
 ```skedge
-REQUEST staff.dylan FREE DURING ALL_OF blocks.all ON 2026-09-16
+EXCLUDE staff.dylan DO 'day off' ON 2026-09-16
 ```
 
 Priority `MUST_HAPPEN`.
