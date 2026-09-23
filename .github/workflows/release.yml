@@ -38,6 +38,14 @@ jobs:
       - name: Build executable
         run: pyinstaller puppet_strings.spec
 
+      - name: Install what Qt needs to run on Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libdbus-1-3
+
+      - name: Run the executable
+        shell: bash
+        run: python tools/smoke_test.py dist/puppet-strings-*
+
       - name: Package Linux release
         if: matrix.os == 'ubuntu-latest'
         run: python tools/build_linux_release.py
