@@ -159,10 +159,10 @@ def test_the_budget_is_for_the_whole_solve_not_each_pass(monkeypatch):
     assert result.feasible
     assert len(asked) > 2
     # the first pass gets the budget less what is held back for the placement pass
-    assert 7.5 < asked[0] <= 8
+    assert 4.5 < asked[0] <= 5
     assert asked[1] <= asked[0]  # and each pass after it gets less than the one before
-    assert asked[-1] <= 2  # the placement pass gets tidy_seconds at most
-    assert all(limit <= 8 for limit in asked[:-1])
+    assert asked[-1] <= 5  # the placement pass gets tidy_seconds at most
+    assert all(limit <= 5 for limit in asked[:-1])
 
 
 def test_a_deadline_hands_out_what_is_left_and_no_more():
@@ -194,3 +194,24 @@ def test_a_tier_with_no_budget_left_keeps_the_schedule_and_says_so(monkeypatch):
     result = solve(build(), CONFIG)
     assert result.feasible and result.assignments
     assert any("budget was spent before this tier ran" in note for note in result.notes)
+
+
+def test_every_pass_after_the_first_starts_from_the_schedule_before_it(monkeypatch):
+    """With the tiers before it held at their best, a late tier may not find a schedule
+    from nothing in the time it has left, so it is handed the last one whole."""
+    seen = []
+    real = cp_model.CpSolver.Solve
+
+    def note_the_hint(self, model, *args, **kwargs):
+        proto = model.Proto()
+        hint = dict(zip(proto.solution_hint.vars, proto.solution_hint.values, strict=True))
+        status = real(self, model, *args, **kwargs)
+        seen.append((hint, len(proto.variables), tuple(self.ResponseProto().solution)))
+        return status
+
+    monkeypatch.setattr(cp_model.CpSolver, "Solve", note_the_hint)
+    assert solve(build(), CONFIG).feasible
+    assert len(seen) > 2
+    for (_, _, before), (hint, count, _) in zip(seen, seen[1:], strict=False):
+        assert len(hint) == count  # every variable, not just the assignments
+        assert tuple(hint[i] for i in range(count)) == before

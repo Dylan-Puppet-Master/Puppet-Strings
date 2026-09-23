@@ -68,13 +68,10 @@ def solve(
     for var, value in hints.values():
         model.AddHint(var, value)
 
-    unique = {var.Index(): var for var in variables.x.values()}
     placement = [
         iv.start - iv.block.start_minute for iv in variables.intervals.values() if iv.partial
     ]
-    outcome = solve_tiers(
-        model, compiler.terms, list(unique.values()), placement, config, cancel, deadline
-    )
+    outcome = solve_tiers(model, compiler.terms, placement, config, cancel, deadline)
     if not outcome.feasible:
         conflicts = tuple(
             compiler.compiled[i].id

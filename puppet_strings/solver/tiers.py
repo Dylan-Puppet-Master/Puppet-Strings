@@ -1,7 +1,9 @@
 """Lexicographic solving: one objective per soft tier, each fixed before the next.
 
 Every pass after the first starts from a schedule that already works, so a pass that runs
-out of time keeps that schedule and adds a note rather than failing the solve.
+out of time keeps that schedule and adds a note rather than failing the solve. The pass is
+also handed that schedule as its hint: with every tier before it held at its best, finding
+any schedule at all from nothing can take a late tier longer than the time it has left.
 
 `time_limit_seconds` is the budget for the whole solve, not for each pass: one clock runs
 from the moment the solve starts, and every pass gets what is left of it. The cosmetic
@@ -94,7 +96,6 @@ class TierOutcome:
 def solve_tiers(
     model: cp_model.CpModel,
     terms: dict[Priority, list[tuple[int, cp_model.IntVar]]],
-    assignments: list[cp_model.IntVar],
     placement: list,
     config: Config,
     cancel: Cancel,
@@ -146,9 +147,11 @@ def solve_tiers(
             model.Add(expression >= scores[tier])
             continue
         model.Maximize(expression)
+        _hint(model, values)
         status = solver.Solve(model)
         cancel.check()
         model.ClearObjective()
+        model.ClearHints()
         if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             values = _snapshot(solver)
             scores[tier] = round(solver.ObjectiveValue())
@@ -166,7 +169,7 @@ def solve_tiers(
     if placement:
         # what was held back for it, or whatever is left if a tier overran its allowance
         seconds = min(tidy, deadline.remaining)
-        values, placed = _minimize(model, solver, sum(placement), values, assignments, seconds)
+        values, placed = _minimize(model, solver, sum(placement), values, seconds)
         cancel.check()
         if not placed:
             notes.append("placement pass ran out of time; partial tasks may sit later in a block")
@@ -204,13 +207,10 @@ def _minimize(
     solver: cp_model.CpSolver,
     expression,
     values: tuple[int, ...],
-    hints: list[cp_model.IntVar],
     seconds: float,
 ) -> tuple[tuple[int, ...], bool]:
     """Minimize an expression, keeping the current schedule if the pass finds nothing."""
-    model.ClearHints()
-    for var in hints:
-        model.AddHint(var, values[var.Index()])
+    _hint(model, values)
     model.Minimize(expression)
     solver.parameters.max_time_in_seconds = seconds
     status = solver.Solve(model)
@@ -219,6 +219,18 @@ def _minimize(
     if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return _snapshot(solver), True
     return values, False
+
+
+def _hint(model: cp_model.CpModel, values: tuple[int, ...]) -> None:
+    """Hint every variable its value in a schedule, written straight into the model.
+
+    A variable at a time through `AddHint` is a Python call each, and a day's model has tens
+    of thousands of them.
+    """
+    model.ClearHints()
+    hint = model.Proto().solution_hint
+    hint.vars.extend(range(len(values)))
+    hint.values.extend(values)
 
 
 def _snapshot(solver: cp_model.CpSolver) -> tuple[int, ...]:

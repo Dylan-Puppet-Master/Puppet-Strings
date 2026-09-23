@@ -87,8 +87,8 @@ request that is inactive (its dates all past or all future, or an `EACH_OF` over
 is not listed.
 
 It also carries notes about the time limit. Each pass after the first starts from a
-schedule that already works, so a pass that runs out of time keeps that schedule and says
-so rather than failing the solve:
+schedule that already works, handed to it as its starting point, so a pass that runs out
+of time keeps at least that schedule and says so rather than failing the solve:
 
 | Note | Means |
 |---|---|
