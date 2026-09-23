@@ -9,8 +9,13 @@ everything again with what was chosen.
 The account row is the same idea: it says who is signed in, and offers to sign in as
 somebody else or to sign out. Signing out does not delete anything on Drive; it forgets
 the token, and the next start asks again.
+
+The pane also opens the trainer, since it is the one window a new Puppet Master is sure to
+see: on a first run it comes up before anything else, and the trainer needs no account.
 """
 
+import subprocess
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -115,6 +120,7 @@ class ConfigureDialog(QDialog):
         layout.addWidget(self._account_box(client_button))
         layout.addWidget(self._chosen_box("Directories", "folders", FOLDERS))
         layout.addWidget(self._updates_box())
+        layout.addWidget(self._training_box())
         layout.addStretch(1)
         layout.addWidget(buttons)
         self.refresh_account()
@@ -139,6 +145,29 @@ class ConfigureDialog(QDialog):
         row.addWidget(self.version_label, stretch=1)
         row.addWidget(self.updates_button)
         return box
+
+    def _training_box(self) -> QGroupBox:
+        box = QGroupBox("Skedge training")
+        row = QHBoxLayout(box)
+        note = QLabel("Practise writing requests on a sample session. No account needed.")
+        self.training_button = QPushButton("Open trainer")
+        self.training_button.clicked.connect(self.open_trainer)
+        row.addWidget(note, stretch=1)
+        row.addWidget(self.training_button)
+        return box
+
+    # -- training -----------------------------------------------------------------------
+
+    def open_trainer(self) -> None:
+        """Start the trainer as a program of its own.
+
+        It dresses the whole application in its own colours, so it cannot share a process
+        with this window; and on a first run it keeps going if this pane is closed unsigned.
+        """
+        try:
+            subprocess.Popen(trainer_command())
+        except OSError as e:
+            QMessageBox.warning(self, "Skedge training", f"Could not start the trainer: {e}")
 
     # -- updates ------------------------------------------------------------------------
 
@@ -304,3 +333,10 @@ class ConfigureDialog(QDialog):
         save_settings(self.settings)
         self.saved = True
         self.accept()
+
+
+def trainer_command() -> list[str]:
+    """How to start the trainer: this executable when packaged, else this Python."""
+    if getattr(sys, "frozen", False):
+        return [sys.executable, "train"]
+    return [sys.executable, "-m", "puppet_strings", "train"]

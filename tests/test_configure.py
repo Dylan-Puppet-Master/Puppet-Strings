@@ -9,6 +9,7 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
+from puppet_strings.app import configure  # noqa: E402
 from puppet_strings.app.configure import NOT_CHOSEN, ConfigureDialog  # noqa: E402
 from puppet_strings.app.drive_browser import DriveBrowser  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
@@ -132,6 +133,16 @@ def test_the_pane_shows_what_is_chosen_and_saves_it(app, config):
     assert saved.folders["cabin_acts"] == Chosen("f2", "Cabin Act Testing")
 
 
+def test_the_trainer_opens_as_a_program_of_its_own(app, config, monkeypatch):
+    started = []
+    monkeypatch.setattr(configure.subprocess, "Popen", started.append)
+    dialog = ConfigureDialog(config, credentials=None)
+    dialog.training_button.click()
+    assert started == [[configure.sys.executable, "-m", "puppet_strings", "train"]]
+    monkeypatch.setattr(configure.sys, "frozen", True, raising=False)
+    assert configure.trainer_command() == [configure.sys.executable, "train"]
+
+
 def test_clearing_a_choice_forgets_it(app, config):
     dialog = ConfigureDialog(config, credentials=object())
     dialog.choose("folders", "root", Chosen("abc", "Puppet Strings"))
@@ -174,5 +185,6 @@ def test_the_pane_has_no_empty_spreadsheets_box(app, config):
         "Google account",
         "Directories",
         "Version",
+        "Skedge training",
     ]
     assert dialog.updates_button.text() == "Check for updates"

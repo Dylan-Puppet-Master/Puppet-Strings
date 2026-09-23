@@ -60,6 +60,8 @@ naming the cabin and the day. See
 
 **Configure**, on the right-hand end of the toolbar, is where the Google account and the
 sheets are chosen. See [Install and set up](install.md#5-sign-in-and-choose-the-sheets).
+It also has **Open trainer**, which starts [the trainer](training.md) in a window of its
+own.
 
 **Same-day changes.** Once the day on screen is published, the toolbar offers
 **Same-day changes** and **Who is off today…**. See [Same-day changes](same-day.md).

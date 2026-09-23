@@ -4,7 +4,8 @@
 puppet-strings train
 ```
 
-opens **Skedge Training**, a practice window for new Puppet Masters. It holds a couple of
+opens **Skedge Training**, a practice window for new Puppet Masters. In the app, **Open
+trainer** in the **Configure** pane starts it too, before anybody has signed in. It holds a couple of
 hundred plain-English requests, in levels that each introduce one idea — a single task, sets
 of people, choosing, splitting with `EACH_OF`, dates, `FREE` and `NOT`, clinics and cabin
 acts, set arithmetic, counting, `WITH`, `PREFER`, bindings and mappings, `IF` / `UNLESS` with
