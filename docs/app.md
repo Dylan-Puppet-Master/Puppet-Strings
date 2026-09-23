@@ -6,7 +6,8 @@ puppet-strings app
 
 ![The request manager](img/app.png)
 
-**Toolbar.** Pick the target date (tomorrow by default). **Reload** reads every sheet again.
+**Toolbar.** Pick the target date (tomorrow by default). Nothing is read when the window
+opens; **Reload** reads every sheet for the date shown, and again whenever it is pressed.
 The Calendar is read first and the date checked against it, so a date camp is not running
 says so at once — naming the range the calendar covers and the nearest camp day — rather
 than after a slow read of everything else. It is a prompt to pick another date, not a

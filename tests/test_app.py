@@ -51,6 +51,18 @@ def window(app, fixtures_copy):
     return make_window(fixtures_copy)
 
 
+def test_nothing_is_read_until_reload(app, fixtures_copy):
+    """The day wanted is often not the default one, so opening the window reads nothing."""
+    window = make_window(fixtures_copy, loaded=False)
+    assert window.loader is None and window.store.dataset is None
+    assert window.status_label.text().strip() == "Pick a target date and press Reload."
+    window.run_solve()
+    assert window.worker is None  # nothing to solve against yet
+    window.reload()
+    window.wait_for_load()
+    assert window.store.dataset.target == date(2026, 9, 16)
+
+
 def visible_ids(window):
     return {window.proxy.data(window.proxy.index(r, 0)) for r in range(window.proxy.rowCount())}
 

@@ -71,8 +71,7 @@ def run_app(config: Config, fixtures: Path | None) -> int:
             return 1
         store = RequestStore(source, config)
     window = MainWindow(store)
-    window.show()
-    window.reload()  # loads in the background; the window paints right away
+    window.show()  # nothing is read until Reload: the day wanted is often not the default
     return app.exec()
 
 
@@ -240,6 +239,7 @@ class MainWindow(QMainWindow):
         self.errors_dock = QDockWidget("Errors", self)
         self.errors_dock.setWidget(self.errors)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.errors_dock)
+        self._say("Pick a target date and press Reload.")
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Main")
