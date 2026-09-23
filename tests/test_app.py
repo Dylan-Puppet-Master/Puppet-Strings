@@ -187,6 +187,23 @@ def test_a_bare_word_never_suggests_a_date(window):
     assert completions(editor) == ["dates.session.one.mondays"]
 
 
+def test_ctrl_s_saves_with_the_completer_open(window):
+    """The popup takes the keys while it is up; Ctrl+S must still save."""
+    editor = window.editor
+    editor.clear()
+    editor.description_edit.setText("dylan free")
+    QTest.keyClicks(editor.skedge_edit, "REQUEST staff.dyl")
+    popup = editor.skedge_edit.completer.popup()
+    assert popup.isVisible()
+    editor.skedge_edit.setPlainText(DYLAN_FREE)
+    editor.skedge_edit.moveCursor(QTextCursor.End)
+    QTest.keyClicks(editor.skedge_edit, " # staff.dyl")  # a comment, so it still validates
+    assert popup.isVisible()
+    QTest.keyClick(popup, Qt.Key_S, Qt.ControlModifier)
+    assert not popup.isVisible()
+    assert editor.original_id and window.model.request(editor.original_id) is not None
+
+
 def test_a_keyword_being_typed_is_not_a_name_being_looked_up(window):
     """`do` is a word on its way to being written, not a search for every name with do in it."""
     editor = window.editor

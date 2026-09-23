@@ -120,6 +120,8 @@ class SkedgeEdit(QPlainTextEdit):
     is picked, and a bare word offering half the season buries the name being looked for.
     """
 
+    save_requested = Signal()  # Ctrl+S, which the popup would otherwise swallow
+
     PARTIAL_NAME = re.compile(r"[a-z_][a-z0-9_]*(\.[a-z0-9_]*)*$")
     DATES = "dates."
     SHORTEST = 2  # letters before a bare word suggests anything; one letter is every name
@@ -163,7 +165,15 @@ class SkedgeEdit(QPlainTextEdit):
         self.completer.setCompletionPrefix("")  # the old prefix was narrowing the old list
 
     def keyPressEvent(self, event) -> None:  # noqa: N802
-        """Type as usual, but leave the popup its own keys and suggest after each change."""
+        """Type as usual, but leave the popup its own keys and suggest after each change.
+
+        Ctrl+S is asked for here rather than left to the editor around this box: with the
+        popup open, the completer hands its keys straight to this box and nowhere else.
+        """
+        if event.key() == Qt.Key_S and event.modifiers() & Qt.ControlModifier:
+            self.completer.popup().hide()
+            self.save_requested.emit()
+            return
         popup_keys = (Qt.Key_Enter, Qt.Key_Return, Qt.Key_Escape, Qt.Key_Tab, Qt.Key_Backtab)
         if self.completer.popup().isVisible() and event.key() in popup_keys:
             event.ignore()
@@ -247,6 +257,7 @@ class RequestEditor(QWidget):
         self.requester_edit.setCompleter(self.requester_completer)
         self.created_label = QLabel("")
         self.skedge_edit = SkedgeEdit()
+        self.skedge_edit.save_requested.connect(self._save)
         self.highlighter = SkedgeHighlighter(self.skedge_edit.document())
         self.status = QLabel("")
         self.status.setWordWrap(True)
