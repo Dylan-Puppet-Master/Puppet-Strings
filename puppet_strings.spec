@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 from PyInstaller.depend.bindepend import get_imports
+from PyInstaller.utils.hooks import collect_dynamic_libs
 
 PLATFORM = {
     "win32": "windows",
@@ -58,6 +59,13 @@ UNUSED_LIBRARIES = [
 ]
 UNUSED_DATA = ["PySide6/Qt/translations/*"]  # the app is in English only
 
+# OR-Tools on Windows loads its own DLLs -- abseil, protobuf, ortools.dll and the rest -- from
+# `ortools/.libs` by path, in `ortools/__init__.py`, and quietly skips any that are missing.
+# Analysis cannot see a library opened that way, so they are collected into the same folder
+# here; without them the solver fails to import with "DLL load failed". Elsewhere the
+# extension module links its libraries, and analysis follows the links.
+ORTOOLS_DLLS = collect_dynamic_libs("ortools") if PLATFORM == "windows" else []
+
 
 def _matches(dest: str, patterns: list[str]) -> bool:
     path = dest.replace(os.sep, "/").lower()  # Qt6EglFS and qt6eglfs are one library
@@ -97,6 +105,7 @@ def _only_needed(binaries: list) -> list:
 analysis = Analysis(  # noqa: F821
     ["puppet_strings/__main__.py"],
     pathex=["."],
+    binaries=ORTOOLS_DLLS,
     datas=[
         ("puppet_strings/skedge/grammar.lark", "puppet_strings/skedge"),
         ("puppet_strings/training/problems", "puppet_strings/training/problems"),
