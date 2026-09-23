@@ -175,8 +175,8 @@ class GroupsPane(QWidget):
         wanted = keep or self.current
         self.list.blockSignals(True)
         self.list.clear()
-        ungrouped = sum(1 for r in self.store.requests if not r.group)
-        self._add(ALL, len(self.store.requests))
+        ungrouped = sum(1 for r in self.store.every if not r.group)
+        self._add(ALL, len(self.store.every))
         self._add(UNGROUPED, ungrouped)
         for group in self.store.groups:
             self._add(group, self.store.count(group))

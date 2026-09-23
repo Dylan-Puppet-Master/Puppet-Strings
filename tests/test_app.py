@@ -2,6 +2,7 @@
 
 import os
 import shutil
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -91,7 +92,6 @@ def test_table_and_filters(window):
         "offering:2026-09-16:riflery:clinic_3",
     }
     window.activity_filter.setCurrentIndex(0)
-    window.date_check.setChecked(True)
     window.date_filter.setDate(QDate(2026, 9, 19))
     ids = visible_ids(window)
     assert "dylan-off-ropes" not in ids and "breaks" in ids
@@ -797,10 +797,12 @@ def test_saving_a_request_outside_the_date_asks_first(window, monkeypatch):
     assert window.model.rowCount() == 32
     saved = editor.original_id
     assert window.model.request(saved) is not None
-    window.date_check.setChecked(True)  # it does nothing on the date being scheduled
+    assert window.date_check.isChecked()  # it does nothing on the date being scheduled
     window.date_filter.setDate(QDate(2026, 9, 16))
     assert saved not in visible_ids(window)
-    window.date_filter.setDate(QDate(2026, 9, 28))
+    window.date_filter.setDate(QDate(2026, 9, 28))  # about it, but scoped to session 1
+    assert saved not in visible_ids(window)
+    window.date_check.setChecked(False)
     assert saved in visible_ids(window)
 
 
@@ -1441,3 +1443,49 @@ def test_nothing_is_deleted_when_the_popup_is_cancelled(window, monkeypatch):
     monkeypatch.setattr(QMessageBox, "question", lambda *a: QMessageBox.Cancel)
     QTest.keyClick(window.table, Qt.Key_Delete)
     assert window.model.rowCount() == before
+
+
+def test_the_on_date_box_starts_ticked_and_unticked_lists_every_date(window):
+    """Ticked, the table is the target date's; unticked, it is every request in the file."""
+    assert window.date_check.isChecked()
+    window.date_edit.setDate(QDate(2026, 9, 17))
+    window.date_edit.editingFinished.emit()
+    window.wait_for_load()  # imports the 17th's clinics
+    window.date_edit.setDate(QDate(2026, 9, 16))
+    window.date_edit.editingFinished.emit()
+    window.wait_for_load()
+    other_day = "offering:2026-09-17:riflery:clinic_3"
+    assert other_day not in visible_ids(window)
+    assert other_day not in {r.id for r in window.store.requests}  # listed, never solved
+    window.date_check.setChecked(False)
+    assert other_day in visible_ids(window)
+    assert "offering:2026-09-16:riflery:clinic_3" in visible_ids(window)
+    window.date_check.setChecked(True)
+    window.date_filter.setDate(QDate(2026, 9, 17))
+    assert other_day in visible_ids(window)
+
+
+def test_a_request_from_another_date_saves_without_being_solved(window, monkeypatch):
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Save)
+    window.date_edit.setDate(QDate(2026, 9, 17))
+    window.date_edit.editingFinished.emit()
+    window.wait_for_load()
+    window.date_edit.setDate(QDate(2026, 9, 16))
+    window.date_edit.editingFinished.emit()
+    window.wait_for_load()
+    other_day = "offering:2026-09-17:riflery:clinic_3"
+    request = window.model.request(other_day)
+    window.store.save(replace(request, description="moved"), other_day)
+    assert other_day not in {r.id for r in window.store.requests}
+    assert window.model.request(other_day).description == "moved"
+    assert saved_requests(window.store.source.root)[other_day].description == "moved"
+
+
+def test_a_broken_request_is_not_hidden_by_the_date(window):
+    """It is about no date anybody can tell, so the on-date view still shows it."""
+    window.store.save(
+        replace(window.model.request("breaks"), skedge="REQUEST staff.nobody_at_all FREE"), "breaks"
+    )
+    window.model.refresh()
+    assert not window.store.facet(window.model.request("breaks")).valid
+    assert window.date_check.isChecked() and "breaks" in visible_ids(window)

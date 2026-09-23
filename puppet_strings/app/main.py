@@ -347,7 +347,9 @@ class MainWindow(QMainWindow):
         self.tag_filter = _combo(["any tag"])
         self.staff_filter = _combo(["any staff"])
         self.activity_filter = _combo(["any activity"])
+        # On, the table is the requests about one date; off, every request in the file.
         self.date_check = QCheckBox("on date")
+        self.date_check.setChecked(True)
         self.date_filter = QDateEdit(self.date_edit.date())
         self.date_filter.setDisplayFormat("yyyy-MM-dd")
         self.date_filter.setCalendarPopup(True)
@@ -368,6 +370,7 @@ class MainWindow(QMainWindow):
             combo.currentIndexChanged.connect(self.apply_filters)
         self.date_check.toggled.connect(self.apply_filters)
         self.date_filter.dateChanged.connect(self.apply_filters)
+        self.apply_filters()  # the box starts ticked, so the table starts on the date
         return layout
 
     def apply_filters(self) -> None:
@@ -411,7 +414,7 @@ class MainWindow(QMainWindow):
     def _requests(self, ids: list[str]) -> list:
         """The requests with these ids."""
         wanted = set(ids)
-        return [r for r in self.store.requests if r.id in wanted]
+        return [r for r in self.store.every if r.id in wanted]
 
     def _set_group(self, ids: list[str], group: str) -> None:
         """Move requests onto the group they were dragged to, and say so.

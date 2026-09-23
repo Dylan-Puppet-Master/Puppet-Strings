@@ -38,7 +38,10 @@ class RequestStore:
         self.book = open_requests(config, source)
         self.dataset: Dataset | None = None
         self.imported = 0  # clinics the last load imported from the Offerings tab
-        self.requests: list[Request] = []
+        self.requests: list[Request] = []  # the ones read on the target date, and so solved
+        # Everything else in the file, scoped to other dates: listed, never solved. Their
+        # facets are worked out when a filter first asks, since a season holds hundreds.
+        self.elsewhere: list[Request] = []
         self.facets: dict[str, Facets] = {}
         self.resolved: dict[str, tuple] = {}  # each request's copies, for the conflict finder
         # A group lives on the requests in it, so one just made holds nothing yet and would
@@ -85,6 +88,8 @@ class RequestStore:
         dataset = load_dataset(self.source, self.config, target, history=False, requests=self.book)
         self.dataset, self.imported = import_if_missing(dataset, self.book)
         self.requests = list(self.dataset.requests)
+        here = {r.id for r in self.requests}
+        self.elsewhere = [r for r in self.book.every() if r.id not in here]
         self.facets, self.resolved = {}, {}
         for request in self.requests:
             self._index(request)
@@ -92,6 +97,21 @@ class RequestStore:
     def _index(self, request: Request) -> None:
         """Work out what one request means: its facets, and the copies it resolves to."""
         self.facets[request.id], self.resolved[request.id] = resolve_request(request, self.dataset)
+
+    @property
+    def every(self) -> list[Request]:
+        """Every request in the file: the target date's first, then the rest."""
+        return self.requests + self.elsewhere
+
+    def facet(self, request: Request) -> Facets:
+        """What the filters need to know about a request, worked out the first time it is asked.
+
+        One scoped to other dates is read against the target date's sheets, which is as near
+        as the window can get without loading its own day.
+        """
+        if request.id not in self.facets:
+            self.facets[request.id] = resolve_request(request, self.dataset)[0]
+        return self.facets[request.id]
 
     @property
     def conflicts(self) -> tuple[Conflict, ...]:
@@ -116,16 +136,19 @@ class RequestStore:
         may be empty and gets reworded, none of which the name the report uses may do.
         """
         request = replace(request, scope=scope_for(request, self.dataset))
-        ids = [r.id for r in self.requests]
-        if original_id in ids:
+        if original_id in {r.id for r in self.every}:
             request = replace(request, id=original_id)
-            self.requests[ids.index(original_id)] = request
-        else:
-            if not request.id:
-                prefix = id_prefix(request.scope, self.dataset)
-                request = replace(request, id=self.book.next_id(prefix))
-            self.requests.append(request)
-        self._index(request)
+        elif not request.id:
+            prefix = id_prefix(request.scope, self.dataset)
+            request = replace(request, id=self.book.next_id(prefix))
+        # a request scoped away from the target date is listed but not solved
+        here = request.scope.covers(self.dataset.target)
+        self.requests = _placed(self.requests, request, original_id, here)
+        self.elsewhere = _placed(self.elsewhere, request, original_id, not here)
+        self.facets.pop(request.id, None)
+        self.resolved.pop(request.id, None)
+        if here:
+            self._index(request)
         self.book.put([request])
         return request
 
@@ -241,7 +264,7 @@ class RequestStore:
     @property
     def tags(self) -> list[str]:
         """Every tag in use, sorted."""
-        return sorted({t for r in self.requests for t in r.tags})
+        return sorted({t for r in self.every for t in r.tags})
 
     @property
     def groups(self) -> list[str]:
@@ -251,14 +274,14 @@ class RequestStore:
         nothing has joined yet.
         """
         known = list(DEFAULT_GROUPS)
-        for name in [r.group for r in self.requests if r.group] + self.empty_groups:
+        for name in [r.group for r in self.every if r.group] + self.empty_groups:
             if not any(same_group(name, seen) for seen in known):
                 known.append(name)
         return known[: len(DEFAULT_GROUPS)] + sorted(known[len(DEFAULT_GROUPS) :], key=str.lower)
 
     def count(self, group: str) -> int:
         """How many requests are on a shelf."""
-        return sum(1 for r in self.requests if same_group(group, r.group))
+        return sum(1 for r in self.every if same_group(group, r.group))
 
     def add_group(self, name: str) -> str:
         """Make a group. Returns the name it settled on, or "" if it is not a new one."""
@@ -294,16 +317,33 @@ class RequestStore:
 
     def _regroup(self, change) -> None:
         """Give each request the group `change(group, request)` says; write those that moved."""
-        rewritten = [replace(r, group=change(r.group, r)) for r in self.requests]
-        moved = [new for new, was in zip(rewritten, self.requests, strict=True) if new != was]
-        self.requests = rewritten
+        requests = [replace(r, group=change(r.group, r)) for r in self.requests]
+        elsewhere = [replace(r, group=change(r.group, r)) for r in self.elsewhere]
+        moved = [
+            new for new, was in zip(requests + elsewhere, self.every, strict=True) if new != was
+        ]
+        self.requests, self.elsewhere = requests, elsewhere
         self.book.put(moved)
 
     def delete(self, *request_ids: str) -> None:
         """Remove requests, however many."""
         gone = set(request_ids)
         self.requests = [r for r in self.requests if r.id not in gone]
+        self.elsewhere = [r for r in self.elsewhere if r.id not in gone]
         for request_id in gone:
             self.facets.pop(request_id, None)
             self.resolved.pop(request_id, None)
         self.book.delete(gone)
+
+
+def _placed(requests: list[Request], request: Request, original_id: str | None, wanted: bool):
+    """The list with `request` in the place of `original_id`, at the end, or taken out.
+
+    A request stays where it was in the list it was already on, and a new one goes last.
+    """
+    at = next((i for i, r in enumerate(requests) if r.id in (original_id, request.id)), None)
+    if not wanted:
+        return requests if at is None else requests[:at] + requests[at + 1 :]
+    if at is None:
+        return [*requests, request]
+    return [*requests[:at], request, *requests[at + 1 :]]

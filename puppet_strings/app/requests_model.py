@@ -18,7 +18,7 @@ def request_ids(data: QMimeData) -> list[str]:
 
 
 class RequestsModel(QAbstractTableModel):
-    """One row per request in the store."""
+    """One row per request in the file, whatever date it is scoped to."""
 
     def __init__(self, store: RequestStore) -> None:
         super().__init__()
@@ -33,7 +33,7 @@ class RequestsModel(QAbstractTableModel):
         """Number of requests."""
         if parent is not None and parent.isValid():
             return 0
-        return len(self.store.requests)
+        return len(self.store.every)
 
     def columnCount(self, parent=None) -> int:  # noqa: N802
         """Number of columns."""
@@ -47,7 +47,7 @@ class RequestsModel(QAbstractTableModel):
 
     def data(self, index, role=Qt.DisplayRole):
         """Cell text, or the Request itself for UserRole."""
-        request = self.store.requests[index.row()]
+        request = self.store.every[index.row()]
         if role == Qt.UserRole:
             return request
         if role != Qt.DisplayRole:
@@ -63,7 +63,7 @@ class RequestsModel(QAbstractTableModel):
 
     def request(self, request_id: str) -> Request | None:
         """The request with this id."""
-        return next((r for r in self.store.requests if r.id == request_id), None)
+        return next((r for r in self.store.every if r.id == request_id), None)
 
     def flags(self, index):
         """Rows can be picked up, which is how a request is moved to another group."""
@@ -75,7 +75,8 @@ class RequestsModel(QAbstractTableModel):
 
     def mimeData(self, indexes):  # noqa: N802
         """The ids of the rows being dragged, one per line."""
-        ids = dict.fromkeys(self.store.requests[i.row()].id for i in indexes if i.isValid())
+        every = self.store.every
+        ids = dict.fromkeys(every[i.row()].id for i in indexes if i.isValid())
         data = QMimeData()
         data.setData(REQUEST_IDS, "\n".join(ids).encode())
         return data
@@ -111,9 +112,13 @@ class RequestFilter(QSortFilterProxyModel):
         return same_group(self.group, request.group)
 
     def filterAcceptsRow(self, row, parent) -> bool:  # noqa: N802
-        """Whether the request at this source row passes every active filter."""
-        request = self.store.requests[row]
-        facet = self.store.facets.get(request.id)
+        """Whether the request at this source row passes every active filter.
+
+        With a date, a request passes when it is read on that date and is about it. One
+        that does not validate is about nothing anybody can tell, so the date lets it
+        through rather than hiding a broken request from the view it would be fixed in.
+        """
+        request = self.store.every[row]
         if not self._in_group(request):
             return False
         text = (self.text or "").lower()
@@ -124,10 +129,13 @@ class RequestFilter(QSortFilterProxyModel):
             return False
         if self.tag and self.tag not in request.tags:
             return False
-        if facet is None:
-            return not (self.staff or self.activity or self.date)
+        if self.date and request.scope is not None and not request.scope.covers(self.date):
+            return False
+        if not (self.staff or self.activity or self.date):
+            return True
+        facet = self.store.facet(request)
         if self.staff and self.staff not in facet.staff:
             return False
         if self.activity and self.activity not in facet.activities:
             return False
-        return not self.date or self.date in facet.dates
+        return not self.date or not facet.valid or self.date in facet.dates

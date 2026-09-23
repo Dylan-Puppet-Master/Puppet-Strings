@@ -119,9 +119,17 @@ it: free text over id, description, Skedge and requester; priority; tag; staff; 
 and a date. These narrow whatever group is showing, so the group is the shelf and the
 filters are the search. To ask how far a request reaches, filter by the date itself.
 
-**on date** starts on the date being scheduled and follows it, because that is the day you
-are almost always asking about. Moving the filter to look at another day leaves the target
-date alone, so you can check next Monday without changing what Solve would build.
+**on date** is ticked to begin with, and starts on the date being scheduled and follows it,
+because that is the day you are almost always asking about. Ticked, the table shows the
+requests read on that date that are about it; a request that does not validate is shown
+whatever the date, so it cannot hide from the view you would fix it in. Moving the filter
+to look at another day leaves the target date alone, so you can check next Monday without
+changing what Solve would build.
+
+Unticked, the table lists every request in the file, whatever date it is scoped to: other
+days' clinics, other sessions' requests, all of them. The ones scoped away from the target
+date can be opened, edited, moved between groups and deleted, but Solve only ever uses the
+ones read on the target date.
 
 The staff and activity filters use the names a request resolves to, so filtering by
 `dylan` finds requests written for `staff.counselor` as well.
