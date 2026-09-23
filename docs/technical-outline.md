@@ -251,7 +251,7 @@ HEROs; a metric is now a numeric mapping.)
 | `value` | `numeric` | `{staff.all - staff.counselor}` |
 | `scale_min` | `1` | |
 | `scale_max` | `5` | |
-| `default` | `3` | `ANY_1_OF {staff.all - staff.counselor - staff.director}` |
+| `default` | `3` | `ANY 1 {staff.all - staff.counselor - staff.director}` |
 
 `keys` and `value` are Skedge sets (or a bare namespace), so what a call may take and
 give is checked like any other name. `mapping_enjoyment`:
@@ -730,7 +730,7 @@ Recorded so the outline matches the code.
   or an `EACH_OF` copy) and a `DO` names one activity or task. Claims on a slot are then
   compared: free against do, do against not-do, free against not-free, and do against do by
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
-  leaves the solver room — `ANY_n_OF`, `PREFER`, an undated `DURING` — makes a claim, which
+  leaves the solver room — `ANY n`, `PREFER`, an undated `DURING` — makes a claim, which
   is what keeps the pane quiet enough to be worth reading.
 - **A publish is six write requests** (Puppet Master, 2026-09-22). Google counts write
   requests against sixty a minute per person, and a publish sent a clear and an update per
@@ -767,7 +767,7 @@ Recorded so the outline matches the code.
   143 API calls to 73.
 - **CONSECUTIVE comes right after what it is about** (Puppet Master, 2026-09-22). "Two
   blocks" and "two blocks in a row" differ by one word, and were written two different
-  ways: a requirement, and a counted pattern. `DURING ANY_n_OF <blocks> CONSECUTIVE` now
+  ways: a requirement, and a counted pattern. `DURING ANY n <blocks> CONSECUTIVE` now
   chooses n adjacent blocks in the requirement itself, and the count's `CONSECUTIVE` moves
   from after the pattern, where `ON {…} CONSECUTIVE` read as consecutive dates, to after
   the amount. The old place is still parsed, only to say where it goes now. The compiler
@@ -875,12 +875,30 @@ Recorded so the outline matches the code.
   compile. A newline is no longer the end of a statement when the next line begins with a
   word that continues one — `DO`, `DURING`, `ON`, `FOR`, a set operator, a closing brace —
   which keeps the grammar LALR by deciding it in the lexer: `_CONTINUES` matches those
-  newlines and is ignored, and `_NL` gets the rest. `EACH_OF`, `ANY_n_OF` and bare names are
+  newlines and is ignored, and `_NL` gets the rest. `EACH_OF`, `ANY n` and bare names are
   deliberately not continuations, since each of them can begin a line of its own.
-  `ANY_1_OF v IN {…}` could only be used as a whole selector, so "Charlton with either
+  `ANY 1 v IN {…}` could only be used as a whole selector, so "Charlton with either
   Dylan or Donny" had no natural wording; a bound name can now be added into a set with `+`,
   which resolves to a `Choice` carrying `parts` — the items named here, plus whatever each
   part chose. The solver already spoke in a dict of item to literal, so joining them is
   merging two dicts, and the binding's own literals are what keep it the same person
   throughout. Only `+`, and only `ALL_OF`: `-` and `&` ask what a chosen name is not, and
   taking `n` of such a set is choosing out of something still being chosen.
+- **`ANY n`, groups, clauses in any order, and named sets** (2026-09-22). `ANY_n_OF` read
+  like nothing else in a declarative language and not like its own `AT_LEAST n`, so it is
+  now `ANY n`: an `ANY` keyword and an `INT`. The old spelling is still lexed, only to be
+  told `write ANY 1, not ANY_1_OF`. A quantifier may now also go on a part of a set, in
+  parentheses: an `ast.Group`. Taken whole, a set's groups are flattened (`ALL_OF`) or
+  become `parts` (`ANY n`), so `ALL_OF {x + (ANY 1 s)}` compiles to exactly what the binding
+  line did. Under `ANY n` each group is one unit of the choice, held in `Choice.units`: the
+  solver gives each a literal alongside the plain items' and chooses the group's own members
+  under it. Under `EACH_OF` each group is a copy. Items reached twice are merged with an OR,
+  where `parts` used to overwrite. Clauses may now sit anywhere around the subject, verb and
+  object, which meant one `clauses` rule used at every gap and one clause rule for
+  requirements and patterns alike; the pool-only quantifier rule moved from the grammar to
+  the builder, which says why rather than what it expected. The line-continuation rule was
+  turned round to match: rather than listing the words that continue a statement,
+  `_CONTINUES` lists the few that can begin a line — a statement keyword, a binding, a name
+  and a colon — and every other newline is nothing. `name: <set>` is an `ast.Definition`,
+  written into the lines that use it by the parser, so nothing downstream knows it was
+  there; `name: ANY n <set>` and `name: EACH_OF <set>` are binding lines.

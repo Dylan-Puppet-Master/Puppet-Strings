@@ -22,7 +22,7 @@ position on Clinic_Data, so a clinic wanting a facilitator, a second and a lifeg
 reads:
 
 ```skedge
-REQUEST ANY_1_OF staff.all DO activities.clinics.canoe_1_2 AS_ROLE EACH_OF {roles.first + roles.second + roles.lifeguard} DURING blocks.clinic_1 ON 2026-09-17
+REQUEST ANY 1 staff.all DO activities.clinics.canoe_1_2 AS_ROLE EACH_OF {roles.first + roles.second + roles.lifeguard} DURING blocks.clinic_1 ON 2026-09-17
 ```
 
 `EACH_OF` is what makes each position its own choice of person; `ALL_OF` would ask one
@@ -39,7 +39,7 @@ put in the grid.
 Loading first removes every generated request for the target date, so the sheet mirrors
 that day's Offerings tab: a clinic you removed there disappears here. Hand-written requests are
 never touched. Between loads you can delete a generated request to drop that clinic, or
-edit it, for example to replace `ANY_1_OF staff.all` with a category to limit who runs it;
+edit it, for example to replace `ANY 1 staff.all` with a category to limit who runs it;
 loading again undoes such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
 clinic view and the report; it asks first if no offerings are loaded for the date.
 **Publish** in that window writes the day's own spreadsheet in the
@@ -155,7 +155,7 @@ things that cannot both be true.
 Sharing a slot is not by itself a collision: two requests asking for the same clinic agree,
 and two half-hour tasks fit in one block quite happily. What they say has to be impossible.
 
-It also reads only what is **settled**. `REQUEST ANY_1_OF staff.all DO …`, `DURING ANY_2_OF
+It also reads only what is **settled**. `REQUEST ANY 1 staff.all DO …`, `DURING ANY 2
 blocks.all` and every `PREFER` leave the solver room to move, and moving things around each
 other is its job, so they are never reported. What is left is worth looking at: a request
 saved into a collision says so in the toolbar as it saves. One request may hold several
@@ -177,7 +177,7 @@ The error says which sheet answers it — the Skills sheet for a checkoff, the d
 Offerings tab for a block — and, where the day runs the clinic somewhere else, which block
 that is, since that is usually what was meant.
 
-The same two rules apply as to conflicts. Only what is **settled** is read: `ANY_1_OF
+The same two rules apply as to conflicts. Only what is **settled** is read: `ANY 1
 staff.all` names nobody in particular, so nobody in particular is unqualified — the solver
 picks somebody who is checked off, and that is its job. And a day with nothing offered yet
 is not a day of errors: until **Load offerings** has been pressed nothing is offered, which
@@ -240,7 +240,7 @@ right-click, to insert the highlighted name at the cursor.
 | A staff category | Its members |
 | A clinic | What each position asks for, and everyone on the sheets who could hold it |
 | A cabin act | The same, for the day being scheduled, plus what the cabin act board wrote on its card. A cabin with nothing on that day says which days it does have |
-| A mapping | Its table, with each key column headed by the set it takes, and what a key with no row gives: a number for a numeric mapping, a Skedge phrase such as `ANY_1_OF {staff.office}` for any other. You can **edit** both; Save writes the table to the mapping tab and the default to the Mappings tab |
+| A mapping | Its table, with each key column headed by the set it takes, and what a key with no row gives: a number for a numeric mapping, a Skedge phrase such as `ANY 1 {staff.office}` for any other. You can **edit** both; Save writes the table to the mapping tab and the default to the Mappings tab |
 | A date or a role | Nothing. A date's note is the date and a role is a word |
 
 Opening an activity is worth the habit, since a request for one names nobody: it is where

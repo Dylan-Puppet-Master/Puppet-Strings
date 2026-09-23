@@ -365,10 +365,10 @@ counselor to someone who isn't one.
 
 | mapping | keys | value | scale_min | scale_max | default |
 |---|---|---|---|---|---|
-| buddy | staff.counselor | {staff.all - staff.counselor} | | | ANY_1_OF {staff.all - staff.counselor - staff.director} |
+| buddy | staff.counselor | {staff.all - staff.counselor} | | | ANY 1 {staff.all - staff.counselor - staff.director} |
 
 For a mapping that gives a name, the `default` is a Skedge phrase: what a call stands for
-when its key has no row. `ANY_1_OF {…}` lets the solver pick anyone from that set. A
+when its key has no row. `ANY 1 {…}` lets the solver pick anyone from that set. A
 single name such as `staff.alan` also works, and so does `ALL_OF {…}`. A default of more
 than one name needs its quantifier. Leave the `default` blank and every counselor needs a
 row: a request that asks about one without a row is an error.
