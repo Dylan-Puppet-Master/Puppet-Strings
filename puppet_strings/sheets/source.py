@@ -322,11 +322,17 @@ class SheetsSource:
         return key
 
     def _spreadsheet(self, sheet: str):
-        """The spreadsheet, opened once. Opening it is a request for its metadata."""
+        """The spreadsheet, opened once. Opening it is a request for its metadata.
+
+        What is opened, and every tab list, is kept by the spreadsheet's id, never by the
+        name it was asked for: a role names one spreadsheet from config.toml until
+        `discover` finds the one in the tree, and anything kept under the role would go
+        on reading the first long after the role had moved on.
+        """
         key = self._key(sheet)
-        if sheet not in self._open:
-            self._open[sheet] = self.client.open_by_key(key)
-        return self._open[sheet]
+        if key not in self._open:
+            self._open[key] = self.client.open_by_key(key)
+        return self._open[key]
 
     def group(self, folder: str) -> dict[str, str]:
         """Every spreadsheet in a chosen Drive folder, by title."""
@@ -384,14 +390,9 @@ class SheetsSource:
             self.cache.put(key, version, tables)
 
     def _forget(self, sheet: str) -> None:
-        """A spreadsheet just written to: what was kept of it, and its version, are stale.
-
-        `sheet` is the name it was written under, a role or an id; its tab list is
-        remembered under that name, and everything else under the id.
-        """
+        """A spreadsheet just written to: what was kept of it, and its version, are stale."""
         key = self._key(sheet)
         self._versions.pop(key, None)
-        self._tabs.pop(sheet, None)
         self._tabs.pop(key, None)
         if self.cache is not None:
             self.cache.drop(key)
@@ -503,20 +504,20 @@ class SheetsSource:
         A spreadsheet not yet opened is asked for its metadata directly: opening it would
         fetch that same metadata, and listing its worksheets would then fetch it again.
         """
-        if sheet not in self._tabs:
-            key = self._key(sheet)
+        key = self._key(sheet)
+        if key not in self._tabs:
             kept = self._kept(key, [TABS])
             if kept is not None:
                 titles = kept[TABS]
             else:
-                titles = self._fetch_tabs(sheet, key)
+                titles = self._fetch_tabs(key)
                 self._keep(key, {TABS: titles})
-            self._tabs[sheet] = titles
-        return self._tabs[sheet]
+            self._tabs[key] = titles
+        return self._tabs[key]
 
-    def _fetch_tabs(self, sheet: str, key: str) -> list[str]:
-        if sheet in self._open:
-            return [ws.title for ws in self._open[sheet].worksheets()]
+    def _fetch_tabs(self, key: str) -> list[str]:
+        if key in self._open:
+            return [ws.title for ws in self._open[key].worksheets()]
         metadata = self._sent(lambda: self.client.http_client.fetch_sheet_metadata(key))
         return [s["properties"]["title"] for s in metadata.get("sheets", [])]
 
@@ -558,9 +559,9 @@ class SheetsSource:
         and a load reads a spreadsheet per published day: opening each would double the
         requests a load makes, and the quota of reads a minute it spends.
         """
-        if sheet in self._open:
-            return self._open[sheet].values_batch_get
         key = self._key(sheet)
+        if key in self._open:
+            return self._open[key].values_batch_get
         return lambda ranges: self.client.http_client.values_batch_get(key, ranges)
 
     def _why_not(self, sheet: str, tabs: list[str], failure: Exception) -> LoadError:

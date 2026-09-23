@@ -62,7 +62,7 @@ def source(monkeypatch):
     )
     src = SheetsSource.__new__(SheetsSource)
     src.sheet_ids = {"config": "id"}
-    src._open = {"config": spreadsheet}
+    src._open = {"id": spreadsheet}
     src._tabs = {}
     src._folders, src._discovered = {}, {}
     src.folder_ids = {}
@@ -129,6 +129,22 @@ def test_a_spreadsheet_is_read_without_being_opened(source):
     assert calls == [("batch", "skills-id"), ("metadata", "skills-id")]
 
 
+def test_a_role_that_moves_reads_the_spreadsheet_it_names_now(source):
+    """config.toml names one Config and the tree another; what was opened as the first
+    must not answer for the second once `discover` has moved the role over."""
+    src, old = source
+    assert src.tabs("config") == ["Blocks", "Empty", "Calendar"]
+    src.read("config", "Blocks")
+    src.client = FakeClient({"Blocks": [["new"]], "Mappings": [["m"]]})
+    src.name("config", "tree-id")  # what discover does
+    assert src.read_many("config", ["Blocks", "Mappings"]) == {
+        "Blocks": [["new"]],
+        "Mappings": [["m"]],
+    }
+    assert src.tabs("config") == ["Blocks", "Mappings"]
+    assert ("batch", "tree-id") in src.client.http_client.calls
+
+
 def test_a_read_that_fails_for_another_reason_says_what_happened(source):
     src, spreadsheet = source
 
@@ -175,7 +191,7 @@ def test_writing_several_tabs_takes_two_requests(source):
     """A published day is five tabs, and a clear and a refill each is ten of a minute's sixty."""
     src, _ = source
     spreadsheet = WriteSpreadsheet({"Blocks": [], "Empty": [], "Calendar": []})
-    src._open["config"] = spreadsheet
+    src._open["id"] = spreadsheet
     src.write_many("config", {"Blocks": [["a"]], "Calendar": [["b"], ["c"]], "Empty": []})
     assert spreadsheet.cleared == [["'Blocks'", "'Calendar'", "'Empty'"]]
     (body,) = spreadsheet.written
@@ -189,8 +205,8 @@ def test_writing_several_tabs_takes_two_requests(source):
 def test_writing_a_tab_that_is_not_there_yet_makes_it(source):
     src, _ = source
     spreadsheet = WriteSpreadsheet({"Blocks": []})
-    src._open["config"] = spreadsheet
-    src._tabs["config"] = ["Blocks"]
+    src._open["id"] = spreadsheet
+    src._tabs["id"] = ["Blocks"]
     src.write_many("config", {"Report": [["x"]]})
     assert spreadsheet.added == ["Report"]
     assert spreadsheet.written[0]["data"] == [{"range": "'Report'!A1", "values": [["x"]]}]
@@ -202,7 +218,7 @@ def test_a_request_that_came_too_fast_waits_and_goes_again(source, monkeypatch):
     monkeypatch.setattr("puppet_strings.sheets.source.sleep", slept.append)
     src, _ = source
     spreadsheet = WriteSpreadsheet({"Blocks": []}, refusals=2)
-    src._open["config"] = spreadsheet
+    src._open["id"] = spreadsheet
     src.write_many("config", {"Blocks": [["a"]]})
     assert slept == [5, 15]  # two refusals, two waits, and the third time it landed
     assert len(spreadsheet.written) == 1
@@ -217,7 +233,7 @@ def test_a_refusal_that_is_not_about_speed_is_raised(source, monkeypatch):
         raise _refused(403)
 
     spreadsheet.values_batch_update = forbidden
-    src._open["config"] = spreadsheet
+    src._open["id"] = spreadsheet
     with pytest.raises(RuntimeError, match="403"):
         src.write_many("config", {"Blocks": [["a"]]})
 
@@ -226,7 +242,7 @@ def test_a_quota_that_never_frees_up_gives_up_saying_so(source, monkeypatch):
     monkeypatch.setattr("puppet_strings.sheets.source.sleep", lambda _: None)
     src, _ = source
     spreadsheet = WriteSpreadsheet({"Blocks": []}, refusals=99)
-    src._open["config"] = spreadsheet
+    src._open["id"] = spreadsheet
     with pytest.raises(RuntimeError, match="429"):
         src.write_many("config", {"Blocks": [["a"]]})
 
@@ -486,7 +502,7 @@ def test_a_listing_from_a_load_ago_is_not_trusted_until_it_is_listed_again(cache
 def test_a_write_drops_what_was_kept(cached):
     src, _ = cached
     spreadsheet = WriteSpreadsheet({"Blocks": [["old"]], "Empty": [], "Calendar": []})
-    src._open["config"] = spreadsheet
+    src._open["id"] = spreadsheet
     src.read("config", "Blocks")
     src.write("config", "Blocks", [["new"]])
     spreadsheet.tables["Blocks"] = [["new"]]
