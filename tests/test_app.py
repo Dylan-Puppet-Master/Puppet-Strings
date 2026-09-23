@@ -23,7 +23,7 @@ from puppet_strings.app.main import MainWindow  # noqa: E402
 from puppet_strings.app.store import RequestStore  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
 from puppet_strings.model import Rest  # noqa: E402
-from puppet_strings.sheets.source import CsvSource  # noqa: E402
+from puppet_strings.sheets.source import CsvSource, LoadError  # noqa: E402
 from tests.conftest import FIXTURES, delete_requests, saved_requests  # noqa: E402
 
 
@@ -1242,6 +1242,35 @@ def test_a_date_off_the_calendar_asks_for_another_one(window, monkeypatch):
     window.reload()
     window.wait_for_load()
     assert "Loaded" in window.status_label.text()
+
+
+def test_a_date_that_fails_to_load_says_so_once(window, monkeypatch):
+    """Leaving the date box is not a request to read the same broken day again."""
+    critical = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a: critical.append(a))
+    real_load = window.store.load
+
+    def load(target):
+        if target == date(2026, 9, 18):
+            raise LoadError("Mappings/mapping_buddy row ['leandro']: not in staff.counselors")
+        real_load(target)
+
+    monkeypatch.setattr(window.store, "load", load)
+    window.date_edit.setDate(QDate(2026, 9, 18))
+    window._target_changed()
+    window.wait_for_load()
+    for _ in range(3):  # what every click elsewhere does
+        window.date_edit.editingFinished.emit()
+        window.wait_for_load()
+    assert len(critical) == 1
+    window.reload()  # Reload still means read it again
+    window.wait_for_load()
+    assert len(critical) == 2
+    window.date_edit.setDate(QDate(2026, 9, 15))  # and another date loads as usual
+    window.date_edit.editingFinished.emit()
+    window.wait_for_load()
+    assert window.store.dataset.target == date(2026, 9, 15)
+    assert len(critical) == 2
 
 
 def test_the_on_date_filter_follows_the_target_date(window):

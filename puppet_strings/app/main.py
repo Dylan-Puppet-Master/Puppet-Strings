@@ -186,6 +186,8 @@ class MainWindow(QMainWindow):
         self.installer: Worker | None = None
         self.checked_for_updates = False
         self.reload_requested = False
+        # The date whose load last failed: said once, and read again only on Reload.
+        self.failed_target: date | None = None
         self.setWindowTitle("Puppet Strings")
         self.resize(1300, 800)
 
@@ -467,10 +469,12 @@ class MainWindow(QMainWindow):
         """Read the day the date box moved to, so no day is shown under another's date.
 
         Nothing is read before the first Reload, since the day wanted is often not the
-        default; after it, the window follows the date.
+        default; after it, the window follows the date. A date that just failed to load is
+        not read again on its own: the box finishes editing each time it loses focus, so it
+        would fail again at every click, and the way out is to pick another date.
         """
         dataset = self.store.dataset
-        if dataset is None or dataset.target == self.target:
+        if dataset is None or dataset.target == self.target or self.target == self.failed_target:
             return
         if self.loader is not None and self.loader.target == self.target:
             return  # already on its way
@@ -527,6 +531,7 @@ class MainWindow(QMainWindow):
 
     def _loaded(self) -> None:
         self.end_progress()
+        self.failed_target = None
         if not self.checked_for_updates and getattr(sys, "frozen", False):
             # Once a run, once something has loaded, and only in a copy that was downloaded:
             # a checkout updates with git, so asking GitHub on its behalf is a request sent
@@ -595,12 +600,14 @@ class MainWindow(QMainWindow):
         self.status_label.setToolTip(message)
 
     def _load_failed(self, message: str) -> None:
+        self.failed_target = self.loader.target  # before the box, which takes the focus
         self.end_progress()
         self.status_label.setText("")
         QMessageBox.critical(self, "Could not load", message)
 
     def _not_a_camp_day(self, message: str) -> None:
         """A date camp is not running is a date to change, not a sheet to go and fix."""
+        self.failed_target = self.loader.target
         self.end_progress()
         self._say(message)
         QMessageBox.warning(self, "Not a camp day", message)
