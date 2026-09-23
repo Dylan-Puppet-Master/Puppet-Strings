@@ -245,6 +245,14 @@ def test_consecutive_after_the_pattern_says_where_it_goes_now():
         assert e.value.message.startswith("CONSECUTIVE goes after the amount")
 
 
+def test_consecutive_right_of_not_says_to_count_the_run():
+    """Right of NOT nothing is chosen, so the message points at the amount that limits runs."""
+    with pytest.raises(ast.SkedgeError) as e:
+        parse("REQUEST EACH_OF staff.all NOT DO 'break' DURING ANY 2 blocks.all CONSECUTIVE")
+    assert e.value.message.startswith("right of NOT there are no blocks to choose")
+    assert "AT_MOST 1 CONSECUTIVE" in e.value.message
+
+
 def test_a_name_that_starts_with_a_keyword_is_still_a_name():
     """`FOR` ends at a word boundary, so `format` is one word and not two."""
     (binding, _) = parse(

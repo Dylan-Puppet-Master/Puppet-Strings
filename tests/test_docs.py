@@ -24,7 +24,7 @@ def test_doc_example_validates(dataset, name):
 
 
 def test_docs_have_every_example():
-    assert len(EXAMPLES) == 48
+    assert len(EXAMPLES) == 49
 
 
 def _prerequisites(dataset, skedge):

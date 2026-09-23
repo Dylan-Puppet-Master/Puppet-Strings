@@ -684,6 +684,7 @@ after the amount`. The parser, the validator and the solver report:
 | `is defined in terms of itself` | `a: {staff.x + b}` and `b: {staff.y + a}`. |
 | `names one item at a time, and` | `EACH_OF x IN` a set holding a group. |
 | `CONSECUTIVE chooses blocks one at a time, so no groups` | A group in `DURING ANY n … CONSECUTIVE`. |
+| `right of NOT there are no blocks to choose, so no CONSECUTIVE` | `NOT DO … DURING … CONSECUTIVE`; the message gives the amount that limits a run instead. |
 | `needs a quantifier: ALL_OF, ANY n or EACH_OF` | A set with no quantifier in a requirement. |
 | `is one item and takes no quantifier` | `ANY 1 staff.rob`. |
 | `needs a quantifier: ALL_OF or ANY n` | `WITH` or `WITHOUT` a set of several, with no quantifier. |

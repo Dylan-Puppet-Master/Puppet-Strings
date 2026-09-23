@@ -220,7 +220,14 @@ Lucy and Tom take out the garbage together, in two blocks one after the other. B
 next to each other when they are next to each other in the Blocks sheet, so
 `ANY 2 blocks.all_clinics CONSECUTIVE` may be clinic 1 and 2, but not clinic 2 and 3
 with lunch between them. It needs `ANY n` with n of 2 or more: anything else has nothing
-to choose.
+to choose. For the same reason it cannot follow `NOT DO`, where blocks are ruled out rather
+than chosen. To keep something from running back to back, count the run instead:
+
+```skedge
+REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO 'break'
+```
+
+Nobody has a break in two blocks in a row.
 
 `CONSECUTIVE` always comes right after what it is about. After `ANY n` blocks it is the
 blocks chosen; after an amount ([patterns](#patterns-who-do-what)) it is the amount,

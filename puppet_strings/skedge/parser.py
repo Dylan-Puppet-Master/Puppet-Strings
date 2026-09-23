@@ -415,9 +415,17 @@ def _check_pools(declaration: ast.Declaration) -> None:
     arrives by a name is caught the same as one written out.
     """
     for line in declaration.lines:
-        parts = []
+        negated = []
         if isinstance(line, ast.Requirement) and line.negated:
-            parts = [line.what, *line.clauses]
+            negated = [line.what, *line.clauses]
+        for part in negated:
+            if isinstance(part, ast.During) and part.consecutive:
+                raise _error(
+                    "right of NOT there are no blocks to choose, so no CONSECUTIVE; to limit "
+                    "a run, count it: AT_MOST 1 CONSECUTIVE <who> DO …",
+                    part.pos,
+                )
+        parts = list(negated)
         for pattern in ast.patterns(line):
             parts += [pattern.who, pattern.what, *pattern.clauses]
         for part in parts:
