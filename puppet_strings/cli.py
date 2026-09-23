@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -12,11 +13,9 @@ from puppet_strings.google_auth import AuthError
 from puppet_strings.model import Dataset
 from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
 from puppet_strings.publish.writer import day_sheet, is_published, publish
+from puppet_strings.requests_db import FIXTURE_FILE, RequestDb, clinics_list, open_requests
 from puppet_strings.session import open_source
-from puppet_strings.sheets.calendar import parse_calendar
 from puppet_strings.sheets.load import load_dataset
-from puppet_strings.sheets.requests import clinics_tab, split_requests, write_requests
-from puppet_strings.sheets.schedules import ROOT
 from puppet_strings.sheets.source import CsvSource, LoadError, Source, Table
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.resolve import name_listing
@@ -34,18 +33,24 @@ def main(argv: list[str] | None = None) -> int:
         "--fixtures", type=Path, help="read CSV files from this folder instead of Google Sheets"
     )
     parser.add_argument("--date", type=date.fromisoformat, help="target date, default tomorrow")
+    parser.add_argument(
+        "--no-cache", action="store_true", help="read every sheet from Google, not the cache"
+    )
     parser.add_argument("--version", action="version", version=__version__)
     # Not required: a downloaded release is opened by double-clicking it, and what that
     # should do is open the window, not print the usage of a command line nobody typed.
     commands = parser.add_subparsers(dest="command")
-    commands.add_parser("validate", help="check every request on the Requests sheet")
-    commands.add_parser(
-        "load-offerings", help="add the Offerings tab's clinics to the Requests sheet"
-    )
+    commands.add_parser("validate", help="check every request for the target date")
+    commands.add_parser("load-offerings", help="add the Offerings tab's clinics to the requests")
     commands.add_parser("names", help="list every valid Skedge name")
-    commands.add_parser(
-        "split-requests", help="divide the one old Requests tab into a tab per session"
+    export_requests = commands.add_parser(
+        "export-requests", help="copy the requests to a file for another Puppet Master"
     )
+    export_requests.add_argument("file", type=Path)
+    import_requests = commands.add_parser(
+        "import-requests", help="replace the requests with a file another Puppet Master exported"
+    )
+    import_requests.add_argument("file", type=Path)
     solve_parser = commands.add_parser("solve", help="build the schedule for the target date")
     solve_parser.add_argument("--publish", action="store_true", help="write to Published Schedules")
     solve_parser.add_argument(
@@ -81,11 +86,15 @@ def _run(args, config: Config, target: date) -> int:
         from puppet_strings.app.main import run_app
 
         return run_app(config, args.fixtures)
+    if args.no_cache:
+        config = replace(config, cache=None)
+    if args.command == "export-requests":
+        return _export_requests(_requests_file(config, args.fixtures), args.file)
+    if args.command == "import-requests":
+        return _import_requests(_requests_file(config, args.fixtures), args.file)
     source = open_source(config, args.fixtures)
     if args.command == "export-fixtures":
-        return _export(source, args.folder)
-    if args.command == "split-requests":
-        return _split_requests(source, config, target.year)
+        return _export(source, open_requests(config, source), args.folder)
     dataset = load_dataset(source, config, target)
     for warning in dataset.warnings:
         print(f"warning: {warning}")
@@ -105,28 +114,32 @@ def _run(args, config: Config, target: date) -> int:
     return _solve(source, config, dataset, args)
 
 
-def _split_requests(source: Source, config: Config, year: int) -> int:
-    """Divide the one old Requests tab, without loading anything else first.
+def _requests_file(config: Config, fixtures: Path | None) -> RequestDb:
+    """The requests file, which needs no Google account to read or replace."""
+    return RequestDb(fixtures / FIXTURE_FILE if fixtures else config.requests)
 
-    A season big enough to need splitting is a season a full load is slow on, and the old
-    tab may hold requests for sessions that are over; only the Calendar is needed to say
-    which date belongs to which span.
-    """
-    source.discover(ROOT, year)
-    spans = parse_calendar(source.read("config", config.tabs["calendar"]), config.date_order)
-    written = split_requests(source, ROOT, config.tabs["requests"], spans, year)
-    for tab, rows in written.items():
-        print(f"{tab}: {rows} requests")
-    print(f"{config.tabs['requests']} is left as it was; delete it once the new tabs look right")
+
+def _export_requests(book: RequestDb, target: Path) -> int:
+    print(f"exported {book.export(target)} requests to {target}")
     return 0
 
 
-def _export(source: Source, folder: Path) -> int:
+def _import_requests(book: RequestDb, file: Path) -> int:
+    count, kept = book.import_file(file)
+    print(f"imported {count} requests from {file}")
+    if kept is not None:
+        print(f"the requests they replaced are in {kept}")
+    return 0
+
+
+def _export(source: Source, book: RequestDb, folder: Path) -> int:
+    """Every tab as CSV, and the requests beside them, so the folder is a whole session."""
     target = CsvSource(folder)
     for sheet in SHEETS:
         for tab in source.tabs(sheet):
             target.write(sheet, tab, source.read(sheet, tab))
             print(f"{sheet}/{tab}")
+    print(f"{book.export(folder / FIXTURE_FILE)} requests to {FIXTURE_FILE}")
     return 0
 
 
@@ -140,12 +153,12 @@ def _names(dataset: Dataset) -> int:
 
 def _load_offerings(source: Source, config: Config, dataset: Dataset) -> int:
     day_sheet(source, config, dataset.this_span, dataset.target)  # made if it is not there yet
-    clinics = clinics_tab(dataset.this_span)
+    clinics = clinics_list(dataset.this_span)
     generated = generated_requests(dataset, home=clinics)
     merged = merge(list(dataset.requests), generated, dataset.target)
     held = {r.home for r in merged if r.home} | {clinics}
-    write_requests(source, tuple(merged), held)
-    print(f"loaded {len(generated)} offerings for {dataset.target} into the {clinics} tab")
+    open_requests(config, source).write(tuple(merged), held)
+    print(f"loaded {len(generated)} offerings for {dataset.target} into {clinics}")
     return 0
 
 

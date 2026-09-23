@@ -11,7 +11,7 @@ one that is not made to the other fails the suite.
 
 ## 1. Scope
 
-A **request** is one Skedge declaration plus the fields on its row of the Requests sheet:
+A **request** is one Skedge declaration plus the fields the request manager keeps with it:
 an id, a description, a priority, a weight, tags and a date. This document defines the
 declaration and the meaning the solver gives it. The sheets that supply the names are in
 [The sheets](sheets.md); the tiers a priority selects are in

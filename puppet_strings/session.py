@@ -4,6 +4,7 @@ from pathlib import Path
 
 from puppet_strings import google_auth
 from puppet_strings.config import Config
+from puppet_strings.sheets.cache import SheetCache
 from puppet_strings.sheets.source import CsvSource, SheetsSource, Source
 
 
@@ -31,4 +32,5 @@ def open_source(config: Config, fixtures: Path | None, interactive: bool = False
     """The sheets, or a folder of CSV files standing in for them."""
     if fixtures:
         return CsvSource(fixtures)
-    return SheetsSource(config.sheets, credentials(config, interactive), config.folders)
+    cache = SheetCache(config.cache) if config.cache is not None else None
+    return SheetsSource(config.sheets, credentials(config, interactive), config.folders, cache)

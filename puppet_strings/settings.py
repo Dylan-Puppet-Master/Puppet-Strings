@@ -38,13 +38,11 @@ class Chosen:
 
 @dataclass(frozen=True)
 class Settings:
-    """The choices made in the app: the Configure pane's, and each group's own tab.
+    """The choices made in the app: the Configure pane's, and each group's own list.
 
-    `group_tabs` is the Requests tab a new request in a group is written to, set by
-    right-clicking the group. It lives here rather than on the sheet because a group is
-    already nothing but a label its requests carry: there is no row anywhere to hang it on,
-    and inventing a tab of group settings to hold one default per group is a sheet to
-    maintain for a line of text.
+    `group_tabs` is the request list a new request in a group goes in, set by
+    right-clicking the group. It lives here because a group is nothing but a label its
+    requests carry: there is no row anywhere to hang it on.
     """
 
     sheets: dict[str, Chosen] = field(default_factory=dict)

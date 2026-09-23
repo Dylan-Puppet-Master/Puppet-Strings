@@ -102,7 +102,7 @@ pane, and every one of them is read each time the sheets are read.
 
 A cabin act is an **activity**, like a clinic: a thing that happens, with a position per
 person it needs. It is not a request, so nothing has to be imported and there is no button
-to press. One line on the Requests sheet asks for all of them:
+to press. One request asks for all of them:
 
 ```skedge
 REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act
@@ -237,51 +237,54 @@ you can see at a glance whether it does.
 `dates.season.all` is every date the sheet covers. See
 [Dates](skedge.md#dates) for the full list of date names.
 
-## Requests (its own spreadsheet)
+## Requests (on this computer)
 
-A spreadsheet called **Requests**, beside Config and Skills in the Puppet Strings folder.
-One row per request, and a tab per session, because one tab of everything meant reading
-the whole season to schedule one day.
+Requests are not a sheet. Nobody edits them anywhere but in the request manager, and only
+one Puppet Master schedules at a time, so they live in one file on the Puppet Master's
+computer, `~/.config/puppet_strings/requests.sqlite`. Saving a request is instant and
+costs no Google requests.
 
-| Tab | What is on it |
+**Handing over.** When another Puppet Master takes over, **Configure → Requests → Export…**
+writes the requests to a file, and they **Import…** it on their computer. An import
+replaces every request there with the file's; the ones it replaced are kept beside the
+file as `requests.before-import.sqlite` until the next import. A file that is not a
+requests file, or holds a request the app would refuse, is refused whole and changes
+nothing. From the command line:
+
+```
+puppet-strings export-requests handover.sqlite
+puppet-strings import-requests handover.sqlite
+```
+
+Every request is filed in one **list**, because one list of everything would mean reading
+the whole season to schedule one day:
+
+| List | What is in it |
 |---|---|
 | `Season Requests` | What holds all season or crosses sessions: the legal limits, the standing agreements. **Every** load reads it. |
-| `S1 Clinics` | The clinic requests **Load offerings** writes for session 1's days. Reloading a day throws that day's away and writes them again, so nothing here is worth editing by hand. |
+| `S1 Clinics` | The clinic requests **Load offerings** makes for session 1's days. Loading a day's offerings again throws that day's away and makes them again, so nothing here is worth editing by hand. |
 | `S1 Special` | What was asked of session 1 in particular. |
 
-A load reads three tabs: the season's, and the two of the session the target date falls
+A load reads three lists: the season's, and the two of the session the target date falls
 in. A span on the Calendar sheet that is not a numbered session is labelled by its own
 name instead — a `Staff Week` row gets `Staff Week Clinics` and `Staff Week Special`.
+Which list a request is in is what says when it applies. The request manager puts a new
+request in the session's Special list; its **in list** box is how to put one in
+`Season Requests` instead.
 
-Which tab a request is on is what says when it applies, so **moving a request between
-sessions is a cut and paste**. The request manager writes a new request to the session's
-Special tab; its **on tab** box is how to put one on `Season Requests` instead.
+Each request has these fields, all edited in the request manager:
 
-If your requests are still one `Requests` tab of the config spreadsheet, run
-
-```
-puppet-strings split-requests
-```
-
-once. It builds the Requests spreadsheet out of that tab: the generated clinic requests go
-to the Clinics tab of whichever session holds the date in their id, and everything else to
-`Season Requests`, where every load will go on reading it. The old tab is left alone, so
-you can check the result before deleting it.
-
-Every tab has these columns. The request manager edits them for you; you can also edit
-them by hand.
-
-| Column | Meaning |
+| Field | Meaning |
 |---|---|
-| `id` | Unique and stable. The app gives a new request the next free number on its tab — `s4-1`, `season-2` — and never changes it; anything unique will do if you are writing rows by hand. Appears in the solver's report. |
+| `id` | Unique and stable. The app gives a new request the next free number in its list — `s4-1`, `season-2` — and never changes it. Appears in the solver's report. |
 | `description` | Plain language, for people. May be left empty: the id is what names the request. |
-| `skedge` | The request itself; see the [Skedge reference](skedge.md). Multi-line cells are fine. |
-| `priority` | One of `MUST_HAPPEN`, `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. `STABILITY` is the solver's own during a [same-day change](same-day.md) and is refused here. |
-| `weight` | Blank (meaning 1) or a positive number. Not allowed with `MUST_HAPPEN`. |
-| `tags` | **Comma-separated.** Any labels you like, for filtering in the request manager. Requests made from the Offerings tab carry the tag `generated`. |
-| `group` | The one [group](app.md#groups) the request is on in the request manager, such as `Special daily requests`, or blank for none. Written in plain language, not `kebab-case`. A sheet with an older `groups` column holding several is read as the first of them. |
-| `requester` | Who asked for this, as a staff name: `mary_kate`. Blank if it is nobody's in particular. A name that is not on the Skills sheet makes the request invalid, so a typo is caught rather than lost. |
-| `created` | `YYYY-MM-DD`, for the record. |
+| `skedge` | The request itself; see the [Skedge reference](skedge.md). |
+| `priority` | One of `MUST_HAPPEN`, `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. `STABILITY` is the solver's own during a [same-day change](same-day.md) and is never a request's. |
+| `weight` | A positive number, 1 unless said otherwise. Always 1 with `MUST_HAPPEN`. |
+| `tags` | Any labels you like, for filtering in the request manager. Requests made from the Offerings tab carry the tag `generated`. |
+| `group` | The one [group](app.md#groups) the request is on in the request manager, such as `Special daily requests`, or none. |
+| `requester` | Who asked for this, as a staff name: `mary_kate`. None if it is nobody's in particular. A name that is not on the Skills sheet makes the request invalid, so a typo is caught rather than lost. |
+| `created` | The date it was made, for the record. |
 
 ## Adjustments (config spreadsheet)
 
@@ -485,8 +488,7 @@ These tabs are overwritten on every publish:
     order and wrap round if a day ever has more clinic blocks, or Clinic_Data more
     categories, than the list has colours.
 - **Report**: unsatisfied and deferred requests, conflicts, and solver notes. One row per
-  request, not per `EACH_OF` copy: the `request` column is the id as the Requests sheet has
-  it, and where only some copies of a request went wrong, they are listed after the
+  request, not per `EACH_OF` copy: the `request` column is the request's own id, and where only some copies of a request went wrong, they are listed after the
   description — `no break at lunch (2026-09-18)`.
 - **Changes**: what a same-day re-solve moved, written only when the day was already
   published. See [Same-day changes](same-day.md).

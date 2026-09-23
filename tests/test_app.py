@@ -24,7 +24,7 @@ from puppet_strings.app.store import RequestStore  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
 from puppet_strings.model import Rest  # noqa: E402
 from puppet_strings.sheets.source import CsvSource  # noqa: E402
-from tests.conftest import FIXTURES  # noqa: E402
+from tests.conftest import FIXTURES, delete_requests, saved_requests  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -111,9 +111,8 @@ def test_editor_validation_and_save(window):
     editor.save_button.click()
     assert window.model.rowCount() == 32
     assert editor.id_label.text() == "s1-1"  # numbered on its tab, not made of the wording
-    saved = window.store.source.read("requests", "S1 Special")  # a new request is this span's
-    row = next(r for r in saved if r[0] == "s1-1")
-    assert row[saved[0].index("tags")] == "training, week 2"
+    saved = saved_requests(window.store.source.root, "S1 Special")  # a new one is this span's
+    assert saved["s1-1"].tags == ("training", "week 2")
     assert "week 2" in window.store.tags
     editor.description_edit.setText("Dylan's day off, changed")
     editor.save_button.click()
@@ -323,17 +322,11 @@ def test_load_offerings_mirrors_the_offerings_tab(window):
     assert len(generated) == 23 and all(r.priority.value == "CLINIC" for r in generated)
 
 
-def test_reload_picks_up_a_row_deleted_on_the_sheet(window):
-    import csv
-
-    path = window.store.source.root / "requests" / "Season Requests.csv"
+def test_reload_picks_up_a_request_deleted_from_the_file(window):
     index = window.proxy.index(0, 0)
     window.table.selectionModel().setCurrentIndex(index, QItemSelectionModel.SelectCurrent)
     shown = window.editor.original_id
-    with path.open(newline="") as f:
-        rows = [r for r in csv.reader(f) if r[0] != shown]
-    with path.open("w", newline="") as f:
-        csv.writer(f).writerows(rows)
+    delete_requests(window.store.source.root, '"id" = ?', shown)
     window.reload()
     window.reload()  # a second click while loading queues another load, not a no-op
     window.wait_for_load()
@@ -343,15 +336,10 @@ def test_reload_picks_up_a_row_deleted_on_the_sheet(window):
 
 
 def test_solve_uses_requests_saved_since_the_last_reload(app, tmp_path):
-    import csv
 
     copy = tmp_path / "fresh"
     shutil.copytree(FIXTURES, copy)
-    path = copy / "requests" / "S1 Clinics.csv"
-    with path.open(newline="") as f:
-        rows = [r for r in csv.reader(f) if "generated" not in r]
-    with path.open("w", newline="") as f:
-        csv.writer(f).writerows(rows)
+    delete_requests(copy, "tags LIKE ?", "%generated%")
     window = make_window(copy)
     assert not window.store.offerings_loaded
     window.load_offerings()  # no Reload in between
@@ -592,9 +580,8 @@ def test_making_a_group_and_dragging_requests_onto_it(window, monkeypatch):
     window.groups.dropped.emit(["dylan-off-ropes", "breaks"], "Ropes rewrite")
     assert group_rows(window)["Ropes rewrite"] == 2
     assert visible_ids(window) == {"dylan-off-ropes", "breaks"}
-    saved = window.store.source.read("requests", "Season Requests")
-    row = next(r for r in saved if r[0] == "dylan-off-ropes")
-    assert row[saved[0].index("group")] == "Ropes rewrite"  # one group, the one it moved to
+    saved = saved_requests(window.store.source.root, "Season Requests")
+    assert saved["dylan-off-ropes"].group == "Ropes rewrite"  # one group, the one it moved to
     assert group_rows(window)["Special weekly requests"] == 2  # it left the shelf it was on
     window.groups.dropped.emit(["breaks"], UNGROUPED)  # dragged off every shelf
     assert group_rows(window)["Ropes rewrite"] == 1
@@ -772,9 +759,10 @@ def test_requester_completes_and_is_checked(window):
     editor.requester_edit.setText("rob")
     assert editor.validate()
     editor.save_button.click()
-    saved = window.store.source.read("requests", "Season Requests")
-    row = next(r for r in saved if r[0] == "dylan-off-ropes")
-    assert row[saved[0].index("requester")] == "rob"
+    assert (
+        saved_requests(window.store.source.root, "Season Requests")["dylan-off-ropes"].requester
+        == "rob"
+    )
 
 
 # -- saving a request that is not about the date being scheduled ---------------------------
@@ -1308,8 +1296,8 @@ def test_every_shading_is_a_dark_one_that_ink_reads_on(app):
     assert app.palette().color(QPalette.Window).lightness() < 128
 
 
-def test_the_editor_keeps_a_request_on_its_own_tab(window):
-    """The tab a request is on is when it applies, so editing one must not move it."""
+def test_the_editor_keeps_a_request_in_its_own_list(window):
+    """The list a request is in is when it applies, so editing one must not move it."""
     editor = window.editor
     editor.show_request(window.model.request("breaks"))
     assert editor.home_box.currentText() == "Season Requests"
@@ -1319,8 +1307,7 @@ def test_the_editor_keeps_a_request_on_its_own_tab(window):
         "S1 Special",
     ]
     editor.save_button.click()
-    season = window.store.source.read("requests", "Season Requests")
-    assert any(row[0] == "breaks" for row in season)  # written back where it was
+    assert "breaks" in saved_requests(window.store.source.root, "Season Requests")  # kept there
     editor.clear()
     assert editor.home_box.currentText() == "S1 Special"  # a new one is this session's
 

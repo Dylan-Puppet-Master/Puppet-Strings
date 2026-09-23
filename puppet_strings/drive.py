@@ -19,7 +19,7 @@ MY_DRIVE = "root"  # what Drive calls the top of My Drive
 SHARED_WITH_ME = "sharedWithMe"  # not a folder id: a query of its own
 SHARED_DRIVES = "sharedDrives"  # nor is this
 
-FIELDS = "nextPageToken, files(id, name, mimeType)"
+FIELDS = "nextPageToken, files(id, name, mimeType, version)"
 PAGE = 200
 
 
@@ -30,6 +30,7 @@ class DriveFile:
     id: str
     name: str
     mime: str
+    version: str = ""  # Drive's count of changes to it, which any edit raises; "" if not asked
 
     @property
     def folder(self) -> bool:
@@ -145,4 +146,6 @@ class Drive:
 
 
 def _file(row: dict) -> DriveFile:
-    return DriveFile(row["id"], row.get("name", ""), row.get("mimeType", ""))
+    return DriveFile(
+        row["id"], row.get("name", ""), row.get("mimeType", ""), str(row.get("version", ""))
+    )

@@ -100,10 +100,10 @@ you want it, `Adjustments`, with the exact columns in [The sheets](sheets.md). E
 you add later gets its own extra tab of rows, as that page explains. The Blocks tab
 needs a `cabin_act` row, which is the slot the cabin act sheets are scheduled into.
 
-Create a second spreadsheet called **Requests**, with a `Season Requests` tab; the rest of
-its tabs are made as the season needs them. See [Requests](sheets.md#requests-its-own-spreadsheet).
+Requests need no spreadsheet: they are kept on this computer. See
+[Requests](sheets.md#requests-on-this-computer), which also says how to hand them over.
 
-Put it, and the other spreadsheets, in a **Puppet Strings** folder holding a folder per
+Put the config spreadsheet, and the other spreadsheets, in a **Puppet Strings** folder holding a folder per
 year. Puppet Strings builds the programme and span folders inside a year as it needs them;
 you put a `Staff Categories` spreadsheet in each span's folder, and **Load offerings** makes
 the day spreadsheets. See [the schedules tree](sheets.md#the-schedules-tree).
@@ -195,6 +195,16 @@ load error, it names the sheet, tab and row to fix.
 
 ## Working offline
 
-`puppet-strings export-fixtures some-folder` downloads every tab as CSV. Every command then
-accepts `--fixtures some-folder` to run without Google access, which is also how the test
-suite works.
+`puppet-strings export-fixtures some-folder` downloads every tab as CSV, and copies the
+requests in beside them as `requests.sqlite`. Every command then accepts
+`--fixtures some-folder` to run without Google access, which is also how the test suite
+works. Running on the folder reads and saves its own requests, not this computer's.
+
+## The Google Sheets cache
+
+Each sheet read from Google is kept in `~/.config/puppet_strings/sheets-cache.sqlite`
+until Drive says it has changed, so a reload reads only what somebody has edited since.
+Drive can take a moment to notice an edit; if a sheet you have just changed comes back as
+it was, **Configure → Google Sheets cache → Clear** reads everything afresh. From the
+command line, `--no-cache` does the same for one run. To turn the cache off for good, set
+`cache = ""` under `[storage]` in config.toml.

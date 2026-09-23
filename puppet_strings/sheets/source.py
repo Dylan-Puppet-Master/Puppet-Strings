@@ -13,6 +13,8 @@ from pathlib import Path
 from time import sleep
 from typing import Protocol
 
+from puppet_strings.sheets.cache import TABS, SheetCache
+
 Table = list[list[str]]
 
 MAX_PARALLEL = 4  # requests in flight at once; Google starts refusing well above this
@@ -31,7 +33,6 @@ SHEET_ROLES = {
     "clinic_schedule": "clinic_schedule",
     "skills": "skills",
     "config": "config",
-    "requests": "requests",
 }
 FOLDER_MIME = "application/vnd.google-apps.folder"
 
@@ -131,6 +132,9 @@ class Source(Protocol):
     def discover(self, root: str, year: int) -> None:
         """Find the named spreadsheets under the root folder. Sources that need no lookup pass."""
 
+    def refresh(self) -> None:
+        """Ask again, from the next read on, what has changed. Sources that keep nothing pass."""
+
     def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
         """Make a spreadsheet with these tabs at `root/<path>`, and the folders above it."""
 
@@ -211,6 +215,9 @@ class CsvSource:
     def discover(self, root: str, year: int) -> None:
         """A CSV tree is addressed by folder name, so there is nothing to look up."""
 
+    def refresh(self) -> None:
+        """Every read of a CSV file is already fresh."""
+
     def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
         """Make the folders and an empty CSV file per tab."""
         name = "/".join((root, *path, title))
@@ -245,6 +252,11 @@ class SheetsSource:
 
     A sheet is named either by its role — `config`, `skills` — or by its Drive id, which
     is how a folder of sheets nobody named one at a time can still be read.
+
+    With a `SheetCache`, a spreadsheet whose Drive version was seen in a folder listing
+    since the last `refresh` is read off disk if it was read at that version before. One
+    whose version is not known — named by an id in config.toml, in no folder that was
+    listed — is always read from Google.
     """
 
     def __init__(
@@ -252,6 +264,7 @@ class SheetsSource:
         sheet_ids: dict[str, str],
         credentials: object,
         folders: dict[str, str] | None = None,
+        cache: SheetCache | None = None,
     ) -> None:
         import gspread
 
@@ -259,6 +272,8 @@ class SheetsSource:
         self.credentials = credentials
         self.sheet_ids = sheet_ids
         self.folder_ids = folders or {}
+        self.cache = cache
+        self._versions: dict[str, str] = {}  # spreadsheet id -> its version when last listed
         self._open: dict[str, object] = {}
         self._tabs: dict[str, list[str]] = {}
         self._folders: dict[tuple[str, tuple[str, ...]], str] = {}  # where a path is in Drive
@@ -290,10 +305,15 @@ class SheetsSource:
             self._drive = Drive(self.credentials)
         return self._drive
 
-    def _spreadsheet(self, sheet: str):
+    def _key(self, sheet: str) -> str:
         key = self.sheet_ids.get(sheet, sheet)  # an unnamed sheet is named by its own id
         if key == sheet and sheet not in self.sheet_ids and not _looks_like_id(sheet):
             raise LoadError(f"{sheet}: no spreadsheet chosen; pick one in Configure")
+        return key
+
+    def _spreadsheet(self, sheet: str):
+        """The spreadsheet, opened once. Opening it is a request for its metadata."""
+        key = self._key(sheet)
         if sheet not in self._open:
             self._open[sheet] = self.client.open_by_key(key)
         return self._open[sheet]
@@ -302,7 +322,7 @@ class SheetsSource:
         """Every spreadsheet in a chosen Drive folder, by title."""
         if folder not in self.folder_ids:
             raise LoadError(f"{folder}: no folder chosen; pick one in Configure")
-        return {f.name: f.id for f in self.drive.spreadsheets(self.folder_ids[folder])}
+        return self._listed(self.drive.spreadsheets(self.folder_ids[folder]))
 
     def read_group(self, folder: str, tab: str) -> dict[str, Table]:
         """One tab of every spreadsheet in a folder, fetched all at once.
@@ -325,7 +345,49 @@ class SheetsSource:
         folder = self._walk(root, path, make=False)
         if folder is None:
             return {}
-        return {f.name: f.id for f in self.drive.spreadsheets(folder)}
+        return self._listed(self.drive.spreadsheets(folder))
+
+    def _listed(self, files) -> dict[str, str]:
+        """Spreadsheets by title, remembering the version each was listed at."""
+        for f in files:
+            if f.version:
+                self._versions[f.id] = f.version
+        return {f.name: f.id for f in files}
+
+    def refresh(self) -> None:
+        """Forget which versions were seen, so the next load lists the folders again.
+
+        Until then a spreadsheet is taken to be as it was when its folder was last listed,
+        which is right for the length of one load and wrong for the length of a day.
+        """
+        self._versions = {}
+        self._discovered = set()
+        self._tabs = {}
+
+    def _kept(self, key: str, tabs: list[str]) -> dict[str, list] | None:
+        """These tabs off disk, if the spreadsheet has not changed since they were read."""
+        version = self._versions.get(key)
+        if self.cache is None or not version:
+            return None
+        return self.cache.get(key, version, tabs)
+
+    def _keep(self, key: str, tables: dict[str, list]) -> None:
+        version = self._versions.get(key)
+        if self.cache is not None and version:
+            self.cache.put(key, version, tables)
+
+    def _forget(self, sheet: str) -> None:
+        """A spreadsheet just written to: what was kept of it, and its version, are stale.
+
+        `sheet` is the name it was written under, a role or an id; its tab list is
+        remembered under that name, and everything else under the id.
+        """
+        key = self._key(sheet)
+        self._versions.pop(key, None)
+        self._tabs.pop(sheet, None)
+        self._tabs.pop(key, None)
+        if self.cache is not None:
+            self.cache.drop(key)
 
     def subfolders(self, root: str, path: tuple[str, ...]) -> list[str]:
         """Names of the folders directly in `root/<path>`."""
@@ -375,6 +437,7 @@ class SheetsSource:
         """
         folder = self._walk(root, path, make=True)
         sheet = self.drive.spreadsheet(folder, title)
+        self._forget(sheet.id)
         self._open[sheet.id] = self.client.open_by_key(sheet.id)
         self._tabs.pop(sheet.id, None)
         have = list(self.tabs(sheet.id))
@@ -397,7 +460,7 @@ class SheetsSource:
         except gspread.WorksheetNotFound:
             return
         self._spreadsheet(key).del_worksheet(spare)
-        self._tabs.pop(key, None)
+        self._forget(key)
 
     def _walk(self, root: str, path: tuple[str, ...], make: bool) -> str | None:
         """The folder id at `root/<path>`, made on the way down when `make`.
@@ -429,9 +492,23 @@ class SheetsSource:
         return here
 
     def tabs(self, sheet: str) -> list[str]:
-        """Worksheet titles, fetched once per spreadsheet."""
+        """Worksheet titles, fetched once per spreadsheet.
+
+        A spreadsheet not yet opened is asked for its metadata directly: opening it would
+        fetch that same metadata, and listing its worksheets would then fetch it again.
+        """
         if sheet not in self._tabs:
-            self._tabs[sheet] = [ws.title for ws in self._spreadsheet(sheet).worksheets()]
+            key = self._key(sheet)
+            kept = self._kept(key, [TABS])
+            if kept is not None:
+                titles = kept[TABS]
+            elif sheet in self._open:
+                titles = [ws.title for ws in self._open[sheet].worksheets()]
+            else:
+                metadata = self._sent(lambda: self.client.http_client.fetch_sheet_metadata(key))
+                titles = [s["properties"]["title"] for s in metadata.get("sheets", [])]
+            self._keep(key, {TABS: titles})
+            self._tabs[sheet] = titles
         return self._tabs[sheet]
 
     def read(self, sheet: str, tab: str) -> Table:
@@ -449,16 +526,33 @@ class SheetsSource:
         """
         if not tabs:
             return {}
+        key = self._key(sheet)
+        kept = self._kept(key, tabs)
+        if kept is not None:
+            return kept
         ranges = [f"'{tab}'" for tab in tabs]
-        spreadsheet = self._spreadsheet(sheet)
+        batch_get = self._batch_get(sheet)
         try:
-            response = self._sent(lambda: spreadsheet.values_batch_get(ranges))
+            response = self._sent(lambda: batch_get(ranges))
         except Exception as e:  # noqa: BLE001 - re-raised, once it can say what was wrong
             raise self._why_not(sheet, tabs, e) from e
         tables = {}
         for tab, value_range in zip(tabs, response.get("valueRanges", []), strict=True):
             tables[tab] = [list(row) for row in value_range.get("values", [])]
+        self._keep(key, tables)
         return tables
+
+    def _batch_get(self, sheet: str):
+        """What reads values from a spreadsheet, without opening it just for that.
+
+        Opening a spreadsheet fetches its metadata, which a read of values does not need,
+        and a load reads a spreadsheet per published day: opening each would double the
+        requests a load makes, and the quota of reads a minute it spends.
+        """
+        if sheet in self._open:
+            return self._open[sheet].values_batch_get
+        key = self._key(sheet)
+        return lambda ranges: self.client.http_client.values_batch_get(key, ranges)
 
     def _why_not(self, sheet: str, tabs: list[str], failure: Exception) -> LoadError:
         """Why a read failed, in the words the Puppet Master can do something about."""
@@ -491,6 +585,7 @@ class SheetsSource:
         if data:
             body = {"valueInputOption": "RAW", "data": data}
             self._sent(lambda: spreadsheet.values_batch_update(body))
+        self._forget(sheet)
 
     def _add_missing(self, sheet: str, spreadsheet, tables: dict[str, Table]) -> None:
         """Make the tabs that are not there yet. A day made by `create` has them all."""
@@ -504,7 +599,7 @@ class SheetsSource:
                 spreadsheet.add_worksheet(tab, rows=rows, cols=26)
 
             self._sent(add)
-            self._tabs.pop(sheet, None)
+            self._forget(sheet)
 
     def style(self, sheet: str, tab: str, styled: Styled):
         """Merge the title, bold the rows, freeze the corner, size the columns, fill the cells.
@@ -522,6 +617,7 @@ class SheetsSource:
         if shape:
             self._sent(lambda: worksheet.spreadsheet.batch_update({"requests": shape}))
         self._sent(lambda: worksheet.batch_format(self._paint(styled)))
+        self._forget(sheet)  # formatting moves the version, and keeps no values
 
     @staticmethod
     def _shape(worksheet, styled: Styled) -> list[dict]:

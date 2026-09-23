@@ -7,7 +7,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication, QFileDialog  # noqa: E402
 
 from puppet_strings.app import configure  # noqa: E402
 from puppet_strings.app.configure import NOT_CHOSEN, ConfigureDialog  # noqa: E402
@@ -51,7 +51,12 @@ def app():
 @pytest.fixture
 def config(tmp_path, monkeypatch):
     monkeypatch.setenv("PUPPET_STRINGS_SETTINGS", str(tmp_path / "settings.json"))
-    return Config(token=tmp_path / "token.json", client_secrets=tmp_path / "client.json")
+    return Config(
+        token=tmp_path / "token.json",
+        client_secrets=tmp_path / "client.json",
+        requests=tmp_path / "requests.sqlite",
+        cache=tmp_path / "cache.sqlite",
+    )
 
 
 def browser(want_folder=False):
@@ -184,7 +189,41 @@ def test_the_pane_has_no_empty_spreadsheets_box(app, config):
     assert [box.title() for box in dialog.findChildren(QGroupBox)] == [
         "Google account",
         "Directories",
+        "Requests",
+        "Google Sheets cache",
         "Version",
         "Skedge training",
     ]
     assert dialog.updates_button.text() == "Check for updates"
+
+
+def test_the_pane_exports_and_imports_the_requests(app, config, tmp_path, monkeypatch):
+    import shutil
+
+    from puppet_strings.requests_db import RequestDb
+    from tests.conftest import FIXTURES
+
+    shutil.copyfile(FIXTURES / "requests.sqlite", config.requests)
+    dialog = ConfigureDialog(config, credentials=object())
+    assert "31 requests on this computer" in dialog.requests_label.text()
+    handed = tmp_path / "handed"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(handed), ""))
+    dialog.export_requests()
+    assert (tmp_path / "handed.sqlite").exists()  # the suffix is added
+    assert not dialog.saved  # exporting changes nothing to read again
+    RequestDb(config.requests).write((), {"Season Requests", "S1 Clinics"})
+    monkeypatch.setattr(
+        QFileDialog, "getOpenFileName", lambda *a, **k: (str(tmp_path / "handed.sqlite"), "")
+    )
+    dialog.import_requests()
+    assert "Imported 31" in dialog.requests_label.text() and dialog.saved
+    assert RequestDb(config.requests).count() == 31
+
+
+def test_the_pane_empties_the_sheets_cache(app, config):
+    from puppet_strings.sheets.cache import SheetCache
+
+    SheetCache(config.cache).put("id", "1", {"Tab": [["x"]]})
+    dialog = ConfigureDialog(config, credentials=object())
+    dialog.clear_cache()
+    assert SheetCache(config.cache).get("id", "1", ["Tab"]) is None and dialog.saved

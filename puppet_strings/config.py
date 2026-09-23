@@ -12,6 +12,8 @@ from puppet_strings.sheets.source import DATE_ORDERS, MONTH_FIRST, parse_time
 DEFAULT_PATH = Path("~/.config/puppet_strings/config.toml")
 DEFAULT_TOKEN = Path("~/.config/puppet_strings/token.json")
 DEFAULT_CLIENT = Path("~/.config/puppet_strings/oauth_client.json")
+DEFAULT_REQUESTS = Path("~/.config/puppet_strings/requests.sqlite")
+DEFAULT_CACHE = Path("~/.config/puppet_strings/sheets-cache.sqlite")
 
 DEFAULT_REMAINDER = "DYOW/WPs"  # label for the unassigned part of a partly used block
 DEFAULT_RELEASES = "https://api.github.com/repos/Dylan-Puppet-Master/Puppet-Strings/releases/latest"
@@ -24,7 +26,6 @@ DEFAULT_TABS = {
     "blocks": "Blocks",
     "calendar": "Calendar",
     "cabin_act_board": "Board",  # of a cabin act sheet; its Support Requests tab is not read
-    "requests": "Requests",  # the old one-tab Requests, read only by split-requests
     "mappings": "Mappings",
     "adjustments": "Adjustments",
     "assignments": "Assignments",  # the rows a solve is read back from
@@ -49,6 +50,8 @@ class Config:
     client_secret: str = ""
     client_secrets: Path = DEFAULT_CLIENT
     token: Path = DEFAULT_TOKEN  # where the signed-in account is remembered
+    requests: Path = DEFAULT_REQUESTS  # the requests, which live on this computer
+    cache: Path | None = DEFAULT_CACHE  # Google Sheets tabs kept between loads; None for none
     releases_url: str = DEFAULT_RELEASES
     midday: time = time(12, 0)
     date_order: str = MONTH_FIRST  # how to read 6/7/2026 on a sheet that writes dates so
@@ -75,6 +78,8 @@ def load_config(path: Path | None = None) -> Config:
     solver = data.get("solver", {})
     auth = data.get("auth", {})
     day = data.get("day", {})
+    storage = data.get("storage", {})
+    cache = storage.get("cache", str(DEFAULT_CACHE))
     return Config(
         sheets={**data.get("sheets", {}), **chosen.ids("sheets")},
         folders={**data.get("folders", {}), **chosen.ids("folders")},
@@ -84,6 +89,8 @@ def load_config(path: Path | None = None) -> Config:
         client_secret=auth.get("client_secret", built_in["client_secret"]),
         client_secrets=Path(auth.get("client_secrets", Config.client_secrets)).expanduser(),
         token=Path(auth.get("token", Config.token)).expanduser(),
+        requests=Path(storage.get("requests", DEFAULT_REQUESTS)).expanduser(),
+        cache=Path(cache).expanduser() if cache else None,
         releases_url=data.get("updates", {}).get("releases_url", built_in["releases_url"]),
         midday=parse_time(day.get("midday", "12:00"), str(path)),
         date_order=_date_order(day.get("date_order", MONTH_FIRST), str(path)),

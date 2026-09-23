@@ -1,7 +1,7 @@
 import re
 
 from puppet_strings.cli import main
-from tests.conftest import FIXTURES
+from tests.conftest import FIXTURES, saved_requests
 
 
 def test_validate_and_names(capsys):
@@ -46,8 +46,8 @@ def test_load_offerings_and_missing_warning(tmp_path, capsys):
     assert "no offerings loaded for 2026-09-17" in capsys.readouterr().out
     assert main(["--fixtures", str(copy), "--date", "2026-09-17", "load-offerings"]) == 0
     assert "loaded 24 offerings for 2026-09-17" in capsys.readouterr().out
-    rows = copy.joinpath("requests", "S1 Clinics.csv").read_text()
-    assert "offering:2026-09-17:riflery:clinic_3" in rows and "generated" in rows
+    clinics = saved_requests(copy, "S1 Clinics")
+    assert "generated" in clinics["offering:2026-09-17:riflery:clinic_3"].tags
     assert main(["--fixtures", str(copy), "--date", "2026-09-17", "solve"]) == 0
     assert "no offerings loaded" not in capsys.readouterr().out
 
@@ -97,3 +97,23 @@ def test_same_day_publishes_over_the_day_without_force(tmp_path, capsys):
     day = copy / "root" / "2026" / "Main Season" / "Session 1" / "Wednesday_1"
     assert (day / "Changes.csv").exists()  # a re-solve says what moved, beside the views
     assert "published 2026-09-16" in capsys.readouterr().out
+
+
+def test_requests_are_handed_over_as_a_file(tmp_path, capsys):
+    import shutil
+
+    from tests.conftest import delete_requests
+
+    copy = tmp_path / "fixtures"
+    shutil.copytree(FIXTURES, copy)
+    handed = tmp_path / "handed.sqlite"
+    assert main(["--fixtures", str(copy), "export-requests", str(handed)]) == 0
+    assert "exported 31 requests" in capsys.readouterr().out
+    delete_requests(copy, "home = ?", "Season Requests")
+    assert main(["--fixtures", str(copy), "import-requests", str(handed)]) == 0
+    said = capsys.readouterr().out
+    assert "imported 31 requests" in said and "requests.before-import.sqlite" in said
+    assert "breaks" in saved_requests(copy, "Season Requests")
+    (tmp_path / "notes.txt").write_text("not requests")
+    assert main(["--fixtures", str(copy), "import-requests", str(tmp_path / "notes.txt")]) == 1
+    assert "not a Puppet Strings requests file" in capsys.readouterr().err

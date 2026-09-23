@@ -8,6 +8,7 @@ from datetime import date
 from puppet_strings.config import Config
 from puppet_strings.exclude import apply_exclusions
 from puppet_strings.model import CalendarDay, Dataset, Span, block_runs_on
+from puppet_strings.requests_db import RequestDb, open_requests
 from puppet_strings.sheets import mappings as mappings_sheet
 from puppet_strings.sheets.adjustments import parse_adjustments, resting_blocks
 from puppet_strings.sheets.blocks import ALL_BLOCKS, block_categories, parse_blocks
@@ -17,7 +18,6 @@ from puppet_strings.sheets.categories import parse_staff_categories
 from puppet_strings.sheets.clinic_data import parse_clinics
 from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import parse_published
-from puppet_strings.sheets.requests import read_requests
 from puppet_strings.sheets.schedules import (
     ROOT,
     STAFF_CATEGORIES,
@@ -32,14 +32,24 @@ from puppet_strings.sheets.skills import (
 )
 from puppet_strings.sheets.source import LoadError, NotACampDay, Source
 
+READS_IN_FLIGHT = 3  # beside the cabin act sheets' own, which read_all keeps to its limit
 ADJUSTMENT_HEADER = ("date", "staff", "resting", "RAL_penalty", "note")
 ALL = "all"
 STAFF_CATEGORIES_TAB = "Categories"  # the one tab of a span's Staff Categories spreadsheet
 CLINIC_TRAINERS = "clinic_trainers"
 
 
-def load_dataset(source: Source, config: Config, target: date, history: bool = True) -> Dataset:
-    """Read every sheet and build the Dataset for `target`.
+def load_dataset(
+    source: Source,
+    config: Config,
+    target: date,
+    history: bool = True,
+    requests: RequestDb | None = None,
+) -> Dataset:
+    """Read every sheet, and the requests, and build the Dataset for `target`.
+
+    The requests come from `requests`, or from `open_requests` when that is not given: the
+    file on this computer, or a fixture folder's own.
 
     `history` reads what was published on the days before the target as well. Only the
     solver looks at those, and there is a spreadsheet of them per day of the season so far,
@@ -65,18 +75,30 @@ def load_dataset(source: Source, config: Config, target: date, history: bool = T
     spans = parse_calendar(config_tables[tabs["calendar"]], config.date_order)
     calendar = calendar_days(spans)
     check_camp_day(target, calendar)
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        boards = pool.submit(_cabin_act_boards, source, config)
+    with (
+        ThreadPoolExecutor(max_workers=1) as boards_pool,
+        ThreadPoolExecutor(max_workers=READS_IN_FLIGHT) as pool,
+    ):
+        boards = boards_pool.submit(_cabin_act_boards, source, config)
         return _build(
-            source, config, target, tabs, warnings, boards, config_tables, spans, calendar, history
+            source,
+            config,
+            target,
+            tabs,
+            warnings,
+            boards,
+            config_tables,
+            spans,
+            calendar,
+            history,
+            pool,
+            requests or open_requests(config, source),
         )
 
 
 def _config_tables(source: Source, config: Config) -> dict:
     """Every tab of the config spreadsheet that is read, in one request."""
     tabs = config.tabs
-    # The requests are not here: which of their tabs to read depends on the span the
-    # target falls in, which the Calendar in this very batch is what says.
     wanted = [tabs["blocks"], tabs["calendar"], tabs["mappings"]]
     if tabs["adjustments"] in source.tabs("config"):
         wanted.append(tabs["adjustments"])  # the tab is optional
@@ -108,14 +130,40 @@ def _build(
     spans,
     calendar,
     history: bool,
+    pool: ThreadPoolExecutor,
+    book: RequestDb,
 ):
-    """Everything but the Calendar and the cabin act sheets, which are already read."""
-    skills_tables = source.read_many("skills", [tabs["skills"], tabs["position_skills"]])
+    """Everything but the Calendar and the cabin act sheets, which are already read.
+
+    Every read that needs nothing but the Calendar is sent at once, and the ones that need
+    the span's folder listed are sent together as soon as it is: each is a round trip to
+    Google, and one after another they are most of the wait on a load. The answers are
+    parsed in the order they always were; only the span's folder and the Mappings index,
+    which the later reads need, are looked at first.
+    """
+    span = next(s for s in spans if s.id == calendar[target].span)
+    index = mappings_sheet.parse_mapping_index(config_tables[tabs["mappings"]])
+    tab_of = {m.name: f"{mappings_sheet.TAB_PREFIX}{m.name}" for m in index}
+    skills_read = pool.submit(source.read_many, "skills", [tabs["skills"], tabs["position_skills"]])
+    clinics_read = pool.submit(source.read, "clinic_data", tabs["clinics"])
+    listing = pool.submit(source.documents, ROOT, span_path(span))
+    requests_read = pool.submit(book.read, span)
+    mappings_read = pool.submit(source.read_many, "config", list(tab_of.values()))
+    in_span = listing.result()
+    day_sheet = day_title(span, target)
+    categories_read = pool.submit(_categories_table, source, in_span, span)
+    offerings_read = (
+        pool.submit(source.read, in_span[day_sheet], tabs["offerings"])
+        if day_sheet in in_span
+        else None
+    )
+
+    skills_tables = skills_read.result()
     staff, skill_warnings = parse_skills(skills_tables[tabs["skills"]])
     warnings += skill_warnings
     skills = known_skills(skills_tables[tabs["skills"]])
     position_skills = parse_position_skills(skills_tables[tabs["position_skills"]], skills)
-    clinics = parse_clinics(source.read("clinic_data", tabs["clinics"]), position_skills, skills)
+    clinics = parse_clinics(clinics_read.result(), position_skills, skills)
     blocks = parse_blocks(config_tables[tabs["blocks"]])
     categories = {c for b in blocks.values() for c in b.categories} - {ALL_BLOCKS}
     _reserve("block", categories, (ALL_BLOCKS, *blocks))
@@ -137,9 +185,7 @@ def _build(
             for i, a in today.items()
         },
     }
-    span = next(s for s in spans if s.id == calendar[target].span)
-    in_span = source.documents(ROOT, span_path(span))
-    categories = parse_staff_categories(_categories_table(source, in_span, span), staff)
+    categories = parse_staff_categories(categories_read.result(), staff)
     _reserve("staff", categories, (ALL, CLINIC_TRAINERS, *staff))
 
     # Who is at camp is what the span's Staff Categories sheet says, not who has a Skills
@@ -174,10 +220,9 @@ def _build(
     )
     warnings += cabin_warnings
     activities = {**clinics, **cabin_acts}
-    today = day_title(span, target)
-    if today in in_span:
+    if offerings_read is not None:
         offerings, offering_warnings = parse_offerings(
-            source.read(in_span[today], tabs["offerings"]),
+            offerings_read.result(),
             clinics,
             set(blocks),
             target.strftime("%A"),
@@ -186,11 +231,10 @@ def _build(
     else:
         offerings = ()
         warnings.append(
-            f"{'/'.join(span_path(span))}: no '{today}' sheet yet, so nothing is offered; "
+            f"{'/'.join(span_path(span))}: no '{day_sheet}' sheet yet, so nothing is offered; "
             "Load offerings makes one"
         )
-    requests, request_warnings = read_requests(source, span)
-    warnings += request_warnings
+    requests = requests_read.result()
 
     # Only the clinics have categories; a cabin act is found by its cabin, not by a heading.
     clinic_categories = {a.category for a in clinics.values()}
@@ -199,9 +243,7 @@ def _build(
         c: frozenset(a.id for a in clinics.values() if a.category == c) for c in clinic_categories
     }
 
-    index = mappings_sheet.parse_mapping_index(config_tables[tabs["mappings"]])
-    tab_of = {m.name: f"{mappings_sheet.TAB_PREFIX}{m.name}" for m in index}
-    mapping_tables = source.read_many("config", list(tab_of.values()))
+    mapping_tables = mappings_read.result()
     mappings = {
         m.name: mappings_sheet.parse_mapping(m, mapping_tables[tab_of[m.name]], config.date_order)
         for m in index

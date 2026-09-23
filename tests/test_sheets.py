@@ -11,12 +11,6 @@ from puppet_strings.sheets.clinic_data import parse_clinics
 from puppet_strings.sheets.mappings import INDEX_COLUMNS
 from puppet_strings.sheets.offerings import parse_offerings
 from puppet_strings.sheets.published import assignment_rows, parse_published
-from puppet_strings.sheets.requests import (
-    COLUMNS,
-    parse_request_tabs,
-    parse_requests,
-    request_rows,
-)
 from puppet_strings.sheets.skills import (
     ClinicPositions,
     known_skills,
@@ -205,65 +199,6 @@ def test_blocks(source):
     assert not blocks["clinic_1"].overlaps(blocks["clinic_2"])
     assert blocks["lunch"].overlaps(blocks["lunch"])
     assert blocks["pack_out"].overlaps(blocks["clinic_1"])
-
-
-def test_requests_round_trip(source):
-    """Every tab a load reads, in the order it reads them: the season's, then the span's."""
-    tabs = ["Season Requests", "S1 Clinics"]
-    requests = parse_request_tabs({tab: source.read("requests", tab) for tab in tabs})
-    assert {r.home for r in requests} == set(tabs)
-    assert requests[0].id == "counselor-hours"
-    assert requests[0].weight == 1.0
-    assert requests[3].weight == 0.5
-    assert requests[0].created == date(2026, 9, 1)
-    assert requests[0].tags == ("legal", "counselors")
-    assert requests[2].tags == ()
-    by_id = {r.id: r for r in requests}
-    assert by_id["cabin-acts"].tags == ("cabin act",)
-    assert requests[-1].tags == ("generated",)  # the Clinics tab is read after the season's
-    assert requests[0].group == "Special daily requests"
-    assert requests[-1].group == ""  # generated clinic requests are on no shelf
-    assert requests[0].requester == "lucy"
-    assert requests[1].requester == ""
-    season = tuple(r for r in requests if r.home == "Season Requests")
-    assert parse_requests(request_rows(season), "Season Requests") == season
-
-
-def test_a_sheet_with_the_old_groups_column_keeps_the_first_group():
-    """A request used to be on several shelves; the first of them is the one it is on."""
-    table = [
-        ["id", "description", "skedge", "priority", "weight", "groups", "created"],
-        ["x", "", "REQUEST staff.dylan FREE DURING blocks.clinic_1", "HIGH", "2", "A, B", ""],
-    ]
-    (request,) = parse_requests(table)
-    assert request.group == "A"
-
-
-def test_requests_read_a_sheet_written_before_groups_existed():
-    """The three newest columns are optional, so an older Requests tab still loads."""
-    table = [
-        ["id", "description", "skedge", "priority", "weight", "created"],
-        ["x", "", "REQUEST staff.dylan FREE DURING blocks.clinic_1", "HIGH", "2", ""],
-    ]
-    (request,) = parse_requests(table)
-    assert request.tags == () and request.group == "" and request.requester == ""
-
-
-def test_a_requester_is_normalized_like_any_other_name():
-    table = [
-        ["id", "description", "skedge", "priority", "weight", "requester", "created"],
-        ["x", "", "REQUEST staff.dylan FREE DURING blocks.clinic_1", "HIGH", "", "Mary Kate", ""],
-    ]
-    assert parse_requests(table)[0].requester == "mary_kate"
-
-
-def test_requests_reject_weight_on_hard():
-    table = [
-        ["id", "description", "skedge", "priority", "weight", "created"],
-        ["x", "", "REQUEST staff.dylan FREE DURING blocks.clinic_1", "MUST_HAPPEN", "2", ""],
-    ]
-    with pytest.raises(LoadError, match="not allowed with MUST_HAPPEN"):
-        parse_requests(table)
 
 
 def test_mappings(dataset):
@@ -535,14 +470,6 @@ def test_blocks_accept_a_missing_leading_zero(source):
     assert blocks["clinic_1"].start == time.fromisoformat(times["clinic_1"][0])
 
 
-def test_the_solvers_own_priority_cannot_be_written_on_the_sheet():
-    header = ["id", "description", "skedge", "priority", "weight", "tags", "created"]
-    row = ["x", "", "REQUEST staff.dylan DO 'a' DURING blocks.clinic_1", "STABILITY", "", "", ""]
-    with pytest.raises(LoadError, match="STABILITY is the solver's own"):
-        parse_requests([header, row])
-    assert parse_requests([header, [*row[:3], "HIGH", *row[4:]]])[0].priority.value == "HIGH"
-
-
 @pytest.mark.parametrize(
     ("written", "expected"),
     [
@@ -721,33 +648,6 @@ def test_a_load_can_leave_the_days_behind_it_for_later(source):
     assert filled.baseline == quick.baseline
     assert read_history(source, CONFIG, filled) is filled  # asked once, not once per solve
     assert load_dataset(source, CONFIG, target).published == filled.published
-
-
-def test_split_requests_reads_an_id_for_the_tab_it_belongs_on(tmp_path):
-    """The old tab's ids say where each row goes: a date, a span's name, or neither."""
-    import shutil
-
-    from puppet_strings.sheets.requests import split_requests
-    from puppet_strings.sheets.source import CsvSource
-    from tests.conftest import FIXTURES
-
-    copy = tmp_path / "fixtures"
-    shutil.copytree(FIXTURES, copy)
-    source = CsvSource(copy)
-    spans = parse_calendar(source.read("config", "Calendar"))
-    rows = [
-        list(COLUMNS),
-        ["offering:2026-09-30:riflery:clinic_1", "", "REQUEST staff.dylan", "CLINIC", "", "", ""],
-        ["session_2-7", "", "REQUEST staff.dylan", "HIGH", "1", "", ""],
-        ["breaks", "", "REQUEST staff.dylan", "HIGH", "1", "", ""],
-    ]
-    source.write("config", "Requests", rows)
-    assert split_requests(source, "root", "Requests", spans, 2026) == {
-        "Season Requests": 1,  # nothing in the id says a span, so every load reads it
-        "S2 Clinics": 1,  # 2026-09-30 is in session 2
-        "S2 Special": 1,  # the id starts with that span's own id
-    }
-    assert [r[0] for r in source.read("requests", "S2 Special")][1:] == ["session_2-7"]
 
 
 def test_a_cabin_act_warns_only_when_a_hero_is_actually_dropped():

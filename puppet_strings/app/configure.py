@@ -10,6 +10,11 @@ The account row is the same idea: it says who is signed in, and offers to sign i
 somebody else or to sign out. Signing out does not delete anything on Drive; it forgets
 the token, and the next start asks again.
 
+The requests live on this computer rather than in a sheet, so this is also where they are
+handed over: Export writes them to a file for the next Puppet Master, and Import takes one
+in. And the Google Sheets cache can be emptied here, for the rare edit Drive is slow to
+count.
+
 The pane also opens the trainer, since it is the one window a new Puppet Master is sure to
 see: on a first run it comes up before anything else, and the trainer needs no account.
 """
@@ -17,6 +22,7 @@ see: on a first run it comes up before anything else, and the trainer needs no a
 import subprocess
 import sys
 from dataclasses import replace
+from datetime import date
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, Signal
@@ -38,7 +44,10 @@ from puppet_strings import __version__, google_auth
 from puppet_strings.app.drive_browser import DriveBrowser
 from puppet_strings.config import Config
 from puppet_strings.drive import Drive
+from puppet_strings.requests_db import SUFFIX, RequestDb
 from puppet_strings.settings import FOLDERS, Chosen, load_settings, save_settings
+from puppet_strings.sheets.cache import SheetCache
+from puppet_strings.sheets.source import LoadError
 from puppet_strings.update import UpdateError, download, install, latest_release
 
 NOT_CHOSEN = "not chosen"
@@ -119,6 +128,8 @@ class ConfigureDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.addWidget(self._account_box(client_button))
         layout.addWidget(self._chosen_box("Directories", "folders", FOLDERS))
+        layout.addWidget(self._requests_box())
+        layout.addWidget(self._cache_box())
         layout.addWidget(self._updates_box())
         layout.addWidget(self._training_box())
         layout.addStretch(1)
@@ -133,6 +144,36 @@ class ConfigureDialog(QDialog):
         row.addWidget(self.account_label, stretch=1)
         for button in (client_button, self.sign_in_button, self.sign_out_button):
             row.addWidget(button)
+        return box
+
+    def _requests_box(self) -> QGroupBox:
+        """How many requests this computer holds, and the buttons that hand them over."""
+        box = QGroupBox("Requests")
+        row = QHBoxLayout(box)
+        self.book = RequestDb(self.config.requests)
+        self.requests_label = QLabel()
+        self.requests_label.setToolTip(str(self.book.path))
+        self.requests_label.setWordWrap(True)
+        export = QPushButton("Export…")
+        export.clicked.connect(self.export_requests)
+        take = QPushButton("Import…")
+        take.clicked.connect(self.import_requests)
+        row.addWidget(self.requests_label, stretch=1)
+        row.addWidget(export)
+        row.addWidget(take)
+        self._count_requests()
+        return box
+
+    def _cache_box(self) -> QGroupBox:
+        box = QGroupBox("Google Sheets cache")
+        row = QHBoxLayout(box)
+        self.cache_label = QLabel("Sheets are kept on this computer until they change.")
+        self.cache_label.setWordWrap(True)
+        clear = QPushButton("Clear")
+        clear.setEnabled(self.config.cache is not None)
+        clear.clicked.connect(self.clear_cache)
+        row.addWidget(self.cache_label, stretch=1)
+        row.addWidget(clear)
         return box
 
     def _updates_box(self) -> QGroupBox:
@@ -157,6 +198,49 @@ class ConfigureDialog(QDialog):
         row.addWidget(note, stretch=1)
         row.addWidget(self.training_button)
         return box
+
+    # -- requests and the cache ---------------------------------------------------------
+
+    def _count_requests(self, said: str = "") -> None:
+        count = self.book.count()
+        held = f"{count} request{'' if count == 1 else 's'} on this computer."
+        self.requests_label.setText(f"{said} {held}".strip())
+
+    def export_requests(self) -> None:
+        """Write the requests to a file for another Puppet Master."""
+        suggested = str(Path.home() / f"requests-{date.today().isoformat()}{SUFFIX}")
+        picked, _ = QFileDialog.getSaveFileName(
+            self, "Export requests", suggested, f"Requests (*{SUFFIX})"
+        )
+        if not picked:
+            return
+        target = Path(picked)
+        if target.suffix != SUFFIX:
+            target = target.with_name(target.name + SUFFIX)
+        count = self.book.export(target)
+        self._count_requests(f"Exported {count} to {target.name}.")
+
+    def import_requests(self) -> None:
+        """Replace the requests with a file another Puppet Master exported."""
+        picked, _ = QFileDialog.getOpenFileName(
+            self, "Import requests", str(Path.home()), f"Requests (*{SUFFIX})"
+        )
+        if not picked:
+            return
+        try:
+            count, kept = self.book.import_file(Path(picked))
+        except LoadError as e:
+            QMessageBox.warning(self, "Import requests", str(e))
+            return
+        self.saved = True  # the window reads them in when this closes
+        before = f" The ones they replaced are in {kept.name}." if kept else ""
+        self._count_requests(f"Imported {count} from {Path(picked).name}.{before}")
+
+    def clear_cache(self) -> None:
+        """Empty the cache, so the next load reads every sheet from Google."""
+        SheetCache(self.config.cache).clear()
+        self.saved = True
+        self.cache_label.setText("Cleared. Every sheet is read from Google on the next load.")
 
     # -- training -----------------------------------------------------------------------
 

@@ -47,8 +47,7 @@ clinic view and the report; it asks first if no offerings are loaded for the dat
 published.
 
 **Cabin acts** need no button. They are activities, read from every sheet in the Cabin
-Acts folder each time **Reload** runs, and one line on the Requests sheet asks for all of
-them:
+Acts folder each time **Reload** runs, and one request asks for all of them:
 
 ```skedge
 REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act
@@ -99,14 +98,13 @@ There are two ways a request gets its group, and no others:
   top or the bottom of the list and it scrolls, so a group below the fold can be dropped
   on like any other.
 
-**Right-click a group** to choose the [Requests tab](sheets.md#requests-its-own-spreadsheet)
-its *new* requests are written to — a group of standing agreements can send its requests
-to `Season Requests` without your having to remember each time. Requests already written
-stay where they are: a request's tab is when it applies, and changing a group's default is
-not a reason to move them.
+**Right-click a group** to choose the [list](sheets.md#requests-on-this-computer) its *new*
+requests go in — a group of standing agreements can send its requests to `Season Requests`
+without your having to remember each time. Requests already made stay where they are: a
+request's list is when it applies, and changing a group's default is not a reason to move
+them.
 
-The group lives in the `group` column of the Requests sheet, so it is there again the next
-time the app opens. A group you have just made and put nothing in yet stays in the pane
+A request's group is saved with it, so it is there again the next time the app opens. A group you have just made and put nothing in yet stays in the pane
 until you close the app.
 
 **The table.** One row per request. Click a column heading to sort by it. Filters above
@@ -208,9 +206,9 @@ is going out to the sheet the button reads **Saving…**; when it lands, the lin
 and says `✓ Saved s1-12 at 14:32:05`, with the time, so a second save of the same
 request still visibly does something. The confirmation stays until the next edit, which
 validates the request again. **New** starts a
-fresh request; **Delete** removes the selected one. Every save rewrites the tabs the
-requests on screen came off, which the **on tab** box is what chooses between: this
-session's `Special` tab, or `Season Requests` for something that holds all season.
+fresh request; **Delete** removes the selected one. Saving is instant: requests are kept on
+this computer, not in a sheet. The **in list** box chooses where a request is filed: this
+session's `Special` list, or `Season Requests` for something that holds all season.
 
 **Name completion.** Start typing any part of a name in the Skedge box and a list of names
 appears and narrows as you keep typing. The namespace is optional: `dyl` finds

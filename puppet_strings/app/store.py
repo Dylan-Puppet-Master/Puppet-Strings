@@ -1,4 +1,4 @@
-"""The app's copy of the requests, loaded from and saved to the Requests tabs."""
+"""The app's copy of the requests, loaded from and saved to the requests file."""
 
 from dataclasses import replace
 from datetime import date
@@ -15,17 +15,17 @@ from puppet_strings.generate import generated_requests, has_offerings_loaded, me
 from puppet_strings.model import Adjustment, Dataset, Request, Rest
 from puppet_strings.names import normalize
 from puppet_strings.publish.writer import day_sheet
+from puppet_strings.requests_db import (
+    CLINICS_SUFFIX,
+    SEASON,
+    SPECIAL_SUFFIX,
+    clinics_list,
+    home_for,
+    open_requests,
+)
 from puppet_strings.sheets.adjustments import adjustment_rows
 from puppet_strings.sheets.calendar import calendar_days, parse_calendar
 from puppet_strings.sheets.load import load_dataset, read_history
-from puppet_strings.sheets.requests import (
-    CLINICS_SUFFIX,
-    SEASON_TAB,
-    SPECIAL_SUFFIX,
-    clinics_tab,
-    home_for,
-    write_requests,
-)
 from puppet_strings.sheets.schedules import ROOT
 from puppet_strings.sheets.source import CsvSource, Source
 
@@ -33,16 +33,16 @@ CONFIG_SHEET = "config"
 
 
 def unique_id(home: str, taken: set[str]) -> str:
-    """The next free id on a tab: `s4-1`, `s4-2`, `season-1`.
+    """The next free id in a list: `s4-1`, `s4-2`, `season-1`.
 
     The id is not made out of the description any more. A description is for people, is
     allowed to be empty, and gets rewritten the moment somebody words it better — none of
     which an id may do, because it is what the solver's report and every other sheet call
     the request by.
 
-    Numbering runs per tab because a load only ever reads three of them: the season's and
-    the two of the span being scheduled. An id carrying the tab it was made on can only
-    collide with the ids of that same tab, which is either loaded or is the season's, and
+    Numbering runs per list because a load only ever reads three of them: the season's and
+    the two of the span being scheduled. An id carrying the list it was made in can only
+    collide with the ids of that same list, which is either loaded or is the season's, and
     the season's is always loaded.
     """
     base = normalize(_label(home)).strip("_").replace("_", "-") or "request"
@@ -51,15 +51,15 @@ def unique_id(home: str, taken: set[str]) -> str:
 
 
 def _label(home: str) -> str:
-    """What a tab's ids are named after: `S4 Special` and `S4 Clinics` are both `s4`."""
+    """What a list's ids are named after: `S4 Special` and `S4 Clinics` are both `s4`."""
     for suffix in (SPECIAL_SUFFIX, CLINICS_SUFFIX):
         if home.endswith(suffix):
             return home[: -len(suffix)]
-    return "season" if home == SEASON_TAB else home
+    return "season" if home == SEASON else home
 
 
 def _numbered(request_id: str, base: str) -> bool:
-    """Whether an id is one of this tab's numbered ones."""
+    """Whether an id is one of this list's numbered ones."""
     return request_id.startswith(f"{base}-") and request_id[len(base) + 1 :].isdigit()
 
 
@@ -69,6 +69,7 @@ class RequestStore:
     def __init__(self, source: Source, config: Config) -> None:
         self.source = source
         self.config = config
+        self.book = open_requests(config, source)
         self.dataset: Dataset | None = None
         self.requests: list[Request] = []
         self.facets: dict[str, Facets] = {}
@@ -76,8 +77,8 @@ class RequestStore:
         # A group lives on the requests in it, so one just made holds nothing yet and would
         # vanish on the next read. These keep it in the pane until something joins it.
         self.empty_groups: list[str] = []
-        self.held: set[str] = set()  # the Requests tabs the load read, home or not
-        self.group_tabs = GroupTabs()  # where each group's new requests are written
+        self.held: set[str] = set()  # the request lists the load read, home or not
+        self.group_tabs = GroupTabs()  # which list each group's new requests go to
 
     @property
     def fixtures(self) -> bool:
@@ -92,6 +93,7 @@ class RequestStore:
     def reconnect(self, source: Source, config: Config) -> None:
         """Read different sheets from now on, the Configure pane having changed which."""
         self.source, self.config = source, config
+        self.book = open_requests(config, source)
 
     def calendar(self, target: date) -> dict:
         """The Calendar sheet on its own: every camp day, its span, session and week.
@@ -111,9 +113,11 @@ class RequestStore:
         business, nothing in the window asks, and there is a spreadsheet of them per day of
         the season so far. `for_solving` reads them when something is about to want them.
         """
-        self.dataset = load_dataset(self.source, self.config, target, history=False)
+        self.dataset = load_dataset(
+            self.source, self.config, target, history=False, requests=self.book
+        )
         self.requests = list(self.dataset.requests)
-        # the tabs this load came off, so one emptied by a deletion is written empty
+        # the lists this load read, so one emptied by a deletion is written empty
         self.held = {r.home for r in self.requests if r.home}
         self.facets, self.resolved = {}, {}
         for request in self.requests:
@@ -138,10 +142,10 @@ class RequestStore:
         return find_errors(self.requests, self.resolved, self.dataset)
 
     def save(self, request: Request, original_id: str | None) -> Request:
-        """Add or replace a request and write the tabs it and its neighbours live on.
+        """Add or replace a request and write the lists it and its neighbours are in.
 
-        A request without an id gets one made from its description, and one that names no
-        tab goes to this span's Special tab — or its Clinics tab, if it was generated.
+        A request without an id gets the next one free in its list, and one that names no
+        list goes to this span's Special list — or its Clinics list, if it was generated.
         Returns the request as saved.
         """
         request = replace(request, home=home_for(request, self.dataset.this_span))
@@ -165,7 +169,7 @@ class RequestStore:
         ready rather than a folder to go and build by hand.
         """
         day_sheet(self.source, self.config, self.dataset.this_span, self.dataset.target)
-        generated = generated_requests(self.dataset, home=clinics_tab(self.dataset.this_span))
+        generated = generated_requests(self.dataset, home=clinics_list(self.dataset.this_span))
         self.requests = merge(self.requests, generated, self.dataset.target)
         self._reindex(generated)
         self._write()
@@ -326,13 +330,13 @@ class RequestStore:
             self._write()
 
     def delete(self, request_id: str) -> None:
-        """Remove a request and write the Requests tab."""
+        """Remove a request and write its list."""
         self.requests = [r for r in self.requests if r.id != request_id]
         self.facets.pop(request_id, None)
         self.resolved.pop(request_id, None)
         self._write()
 
     def _write(self) -> None:
-        """Write each request to the tab it calls home, and empty any tab left with none."""
+        """Write each request to its list, and empty any list left with none."""
         self.held |= {r.home for r in self.requests if r.home}
-        write_requests(self.source, tuple(self.requests), self.held)
+        self.book.write(tuple(self.requests), self.held)

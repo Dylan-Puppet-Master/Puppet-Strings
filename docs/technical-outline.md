@@ -15,7 +15,7 @@ This outline was written after reading the four existing sheets (Clinic_Data, Cl
 
 ### 1.1 Overview
 
-Puppet Strings is one Python package, `puppet_strings`, exposed two ways: a command line tool and a desktop window. Both call the same library functions. Google Sheets is the only data store; nothing is cached locally except credentials, a config file, and the Skedge parser's tables (`parser.cache`, rebuilt whenever the grammar changes).
+Puppet Strings is one Python package, `puppet_strings`, exposed two ways: a command line tool and a desktop window. Both call the same library functions. Google Sheets holds everything but the requests, which are one SQLite file on the Puppet Master's computer (`requests.sqlite`; see §2.7). Beside it in the config folder are credentials, a config file, a cache of Google Sheets tabs kept until Drive says they changed (`sheets-cache.sqlite`), and the Skedge parser's tables (`parser.cache`, rebuilt whenever the grammar changes).
 
 ```
  Google Sheets                          Puppet Master's laptop
@@ -25,7 +25,7 @@ Puppet Strings is one Python package, `puppet_strings`, exposed two ways: a comm
  Staff Categories  ├───────────────────►│ load_dataset │◄────┤ cli/  (puppet-strings)│
  Offerings tab     │                    └──────┬───────┘     └──────────┬───────────┘
  Blocks, Calendar  │                           │ Dataset                │
- Requests, Mappings┘                           ▼                        │
+ Mappings         ┘                           ▼                        │
  Published (past) ─────────────────────► skedge/ parse+validate         │
                                                │ Declarations           │
                                                ▼                        │
@@ -35,7 +35,7 @@ Puppet Strings is one Python package, `puppet_strings`, exposed two ways: a comm
 ```
 
 - **The solver runs locally**, on whichever machine runs the tool. OR-Tools cannot run inside Google Apps Script, and a server would add hosting, secrets, and uptime to the Puppet Master's job. A solve for one day is expected to take seconds.
-- **Google Sheets is read fresh on every run.** There is no local database. The desktop app holds requests in memory while editing and writes each save to the Requests sheet.
+- **Google Sheets is read when it changed.** Each spreadsheet's Drive `version` comes back with the folder listings a load already makes, and a tab read at that version is read off disk (`sheets/cache.py`). The requests are a local file, written on every save (`requests_db.py`).
 - **One code path for data.** Sheet readers return plain tables (`list[list[str]]`). The same parsers turn tables from Google Sheets or from CSV files into domain objects, so tests and offline runs use CSV fixtures with no other changes.
 
 ### 1.2 Authentication
@@ -60,7 +60,7 @@ clinic_data      = "1bcCFIBqL77HbPiY1nOM2cqzZ0YC9fhRcdBi4TwZS0-E"
 clinic_schedule  = "1h_iOC7oqe43QFkpgoS-D-oFzP_r8G1EtDmrxvc83-o8"   # Offerings tab only
 skills           = "1SAjIEMtNwdpDWcKkBp8wrEt9BjQJ6kaeHW00zJcBQPs"
 staff_categories = "1Z92mJG-AbXKBX_jq5DKztNLVDXPUyL-licZWGvkVPXs"
-config           = "<new spreadsheet: Blocks, Calendar, Requests, Mappings>"
+config           = "<new spreadsheet: Blocks, Calendar, Mappings>"
 published        = "<new spreadsheet: one tab per published date>"
 
 # Chosen in the Configure pane and kept in settings.json instead, which wins over these.
@@ -72,6 +72,10 @@ client_secrets = "~/.config/puppet_strings/oauth_client.json"
 token          = "~/.config/puppet_strings/token.json"
 credentials    = "~/.config/puppet_strings/service_account.json"   # legacy fallback
 
+[storage]
+requests = "~/.config/puppet_strings/requests.sqlite"
+cache    = "~/.config/puppet_strings/sheets-cache.sqlite"   # "" for no cache
+
 [solver]
 time_limit_seconds = 30   # the whole solve, not each tier
 workers            = 8
@@ -82,13 +86,15 @@ random_seed        = 0
 
 | Command | Effect |
 |---|---|
-| `puppet-strings validate` | Parse and validate every row of the Requests sheet against current names. Prints errors with request id, line, column. |
+| `puppet-strings validate` | Parse and validate every request the target date loads against current names. Prints errors with request id, line, column. |
 | `puppet-strings names` | Print every valid name per namespace. |
 | `puppet-strings solve --date 2026-09-16 [--publish]` | Load data, solve, print the schedule and report. With `--publish`, write the day's own spreadsheet. |
-| `puppet-strings export-fixtures DIR` | Download every sheet tab as CSV. Used to refresh test fixtures and to work offline. |
+| `puppet-strings export-fixtures DIR` | Download every sheet tab as CSV, and copy the requests to `DIR/requests.sqlite`. Used to refresh test fixtures and to work offline. |
+| `puppet-strings export-requests FILE` | Copy the requests to a file for another Puppet Master. |
+| `puppet-strings import-requests FILE` | Replace the requests with that file's, keeping the old ones in `requests.before-import.sqlite`. |
 | `puppet-strings app` | Open the desktop request manager. |
 
-Every command accepts `--fixtures DIR` to read CSVs instead of Google Sheets.
+Every command accepts `--fixtures DIR` to read CSVs instead of Google Sheets, and the requests in `DIR/requests.sqlite` instead of this computer's; `--no-cache` reads every sheet from Google.
 
 ### 1.5 Desktop application
 
@@ -223,18 +229,23 @@ Blocks sheet's `day_types` and `program_type` columns are matched against.
 See [Dates](skedge.md#dates); this table was rewritten on 2026-09-18 with the date
 redesign (§11) and again on 2026-09-19 to spans.
 
-### 2.7 Requests (new, read and written)
+### 2.7 Requests (local file, read and written)
 
-One row per request. Columns match the request fields.
+One SQLite file, `requests.sqlite`, with a `requests` table and a `meta` table holding the
+format version. A request's `home` is the list it is filed in (`Season Requests`,
+`S4 Clinics`, `S4 Special`); a load reads three. Export and import copy the whole file.
 
 | Column | Type | Rules |
 |---|---|---|
-| `id` | text | Unique, stable, `kebab-case`. |
+| `home` | text | The list. With `id`, the primary key. |
+| `position` | integer | Order within the list. |
+| `id` | text | Unique among the lists a load reads, stable, `kebab-case`. |
 | `description` | text | |
 | `skedge` | multi-line text | |
-| `priority` | `MUST_HAPPEN` `CLINIC` `HIGH` `MEDIUM` `LOW` | `CLINIC` is reserved for the offerings and rejected on hand-written rows unless the Puppet Master confirms otherwise (§10). |
-| `weight` | number | Blank means 1. Rejected with `MUST_HAPPEN`. |
-| `created` | ISO date | Set by the app on creation. |
+| `priority` | `MUST_HAPPEN` `CLINIC` `HIGH` `MEDIUM` `LOW` | `STABILITY` is refused. |
+| `weight` | real | Positive; always 1 with `MUST_HAPPEN`. |
+| `tags`, `group`, `requester` | text | Tags comma-separated. |
+| `created` | ISO date or null | Set by the app on creation. |
 
 ### 2.8 Mappings (new, read)
 
@@ -902,3 +913,13 @@ Recorded so the outline matches the code.
   and a colon — and every other newline is nothing. `name: <set>` is an `ast.Definition`,
   written into the lines that use it by the parser, so nothing downstream knows it was
   there; `name: ANY n <set>` and `name: EACH_OF <set>` are binding lines.
+- **Requests live on the Puppet Master's computer; Google Sheets are cached by version**
+  (Puppet Master, 2026-09-23). Nobody edits requests outside Puppet Strings and only one
+  Puppet Master schedules at a time, so requests are one SQLite file, handed over with
+  Export and Import in the Configure pane or `export-requests` / `import-requests`. An import
+  is checked whole before it replaces anything, and keeps what it replaced beside the file.
+  A fixture folder carries its own `requests.sqlite`. The sheets themselves are kept in a
+  cache keyed by spreadsheet id and Drive `version`, which the folder listings a load already
+  makes return for free; a load re-lists at its start, so a version is trusted for one load
+  at most, and anything Puppet Strings writes drops its entry at once. Drive can be a moment
+  late counting an edit, which is what Clear in the Configure pane and `--no-cache` are for.

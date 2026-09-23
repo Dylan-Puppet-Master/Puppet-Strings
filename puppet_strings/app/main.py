@@ -115,6 +115,8 @@ class LoadWorker(QThread):
         of the sheets load: which week of which session a date is in is the Calendar sheet's
         to say, and a Skills tab with a bad row has no business emptying it.
         """
+        # what changed since the last load is asked afresh, by listing the folders again
+        self.store.source.refresh()
         # whatever is wrong with the Calendar, the load below is what says so
         with suppress(Exception):
             self.calendar.emit(self.store.calendar(self.target))

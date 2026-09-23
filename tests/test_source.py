@@ -56,6 +56,7 @@ def source(monkeypatch):
     src._tabs = {}
     src._folders, src._discovered = {}, set()
     src.folder_ids = {}
+    src.cache, src._versions = None, {}
     return src, spreadsheet
 
 
@@ -80,6 +81,42 @@ def test_missing_tab_is_a_load_error(source):
     assert "worksheets" in spreadsheet.calls  # asked once the read had failed, not before
     with pytest.raises(LoadError, match="no spreadsheet chosen"):
         src.read("published", "x")
+
+
+class FakeHttpClient:
+    """The raw API gspread sits on: what a spreadsheet not yet opened is read through."""
+
+    def __init__(self, tables):
+        self.spreadsheet = FakeSpreadsheet(tables)
+        self.calls = []
+
+    def values_batch_get(self, key, ranges):
+        self.calls.append(("batch", key))
+        return self.spreadsheet.values_batch_get(ranges)
+
+    def fetch_sheet_metadata(self, key):
+        self.calls.append(("metadata", key))
+        return {"sheets": [{"properties": {"title": t}} for t in self.spreadsheet.tables]}
+
+
+class FakeClient:
+    def __init__(self, tables):
+        self.http_client = FakeHttpClient(tables)
+
+    def open_by_key(self, key):
+        raise AssertionError("opening a spreadsheet fetches metadata a read does not need")
+
+
+def test_a_spreadsheet_is_read_without_being_opened(source):
+    """Opening one is a request for its metadata, and a load reads one per published day."""
+    src, _ = source
+    src.sheet_ids["skills"] = "skills-id"
+    src.client = FakeClient({"Skills": [["name"]], "Positions": []})
+    assert src.read("skills", "Skills") == [["name"]]
+    assert src.tabs("skills") == ["Skills", "Positions"]
+    assert src.tabs("skills") == ["Skills", "Positions"]  # asked once
+    calls = src.client.http_client.calls
+    assert calls == [("batch", "skills-id"), ("metadata", "skills-id")]
 
 
 def test_a_read_that_fails_for_another_reason_says_what_happened(source):
@@ -315,6 +352,7 @@ def sheets_source(tree, **config):
     src.folder_ids = {"root": "root"}
     src._open, src._tabs = {}, {}
     src._folders, src._discovered = {}, set()
+    src.cache, src._versions = None, {}
     src._drive = FakeDrive(tree)
     return src
 
@@ -383,3 +421,80 @@ def test_the_tree_is_walked_for_a_span_and_its_days():
         "Monday_1": "root/2027/Main Season/Session 1/Monday_1",
     }
     assert src.documents("root", ("2028",)) == {}  # a year that is not there holds nothing
+
+
+# -- the cache ---------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def cached(source, tmp_path):
+    """A source with a cache, whose config spreadsheet was listed at version 7."""
+    from puppet_strings.sheets.cache import SheetCache
+
+    src, spreadsheet = source
+    src.cache = SheetCache(tmp_path / "cache.sqlite")
+    src._versions = {"id": "7"}
+    return src, spreadsheet
+
+
+def reads(spreadsheet) -> int:
+    return sum(1 for call in spreadsheet.calls if call[0] == "batch")
+
+
+def test_a_spreadsheet_that_has_not_changed_is_read_off_disk(cached):
+    src, spreadsheet = cached
+    assert src.read_many("config", ["Blocks", "Empty"])["Blocks"] == [["a", "b"], ["1"]]
+    assert src.read_many("config", ["Blocks", "Empty"]) == {
+        "Blocks": [["a", "b"], ["1"]],
+        "Empty": [],
+    }
+    assert reads(spreadsheet) == 1
+    src.read("config", "Calendar")  # a tab not read before is asked for
+    assert reads(spreadsheet) == 2
+
+
+def test_a_new_version_is_read_again(cached):
+    src, spreadsheet = cached
+    src.read("config", "Blocks")
+    src._versions["id"] = "8"  # what the next listing said
+    spreadsheet.tables["Blocks"] = [["changed"]]
+    assert src.read("config", "Blocks") == [["changed"]]
+    assert reads(spreadsheet) == 2
+
+
+def test_after_a_refresh_nothing_is_trusted_until_it_is_listed_again(cached):
+    src, spreadsheet = cached
+    src.read("config", "Blocks")
+    src.refresh()
+    src.read("config", "Blocks")
+    assert reads(spreadsheet) == 2
+    src._listed([DriveFile("id", "Config", SHEET_MIME, "7")])
+    src.read("config", "Blocks")
+    assert reads(spreadsheet) == 2  # listed at the version it was read at
+
+
+def test_a_write_drops_what_was_kept(cached):
+    src, _ = cached
+    spreadsheet = WriteSpreadsheet({"Blocks": [["old"]], "Empty": [], "Calendar": []})
+    src._open["config"] = spreadsheet
+    src.read("config", "Blocks")
+    src.write("config", "Blocks", [["new"]])
+    spreadsheet.tables["Blocks"] = [["new"]]
+    assert src.read("config", "Blocks") == [["new"]]
+    assert src.cache.get("id", "7", ["Blocks"]) is None  # not kept: its version is unknown
+
+
+def test_tab_names_are_kept_by_version_too(cached):
+    src, spreadsheet = cached
+    assert src.tabs("config") == ["Blocks", "Empty", "Calendar"]
+    src.refresh()
+    src._versions["id"] = "7"
+    assert src.tabs("config") == ["Blocks", "Empty", "Calendar"]
+    assert spreadsheet.calls.count("worksheets") == 1
+
+
+def test_a_listing_reads_each_files_version():
+    from puppet_strings.drive import _file
+
+    assert _file({"id": "x", "name": "Skills", "version": 12}).version == "12"
+    assert _file({"id": "x"}).version == ""

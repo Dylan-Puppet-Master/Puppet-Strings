@@ -1,11 +1,11 @@
-"""Which Requests tab each group's new requests are written to.
+"""Which list each group's new requests go in.
 
 A group is a shelf in the request manager, and most shelves are about one thing: the
 special requests for a session sit on one, the standing agreements that hold all season on
 another. Saying so once, on the group, saves saying it on every request made there.
 
 Only *new* requests are affected. A request already written somewhere stays where it is —
-its tab is when it applies, and changing that because a group's default changed would move
+its list is when it applies, and changing that because a group's default changed would move
 requests nobody asked to move.
 """
 

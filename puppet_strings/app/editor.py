@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 from puppet_strings.app import palette
 from puppet_strings.model import WRITABLE_PRIORITIES, Dataset, Priority, Request
 from puppet_strings.names import normalize
-from puppet_strings.sheets.requests import request_tabs, special_tab
+from puppet_strings.requests_db import request_lists, special_list
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
@@ -231,8 +231,8 @@ class RequestEditor(QWidget):
         self.weight_box.setValue(1)
         self.tags_edit = QLineEdit()
         self.tags_edit.setPlaceholderText("comma-separated")
-        # Which tab of the Requests sheet it is written on, which is also which loads read
-        # it: this span's Special tab unless it is something that holds all season.
+        # Which list it is filed in, which is also which loads read it: this span's
+        # Special list unless it is something that holds all season.
         self.home_box = QComboBox()
         # The shelf the request sits on. It is shown, not chosen: a new request joins the
         # group the pane is on, and an existing one is moved by dragging its row onto
@@ -260,7 +260,7 @@ class RequestEditor(QWidget):
         form.addRow("priority", self.priority_box)
         form.addRow("weight", self.weight_box)
         form.addRow("tags", self.tags_edit)
-        form.addRow("on tab", self.home_box)
+        form.addRow("in list", self.home_box)
         form.addRow("group", self.group_label)
         form.addRow("requester", self.requester_edit)
         form.addRow("created", self.created_label)
@@ -290,21 +290,21 @@ class RequestEditor(QWidget):
     def set_dataset(self, dataset: Dataset | None, groups: list[str] | None = None) -> None:
         """Names are validated and suggested against this dataset."""
         self.dataset = dataset
-        self._fill_homes(request_tabs(dataset.this_span) if dataset else ())
+        self._fill_homes(request_lists(dataset.this_span) if dataset else ())
         self.groups = list(groups or [])
         self.requester_names.setStringList(sorted(dataset.staff) if dataset else [])
         self.skedge_edit.set_dataset(dataset)
         self.validate()
 
     def _fill_homes(self, tabs: tuple[str, ...], keep: str = "") -> None:
-        """Offer the tabs of the span being scheduled, plus whichever one `keep` names.
+        """Offer the lists of the span being scheduled, plus whichever one `keep` names.
 
-        A request read from another span's tab — one looked at after the date was moved —
-        keeps its own tab in the list, so opening it does not quietly propose moving it.
+        A request read from another span's list — one looked at after the date was moved —
+        keeps its own list on offer, so opening it does not quietly propose moving it.
         """
         chosen = keep or self.home_box.currentText()
         if not chosen and self.dataset is not None:
-            chosen = special_tab(self.dataset.this_span)
+            chosen = special_list(self.dataset.this_span)
         self.home_box.blockSignals(True)
         self.home_box.clear()
         extra = [chosen] if chosen and chosen not in tabs else []
@@ -314,7 +314,9 @@ class RequestEditor(QWidget):
 
     def show_request(self, request: Request) -> None:
         """Load a request into the fields."""
-        self._fill_homes(request_tabs(self.dataset.this_span) if self.dataset else (), request.home)
+        self._fill_homes(
+            request_lists(self.dataset.this_span) if self.dataset else (), request.home
+        )
         self.original_id = request.id
         self.id_label.setText(request.id)
         self.description_edit.setText(request.description)
@@ -334,15 +336,15 @@ class RequestEditor(QWidget):
         self.group_label.setText(group or "none — drag the row onto a group to move it")
 
     def clear(self, group: str = "", home: str = "") -> None:
-        """Start a new request, on the group being shown and that group's own tab.
+        """Start a new request, on the group being shown and in that group's own list.
 
-        `home` is the group's default tab when it has one; without it the request goes to
-        this span's Special tab, which is where a request asked for this session belongs.
+        `home` is the group's default list when it has one; without it the request goes in
+        this span's Special list, which is where a request asked for this session belongs.
         """
         self.show_group(group)
-        self._fill_homes(request_tabs(self.dataset.this_span) if self.dataset else (), home)
+        self._fill_homes(request_lists(self.dataset.this_span) if self.dataset else (), home)
         if self.dataset is not None and not home:
-            self.home_box.setCurrentText(special_tab(self.dataset.this_span))
+            self.home_box.setCurrentText(special_list(self.dataset.this_span))
         self.original_id = None
         self.id_label.setText("(assigned on save)")
         self.description_edit.clear()

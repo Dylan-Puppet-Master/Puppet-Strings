@@ -22,15 +22,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from puppet_strings.config import load_config  # noqa: E402
 from puppet_strings.names import normalize  # noqa: E402
+from puppet_strings.requests_db import FIXTURE_FILE, RequestDb  # noqa: E402
 from puppet_strings.session import open_source  # noqa: E402
 from puppet_strings.sheets.calendar import parse_calendar  # noqa: E402
 from puppet_strings.sheets.load import load_dataset  # noqa: E402
-from puppet_strings.sheets.requests import COLUMNS, REQUESTS_SHEET, SEASON_TAB  # noqa: E402
 from puppet_strings.sheets.schedules import ROOT  # noqa: E402
 from puppet_strings.sheets.source import CsvSource, LoadError, _too_fast  # noqa: E402
 from puppet_strings.training import session as training  # noqa: E402
 
 OUT = Path(__file__).resolve().parent.parent / "puppet_strings" / "training" / "data"
+# The trainer practises writing requests, so a snapshot has none: no file, nothing read.
+NO_REQUESTS = RequestDb(OUT / FIXTURE_FILE)
 DROPPED_TABS = {"Assignments", "Staff View", "Clinic View", "Report", "Changes"}
 
 
@@ -63,10 +65,9 @@ class Recorder:
         return self.cache[sheet, tab]
 
     def _keep(self, sheet, tab, table) -> None:
-        """Remember a tab, and write it as CSV unless it holds the requests."""
+        """Remember a tab, and write it as CSV."""
         self.cache[sheet, tab] = table
-        if sheet != REQUESTS_SHEET:
-            self.out.write(self._path(sheet), tab, table)
+        self.out.write(self._path(sheet), tab, table)
 
     def tabs(self, sheet):
         """A spreadsheet's tab names."""
@@ -122,7 +123,7 @@ def _prune_mappings(out: CsvSource, config, day) -> None:
     config = replace(config, folders=training.CONFIG.folders)  # read as the trainer reads it
     while True:
         try:
-            load_dataset(out, config, day, history=False)
+            load_dataset(out, config, day, history=False, requests=NO_REQUESTS)
             return
         except LoadError as e:
             found = re.match(r"Mappings/(\w+) row (\[.*?\]):", str(e))
@@ -153,12 +154,11 @@ def main() -> int:
     for day in span.dates:
         print(f"reading {day}")
         try:
-            load_dataset(source, config, day, history=False)
+            load_dataset(source, config, day, history=False, requests=NO_REQUESTS)
         except LoadError as e:
             # The mappings are checked last, against whoever is on staff that day, and the
             # live ones are kept for the session being run now; everything was read by then.
             print(f"  {e}")
-    out.write(REQUESTS_SHEET, SEASON_TAB, [list(COLUMNS)])
     _prune_mappings(out, config, span.dates[0])
     print(f"wrote {OUT}")
     return 0

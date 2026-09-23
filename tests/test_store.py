@@ -18,7 +18,7 @@ from puppet_strings.app.store import RequestStore  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
 from puppet_strings.model import DEFAULT_GROUPS  # noqa: E402
 from puppet_strings.sheets.source import CsvSource  # noqa: E402
-from tests.conftest import TARGET  # noqa: E402
+from tests.conftest import TARGET, saved_requests  # noqa: E402
 
 
 def test_group_names_ignore_case_and_spacing():
@@ -71,10 +71,7 @@ def test_renaming_and_deleting_a_group_rewrite_the_sheet(fixtures_copy):
     assert s.rename_group("Ropes rewrite", "Ropes") == "Ropes"
     assert s.rename_group("Ropes", "Special daily requests") == ""  # a name already taken
     assert s.rename_group("Ropes", " ") == ""
-    written = s.source.read("requests", "Season Requests")
-    column = written[0].index("group")
-    row = next(r for r in written if r[0] == "breaks")
-    assert row[column] == "Ropes"
+    assert saved_requests(s.source.root, "Season Requests")["breaks"].group == "Ropes"
     s.delete_group("ropes")
     assert "Ropes" not in s.groups
     assert all(r.group != "Ropes" for r in s.requests)

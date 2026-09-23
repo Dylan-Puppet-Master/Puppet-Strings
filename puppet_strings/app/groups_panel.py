@@ -23,7 +23,7 @@ from puppet_strings.app import palette
 from puppet_strings.app.groups import ALL, DEFAULT_GROUPS, UNGROUPED
 from puppet_strings.app.requests_model import REQUEST_IDS, request_ids
 from puppet_strings.app.store import RequestStore
-from puppet_strings.sheets.requests import request_tabs
+from puppet_strings.requests_db import request_lists
 
 
 class GroupList(QListWidget):
@@ -189,13 +189,13 @@ class GroupsPane(QWidget):
         item = QListWidgetItem(f"{name}  ({count})")
         item.setData(Qt.UserRole, name)
         if tab:
-            item.setToolTip(f"New requests here are written to {tab}")
+            item.setToolTip(f"New requests here go in {tab}")
         if name in (ALL, UNGROUPED):
             item.setForeground(QColor(palette.QUIET))
         self.list.addItem(item)
 
     def _tab_menu(self, point) -> None:
-        """Right-click a group to say which Requests tab its new requests go to."""
+        """Right-click a group to say which list its new requests go in."""
         item = self.list.itemAt(point)
         group = item.data(Qt.UserRole) if item else None
         if group is None or group in (ALL, UNGROUPED):
@@ -203,16 +203,16 @@ class GroupsPane(QWidget):
         menu = QMenu(self)
         chosen = self.store.group_tabs.of(group)
         for tab in ("", *self._tabs()):
-            action = menu.addAction(tab or "No tab of its own")
+            action = menu.addAction(tab or "No list of its own")
             action.setCheckable(True)
             action.setChecked(tab == chosen)
             action.triggered.connect(lambda _=False, t=tab: self._set_tab(group, t))
         menu.exec(self.list.viewport().mapToGlobal(point))
 
     def _tabs(self) -> tuple[str, ...]:
-        """The tabs a request could be written to, for the span being scheduled."""
+        """The lists a request could go in, for the span being scheduled."""
         dataset = self.store.dataset
-        return request_tabs(dataset.this_span) if dataset is not None else ()
+        return request_lists(dataset.this_span) if dataset is not None else ()
 
     def _set_tab(self, group: str, tab: str) -> None:
         """Remember where this group's new requests go, and say so on the label."""
