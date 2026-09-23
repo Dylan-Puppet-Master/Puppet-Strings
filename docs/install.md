@@ -189,8 +189,8 @@ puppet-strings --date 2026-06-15 solve
 
 `names` lists every name you can use in a request. `validate` checks every request.
 `load-offerings` turns the Offerings tab into requests for that date, replacing ones
-loaded before. `solve` prints the
-schedule for a date without publishing it. If any command reports a
+imported before. `solve` prints the schedule for a date without publishing it, importing
+the date's clinics first if none are imported yet. If any command reports a
 load error, it names the sheet, tab and row to fix.
 
 ## Working offline

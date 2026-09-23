@@ -271,7 +271,7 @@ exactly the days of its scope and the rest of the season never sees it.
 
 | Scope | Read on | For |
 |---|---|---|
-| Day | That one date | The clinics **Load offerings** makes, which are the day's alone, and anything asked of one day. |
+| Day | That one date | The clinics imported from the Offerings tab, which are the day's alone, and anything asked of one day. |
 | Week | Every date of its week of the session | A week's arrangements. |
 | Session | Every date of its session | What was asked of one session in particular. A new request is scoped to its session unless you say otherwise. |
 | Season | Every date of the year's season | What holds all season: the legal limits, the standing agreements. |
@@ -282,8 +282,9 @@ manager offers the day, week, session and season of the date being scheduled. A 
 Skedge can still narrow the days it is about, with `ON`: its scope says when it is read,
 and its Skedge what it asks for once it is.
 
-Loading a day's offerings again throws that day's generated requests away and makes them
-again, so nothing scoped to a day by **Load offerings** is worth editing by hand.
+A load imports a day's clinics only when it has none tagged `clinic_import`, so edits to
+them last until **Load offerings** is pressed, which throws the day's imported requests away
+and makes them again.
 
 Each request has these fields, all edited in the request manager:
 
@@ -294,7 +295,7 @@ Each request has these fields, all edited in the request manager:
 | `skedge` | The request itself; see the [Skedge reference](skedge.md). |
 | `priority` | One of `MUST_HAPPEN`, `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. `STABILITY` is the solver's own during a [same-day change](same-day.md) and is never a request's. |
 | `weight` | A positive number, 1 unless said otherwise. Always 1 with `MUST_HAPPEN`. |
-| `tags` | Any labels you like, for filtering in the request manager. Requests made from the Offerings tab carry the tag `generated`. |
+| `tags` | Any labels you like, for filtering in the request manager. Requests made from the Offerings tab carry the tag `clinic_import`. |
 | `group` | The one [group](app.md#groups) the request is on in the request manager, such as `Special daily requests`, or none. |
 | `requester` | Who asked for this, as a staff name: `mary_kate`. None if it is nobody's in particular. A name that is not on the Skills sheet makes the request invalid, so a typo is caught rather than lost. |
 | `created` | The date it was made, for the record. |

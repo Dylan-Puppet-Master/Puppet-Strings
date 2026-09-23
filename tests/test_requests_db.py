@@ -39,7 +39,7 @@ def test_a_load_reads_what_covers_the_day_broadest_first(book, dataset):
     assert first.tags == ("legal", "counselors")
     assert first.group == "Special daily requests" and first.requester == "lucy"
     assert requests[3].weight == 0.5
-    assert requests[-1].tags == ("generated",) and requests[-1].group == ""
+    assert requests[-1].tags == ("clinic_import",) and requests[-1].group == ""
 
 
 def test_a_scope_is_read_on_every_day_it_covers_and_no_other(tmp_path):
@@ -121,7 +121,7 @@ def test_scopes_around_a_date(dataset):
 
 def test_an_unscoped_request_is_this_sessions_or_a_generated_one_this_days(dataset):
     assert scope_for(request("x", None), dataset) == dataset.scope(SESSION)
-    generated = request("offering:x", None, tags=("generated",))
+    generated = request("offering:x", None, tags=("clinic_import",))
     assert scope_for(generated, dataset) == dataset.scope(DAY)
     assert scope_for(request("y", SEASON_2026), dataset) == SEASON_2026
 
@@ -227,7 +227,7 @@ def test_a_request_saved_in_the_app_is_in_the_file(fixtures_copy):
 
 
 def test_one_days_offerings_are_not_another_days(fixtures_copy):
-    """Load offerings scopes them to the day, so the next day's load does not read them."""
+    """Imported clinics are scoped to the day, so the next day's load does not read them."""
     from puppet_strings.app.store import RequestStore
     from puppet_strings.sheets.source import CsvSource
     from tests.conftest import CONFIG, TARGET
@@ -235,9 +235,21 @@ def test_one_days_offerings_are_not_another_days(fixtures_copy):
     store = RequestStore(CsvSource(fixtures_copy), CONFIG)
     store.load(TARGET)
     assert store.offerings_loaded
-    store.load(date(2026, 9, 17))
-    assert not store.offerings_loaded and not [r for r in store.requests if "generated" in r.tags]
-    store.load_offerings()
+    store.load(date(2026, 9, 17))  # which imports that day's own
+    imported = [r.id for r in store.requests if "clinic_import" in r.tags]
+    assert store.imported == len(imported) > 0
+    assert all(i.startswith("offering:2026-09-17:") for i in imported)
     store.load(TARGET)
-    ids = {r.id for r in store.requests if "generated" in r.tags}
+    assert store.imported == 0  # already imported
+    ids = {r.id for r in store.requests if "clinic_import" in r.tags}
     assert ids and all(i.startswith("offering:2026-09-16:") for i in ids)
+
+
+def test_the_old_generated_tag_is_renamed_on_open(fixtures_copy):
+    """A file from before the rename would otherwise import every day's clinics again."""
+    with sqlite3.connect(fixtures_copy / FIXTURE_FILE) as db:
+        db.execute("UPDATE requests SET tags = 'generated, pin' WHERE tags = 'clinic_import'")
+    requests = RequestDb(fixtures_copy / FIXTURE_FILE).every()
+    imported = [r for r in requests if r.id.startswith("offering:")]
+    assert imported and all(r.tags == ("clinic_import", "pin") for r in imported)
+    assert not [r for r in requests if "generated" in r.tags]

@@ -557,6 +557,7 @@ class MainWindow(QMainWindow):
         state = "published" if dataset.baseline is not None else "not published"
         parts = [
             f"Loaded {len(self.store.requests)} requests",
+            *([f"imported {self.store.imported} clinics"] if self.store.imported else []),
             f"{dataset.target} is {state}",
             summary(conflicts),
             error_summary(errors),
@@ -703,7 +704,7 @@ class MainWindow(QMainWindow):
             return
         if not self.store.offerings_loaded:
             answer = QMessageBox.question(
-                self, "No offerings loaded", f"No offerings loaded for {self.target}. Solve anyway?"
+                self, "No clinics", f"No clinics imported for {self.target}. Solve anyway?"
             )
             if answer != QMessageBox.Yes:
                 return

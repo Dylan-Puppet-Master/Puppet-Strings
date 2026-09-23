@@ -10,7 +10,13 @@ from puppet_strings.app.group_scopes import GroupScopes
 from puppet_strings.app.groups import DEFAULT_GROUPS, clean, same_group
 from puppet_strings.config import Config
 from puppet_strings.exclude import apply_exclusions
-from puppet_strings.generate import generated_requests, has_offerings_loaded, is_generated, merge
+from puppet_strings.generate import (
+    generated_requests,
+    has_offerings_loaded,
+    import_if_missing,
+    is_generated,
+    merge,
+)
 from puppet_strings.model import Adjustment, Dataset, Request, Rest
 from puppet_strings.publish.writer import day_sheet
 from puppet_strings.requests_db import id_prefix, open_requests, scope_for
@@ -31,6 +37,7 @@ class RequestStore:
         self.config = config
         self.book = open_requests(config, source)
         self.dataset: Dataset | None = None
+        self.imported = 0  # clinics the last load imported from the Offerings tab
         self.requests: list[Request] = []
         self.facets: dict[str, Facets] = {}
         self.resolved: dict[str, tuple] = {}  # each request's copies, for the conflict finder
@@ -71,10 +78,12 @@ class RequestStore:
         Not the days behind it, though: what was published on them is the solver's
         business, nothing in the window asks, and there is a spreadsheet of them per day of
         the season so far. `for_solving` reads them when something is about to want them.
+
+        A date with no clinics imported yet has its Offerings tab imported on the way in;
+        `imported` says how many, for the window to report.
         """
-        self.dataset = load_dataset(
-            self.source, self.config, target, history=False, requests=self.book
-        )
+        dataset = load_dataset(self.source, self.config, target, history=False, requests=self.book)
+        self.dataset, self.imported = import_if_missing(dataset, self.book)
         self.requests = list(self.dataset.requests)
         self.facets, self.resolved = {}, {}
         for request in self.requests:

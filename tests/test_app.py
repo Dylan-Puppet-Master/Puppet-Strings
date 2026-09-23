@@ -69,7 +69,7 @@ def visible_ids(window):
 
 def test_table_and_filters(window):
     assert window.proxy.rowCount() == 31
-    window.tag_filter.setCurrentText("generated")
+    window.tag_filter.setCurrentText("clinic_import")
     assert window.proxy.rowCount() == 24
     window.tag_filter.setCurrentText("legal")
     assert visible_ids(window) == {"counselor-hours", "breaks"}
@@ -319,7 +319,7 @@ def test_load_offerings_mirrors_the_offerings_tab(window):
     window.wait_for_offerings()
     assert window.model.rowCount() == before - 1
     assert not [r for r in window.store.requests if "riflery" in r.id]
-    generated = [r for r in window.store.requests if "generated" in r.tags]
+    generated = [r for r in window.store.requests if "clinic_import" in r.tags]
     assert len(generated) == 23 and all(r.priority.value == "CLINIC" for r in generated)
 
 
@@ -340,9 +340,10 @@ def test_solve_uses_requests_saved_since_the_last_reload(app, tmp_path):
 
     copy = tmp_path / "fresh"
     shutil.copytree(FIXTURES, copy)
-    delete_requests(copy, "tags LIKE ?", "%generated%")
+    delete_requests(copy, "tags LIKE ?", "%clinic_import%")
     window = make_window(copy)
-    assert not window.store.offerings_loaded
+    assert window.store.offerings_loaded and window.store.imported  # imported by the load
+    assert "imported" in window.status_label.text()
     window.load_offerings()  # no Reload in between
     window.wait_for_offerings()
     assert window.store.offerings_loaded
@@ -1384,24 +1385,21 @@ def test_a_keyword_is_coloured_in_whichever_case_it_is_written_in(window):
 
 
 def test_another_days_offerings_are_not_shown(window):
-    """Offerings are the day's own: moving the date reads the new day, without the old one's."""
+    """Offerings are the day's own: moving the date reads the new day, without the old one's.
+
+    The new day has none imported yet, so the load imports its own.
+    """
     assert any(r.id.startswith("offering:2026-09-16:") for r in window.store.requests)
     window.date_edit.setDate(QDate(2026, 9, 17))
     window.date_edit.editingFinished.emit()  # the date box, finished with
     window.wait_for_load()
     assert window.store.dataset.target == date(2026, 9, 17)
-    assert not [r for r in window.store.requests if "generated" in r.tags]
-    window.load_offerings()
-    window.wait_for_offerings()
-    assert all(
-        r.id.startswith("offering:2026-09-17:")
-        for r in window.store.requests
-        if "generated" in r.tags
-    )
+    imported = [r for r in window.store.requests if "clinic_import" in r.tags]
+    assert imported and all(r.id.startswith("offering:2026-09-17:") for r in imported)
     window.date_edit.setDate(QDate(2026, 9, 16))
     window.date_edit.editingFinished.emit()
     window.wait_for_load()
-    generated = [r for r in window.store.requests if "generated" in r.tags]
+    generated = [r for r in window.store.requests if "clinic_import" in r.tags]
     assert generated and all(r.id.startswith("offering:2026-09-16:") for r in generated)
 
 

@@ -101,7 +101,7 @@ LIFEGUARD_RAL = 5
 
 # The groups the request manager sorts requests onto to begin with. A group is a label on
 # a request, so the ones the Puppet Master adds need nothing declared anywhere. Requests
-# made from the Offerings tab are on no shelf: the `generated` tag already tells them
+# made from the Offerings tab are on no shelf: the `clinic_import` tag already tells them
 # apart, and a group they filled by the dozen buried everything else.
 DEFAULT_GROUPS = ("Special daily requests", "Special weekly requests")
 

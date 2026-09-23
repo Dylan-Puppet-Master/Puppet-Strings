@@ -44,7 +44,7 @@ def _prerequisites(dataset, skedge):
 @pytest.mark.parametrize("name", list(EXAMPLES))
 def test_doc_example_solves(dataset, name):
     skedge = EXAMPLES[name]
-    offerings = tuple(r for r in dataset.requests if "generated" in r.tags)
+    offerings = tuple(r for r in dataset.requests if "clinic_import" in r.tags)
     example = as_written(skedge)
     single = replace(dataset, requests=offerings + _prerequisites(dataset, skedge) + (example,))
     result = solve(single, Config(time_limit_seconds=10, workers=4))

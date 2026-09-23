@@ -616,8 +616,8 @@ every example on this page against it.
 
 ### Clinic assignment
 
-Archery runs during clinic 2. **Load offerings** creates a request like this for every
-offered clinic, at `CLINIC` priority, tagged `generated`, naming every position on
+Archery runs during clinic 2. Loading a date creates a request like this for every
+offered clinic, at `CLINIC` priority, tagged `clinic_import`, naming every position on
 Clinic_Data. `EACH_OF` over the roles is what asks for a different person in each;
 `ALL_OF` would ask one person to hold both. The clinic runs fully staffed or not at all,
 so the positions stand together whichever way they are written.

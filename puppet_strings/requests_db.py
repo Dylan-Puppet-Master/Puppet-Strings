@@ -13,8 +13,8 @@ day's requests is one question of an index however many days the season has had,
 nothing needs a list of its own per day or per session.
 
 A request written in the app is scoped to its session unless it is scoped otherwise, and
-the clinics Load offerings makes are scoped to their day: they are that day's and nobody
-else's, and the next Load offerings of the day can throw them away without touching
+the clinics imported from the Offerings tab are scoped to their day: they are that day's
+and nobody else's, and the next Load offerings of the day can throw them away without touching
 anything written by hand.
 
 A folder of fixtures carries its own `requests.sqlite`, so a copy of a session is one
@@ -28,7 +28,7 @@ from itertools import count
 from pathlib import Path
 
 from puppet_strings.config import Config
-from puppet_strings.generate import GENERATED_TAG
+from puppet_strings.generate import IMPORT_TAG
 from puppet_strings.local_db import LocalDb, connect, marks
 from puppet_strings.model import (
     DAY,
@@ -50,6 +50,7 @@ __all__ = ["FIXTURE_FILE", "RequestDb", "open_requests"]
 SUFFIX = ".sqlite"
 SCHEMA_VERSION = "2"
 DEFAULT_SCOPE = SESSION  # what a request written in the app is read over, unless it says
+OLD_IMPORT_TAG = "generated"  # what IMPORT_TAG was called before, renamed on open
 
 _FIELDS = (
     "id",
@@ -107,7 +108,7 @@ def scope_for(request: Request, dataset: Dataset) -> Scope:
     """The request's own scope, or the one its kind implies around the date scheduled."""
     if request.scope is not None:
         return request.scope
-    return dataset.scope(DAY if GENERATED_TAG in request.tags else DEFAULT_SCOPE)
+    return dataset.scope(DAY if IMPORT_TAG in request.tags else DEFAULT_SCOPE)
 
 
 def describe(scope: Scope) -> str:
@@ -147,6 +148,7 @@ class RequestDb(LocalDb):
         """A file from another version of the app is refused before it is read as this one."""
         _same_version(db, self.path)
         db.executescript(_TABLES)
+        _retag_imports(db)
 
     def read(self, day: date) -> tuple[Request, ...]:
         """Every request whose scope covers `day`, broadest scope first.
@@ -228,6 +230,7 @@ class RequestDb(LocalDb):
         with self._open() as db:
             db.execute("DELETE FROM requests")
             db.executemany(_PUT, rows)
+            _retag_imports(db)
         return len(rows), kept
 
 
@@ -239,6 +242,23 @@ def open_requests(config: Config, source: Source | None) -> RequestDb:
 
 def _count(db) -> int:
     return db.execute("SELECT count(*) FROM requests").fetchone()[0]
+
+
+def _retag_imports(db: sqlite3.Connection) -> None:
+    """Rename the old `generated` tag on imported clinics to IMPORT_TAG.
+
+    The tag is how a load knows a day's clinics are already imported, so a file from before
+    the rename would otherwise import them all again on top of the old ones.
+    """
+    rows = db.execute(
+        """SELECT "id", "tags" FROM requests WHERE "id" LIKE 'offering:%' AND "tags" LIKE ?""",
+        (f"%{OLD_IMPORT_TAG}%",),
+    ).fetchall()
+    for id, tags in rows:
+        renamed = [IMPORT_TAG if t == OLD_IMPORT_TAG else t for t in split_list(tags)]
+        db.execute('UPDATE requests SET "tags" = ? WHERE "id" = ?', (", ".join(renamed), id))
+    if rows:
+        db.commit()
 
 
 def _same_version(db: sqlite3.Connection, where: Path) -> None:

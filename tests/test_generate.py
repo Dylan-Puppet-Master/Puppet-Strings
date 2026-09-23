@@ -1,6 +1,11 @@
 from datetime import date
 
-from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
+from puppet_strings.generate import (
+    generated_requests,
+    has_offerings_loaded,
+    import_if_missing,
+    merge,
+)
 from puppet_strings.model import Priority, Request
 from puppet_strings.skedge.validate import validate_request
 
@@ -14,7 +19,7 @@ def test_generated_requests_cover_every_offering(dataset):
         "REQUEST activities.clinics.pole_course_explore_level_1_2_dbl "
         "DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2} ON 2026-09-16"
     )
-    assert double.priority is Priority.CLINIC and double.tags == ("generated",)
+    assert double.priority is Priority.CLINIC and double.tags == ("clinic_import",)
     assert double.created == date(2026, 9, 16)
 
 
@@ -59,7 +64,7 @@ def test_every_generated_request_validates(dataset):
 
 
 def test_merge_drops_the_dates_old_generated_requests_and_keeps_the_rest():
-    tag = ("generated",)
+    tag = ("clinic_import",)
     old = Request("offering:2026-09-16:riflery:clinic_3", "old", "x", Priority.CLINIC, tags=tag)
     gone = Request("offering:2026-09-16:salsa:clinic_4", "", "x", Priority.CLINIC, tags=tag)
     other_day = Request("offering:2026-09-15:salsa:clinic_4", "", "x", Priority.CLINIC, tags=tag)
@@ -73,3 +78,36 @@ def test_merge_drops_the_dates_old_generated_requests_and_keeps_the_rest():
 def test_has_offerings_loaded(dataset):
     assert has_offerings_loaded(dataset.requests, date(2026, 9, 16))
     assert not has_offerings_loaded(dataset.requests, date(2026, 9, 17))
+
+
+class _Book:
+    def __init__(self):
+        self.put_calls = []
+
+    def put(self, requests):
+        self.put_calls.append(list(requests))
+
+
+def test_import_if_missing_imports_a_day_with_none(dataset):
+    from dataclasses import replace
+
+    bare = replace(
+        dataset, requests=tuple(r for r in dataset.requests if "clinic_import" not in r.tags)
+    )
+    book = _Book()
+    imported, count = import_if_missing(bare, book)
+    assert count == len(dataset.offerings) == len(book.put_calls[0])
+    assert has_offerings_loaded(imported.requests, dataset.target)
+
+
+def test_import_if_missing_leaves_a_day_that_has_some(dataset):
+    book = _Book()
+    assert import_if_missing(dataset, book) == (dataset, 0) and not book.put_calls
+
+
+def test_import_if_missing_skips_an_empty_offerings_tab(dataset):
+    from dataclasses import replace
+
+    empty = replace(dataset, requests=(), offerings=())
+    book = _Book()
+    assert import_if_missing(empty, book) == (empty, 0) and not book.put_calls

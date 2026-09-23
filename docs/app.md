@@ -17,8 +17,8 @@ Reading the sheets and loading the offerings both put up a progress panel, the o
 solver uses, without a Cancel button: neither can usefully be stopped part-way, but both
 take long enough over Google Sheets to be worth saying so. Both run off the window's own
 thread, so the panel keeps painting and the window stays alive while they work.
-**Load offerings** turns the Offerings tab into one `CLINIC` request per offered clinic,
-tagged `generated`, and saves them to the session's `Clinics` tab. Such a request names every
+Loading a date imports its Offerings tab as one `CLINIC` request per offered clinic,
+tagged `clinic_import`, and saves them to the session's `Clinics` tab. Such a request names every
 position on Clinic_Data, so a clinic wanting a facilitator, a second and a lifeguard
 reads:
 
@@ -37,13 +37,17 @@ Offerings grid copied from the Clinic Schedule template and its other tabs empty
 nobody has set up is one click from being ready, and the click after that reads what you
 put in the grid.
 
-Loading first removes every generated request for the target date, so the requests mirror
-that day's Offerings tab: a clinic you removed there disappears here. The generated requests
-are that day's alone, filed in its own Clinics list, so no other day shows them. Hand-written requests are
-never touched. Between loads you can delete a generated request to drop that clinic, or
-edit it, for example to replace `ANY 1 staff.all` with a category to limit who runs it;
-loading again undoes such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
-clinic view and the report; it asks first if no offerings are loaded for the date.
+A load imports the clinics only when the date has no `clinic_import` requests yet, so once
+a day's clinics are in, reloading leaves them as they are, edits and deletions included. A
+day whose Offerings tab is still empty imports nothing, and the next load tries again.
+
+**Load offerings** imports them again on purpose. It first removes every imported request
+for the target date, so the requests mirror that day's Offerings tab: a clinic you removed
+there disappears here. The imported requests are that day's alone, filed in its own Clinics
+list, so no other day shows them. Hand-written requests are never touched. You can delete
+an imported request to drop that clinic, or edit it, for example to replace `ANY 1
+staff.all` with a category to limit who runs it; **Load offerings** undoes such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
+clinic view and the report; it asks first if the date has no clinics imported.
 **Publish** in that window writes the day's own spreadsheet in the
 [schedules tree](sheets.md#the-schedules-tree), asking first if the date is already
 published.
@@ -79,7 +83,7 @@ group at all, which is how a request that has been forgotten about turns up.
 
 Two groups are always there — **Special daily requests** and **Special weekly
 requests** — and you make the rest. Requests made from the Offerings tab are on no shelf,
-so they sit under `Ungrouped`: there are dozens of them and the `generated` tag and the
+so they sit under `Ungrouped`: there are dozens of them and the `clinic_import` tag and the
 `CLINIC` priority already tell them apart. **New** asks for a name, **Rename**
 renames a group everywhere it is used, and **Delete** takes a group off its requests
 without deleting the requests themselves. The two default groups cannot be renamed or
@@ -181,7 +185,7 @@ that is, since that is usually what was meant.
 The same two rules apply as to conflicts. Only what is **settled** is read: `ANY 1
 staff.all` names nobody in particular, so nobody in particular is unqualified — the solver
 picks somebody who is checked off, and that is its job. And a day with nothing offered yet
-is not a day of errors: until **Load offerings** has been pressed nothing is offered, which
+is not a day of errors: until its Offerings tab is filled in nothing is offered, which
 is one thing to see to rather than fifty.
 
 Asking for somebody who is not checked off is not a `MUST_HAPPEN` question, so an error is

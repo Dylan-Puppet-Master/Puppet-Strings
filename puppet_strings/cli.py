@@ -8,7 +8,12 @@ from pathlib import Path
 
 from puppet_strings import __version__
 from puppet_strings.config import Config, load_config
-from puppet_strings.generate import generated_requests, has_offerings_loaded, is_generated
+from puppet_strings.generate import (
+    generated_requests,
+    has_offerings_loaded,
+    import_if_missing,
+    is_generated,
+)
 from puppet_strings.google_auth import AuthError
 from puppet_strings.model import Dataset
 from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
@@ -114,8 +119,11 @@ def _run(args, config: Config, target: date) -> int:
     if args.same_day and dataset.baseline is None:
         print(f"error: {dataset.target} has no published schedule to change", file=sys.stderr)
         return 1
-    if not has_offerings_loaded(dataset.requests, dataset.target):
-        print(f"warning: no offerings loaded for {dataset.target}; run load-offerings first")
+    dataset, imported = import_if_missing(dataset, open_requests(config, source))
+    if imported:
+        print(f"imported {imported} clinics for {dataset.target}")
+    elif not has_offerings_loaded(dataset.requests, dataset.target):
+        print(f"warning: no clinics imported for {dataset.target}; its Offerings tab is empty")
     for adjustment in dataset.today_adjustments:
         print(f"today: {adjustment.describe(dataset.staff[adjustment.staff].name)}")
     return _solve(source, config, dataset, args)

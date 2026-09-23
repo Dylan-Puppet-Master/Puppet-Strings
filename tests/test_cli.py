@@ -38,20 +38,20 @@ def test_solve_publishes_to_fixture_copy(tmp_path, capsys):
     assert main(args + ["--force"]) == 0
 
 
-def test_load_offerings_and_missing_warning(tmp_path, capsys):
+def test_solve_imports_the_clinics_once(tmp_path, capsys):
     import shutil
 
     copy = tmp_path / "fixtures"
     shutil.copytree(FIXTURES, copy)
     assert main(["--fixtures", str(copy), "--date", "2026-09-17", "solve"]) == 0
-    assert "no offerings loaded for 2026-09-17" in capsys.readouterr().out
-    assert main(["--fixtures", str(copy), "--date", "2026-09-17", "load-offerings"]) == 0
-    assert "loaded 24 offerings for 2026-09-17" in capsys.readouterr().out
+    assert "imported 24 clinics for 2026-09-17" in capsys.readouterr().out
     offering = saved_requests(copy)["offering:2026-09-17:riflery:clinic_3"]
-    assert "generated" in offering.tags and offering.scope.kind == "day"
+    assert "clinic_import" in offering.tags and offering.scope.kind == "day"
     assert offering.scope.first == offering.scope.last == date(2026, 9, 17)
     assert main(["--fixtures", str(copy), "--date", "2026-09-17", "solve"]) == 0
-    assert "no offerings loaded" not in capsys.readouterr().out
+    assert "imported" not in capsys.readouterr().out
+    assert main(["--fixtures", str(copy), "--date", "2026-09-17", "load-offerings"]) == 0
+    assert "loaded 24 offerings for 2026-09-17" in capsys.readouterr().out
 
 
 def test_missing_calendar_date_is_an_error(capsys):
