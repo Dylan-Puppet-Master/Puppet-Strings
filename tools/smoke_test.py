@@ -3,10 +3,12 @@
     python tools/smoke_test.py dist/puppet-strings-linux
 
 The spec leaves out Qt plugins and libraries the app does not use, and what it leaves out
-can only be told apart from what it needs by running the result. This solves a day of the
-fixture sheets, which takes OR-Tools, numpy and pandas as packaged, and opens the request
-manager and the trainer offscreen, each of which must still be running after a while. A
-missing library shows up as an exit, where a working window only ever waits.
+can only be told apart from what it needs by running the result. This first has the
+executable import everything it can reach (`self-check`), since the rest runs offline and
+never loads what signing in to Google does. Then it solves a day of the fixture sheets,
+which takes OR-Tools as packaged, and opens the request manager and the trainer
+offscreen, each of which must still be running after a while. A missing library shows up
+as an exit, where a working window only ever waits.
 """
 
 import contextlib
@@ -45,6 +47,13 @@ def main() -> int:
     """Run each check and report the first that fails. Returns the exit code."""
     executable = str(Path(sys.argv[1]).resolve())
     env = {**os.environ, "QT_QPA_PLATFORM": "offscreen"}
+    check = subprocess.run(
+        [executable, "self-check"], env=env, cwd=ROOT, timeout=SOLVE_SECONDS, check=False
+    )
+    if check.returncode != 0:
+        print(f"self-check exited with {check.returncode}", file=sys.stderr)
+        return 1
+    print("self-check: ok")
     solve = [executable, "--fixtures", str(FIXTURES), "--date", "2026-09-16", "solve"]
     done = subprocess.run(solve, env=env, cwd=ROOT, timeout=SOLVE_SECONDS, check=False)
     if done.returncode != 0:

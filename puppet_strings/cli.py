@@ -71,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("folder", type=Path)
     commands.add_parser("app", help="open the desktop request manager (the default)")
     commands.add_parser("train", help="practise writing Skedge, offline, on a real session")
+    commands.add_parser("self-check", help="import everything, to check an install is whole")
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
@@ -84,6 +85,10 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run(args, config: Config, target: date) -> int:
+    if args.command == "self-check":
+        from puppet_strings.self_check import self_check
+
+        return self_check()
     if args.command == "train":
         from puppet_strings.training.app import run_training
 

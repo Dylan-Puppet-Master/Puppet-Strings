@@ -117,3 +117,9 @@ def test_requests_are_handed_over_as_a_file(tmp_path, capsys):
     (tmp_path / "notes.txt").write_text("not requests")
     assert main(["--fixtures", str(copy), "import-requests", str(tmp_path / "notes.txt")]) == 1
     assert "not a Puppet Strings requests file" in capsys.readouterr().err
+
+
+def test_self_check_imports_everything_the_app_can_reach(capsys):
+    """What the packaged smoke test runs first, so a dropped library fails the build."""
+    assert main(["self-check"]) == 0
+    assert "0 failed" in capsys.readouterr().out

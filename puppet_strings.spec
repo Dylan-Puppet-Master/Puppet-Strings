@@ -77,15 +77,20 @@ def _only_needed(binaries: list) -> list:
 
     PyInstaller collects a plugin's system libraries beside it, and they stay when the plugin
     goes. A library is kept when an extension module, a plugin or a library already kept
-    links it. Only libraries at the top of the bundle are candidates: everything in a
-    package's own folder is that package's business, and on Windows and macOS libraries are
-    also loaded by name, which linking cannot show.
+    links it. Only shared libraries at the top of the bundle are candidates: everything in
+    a package's own folder is that package's business; a Python extension module there
+    (`_cffi_backend`, which signing in to Google needs) is imported, which no link shows;
+    and on Windows and macOS libraries are also loaded by name, which linking cannot show.
     """
     by_name: dict[str, list[str]] = {}  # a library may be bundled in more than one place
     for dest, _, _ in binaries:
         by_name.setdefault(os.path.basename(dest), []).append(dest)
     source = {dest: src for dest, src, _ in binaries}
-    candidates = {dest for dest in source if os.sep not in dest and "/" not in dest}
+    candidates = {
+        dest
+        for dest, _, kind in binaries
+        if kind == "BINARY" and os.sep not in dest and "/" not in dest
+    }
     candidates = {d for d in candidates if not os.path.basename(d).startswith("libpython")}
     keep, todo = set(), [dest for dest in source if dest not in candidates]
     while todo:

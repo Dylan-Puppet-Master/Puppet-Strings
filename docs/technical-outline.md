@@ -92,6 +92,7 @@ random_seed        = 0
 | `puppet-strings export-fixtures DIR` | Download every sheet tab as CSV, and copy the requests to `DIR/requests.sqlite`. Used to refresh test fixtures and to work offline. |
 | `puppet-strings export-requests FILE` | Copy the requests to a file for another Puppet Master. |
 | `puppet-strings import-requests FILE` | Replace the requests with that file's, keeping the old ones in `requests.before-import.sqlite`. |
+| `puppet-strings self-check` | Import every module the app can reach, including what only signing in to Google loads. The release build runs it on each packaged executable first. |
 | `puppet-strings app` | Open the desktop request manager. |
 
 Every command accepts `--fixtures DIR` to read CSVs instead of Google Sheets, and the requests in `DIR/requests.sqlite` instead of this computer's; `--no-cache` reads every sheet from Google.
