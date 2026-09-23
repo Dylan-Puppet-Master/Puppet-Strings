@@ -143,7 +143,11 @@ executable = EXE(  # noqa: F821
     analysis.binaries,
     analysis.datas,
     name=f"puppet-strings-{PLATFORM}",
-    console=False,
+    # A windowed Windows executable has no output, and an uncaught error there opens a
+    # dialog that waits for a click, which on CI never comes. A console one that hides its
+    # own window prints to a terminal it was started from and opens only the app otherwise.
+    console=PLATFORM == "windows",
+    hide_console="hide-early" if PLATFORM == "windows" else None,
     onefile=True,
     strip=PLATFORM == "linux",  # macOS libraries are signed, and stripping breaks that
     upx=False,
