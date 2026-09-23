@@ -1,4 +1,5 @@
 import re
+from datetime import date
 
 from puppet_strings.cli import main
 from tests.conftest import FIXTURES, saved_requests
@@ -46,8 +47,9 @@ def test_load_offerings_and_missing_warning(tmp_path, capsys):
     assert "no offerings loaded for 2026-09-17" in capsys.readouterr().out
     assert main(["--fixtures", str(copy), "--date", "2026-09-17", "load-offerings"]) == 0
     assert "loaded 24 offerings for 2026-09-17" in capsys.readouterr().out
-    clinics = saved_requests(copy, "2026-09-17 Clinics")
-    assert "generated" in clinics["offering:2026-09-17:riflery:clinic_3"].tags
+    offering = saved_requests(copy)["offering:2026-09-17:riflery:clinic_3"]
+    assert "generated" in offering.tags and offering.scope.kind == "day"
+    assert offering.scope.first == offering.scope.last == date(2026, 9, 17)
     assert main(["--fixtures", str(copy), "--date", "2026-09-17", "solve"]) == 0
     assert "no offerings loaded" not in capsys.readouterr().out
 
@@ -109,11 +111,11 @@ def test_requests_are_handed_over_as_a_file(tmp_path, capsys):
     handed = tmp_path / "handed.sqlite"
     assert main(["--fixtures", str(copy), "export-requests", str(handed)]) == 0
     assert "exported 31 requests" in capsys.readouterr().out
-    delete_requests(copy, "home = ?", "Season Requests")
+    delete_requests(copy, "scope = ?", "season")
     assert main(["--fixtures", str(copy), "import-requests", str(handed)]) == 0
     said = capsys.readouterr().out
     assert "imported 31 requests" in said and "requests.before-import.sqlite" in said
-    assert "breaks" in saved_requests(copy, "Season Requests")
+    assert "breaks" in saved_requests(copy)
     (tmp_path / "notes.txt").write_text("not requests")
     assert main(["--fixtures", str(copy), "import-requests", str(tmp_path / "notes.txt")]) == 1
     assert "not a Puppet Strings requests file" in capsys.readouterr().err

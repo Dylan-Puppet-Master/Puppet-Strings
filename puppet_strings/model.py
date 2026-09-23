@@ -340,6 +340,30 @@ SOFT_TIERS = (
 WRITABLE_PRIORITIES = tuple(p for p in Priority if p is not Priority.STABILITY)
 
 
+# How far a request reaches, narrowest first. A request is read on every day its scope
+# covers, and on no other.
+DAY, WEEK, SESSION, SEASON = "day", "week", "session", "season"
+SCOPES = (DAY, WEEK, SESSION, SEASON)
+
+
+@dataclass(frozen=True)
+class Scope:
+    """The days a request is read on: one day, a week, a session, or the season.
+
+    The dates are settled from the Calendar when the request is scoped, `first` to `last`
+    inclusive, so a load finds its requests by date: one question however long the season
+    gets, and no list per day or per session to keep. The season is its calendar year.
+    """
+
+    kind: str
+    first: date
+    last: date
+
+    def covers(self, day: date) -> bool:
+        """Whether a request of this scope is read on `day`."""
+        return self.first <= day <= self.last
+
+
 @dataclass(frozen=True)
 class Request:
     """One request, as the requests file keeps it.
@@ -351,8 +375,8 @@ class Request:
     `description` is for people and may be left empty; the id is what names the request
     everywhere it is referred to, and is not made out of the description.
 
-    `home` is the list it is filed in — a session's Clinics or Special list, or the
-    season's — which decides which loads read it (`requests_db`).
+    `scope` is the days it is read on, and so the days it can do anything on; None only
+    for a request not saved yet, which saving scopes.
     """
 
     id: str
@@ -364,7 +388,7 @@ class Request:
     group: str = ""
     requester: str = ""
     created: date | None = None
-    home: str = ""
+    scope: Scope | None = None
 
 
 NUMERIC = "numeric"  # what a mapping's `value` says when it gives a number, not a name
@@ -562,6 +586,16 @@ class Dataset:
     def session_dates(self) -> tuple[date, ...]:
         """Dates of the span containing the target, in order."""
         return self.span_dates(self.this_span)
+
+    def scope(self, kind: str) -> Scope:
+        """The scope of this kind around the target: its day, week, session or season."""
+        if kind == DAY:
+            return Scope(DAY, self.target, self.target)
+        if kind == SEASON:
+            year = self.target.year
+            return Scope(SEASON, date(year, 1, 1), date(year, 12, 31))
+        days = self.week_dates if kind == WEEK else self.session_dates
+        return Scope(kind, days[0], days[-1])
 
     @property
     def week_dates(self) -> tuple[date, ...]:

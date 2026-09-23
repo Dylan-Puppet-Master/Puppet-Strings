@@ -1,16 +1,3 @@
-from puppet_strings.app.store import unique_id
-
-
-def test_an_id_is_the_next_free_number_on_its_tab():
-    """Ids come from the tab, not the description, which may be empty and may change."""
-    assert unique_id("S4 Special", set()) == "s4-1"
-    assert unique_id("S4 Clinics", {"s4-1"}) == "s4-2"  # both of a span's tabs number as one
-    assert unique_id("S4 Special", {"s4-1", "s4-2"}) == "s4-3"
-    assert unique_id("S4 Special", {"s4-2"}) == "s4-1"  # a gap left by a deletion is reused
-    assert unique_id("Season Requests", set()) == "season-1"
-    assert unique_id("Season Requests", {"breaks", "s4-1"}) == "season-1"
-
-
 from datetime import date  # noqa: E402
 
 from puppet_strings.app.groups import clean, same_group  # noqa: E402
@@ -71,7 +58,7 @@ def test_renaming_and_deleting_a_group_rewrite_the_sheet(fixtures_copy):
     assert s.rename_group("Ropes rewrite", "Ropes") == "Ropes"
     assert s.rename_group("Ropes", "Special daily requests") == ""  # a name already taken
     assert s.rename_group("Ropes", " ") == ""
-    assert saved_requests(s.source.root, "Season Requests")["breaks"].group == "Ropes"
+    assert saved_requests(s.source.root)["breaks"].group == "Ropes"
     s.delete_group("ropes")
     assert "Ropes" not in s.groups
     assert all(r.group != "Ropes" for r in s.requests)

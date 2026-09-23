@@ -23,7 +23,7 @@ from puppet_strings.app import palette
 from puppet_strings.app.groups import ALL, DEFAULT_GROUPS, UNGROUPED
 from puppet_strings.app.requests_model import REQUEST_IDS, request_ids
 from puppet_strings.app.store import RequestStore
-from puppet_strings.requests_db import request_lists
+from puppet_strings.model import SCOPES
 
 
 class GroupList(QListWidget):
@@ -139,7 +139,7 @@ class GroupsPane(QWidget):
 
     chosen = Signal(str)
     dropped = Signal(list, str)  # request ids, and the group they were dragged onto
-    retabbed = Signal(str)  # a group whose default tab was changed
+    rescoped = Signal(str)  # a group whose default scope was changed
 
     def __init__(self, store: RequestStore) -> None:
         super().__init__()
@@ -147,7 +147,7 @@ class GroupsPane(QWidget):
         self.list = GroupList()
         self.list.dropped.connect(self.dropped.emit)
         self.list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.list.customContextMenuRequested.connect(self._tab_menu)
+        self.list.customContextMenuRequested.connect(self._scope_menu)
         self.list.currentItemChanged.connect(self._chosen)
         self.new_button = QPushButton("New")
         self.rename_button = QPushButton("Rename")
@@ -185,40 +185,35 @@ class GroupsPane(QWidget):
         self._enable()
 
     def _add(self, name: str, count: int) -> None:
-        tab = self.store.group_tabs.of(name) if name not in (ALL, UNGROUPED) else ""
+        scope = self.store.group_scopes.of(name) if name not in (ALL, UNGROUPED) else ""
         item = QListWidgetItem(f"{name}  ({count})")
         item.setData(Qt.UserRole, name)
-        if tab:
-            item.setToolTip(f"New requests here go in {tab}")
+        if scope:
+            item.setToolTip(f"New requests here are scoped to the {scope}")
         if name in (ALL, UNGROUPED):
             item.setForeground(QColor(palette.QUIET))
         self.list.addItem(item)
 
-    def _tab_menu(self, point) -> None:
-        """Right-click a group to say which list its new requests go in."""
+    def _scope_menu(self, point) -> None:
+        """Right-click a group to say what scope its new requests take."""
         item = self.list.itemAt(point)
         group = item.data(Qt.UserRole) if item else None
         if group is None or group in (ALL, UNGROUPED):
             return
         menu = QMenu(self)
-        chosen = self.store.group_tabs.of(group)
-        for tab in ("", *self._tabs()):
-            action = menu.addAction(tab or "No list of its own")
+        chosen = self.store.group_scopes.of(group)
+        for kind in ("", *SCOPES):
+            action = menu.addAction(f"Scoped to the {kind}" if kind else "No scope of its own")
             action.setCheckable(True)
-            action.setChecked(tab == chosen)
-            action.triggered.connect(lambda _=False, t=tab: self._set_tab(group, t))
+            action.setChecked(kind == chosen)
+            action.triggered.connect(lambda _=False, k=kind: self._set_scope(group, k))
         menu.exec(self.list.viewport().mapToGlobal(point))
 
-    def _tabs(self) -> tuple[str, ...]:
-        """The lists a request could go in, for the span being scheduled."""
-        dataset = self.store.dataset
-        return request_lists(dataset.this_span, dataset.target) if dataset is not None else ()
-
-    def _set_tab(self, group: str, tab: str) -> None:
-        """Remember where this group's new requests go, and say so on the label."""
-        self.store.group_tabs.set(group, tab)
+    def _set_scope(self, group: str, kind: str) -> None:
+        """Remember what scope this group's new requests take, and say so on the label."""
+        self.store.group_scopes.set(group, kind)
         self.refresh()
-        self.retabbed.emit(group)
+        self.rescoped.emit(group)
 
     def _row_of(self, name: str) -> int:
         for row in range(self.list.count()):

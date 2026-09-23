@@ -43,22 +43,26 @@ class LocalDb:
 
     def __init__(self, path: Path) -> None:
         self.path = Path(path).expanduser()
-        self._made = False
+        self._ready = False
 
     @property
     def exists(self) -> bool:
         """Whether there is a file yet."""
         return self.path.exists()
 
+    def _made(self, db: sqlite3.Connection) -> None:
+        """What to check of a file once its tables are there; a kind of file says."""
+
     @contextmanager
     def _open(self) -> Iterator[sqlite3.Connection]:
         """A connection for one piece of work: committed if it finishes, rolled back if not."""
-        made = self._made and self.path.exists()
+        made = self._ready and self.path.exists()
         db = connect(self.path)
         try:
             if not made:
                 db.executescript(self.SCHEMA)
-                self._made = True
+                self._made(db)
+                self._ready = True
             with db:
                 yield db
         finally:

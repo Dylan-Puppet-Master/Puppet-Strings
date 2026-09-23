@@ -256,27 +256,31 @@ puppet-strings export-requests handover.sqlite
 puppet-strings import-requests handover.sqlite
 ```
 
-Every request is filed in one **list**, because one list of everything would mean reading
-the whole season to schedule one day:
+Every request has a **scope**: the days it is read on. A load of a date reads every
+request whose scope covers that date, and no other, so a request does its work over
+exactly the days of its scope and the rest of the season never sees it.
 
-| List | What is in it |
-|---|---|
-| `Season Requests` | What holds all season or crosses sessions: the legal limits, the standing agreements. **Every** load reads it. |
-| `2026-09-16 Clinics` | The clinic requests **Load offerings** makes for that one day. Only a load of that day reads them, so another day never shows them. Loading the day's offerings again throws them away and makes them again, so nothing here is worth editing by hand. |
-| `S1 Special` | What was asked of session 1 in particular. |
+| Scope | Read on | For |
+|---|---|---|
+| Day | That one date | The clinics **Load offerings** makes, which are the day's alone, and anything asked of one day. |
+| Week | Every date of its week of the session | A week's arrangements. |
+| Session | Every date of its session | What was asked of one session in particular. A new request is scoped to its session unless you say otherwise. |
+| Season | Every date of the year's season | What holds all season: the legal limits, the standing agreements. |
 
-A load reads three lists: the season's, the target date's own Clinics, and the Special
-list of the session it falls in. A span on the Calendar sheet that is not a numbered
-session is labelled by its own name instead — a `Staff Week` row gets `Staff Week Special`.
-Which list a request is in is what says when it applies. The request manager puts a new
-request in the session's Special list; its **in list** box is how to put one in
-`Season Requests` instead.
+Weeks and sessions are the Calendar sheet's: a span that is not a numbered session is its
+own session, and its weeks are its days seven at a time. The **scope** box in the request
+manager offers the day, week, session and season of the date being scheduled. A request's
+Skedge can still narrow the days it is about, with `ON`: its scope says when it is read,
+and its Skedge what it asks for once it is.
+
+Loading a day's offerings again throws that day's generated requests away and makes them
+again, so nothing scoped to a day by **Load offerings** is worth editing by hand.
 
 Each request has these fields, all edited in the request manager:
 
 | Field | Meaning |
 |---|---|
-| `id` | Unique and stable. The app gives a new request the next free number in its list — `s4-1`, `season-2` — and never changes it. Appears in the solver's report. |
+| `id` | Unique and stable. The app gives a new request the next free number for its scope — `season-2`, `s4-1` for session 4, `s4w2-1` for its second week, `jun08-1` for a day — and never changes it. Appears in the solver's report. |
 | `description` | Plain language, for people. May be left empty: the id is what names the request. |
 | `skedge` | The request itself; see the [Skedge reference](skedge.md). |
 | `priority` | One of `MUST_HAPPEN`, `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. `STABILITY` is the solver's own during a [same-day change](same-day.md) and is never a request's. |

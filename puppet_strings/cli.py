@@ -8,18 +8,12 @@ from pathlib import Path
 
 from puppet_strings import __version__
 from puppet_strings.config import Config, load_config
-from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
+from puppet_strings.generate import generated_requests, has_offerings_loaded, is_generated
 from puppet_strings.google_auth import AuthError
 from puppet_strings.model import Dataset
 from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
 from puppet_strings.publish.writer import day_sheet, is_published, publish
-from puppet_strings.requests_db import (
-    FIXTURE_FILE,
-    RequestDb,
-    clinics_list,
-    open_requests,
-    request_lists,
-)
+from puppet_strings.requests_db import FIXTURE_FILE, RequestDb, open_requests
 from puppet_strings.session import open_source
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.source import CsvSource, LoadError, Source, Table
@@ -161,12 +155,11 @@ def _names(dataset: Dataset) -> int:
 
 def _load_offerings(source: Source, config: Config, dataset: Dataset) -> int:
     day_sheet(source, config, dataset.this_span, dataset.target)  # made if it is not there yet
-    clinics = clinics_list(dataset.target)
-    generated = generated_requests(dataset, home=clinics)
-    merged = merge(list(dataset.requests), generated, dataset.target)
-    held = set(request_lists(dataset.this_span, dataset.target))
-    open_requests(config, source).write(tuple(merged), held)
-    print(f"loaded {len(generated)} offerings for {dataset.target} into {clinics}")
+    generated = generated_requests(dataset)
+    book = open_requests(config, source)
+    book.delete(r.id for r in dataset.requests if is_generated(r, dataset.target))
+    book.put(generated)
+    print(f"loaded {len(generated)} offerings for {dataset.target}")
     return 0
 
 

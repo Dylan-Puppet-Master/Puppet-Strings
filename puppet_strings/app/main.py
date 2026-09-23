@@ -210,7 +210,7 @@ class MainWindow(QMainWindow):
         self.groups = GroupsPane(store)
         self.groups.chosen.connect(self._group_chosen)
         self.groups.dropped.connect(self._set_group)
-        self.groups.retabbed.connect(lambda _: self.editor_new_if_empty())
+        self.groups.rescoped.connect(lambda _: self.editor_new_if_empty())
         self.errors = ErrorsPane()
         self.errors.picked.connect(self.show_request)
 
@@ -433,7 +433,7 @@ class MainWindow(QMainWindow):
         """Start a request on the shelf being shown, written where that shelf says."""
         group = self.groups.current
         group = "" if group in (ALL, UNGROUPED) else group
-        self.editor.clear(group, self.store.group_tabs.of(group) if group else "")
+        self.editor.clear(group, self.store.group_scopes.of(group) if group else "")
 
     def _requests_changed(self) -> tuple:
         """The requests moved: the table, both panes and the filters all follow.

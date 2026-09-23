@@ -110,9 +110,10 @@ def test_editor_validation_and_save(window):
     editor.tags_edit.setText("training, week 2")
     editor.save_button.click()
     assert window.model.rowCount() == 32
-    assert editor.id_label.text() == "s1-1"  # numbered on its tab, not made of the wording
-    saved = saved_requests(window.store.source.root, "S1 Special")  # a new one is this span's
-    assert saved["s1-1"].tags == ("training", "week 2")
+    assert editor.id_label.text() == "s1-1"  # numbered in its scope, not made of the wording
+    saved = saved_requests(window.store.source.root)["s1-1"]
+    assert saved.tags == ("training", "week 2")
+    assert saved.scope == window.store.dataset.scope("session")  # a new one is this session's
     assert "week 2" in window.store.tags
     editor.description_edit.setText("Dylan's day off, changed")
     editor.save_button.click()
@@ -580,7 +581,7 @@ def test_making_a_group_and_dragging_requests_onto_it(window, monkeypatch):
     window.groups.dropped.emit(["dylan-off-ropes", "breaks"], "Ropes rewrite")
     assert group_rows(window)["Ropes rewrite"] == 2
     assert visible_ids(window) == {"dylan-off-ropes", "breaks"}
-    saved = saved_requests(window.store.source.root, "Season Requests")
+    saved = saved_requests(window.store.source.root)
     assert saved["dylan-off-ropes"].group == "Ropes rewrite"  # one group, the one it moved to
     assert group_rows(window)["Special weekly requests"] == 2  # it left the shelf it was on
     window.groups.dropped.emit(["breaks"], UNGROUPED)  # dragged off every shelf
@@ -732,15 +733,15 @@ def test_a_new_request_joins_the_group_being_shown(window):
     assert window.editor.group_label.text().startswith("none")  # ALL is not a shelf
 
 
-def test_a_group_can_say_which_tab_its_new_requests_go_to(window):
-    window.store.group_tabs.set("Special weekly requests", "Season Requests")
+def test_a_group_can_say_what_scope_its_new_requests_take(window):
+    window.store.group_scopes.set("Special weekly requests", "week")
     pick_group(window, "Special weekly requests")
     window.new_request()
-    assert window.editor.home_box.currentText() == "Season Requests"
+    assert window.editor.scope_box.currentData() == window.store.dataset.scope("week")
     pick_group(window, "Special daily requests")
     window.new_request()
-    assert window.editor.home_box.currentText() == "S1 Special"  # nothing said: this span's
-    window.store.group_tabs.set("Special weekly requests", "")
+    assert window.editor.scope_box.currentData().kind == "session"  # nothing said
+    window.store.group_scopes.set("Special weekly requests", "")
 
 
 # -- the requester ------------------------------------------------------------------------
@@ -759,10 +760,7 @@ def test_requester_completes_and_is_checked(window):
     editor.requester_edit.setText("rob")
     assert editor.validate()
     editor.save_button.click()
-    assert (
-        saved_requests(window.store.source.root, "Season Requests")["dylan-off-ropes"].requester
-        == "rob"
-    )
+    assert saved_requests(window.store.source.root)["dylan-off-ropes"].requester == "rob"
 
 
 # -- saving a request that is not about the date being scheduled ---------------------------
@@ -1296,20 +1294,21 @@ def test_every_shading_is_a_dark_one_that_ink_reads_on(app):
     assert app.palette().color(QPalette.Window).lightness() < 128
 
 
-def test_the_editor_keeps_a_request_in_its_own_list(window):
-    """The list a request is in is when it applies, so editing one must not move it."""
+def test_the_editor_keeps_a_request_in_its_own_scope(window):
+    """A request's scope is when it applies, so editing one must not move it."""
     editor = window.editor
     editor.show_request(window.model.request("breaks"))
-    assert editor.home_box.currentText() == "Season Requests"
-    assert [editor.home_box.itemText(i) for i in range(editor.home_box.count())] == [
-        "Season Requests",
-        "2026-09-16 Clinics",
-        "S1 Special",
+    assert editor.scope_box.currentText() == "Season: 2026"
+    assert [editor.scope_box.itemText(i) for i in range(editor.scope_box.count())] == [
+        "Day: Wed Sep 16",
+        "Week: Sep 13 to Sep 19",
+        "Session: Sep 13 to Sep 26",
+        "Season: 2026",
     ]
     editor.save_button.click()
-    assert "breaks" in saved_requests(window.store.source.root, "Season Requests")  # kept there
+    assert saved_requests(window.store.source.root)["breaks"].scope.kind == "season"
     editor.clear()
-    assert editor.home_box.currentText() == "S1 Special"  # a new one is this session's
+    assert editor.scope_box.currentData().kind == "session"  # a new one is this session's
 
 
 def coloured(edit, word: str) -> str:

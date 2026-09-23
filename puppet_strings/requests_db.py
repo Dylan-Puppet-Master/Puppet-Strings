@@ -5,19 +5,17 @@ at a time, so the requests are a file on that Puppet Master's computer. Export h
 to the next Puppet Master; Import takes one in, keeping the requests it replaces beside it
 in case they were wanted after all.
 
-Every request is filed in one list, its `home`, and a load of a day reads three of them:
+Every request has a **scope**: the day, the week, the session or the season it is read
+on (`model.Scope`). A load of a date reads every request whose scope covers it, and the
+solver meets them, or weighs them, as their Skedge says; a request whose scope does not
+cover the date is not read at all. The scope is kept as the dates it covers, so finding a
+day's requests is one question of an index however many days the season has had, and
+nothing needs a list of its own per day or per session.
 
-    Season Requests     what holds all season or crosses sessions: the legal limits, the
-                        standing agreements, anything written for more than one session
-    2026-07-08 Clinics  the clinic requests Load offerings makes for that one day
-    S1 Special          what was asked for session 1 in particular
-
-A span that is not a numbered session is labelled by its own name instead of `S1`, so a
-`Staff Week` row on the Calendar sheet gets `Staff Week Special`. A request written in the
-app goes to its session's Special list unless it is said to hold all season, and a
-generated one goes to its day's Clinics list: the offerings are the day's and nobody
-else's, so no other day shows them, and the next Load offerings can throw them away
-without touching anything written by hand.
+A request written in the app is scoped to its session unless it is scoped otherwise, and
+the clinics Load offerings makes are scoped to their day: they are that day's and nobody
+else's, and the next Load offerings of the day can throw them away without touching
+anything written by hand.
 
 A folder of fixtures carries its own `requests.sqlite`, so a copy of a session is one
 folder and running on it touches nothing on the computer it runs on.
@@ -26,24 +24,38 @@ folder and running on it touches nothing on the computer it runs on.
 import shutil
 import sqlite3
 from datetime import date
+from itertools import count
 from pathlib import Path
 
 from puppet_strings.config import Config
 from puppet_strings.generate import GENERATED_TAG
 from puppet_strings.local_db import LocalDb, connect, marks
-from puppet_strings.model import WRITABLE_PRIORITIES, Priority, Request, Span
+from puppet_strings.model import (
+    DAY,
+    SCOPES,
+    SEASON,
+    SESSION,
+    WEEK,
+    WRITABLE_PRIORITIES,
+    Dataset,
+    Priority,
+    Request,
+    Scope,
+)
+from puppet_strings.names import normalize
 from puppet_strings.sheets.source import FIXTURE_FILE, LoadError, Source, split_list
 
 __all__ = ["FIXTURE_FILE", "RequestDb", "open_requests"]
 
 SUFFIX = ".sqlite"
-SCHEMA_VERSION = "1"
-SEASON = "Season Requests"  # the one list every span's load reads
-CLINICS_SUFFIX = " Clinics"
-SPECIAL_SUFFIX = " Special"
+SCHEMA_VERSION = "2"
+DEFAULT_SCOPE = SESSION  # what a request written in the app is read over, unless it says
 
 _FIELDS = (
     "id",
+    "scope",
+    "first",
+    "last",
     "description",
     "skedge",
     "priority",
@@ -54,13 +66,17 @@ _FIELDS = (
     "created",
 )
 _COLUMNS = ", ".join(f'"{f}"' for f in _FIELDS)
-_SCHEMA = f"""
+# The version first: what the rest of the file looks like depends on it.
+_META = f"""
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 INSERT OR IGNORE INTO meta (key, value) VALUES ('schema', '{SCHEMA_VERSION}');
+"""
+_TABLES = """
 CREATE TABLE IF NOT EXISTS requests (
-    home TEXT NOT NULL,
-    position INTEGER NOT NULL,
-    "id" TEXT NOT NULL,
+    "id" TEXT PRIMARY KEY,
+    "scope" TEXT NOT NULL,
+    "first" TEXT NOT NULL,
+    "last" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "skedge" TEXT NOT NULL,
     "priority" TEXT NOT NULL,
@@ -68,42 +84,55 @@ CREATE TABLE IF NOT EXISTS requests (
     "tags" TEXT NOT NULL,
     "group" TEXT NOT NULL,
     "requester" TEXT NOT NULL,
-    "created" TEXT,
-    PRIMARY KEY (home, "id")
+    "created" TEXT
 );
-CREATE INDEX IF NOT EXISTS requests_by_home ON requests (home, position)
+CREATE INDEX IF NOT EXISTS requests_by_date ON requests ("first", "last");
 """
-_INSERT = f"INSERT INTO requests (home, position, {_COLUMNS}) VALUES ({marks(len(_FIELDS) + 2)})"
+# Broadest scope first, then in the order they were made; an update keeps a row's rowid.
+_ORDER = (
+    "ORDER BY CASE scope "
+    + " ".join(f"WHEN '{kind}' THEN {i}" for i, kind in enumerate(reversed(SCOPES)))
+    + " END, rowid"
+)
+_PUT = (
+    f"INSERT INTO requests ({_COLUMNS}) VALUES ({marks(len(_FIELDS))}) "
+    'ON CONFLICT ("id") DO UPDATE SET ' + ", ".join(f'"{f}" = excluded."{f}"' for f in _FIELDS[1:])
+)
 
 
-# -- lists ------------------------------------------------------------------------------------
+# -- scopes -----------------------------------------------------------------------------------
 
 
-def span_label(span: Span) -> str:
-    """What a span's own lists are called after: `S4` for a session, else the span's name."""
-    return f"S{span.session}" if span.session is not None else span.name
+def scope_for(request: Request, dataset: Dataset) -> Scope:
+    """The request's own scope, or the one its kind implies around the date scheduled."""
+    if request.scope is not None:
+        return request.scope
+    return dataset.scope(DAY if GENERATED_TAG in request.tags else DEFAULT_SCOPE)
 
 
-def clinics_list(day: date) -> str:
-    """The list holding one day's generated clinic requests."""
-    return f"{day.isoformat()}{CLINICS_SUFFIX}"
+def describe(scope: Scope) -> str:
+    """A scope as the request manager shows it: `Week: Jun 7 to Jun 13`."""
+    first, last = f"{scope.first:%b} {scope.first.day}", f"{scope.last:%b} {scope.last.day}"
+    if scope.kind == DAY:
+        return f"Day: {scope.first:%a} {first}"
+    if scope.kind == SEASON:
+        return f"Season: {scope.first.year}"
+    return f"{scope.kind.capitalize()}: {first} to {last}"
 
 
-def special_list(span: Span) -> str:
-    """The list holding what was asked for this span in particular."""
-    return f"{span_label(span)}{SPECIAL_SUFFIX}"
-
-
-def request_lists(span: Span, day: date) -> tuple[str, ...]:
-    """The three lists a load of `day`, in `span`, reads."""
-    return (SEASON, clinics_list(day), special_list(span))
-
-
-def home_for(request: Request, span: Span, day: date) -> str:
-    """Which list a request belongs in: the one it names, or the one its kind implies."""
-    if request.home:
-        return request.home
-    return clinics_list(day) if GENERATED_TAG in request.tags else special_list(span)
+def id_prefix(scope: Scope, dataset: Dataset) -> str:
+    """What a new request's id starts with: `season`, `s4`, `s4w2`, `jun08`."""
+    if scope.kind == SEASON:
+        return SEASON
+    if scope.kind == DAY:
+        return f"{scope.first:%b%d}".lower()
+    entry = dataset.calendar.get(scope.first)
+    span = next((s for s in dataset.spans if entry and s.id == entry.span), None)
+    if span is None:  # dated off the calendar, which a scope made here never is
+        return f"{scope.kind}{scope.first:%m%d}"
+    label = f"s{span.session}" if span.session is not None else normalize(span.name)
+    label = label.replace("_", "-")
+    return f"{label}w{entry.week}" if scope.kind == WEEK else label
 
 
 # -- the file ---------------------------------------------------------------------------------
@@ -112,50 +141,55 @@ def home_for(request: Request, span: Span, day: date) -> str:
 class RequestDb(LocalDb):
     """The requests file."""
 
-    SCHEMA = _SCHEMA
+    SCHEMA = _META
 
-    def read(self, span: Span, day: date) -> tuple[Request, ...]:
-        """The requests in the season's list, `day`'s Clinics and `span`'s Special, in order.
+    def _made(self, db: sqlite3.Connection) -> None:
+        """A file from another version of the app is refused before it is read as this one."""
+        _same_version(db, self.path)
+        db.executescript(_TABLES)
+
+    def read(self, day: date) -> tuple[Request, ...]:
+        """Every request whose scope covers `day`, broadest scope first.
 
         A computer with no file yet has no requests; reading makes no file, so a load of a
         folder that is read-only (the trainer's) leaves it as it was.
         """
         if not self.exists:
             return ()
-        homes = request_lists(span, day)
         with self._open() as db:
             rows = db.execute(
-                f"SELECT home, {_COLUMNS} FROM requests "
-                f"WHERE home IN ({marks(len(homes))}) ORDER BY position",
-                homes,
+                f'SELECT {_COLUMNS} FROM requests WHERE "first" <= ? AND ? <= "last" {_ORDER}',
+                (day.isoformat(), day.isoformat()),
             ).fetchall()
-        order = {home: i for i, home in enumerate(homes)}
-        requests = _requests(sorted(rows, key=lambda row: order[row[0]]))
-        _unique(requests)
-        return requests
+        return _requests(rows)
 
-    def write(self, requests: tuple[Request, ...], held: set[str]) -> None:
-        """Every request to its list, and the lists in `held` emptied of anything else.
-
-        `held` is the lists the requests were read from; one going empty — the last special
-        request of a session deleted — is emptied here rather than left as it was. The
-        lists a load did not read are not touched: the other sessions' requests are not in
-        `requests`, and are not being deleted.
-        """
-        homes = set(held) | {r.home or SEASON for r in requests}
+    def put(self, requests) -> None:
+        """Add requests, or change the ones already there by id, keeping their place."""
         with self._open() as db:
-            db.executemany("DELETE FROM requests WHERE home = ?", [(h,) for h in homes])
-            db.executemany(_INSERT, _rows(requests))
+            db.executemany(_PUT, [_row(r) for r in requests])
+
+    def delete(self, ids) -> None:
+        """Take requests out by id."""
+        ids = list(ids)
+        if ids and self.exists:
+            with self._open() as db:
+                db.execute(f'DELETE FROM requests WHERE "id" IN ({marks(len(ids))})', ids)
+
+    def next_id(self, prefix: str) -> str:
+        """The first id `prefix-1`, `prefix-2`, … that no request in the file has."""
+        taken: set[str] = set()
+        if self.exists:
+            with self._open() as db:
+                rows = db.execute('SELECT "id" FROM requests WHERE "id" LIKE ?', (f"{prefix}-%",))
+                taken = {row[0] for row in rows}
+        return next(f"{prefix}-{n}" for n in count(1) if f"{prefix}-{n}" not in taken)
 
     def every(self) -> tuple[Request, ...]:
-        """Every request in the file, each list's in order."""
+        """Every request in the file, broadest scope first."""
         if not self.exists:
             return ()
         with self._open() as db:
-            rows = db.execute(
-                f"SELECT home, {_COLUMNS} FROM requests ORDER BY home, position"
-            ).fetchall()
-        return _requests(rows)
+            return _requests(db.execute(f"SELECT {_COLUMNS} FROM requests {_ORDER}").fetchall())
 
     def count(self) -> int:
         """How many requests the file holds; 0 if there is no file yet, which it does not make."""
@@ -193,7 +227,7 @@ class RequestDb(LocalDb):
             shutil.copyfile(self.path, kept)
         with self._open() as db:
             db.execute("DELETE FROM requests")
-            db.executemany(_INSERT, rows)
+            db.executemany(_PUT, rows)
         return len(rows), kept
 
 
@@ -207,27 +241,42 @@ def _count(db) -> int:
     return db.execute("SELECT count(*) FROM requests").fetchone()[0]
 
 
+def _same_version(db: sqlite3.Connection, where: Path) -> None:
+    (version,) = db.execute("SELECT value FROM meta WHERE key = 'schema'").fetchone()
+    if version == SCHEMA_VERSION:
+        return
+    if version.isdigit() and int(version) < int(SCHEMA_VERSION):
+        raise LoadError(
+            f"{where}: a requests file from an earlier version of Puppet Strings (format "
+            f"{version}), which this one (format {SCHEMA_VERSION}) cannot read. Move it aside "
+            "and start a new one"
+        )
+    raise LoadError(
+        f"{where}: a requests file from a newer version of Puppet Strings (format "
+        f"{version}); this one reads format {SCHEMA_VERSION}. Update Puppet Strings"
+    )
+
+
 # -- rows -------------------------------------------------------------------------------------
 
 
-def _rows(requests: tuple[Request, ...]) -> list[tuple]:
-    """Requests as rows, each at its position among those given."""
-    return [
-        (
-            r.home or SEASON,
-            i,
-            r.id,
-            r.description,
-            r.skedge,
-            r.priority.value,
-            1.0 if r.priority.hard else r.weight,
-            ", ".join(r.tags),
-            r.group,
-            r.requester,
-            r.created.isoformat() if r.created else None,
-        )
-        for i, r in enumerate(requests)
-    ]
+def _row(r: Request) -> tuple:
+    if r.scope is None:
+        raise ValueError(f"request '{r.id}' has no scope; scope it before saving it")
+    return (
+        r.id,
+        r.scope.kind,
+        r.scope.first.isoformat(),
+        r.scope.last.isoformat(),
+        r.description,
+        r.skedge,
+        r.priority.value,
+        1.0 if r.priority.hard else r.weight,
+        ", ".join(r.tags),
+        r.group,
+        r.requester,
+        r.created.isoformat() if r.created else None,
+    )
 
 
 def _requests(rows: list[tuple]) -> tuple[Request, ...]:
@@ -235,10 +284,19 @@ def _requests(rows: list[tuple]) -> tuple[Request, ...]:
     return tuple(_request(*row) for row in rows)
 
 
-def _request(home, id, description, skedge, priority, weight, tags, group, requester, created):
-    where = f"{home}, request '{id}'"
+def _request(
+    id, scope, first, last, description, skedge, priority, weight, tags, group, requester, created
+) -> Request:
+    where = f"request '{id}'"
     if not id:
-        raise LoadError(f"{home}: a request has no id")
+        raise LoadError("a request has no id")
+    if scope not in SCOPES:
+        raise LoadError(f"{where}: no scope '{scope}'; a scope is one of {', '.join(SCOPES)}")
+    try:
+        span = Scope(scope, date.fromisoformat(first), date.fromisoformat(last))
+        day = date.fromisoformat(created) if created else None
+    except (TypeError, ValueError) as e:
+        raise LoadError(f"{where}: a date that is not a date ({e})") from e
     try:
         level = Priority(priority)
     except ValueError as e:
@@ -247,10 +305,6 @@ def _request(home, id, description, skedge, priority, weight, tags, group, reque
         raise LoadError(f"{where}: {level.value} is the solver's own, not a priority to set")
     if not isinstance(weight, int | float) or weight <= 0:
         raise LoadError(f"{where}: weight must be a positive number, not {weight!r}")
-    try:
-        day = date.fromisoformat(created) if created else None
-    except ValueError as e:
-        raise LoadError(f"{where}: created '{created}' is not a date") from e
     return Request(
         id=id,
         description=description,
@@ -261,17 +315,8 @@ def _request(home, id, description, skedge, priority, weight, tags, group, reque
         group=group,
         requester=requester,
         created=day,
-        home=home,
+        scope=span,
     )
-
-
-def _unique(requests: tuple[Request, ...]) -> None:
-    """Ids a load reads together must differ, or one request would quietly shadow another."""
-    seen: dict[str, str] = {}
-    for r in requests:
-        if r.id in seen:
-            raise LoadError(f"request '{r.id}' is in both {seen[r.id]} and {r.home}")
-        seen[r.id] = r.home
 
 
 def _checked(source: Path) -> list[tuple]:
@@ -281,18 +326,11 @@ def _checked(source: Path) -> list[tuple]:
     try:
         db = connect(source, readonly=True)
         try:
-            (schema,) = db.execute("SELECT value FROM meta WHERE key = 'schema'").fetchone()
-            rows = db.execute(
-                f"SELECT home, position, {_COLUMNS} FROM requests ORDER BY home, position"
-            ).fetchall()
+            _same_version(db, source)
+            rows = db.execute(f"SELECT {_COLUMNS} FROM requests {_ORDER}").fetchall()
         finally:
             db.close()
     except (sqlite3.Error, TypeError) as e:
         raise LoadError(f"{source}: not a Puppet Strings requests file ({e})") from e
-    if schema != SCHEMA_VERSION:
-        raise LoadError(
-            f"{source}: a requests file from another version of Puppet Strings "
-            f"(format {schema}, this one reads {SCHEMA_VERSION}); update the older copy"
-        )
-    _requests([(home, *fields) for home, _, *fields in rows])  # raises on a bad row
+    _requests(rows)  # raises on a bad row
     return rows

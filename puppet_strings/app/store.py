@@ -2,28 +2,18 @@
 
 from dataclasses import replace
 from datetime import date
-from itertools import count
 
 from puppet_strings.app.conflicts import Conflict, find_conflicts
 from puppet_strings.app.errors import Problem, find_errors
 from puppet_strings.app.facets import Facets, resolve_request
-from puppet_strings.app.group_tabs import GroupTabs
+from puppet_strings.app.group_scopes import GroupScopes
 from puppet_strings.app.groups import DEFAULT_GROUPS, clean, same_group
 from puppet_strings.config import Config
 from puppet_strings.exclude import apply_exclusions
-from puppet_strings.generate import generated_requests, has_offerings_loaded, merge
+from puppet_strings.generate import generated_requests, has_offerings_loaded, is_generated, merge
 from puppet_strings.model import Adjustment, Dataset, Request, Rest
-from puppet_strings.names import normalize
 from puppet_strings.publish.writer import day_sheet
-from puppet_strings.requests_db import (
-    CLINICS_SUFFIX,
-    SEASON,
-    SPECIAL_SUFFIX,
-    clinics_list,
-    home_for,
-    open_requests,
-    request_lists,
-)
+from puppet_strings.requests_db import id_prefix, open_requests, scope_for
 from puppet_strings.sheets.adjustments import adjustment_rows
 from puppet_strings.sheets.calendar import calendar_days, parse_calendar
 from puppet_strings.sheets.load import load_dataset, read_history
@@ -31,37 +21,6 @@ from puppet_strings.sheets.schedules import ROOT
 from puppet_strings.sheets.source import CsvSource, Source
 
 CONFIG_SHEET = "config"
-
-
-def unique_id(home: str, taken: set[str]) -> str:
-    """The next free id in a list: `s4-1`, `s4-2`, `season-1`.
-
-    The id is not made out of the description any more. A description is for people, is
-    allowed to be empty, and gets rewritten the moment somebody words it better — none of
-    which an id may do, because it is what the solver's report and every other sheet call
-    the request by.
-
-    Numbering runs per list because a load only ever reads three of them: the season's and
-    the two of the span being scheduled. An id carrying the list it was made in can only
-    collide with the ids of that same list, which is either loaded or is the season's, and
-    the season's is always loaded.
-    """
-    base = normalize(_label(home)).strip("_").replace("_", "-") or "request"
-    numbers = {int(i[len(base) + 1 :]) for i in taken if _numbered(i, base)}
-    return f"{base}-{next(n for n in count(1) if n not in numbers)}"
-
-
-def _label(home: str) -> str:
-    """What a list's ids are named after: `S4 Special` and `S4 Clinics` are both `s4`."""
-    for suffix in (SPECIAL_SUFFIX, CLINICS_SUFFIX):
-        if home.endswith(suffix):
-            return home[: -len(suffix)]
-    return "season" if home == SEASON else home
-
-
-def _numbered(request_id: str, base: str) -> bool:
-    """Whether an id is one of this list's numbered ones."""
-    return request_id.startswith(f"{base}-") and request_id[len(base) + 1 :].isdigit()
 
 
 class RequestStore:
@@ -78,7 +37,7 @@ class RequestStore:
         # A group lives on the requests in it, so one just made holds nothing yet and would
         # vanish on the next read. These keep it in the pane until something joins it.
         self.empty_groups: list[str] = []
-        self.group_tabs = GroupTabs()  # which list each group's new requests go to
+        self.group_scopes = GroupScopes()  # the scope each group's new requests take
 
     @property
     def fixtures(self) -> bool:
@@ -140,25 +99,25 @@ class RequestStore:
         return find_errors(self.requests, self.resolved, self.dataset)
 
     def save(self, request: Request, original_id: str | None) -> Request:
-        """Add or replace a request and write the lists it and its neighbours are in.
+        """Add or replace a request, and write it. Returns the request as saved.
 
-        A request without an id gets the next one free in its list, and one that names no
-        list goes to this span's Special list — or its Clinics list, if it was generated.
-        Returns the request as saved.
+        One with no scope is scoped to this session, or to this day if it was generated. A
+        new one gets the next id free in the whole file for its scope — `s4-3`, `jun08-1`,
+        `season-2` — rather than one made of its description: a description is for people,
+        may be empty and gets reworded, none of which the name the report uses may do.
         """
-        request = replace(
-            request, home=home_for(request, self.dataset.this_span, self.dataset.target)
-        )
+        request = replace(request, scope=scope_for(request, self.dataset))
         ids = [r.id for r in self.requests]
         if original_id in ids:
             request = replace(request, id=original_id)
             self.requests[ids.index(original_id)] = request
         else:
             if not request.id:
-                request = replace(request, id=unique_id(request.home, set(ids)))
+                prefix = id_prefix(request.scope, self.dataset)
+                request = replace(request, id=self.book.next_id(prefix))
             self.requests.append(request)
         self._index(request)
-        self._write()
+        self.book.put([request])
         return request
 
     def load_offerings(self) -> int:
@@ -168,11 +127,14 @@ class RequestStore:
         to fill in and the views a solve will write, so a new day is one click from being
         ready rather than a folder to go and build by hand.
         """
-        day_sheet(self.source, self.config, self.dataset.this_span, self.dataset.target)
-        generated = generated_requests(self.dataset, home=clinics_list(self.dataset.target))
-        self.requests = merge(self.requests, generated, self.dataset.target)
+        target = self.dataset.target
+        day_sheet(self.source, self.config, self.dataset.this_span, target)
+        generated = generated_requests(self.dataset)
+        old = [r.id for r in self.requests if is_generated(r, target)]
+        self.requests = merge(self.requests, generated, target)
         self._reindex(generated)
-        self._write()
+        self.book.delete(old)
+        self.book.put(generated)
         return len(generated)
 
     def _reindex(self, added: list[Request]) -> None:
@@ -304,41 +266,35 @@ class RequestStore:
         if not new or new == old or any(same_group(new, known) for known in taken):
             return ""
         self.empty_groups = [new if same_group(old, g) else g for g in self.empty_groups]
-        self.group_tabs.rename(old, new)
-        self._regroup(lambda group: new if same_group(old, group) else group)
+        self.group_scopes.rename(old, new)
+        self._regroup(lambda group, _: new if same_group(old, group) else group)
         return new
 
     def delete_group(self, name: str) -> None:
         """Take the shelf away; the requests that were on it stay, on none."""
         self.empty_groups = [g for g in self.empty_groups if not same_group(name, g)]
-        self.group_tabs.forget(name)
-        self._regroup(lambda group: "" if same_group(name, group) else group)
+        self.group_scopes.forget(name)
+        self._regroup(lambda group, _: "" if same_group(name, group) else group)
 
     def set_group(self, request_ids: list[str], group: str) -> None:
         """Move requests onto a shelf, off whichever one they were on. "" takes them off."""
         wanted = set(request_ids)
-        self.requests = [replace(r, group=group) if r.id in wanted else r for r in self.requests]
         if group:
             self.empty_groups = [g for g in self.empty_groups if not same_group(group, g)]
-        self._write()
+        self._regroup(lambda was, r: group if r.id in wanted else was)
 
     def _regroup(self, change) -> None:
-        """Rewrite every request's group, and the sheet, if anything moved."""
-        rewritten = [replace(r, group=change(r.group)) for r in self.requests]
-        if rewritten != self.requests:
-            self.requests = rewritten
-            self._write()
+        """Give each request the group `change(group, request)` says; write those that moved."""
+        rewritten = [replace(r, group=change(r.group, r)) for r in self.requests]
+        moved = [new for new, was in zip(rewritten, self.requests, strict=True) if new != was]
+        self.requests = rewritten
+        self.book.put(moved)
 
     def delete(self, *request_ids: str) -> None:
-        """Remove requests, however many, and write their lists once."""
+        """Remove requests, however many."""
         gone = set(request_ids)
         self.requests = [r for r in self.requests if r.id not in gone]
         for request_id in gone:
             self.facets.pop(request_id, None)
             self.resolved.pop(request_id, None)
-        self._write()
-
-    def _write(self) -> None:
-        """Write each request to its list, and empty any list the load read left with none."""
-        read = request_lists(self.dataset.this_span, self.dataset.target)
-        self.book.write(tuple(self.requests), set(read))
+        self.book.delete(gone)

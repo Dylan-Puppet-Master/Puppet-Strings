@@ -233,14 +233,15 @@ redesign (§11) and again on 2026-09-19 to spans.
 ### 2.7 Requests (local file, read and written)
 
 One SQLite file, `requests.sqlite`, with a `requests` table and a `meta` table holding the
-format version. A request's `home` is the list it is filed in (`Season Requests`,
-`S4 Clinics`, `S4 Special`); a load reads three. Export and import copy the whole file.
+format version. Each request has a **scope** — day, week, session or season — kept as the
+dates it covers, and a load of a date reads every request whose scope covers it, through an
+index on those dates. Export and import copy the whole file.
 
 | Column | Type | Rules |
 |---|---|---|
-| `home` | text | The list. With `id`, the primary key. |
-| `position` | integer | Order within the list. |
-| `id` | text | Unique among the lists a load reads, stable, `kebab-case`. |
+| `id` | text | The primary key: unique in the file, stable, `kebab-case`. |
+| `scope` | `day` `week` `session` `season` | |
+| `first`, `last` | ISO dates | The days the scope covers, both included. The season is its calendar year. |
 | `description` | text | |
 | `skedge` | multi-line text | |
 | `priority` | `MUST_HAPPEN` `CLINIC` `HIGH` `MEDIUM` `LOW` | `STABILITY` is refused. |
@@ -924,3 +925,12 @@ Recorded so the outline matches the code.
   makes return for free. A listed version is trusted for a minute, about one load, so every
   load lists again without anything having to say when a load begins; anything Puppet
   Strings writes drops its entry at once. Drive can be a moment late counting an edit, which is what Clear in the Configure pane and `--no-cache` are for.
+- **Requests are scoped, not filed in lists** (Puppet Master, 2026-09-23). A request was
+  filed in a named list — the season's, a session's Special, a day's Clinics — and a load
+  read three of them, which meant a list for every session and every day the season had.
+  A request now has a scope, a day, a week, a session or the season, kept as the dates it
+  covers; a load reads whatever covers its date, one indexed query however long the season
+  runs. A new request is scoped to its session and a generated one to its day. Ids are
+  unique across the whole file, numbered per scope (`s4-3`, `s4w2-1`, `jun08-1`,
+  `season-2`), and a save writes the one request it changed rather than rewriting lists.
+  The file's format went from 1 to 2 with no conversion: it was a beta.

@@ -12,6 +12,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from puppet_strings.model import SCOPES
+
 DEFAULT_PATH = Path("~/.config/puppet_strings/settings.json")
 
 # Nothing but directories is asked for. What is inside the root is found by name -- a
@@ -38,16 +40,16 @@ class Chosen:
 
 @dataclass(frozen=True)
 class Settings:
-    """The choices made in the app: the Configure pane's, and each group's own list.
+    """The choices made in the app: the Configure pane's, and each group's own scope.
 
-    `group_tabs` is the request list a new request in a group goes in, set by
-    right-clicking the group. It lives here because a group is nothing but a label its
-    requests carry: there is no row anywhere to hang it on.
+    `group_scopes` is the scope kind a new request in a group takes (`day`, `week`,
+    `session`, `season`), set by right-clicking the group. It lives here because a group
+    is nothing but a label its requests carry: there is no row anywhere to hang it on.
     """
 
     sheets: dict[str, Chosen] = field(default_factory=dict)
     folders: dict[str, Chosen] = field(default_factory=dict)
-    group_tabs: dict[str, str] = field(default_factory=dict)
+    group_scopes: dict[str, str] = field(default_factory=dict)
 
     def ids(self, kind: str) -> dict[str, str]:
         """Just the ids of `sheets` or `folders`, which is what a Source wants."""
@@ -68,14 +70,14 @@ def load_settings(path: Path | None = None) -> Settings:
         data = json.loads(path.read_text())
     except (json.JSONDecodeError, OSError):
         return Settings()
-    tabs = data.get("group_tabs")
+    scopes = data.get("group_scopes")
     return Settings(
         sheets=_chosen(data.get("sheets")),
         folders=_chosen(data.get("folders")),
-        group_tabs={
-            str(group): str(tab)
-            for group, tab in (tabs.items() if isinstance(tabs, dict) else ())
-            if tab
+        group_scopes={
+            str(group): kind
+            for group, kind in (scopes.items() if isinstance(scopes, dict) else ())
+            if kind in SCOPES
         },
     )
 
@@ -91,7 +93,7 @@ def save_settings(settings: Settings, path: Path | None = None) -> None:
         }
         for kind in ("sheets", "folders")
     }
-    data["group_tabs"] = dict(settings.group_tabs)
+    data["group_scopes"] = dict(settings.group_scopes)
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 

@@ -15,6 +15,17 @@ FIXTURES = Path(__file__).parent / "fixtures"
 TARGET = date(2026, 9, 16)
 
 
+@pytest.fixture(autouse=True)
+def own_settings(tmp_path, monkeypatch):
+    """No test reads or writes the settings or config file of whoever runs the tests.
+
+    A group's default scope, the chosen folders and every other choice made in the app are
+    kept there; a test that saves one would change the Puppet Master's own.
+    """
+    monkeypatch.setenv("PUPPET_STRINGS_SETTINGS", str(tmp_path / "settings.json"))
+    monkeypatch.setenv("PUPPET_STRINGS_CONFIG", str(tmp_path / "config.toml"))
+
+
 @pytest.fixture
 def source() -> CsvSource:
     return CsvSource(FIXTURES)
@@ -36,9 +47,9 @@ def fixtures_copy(tmp_path) -> Path:
     return copy
 
 
-def saved_requests(folder: Path, home: str) -> dict[str, Request]:
-    """What a fixture folder's requests file holds in one list, by id."""
-    return {r.id: r for r in RequestDb(folder / FIXTURE_FILE).every() if r.home == home}
+def saved_requests(folder: Path) -> dict[str, Request]:
+    """What a fixture folder's requests file holds, by id."""
+    return {r.id: r for r in RequestDb(folder / FIXTURE_FILE).every()}
 
 
 def delete_requests(folder: Path, where: str, *args) -> None:

@@ -211,7 +211,8 @@ def test_the_pane_exports_and_imports_the_requests(app, config, tmp_path, monkey
     dialog.export_requests()
     assert (tmp_path / "handed.sqlite").exists()  # the suffix is added
     assert not dialog.saved  # exporting changes nothing to read again
-    RequestDb(config.requests).write((), {"Season Requests", "2026-09-16 Clinics"})
+    book = RequestDb(config.requests)
+    book.delete(r.id for r in book.every())
     monkeypatch.setattr(
         QFileDialog, "getOpenFileName", lambda *a, **k: (str(tmp_path / "handed.sqlite"), "")
     )

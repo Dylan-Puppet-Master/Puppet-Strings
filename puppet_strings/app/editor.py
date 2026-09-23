@@ -21,9 +21,9 @@ from PySide6.QtWidgets import (
 )
 
 from puppet_strings.app import palette
-from puppet_strings.model import WRITABLE_PRIORITIES, Dataset, Priority, Request
+from puppet_strings.model import SCOPES, WRITABLE_PRIORITIES, Dataset, Priority, Request, Scope
 from puppet_strings.names import normalize
-from puppet_strings.requests_db import request_lists, special_list
+from puppet_strings.requests_db import DEFAULT_SCOPE, describe
 from puppet_strings.skedge.ast import SkedgeError
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
@@ -231,9 +231,9 @@ class RequestEditor(QWidget):
         self.weight_box.setValue(1)
         self.tags_edit = QLineEdit()
         self.tags_edit.setPlaceholderText("comma-separated")
-        # Which list it is filed in, which is also which loads read it: this span's
-        # Special list unless it is something that holds all season.
-        self.home_box = QComboBox()
+        # The days it is read on: this session's, unless it is the day's, the week's or the
+        # season's business.
+        self.scope_box = QComboBox()
         # The shelf the request sits on. It is shown, not chosen: a new request joins the
         # group the pane is on, and an existing one is moved by dragging its row onto
         # another group's label, which is one way of doing it rather than two.
@@ -260,7 +260,7 @@ class RequestEditor(QWidget):
         form.addRow("priority", self.priority_box)
         form.addRow("weight", self.weight_box)
         form.addRow("tags", self.tags_edit)
-        form.addRow("in list", self.home_box)
+        form.addRow("scope", self.scope_box)
         form.addRow("group", self.group_label)
         form.addRow("requester", self.requester_edit)
         form.addRow("created", self.created_label)
@@ -290,34 +290,36 @@ class RequestEditor(QWidget):
     def set_dataset(self, dataset: Dataset | None, groups: list[str] | None = None) -> None:
         """Names are validated and suggested against this dataset."""
         self.dataset = dataset
-        self._fill_homes(request_lists(dataset.this_span, dataset.target) if dataset else ())
+        chosen = self.scope_box.currentData()
+        self._offer_scopes(chosen.kind if chosen else None)  # the same kind, on the new day
         self.groups = list(groups or [])
         self.requester_names.setStringList(sorted(dataset.staff) if dataset else [])
         self.skedge_edit.set_dataset(dataset)
         self.validate()
 
-    def _fill_homes(self, tabs: tuple[str, ...], keep: str = "") -> None:
-        """Offer the lists of the span being scheduled, plus whichever one `keep` names.
+    def _offer_scopes(self, keep: Scope | str | None = None) -> None:
+        """Offer the day, week, session and season of the date being scheduled.
 
-        A request read from another span's list — one looked at after the date was moved —
-        keeps its own list on offer, so opening it does not quietly propose moving it.
+        `keep` is a scope to choose, or a kind to choose the date's own of. A request's
+        own scope is always on offer, so opening one whose week has been redrawn since, say,
+        does not quietly propose moving it.
         """
-        chosen = keep or self.home_box.currentText()
-        if not chosen and self.dataset is not None:
-            chosen = special_list(self.dataset.this_span)
-        self.home_box.blockSignals(True)
-        self.home_box.clear()
-        extra = [chosen] if chosen and chosen not in tabs else []
-        self.home_box.addItems(list(tabs) + extra)
-        self.home_box.setCurrentText(chosen)
-        self.home_box.blockSignals(False)
+        box = self.scope_box
+        box.blockSignals(True)
+        box.clear()
+        if self.dataset is not None:
+            offered = [self.dataset.scope(kind) for kind in SCOPES]
+            if isinstance(keep, Scope) and keep not in offered:
+                offered.append(keep)
+            for scope in offered:
+                box.addItem(describe(scope), scope)
+            wanted = keep if isinstance(keep, Scope) else self.dataset.scope(keep or DEFAULT_SCOPE)
+            box.setCurrentIndex(offered.index(wanted))  # findData cannot compare a Scope
+        box.blockSignals(False)
 
     def show_request(self, request: Request) -> None:
         """Load a request into the fields."""
-        self._fill_homes(
-            request_lists(self.dataset.this_span, self.dataset.target) if self.dataset else (),
-            request.home,
-        )
+        self._offer_scopes(request.scope)
         self.original_id = request.id
         self.id_label.setText(request.id)
         self.description_edit.setText(request.description)
@@ -336,18 +338,14 @@ class RequestEditor(QWidget):
         self.group = group
         self.group_label.setText(group or "none — drag the row onto a group to move it")
 
-    def clear(self, group: str = "", home: str = "") -> None:
-        """Start a new request, on the group being shown and in that group's own list.
+    def clear(self, group: str = "", scope: str = "") -> None:
+        """Start a new request, on the group being shown and with that group's own scope.
 
-        `home` is the group's default list when it has one; without it the request goes in
-        this span's Special list, which is where a request asked for this session belongs.
+        `scope` is the kind the group's requests take when it says; without it a request is
+        scoped to this session, which is where a request asked for this session belongs.
         """
         self.show_group(group)
-        self._fill_homes(
-            request_lists(self.dataset.this_span, self.dataset.target) if self.dataset else (), home
-        )
-        if self.dataset is not None and not home:
-            self.home_box.setCurrentText(special_list(self.dataset.this_span))
+        self._offer_scopes(scope)
         self.original_id = None
         self.id_label.setText("(assigned on save)")
         self.description_edit.clear()
@@ -374,7 +372,7 @@ class RequestEditor(QWidget):
             group=self.group,
             requester=normalize(self.requester_edit.text()),
             created=date.fromisoformat(created) if created else None,
-            home=self.home_box.currentText(),
+            scope=self.scope_box.currentData(),
         )
 
     def validate(self) -> bool:

@@ -1,4 +1,4 @@
-"""Turn the Offerings tab into requests on the span's Clinics tab.
+"""Turn the Offerings tab into requests, each scoped to the day it is for.
 
 Each offered clinic instance becomes a CLINIC request tagged GENERATED_TAG, so the Puppet
 Master can see, edit or delete it before solving. The request names the clinic and when,
@@ -8,22 +8,21 @@ said `ANY 1 staff.all` as well would be saying it twice. The clinic runs fully s
 not at all, because filling one position of an instance fills them all
 (`solver.structural`), which is what lets the request stop at naming it.
 
-Loading again first removes every generated request for that date, so the Clinics tab
-mirrors the Offerings tab.
+Loading again first removes every generated request for that date, so the day's requests
+mirror its Offerings tab.
 """
 
 from datetime import date
 
-from puppet_strings.model import Dataset, Priority, Request
+from puppet_strings.model import DAY, Dataset, Priority, Request
 
 GENERATED_TAG = "generated"
 
 
-def generated_requests(dataset: Dataset, home: str = "") -> list[Request]:
-    """One CLINIC request per offering, for the dataset's target date.
+def generated_requests(dataset: Dataset) -> list[Request]:
+    """One CLINIC request per offering, for the dataset's target date, scoped to that day.
 
-    `home` is the tab they are written to — the span's Clinics tab, which is what keeps
-    them off the tabs the Puppet Master writes by hand and out of other sessions' loads.
+    A day's offerings are the day's alone, so no other day reads them.
     """
     target = dataset.target.isoformat()
     requests = []
@@ -40,7 +39,7 @@ def generated_requests(dataset: Dataset, home: str = "") -> list[Request]:
                 priority=Priority.CLINIC,
                 tags=(GENERATED_TAG,),
                 created=dataset.target,
-                home=home,
+                scope=dataset.scope(DAY),
             )
         )
     return requests

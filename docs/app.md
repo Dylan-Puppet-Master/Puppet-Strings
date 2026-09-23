@@ -100,11 +100,10 @@ There are two ways a request gets its group, and no others:
   top or the bottom of the list and it scrolls, so a group below the fold can be dropped
   on like any other.
 
-**Right-click a group** to choose the [list](sheets.md#requests-on-this-computer) its *new*
-requests go in — a group of standing agreements can send its requests to `Season Requests`
-without your having to remember each time. Requests already made stay where they are: a
-request's list is when it applies, and changing a group's default is not a reason to move
-them.
+**Right-click a group** to choose the [scope](sheets.md#requests-on-this-computer) its *new*
+requests take — a group of standing agreements can scope its requests to the season without
+your having to remember each time. Requests already made keep theirs: a request's scope is
+when it applies, and changing a group's default is not a reason to move them.
 
 A request's group is saved with it, so it is there again the next time the app opens. A group you have just made and put nothing in yet stays in the pane
 until you close the app.
@@ -209,9 +208,10 @@ and says `✓ Saved s1-12 at 14:32:05`, with the time, so a second save of the s
 request still visibly does something. The confirmation stays until the next edit, which
 validates the request again. **New** starts a
 fresh request; **Delete** removes the one being edited. To delete several, select their
-rows in the table and press the Delete key; a popup lists them and asks first. Saving is instant: requests are kept on
-this computer, not in a sheet. The **in list** box chooses where a request is filed: this
-session's `Special` list, or `Season Requests` for something that holds all season.
+rows in the table and press the Delete key; a popup lists them and asks first. Saving is
+instant: requests are kept on this computer, not in a sheet. The **scope** box chooses the
+days a request is read on: this date, its week, its session (the default for a new one), or
+the season.
 
 **Name completion.** Start typing any part of a name in the Skedge box and a list of names
 appears and narrows as you keep typing. The namespace is optional: `dyl` finds
