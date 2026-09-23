@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "puppet-strings"
-version = {attr = "puppet_strings.__version__"}
+dynamic = ["version"]
 description = "Staff schedule automation for Camp Augusta"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -22,6 +22,9 @@ dev = ["pytest>=8", "ruff>=0.5", "mkdocs-material>=9.5", "pyinstaller>=6.6"]
 
 [project.scripts]
 puppet-strings = "puppet_strings.cli:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "puppet_strings.__version__"}
 
 [tool.setuptools.packages.find]
 include = ["puppet_strings*"]
