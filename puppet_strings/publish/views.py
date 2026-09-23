@@ -303,9 +303,9 @@ def report(result: Result) -> Table:
     One row per request, not per copy. `EACH_OF` splits a request into a copy per date,
     per block or per clinic position, and a clinic nobody can staff fails every one of its
     positions at once; three rows saying the same thing bury the rest of the report. The
-    `request` column names the request as the Requests sheet has it, so it can be looked
-    up, and the keys of the copies that failed follow the description, so a request that
-    failed on one Friday out of four still says which.
+    `request` column names the request by its own id, so it can be looked up, and the keys
+    of the copies that failed follow the description, so a request that failed on one Friday
+    out of four still says which.
     """
     rows: Table = [["status", "request", "priority", "description"]]
     listed = (

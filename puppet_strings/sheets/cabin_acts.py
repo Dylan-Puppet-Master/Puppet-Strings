@@ -18,7 +18,7 @@ filling it in. The Support Requests tab says the same thing a second time and is
 
 Each act becomes an `Activity` under `activities.cabin_acts`, staffed like a clinic: one
 position per hero the HEROES cell names. That is why a cabin act needs no requests of its
-own — one line on the Requests sheet asks for all of them, and the positions say who by.
+own — one request asks for all of them, and the positions say who by.
 """
 
 import re

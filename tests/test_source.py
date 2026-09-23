@@ -5,6 +5,7 @@ import pytest
 from puppet_strings.drive import FOLDER_MIME, SHEET_MIME, DriveFile
 from puppet_strings.sheets.source import (
     _PLAIN,
+    FRESH_SECONDS,
     CsvSource,
     Fill,
     LoadError,
@@ -12,6 +13,15 @@ from puppet_strings.sheets.source import (
     Styled,
     _rgb,
 )
+
+
+class Clock:
+    """A clock that stands still until a test moves it."""
+
+    now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
 
 
 class FakeWorksheet:
@@ -54,9 +64,9 @@ def source(monkeypatch):
     src.sheet_ids = {"config": "id"}
     src._open = {"config": spreadsheet}
     src._tabs = {}
-    src._folders, src._discovered = {}, set()
+    src._folders, src._discovered = {}, {}
     src.folder_ids = {}
-    src.cache, src._versions = None, {}
+    src.cache, src._versions, src._clock = None, {}, Clock()
     return src, spreadsheet
 
 
@@ -351,8 +361,8 @@ def sheets_source(tree, **config):
     src.sheet_ids = config.get("sheet_ids", {})
     src.folder_ids = {"root": "root"}
     src._open, src._tabs = {}, {}
-    src._folders, src._discovered = {}, set()
-    src.cache, src._versions = None, {}
+    src._folders, src._discovered = {}, {}
+    src.cache, src._versions, src._clock = None, {}, Clock()
     src._drive = FakeDrive(tree)
     return src
 
@@ -433,7 +443,7 @@ def cached(source, tmp_path):
 
     src, spreadsheet = source
     src.cache = SheetCache(tmp_path / "cache.sqlite")
-    src._versions = {"id": "7"}
+    src._listed([DriveFile("id", "Config", SHEET_MIME, "7")])
     return src, spreadsheet
 
 
@@ -456,16 +466,16 @@ def test_a_spreadsheet_that_has_not_changed_is_read_off_disk(cached):
 def test_a_new_version_is_read_again(cached):
     src, spreadsheet = cached
     src.read("config", "Blocks")
-    src._versions["id"] = "8"  # what the next listing said
+    src._listed([DriveFile("id", "Config", SHEET_MIME, "8")])  # what the next listing said
     spreadsheet.tables["Blocks"] = [["changed"]]
     assert src.read("config", "Blocks") == [["changed"]]
     assert reads(spreadsheet) == 2
 
 
-def test_after_a_refresh_nothing_is_trusted_until_it_is_listed_again(cached):
+def test_a_listing_from_a_load_ago_is_not_trusted_until_it_is_listed_again(cached):
     src, spreadsheet = cached
     src.read("config", "Blocks")
-    src.refresh()
+    src._clock.now += FRESH_SECONDS  # the next load
     src.read("config", "Blocks")
     assert reads(spreadsheet) == 2
     src._listed([DriveFile("id", "Config", SHEET_MIME, "7")])
@@ -487,8 +497,7 @@ def test_a_write_drops_what_was_kept(cached):
 def test_tab_names_are_kept_by_version_too(cached):
     src, spreadsheet = cached
     assert src.tabs("config") == ["Blocks", "Empty", "Calendar"]
-    src.refresh()
-    src._versions["id"] = "7"
+    src._tabs = {}  # another run of the app, the same version listed
     assert src.tabs("config") == ["Blocks", "Empty", "Calendar"]
     assert spreadsheet.calls.count("worksheets") == 1
 

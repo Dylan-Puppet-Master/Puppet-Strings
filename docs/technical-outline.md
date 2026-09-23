@@ -920,6 +920,6 @@ Recorded so the outline matches the code.
   is checked whole before it replaces anything, and keeps what it replaced beside the file.
   A fixture folder carries its own `requests.sqlite`. The sheets themselves are kept in a
   cache keyed by spreadsheet id and Drive `version`, which the folder listings a load already
-  makes return for free; a load re-lists at its start, so a version is trusted for one load
-  at most, and anything Puppet Strings writes drops its entry at once. Drive can be a moment
-  late counting an edit, which is what Clear in the Configure pane and `--no-cache` are for.
+  makes return for free. A listed version is trusted for a minute, about one load, so every
+  load lists again without anything having to say when a load begins; anything Puppet
+  Strings writes drops its entry at once. Drive can be a moment late counting an edit, which is what Clear in the Configure pane and `--no-cache` are for.

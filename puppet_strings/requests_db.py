@@ -30,11 +30,12 @@ from pathlib import Path
 
 from puppet_strings.config import Config
 from puppet_strings.generate import GENERATED_TAG
-from puppet_strings.local_db import connect, opened
+from puppet_strings.local_db import LocalDb, connect, marks
 from puppet_strings.model import WRITABLE_PRIORITIES, Priority, Request, Span
-from puppet_strings.sheets.source import CsvSource, LoadError, Source
+from puppet_strings.sheets.source import FIXTURE_FILE, LoadError, Source, split_list
 
-FIXTURE_FILE = "requests.sqlite"  # a fixture folder's own requests
+__all__ = ["FIXTURE_FILE", "RequestDb", "open_requests"]
+
 SUFFIX = ".sqlite"
 SCHEMA_VERSION = "1"
 SEASON = "Season Requests"  # the one list every span's load reads
@@ -72,10 +73,7 @@ CREATE TABLE IF NOT EXISTS requests (
 );
 CREATE INDEX IF NOT EXISTS requests_by_home ON requests (home, position)
 """
-_INSERT = (
-    f"INSERT INTO requests (home, position, {_COLUMNS}) "
-    f"VALUES ({','.join('?' * (len(_FIELDS) + 2))})"
-)
+_INSERT = f"INSERT INTO requests (home, position, {_COLUMNS}) VALUES ({marks(len(_FIELDS) + 2)})"
 
 
 # -- lists ------------------------------------------------------------------------------------
@@ -111,14 +109,10 @@ def home_for(request: Request, span: Span, day: date) -> str:
 # -- the file ---------------------------------------------------------------------------------
 
 
-class RequestDb:
+class RequestDb(LocalDb):
     """The requests file."""
 
-    def __init__(self, path: Path) -> None:
-        self.path = Path(path).expanduser()
-
-    def _open(self):
-        return opened(self.path, _SCHEMA)
+    SCHEMA = _SCHEMA
 
     def read(self, span: Span, day: date) -> tuple[Request, ...]:
         """The requests in the season's list, `day`'s Clinics and `span`'s Special, in order.
@@ -126,18 +120,18 @@ class RequestDb:
         A computer with no file yet has no requests; reading makes no file, so a load of a
         folder that is read-only (the trainer's) leaves it as it was.
         """
-        if not self.path.exists():
+        if not self.exists:
             return ()
         homes = request_lists(span, day)
-        marks = ",".join("?" * len(homes))
         with self._open() as db:
             rows = db.execute(
-                f"SELECT home, {_COLUMNS} FROM requests WHERE home IN ({marks}) ORDER BY position",
+                f"SELECT home, {_COLUMNS} FROM requests "
+                f"WHERE home IN ({marks(len(homes))}) ORDER BY position",
                 homes,
             ).fetchall()
         order = {home: i for i, home in enumerate(homes)}
         requests = _requests(sorted(rows, key=lambda row: order[row[0]]))
-        _unique(requests, "a load")
+        _unique(requests)
         return requests
 
     def write(self, requests: tuple[Request, ...], held: set[str]) -> None:
@@ -155,7 +149,7 @@ class RequestDb:
 
     def every(self) -> tuple[Request, ...]:
         """Every request in the file, each list's in order."""
-        if not self.path.exists():
+        if not self.exists:
             return ()
         with self._open() as db:
             rows = db.execute(
@@ -165,10 +159,10 @@ class RequestDb:
 
     def count(self) -> int:
         """How many requests the file holds; 0 if there is no file yet, which it does not make."""
-        if not self.path.exists():
+        if not self.exists:
             return 0
         with self._open() as db:
-            return db.execute("SELECT count(*) FROM requests").fetchone()[0]
+            return _count(db)
 
     def export(self, target: Path) -> int:
         """Write a copy of the file for another Puppet Master. Returns how many it holds."""
@@ -180,10 +174,10 @@ class RequestDb:
         db, copy = connect(self.path), connect(target)
         try:
             db.backup(copy)
+            return _count(copy)
         finally:
             db.close()
             copy.close()
-        return self.count()
 
     def import_file(self, source: Path) -> tuple[int, Path | None]:
         """Replace every request with a file's. Returns how many, and where the old ones went.
@@ -194,7 +188,7 @@ class RequestDb:
         """
         rows = _checked(Path(source).expanduser())
         kept = None
-        if self.path.exists():
+        if self.exists:
             kept = self.path.with_name(f"{self.path.stem}.before-import{SUFFIX}")
             shutil.copyfile(self.path, kept)
         with self._open() as db:
@@ -203,11 +197,14 @@ class RequestDb:
         return len(rows), kept
 
 
-def open_requests(config: Config, source: Source) -> RequestDb:
-    """The requests file: the one on this computer, or a fixture folder's own."""
-    if isinstance(source, CsvSource):
-        return RequestDb(source.root / FIXTURE_FILE)
-    return RequestDb(config.requests)
+def open_requests(config: Config, source: Source | None) -> RequestDb:
+    """The requests file: a fixture folder's own, or else the one on this computer."""
+    own = source.requests_file if source is not None else None
+    return RequestDb(own or config.requests)
+
+
+def _count(db) -> int:
+    return db.execute("SELECT count(*) FROM requests").fetchone()[0]
 
 
 # -- rows -------------------------------------------------------------------------------------
@@ -260,7 +257,7 @@ def _request(home, id, description, skedge, priority, weight, tags, group, reque
         skedge=skedge,
         priority=level,
         weight=1.0 if level.hard else float(weight),
-        tags=tuple(t.strip() for t in tags.split(",") if t.strip()),
+        tags=tuple(split_list(tags)),
         group=group,
         requester=requester,
         created=day,
@@ -268,12 +265,12 @@ def _request(home, id, description, skedge, priority, weight, tags, group, reque
     )
 
 
-def _unique(requests: tuple[Request, ...], where: str) -> None:
-    """Ids read together must differ, or one request would quietly shadow another."""
+def _unique(requests: tuple[Request, ...]) -> None:
+    """Ids a load reads together must differ, or one request would quietly shadow another."""
     seen: dict[str, str] = {}
     for r in requests:
         if r.id in seen:
-            raise LoadError(f"request '{r.id}' is in both {seen[r.id]} and {r.home}, for {where}")
+            raise LoadError(f"request '{r.id}' is in both {seen[r.id]} and {r.home}")
         seen[r.id] = r.home
 
 
@@ -282,7 +279,7 @@ def _checked(source: Path) -> list[tuple]:
     if not source.is_file():
         raise LoadError(f"{source}: no such file")
     try:
-        db = sqlite3.connect(f"{source.resolve().as_uri()}?mode=ro", uri=True)
+        db = connect(source, readonly=True)
         try:
             (schema,) = db.execute("SELECT value FROM meta WHERE key = 'schema'").fetchone()
             rows = db.execute(

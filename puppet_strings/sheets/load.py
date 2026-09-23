@@ -32,7 +32,7 @@ from puppet_strings.sheets.skills import (
 )
 from puppet_strings.sheets.source import LoadError, NotACampDay, Source
 
-READS_IN_FLIGHT = 3  # beside the cabin act sheets' own, which read_all keeps to its limit
+READS_IN_FLIGHT = 3  # sheets read at once, beside the cabin act sheets
 ADJUSTMENT_HEADER = ("date", "staff", "resting", "RAL_penalty", "note")
 ALL = "all"
 STAFF_CATEGORIES_TAB = "Categories"  # the one tab of a span's Staff Categories spreadsheet
@@ -75,11 +75,9 @@ def load_dataset(
     spans = parse_calendar(config_tables[tabs["calendar"]], config.date_order)
     calendar = calendar_days(spans)
     check_camp_day(target, calendar)
-    with (
-        ThreadPoolExecutor(max_workers=1) as boards_pool,
-        ThreadPoolExecutor(max_workers=READS_IN_FLIGHT) as pool,
-    ):
-        boards = boards_pool.submit(_cabin_act_boards, source, config)
+    # one worker more than the reads, for the cabin act sheets, which read_all spreads out
+    with ThreadPoolExecutor(max_workers=READS_IN_FLIGHT + 1) as pool:
+        boards = pool.submit(_cabin_act_boards, source, config)
         return _build(
             source,
             config,

@@ -4,7 +4,6 @@ Names are looked up, set expressions evaluated, and `EACH_OF` expanded into inde
 copies of the declaration. A copy is what the solver compiles.
 """
 
-import weakref
 from collections.abc import Iterator, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
@@ -274,22 +273,9 @@ class _Names:
         return f"; did you mean '{namespace}.{close[0]}'?" if close else ""
 
 
-_names_of: dict[int, _Names] = {}
-
-
 def _names(dataset: Dataset) -> _Names:
-    """The dataset's names, built once and kept while it lives.
-
-    A Dataset is never changed after it is made, and every request resolved against it
-    looks names up in the same table, which takes longer to build than most requests take
-    to resolve. The table is dropped with the dataset.
-    """
-    key = id(dataset)
-    names = _names_of.get(key)
-    if names is None:
-        names = _names_of[key] = _Names(dataset)
-        weakref.finalize(dataset, _names_of.pop, key, None)
-    return names
+    """The dataset's names, built once for it: every request resolved against it shares them."""
+    return dataset.memo(_Names, lambda: _Names(dataset))
 
 
 def _members(items, categories) -> dict[str, Named]:

@@ -1,7 +1,6 @@
 """The requests file: what a load reads, what a save writes, and handing it over."""
 
 import os
-import shutil
 import sqlite3
 import sys
 from dataclasses import replace
@@ -12,14 +11,11 @@ import pytest
 from puppet_strings.model import Priority, Request
 from puppet_strings.requests_db import FIXTURE_FILE, SEASON, RequestDb
 from puppet_strings.sheets.source import LoadError
-from tests.conftest import FIXTURES
 
 
 @pytest.fixture
-def book(tmp_path) -> RequestDb:
-    copy = tmp_path / FIXTURE_FILE
-    shutil.copyfile(FIXTURES / FIXTURE_FILE, copy)
-    return RequestDb(copy)
+def book(fixtures_copy) -> RequestDb:
+    return RequestDb(fixtures_copy / FIXTURE_FILE)
 
 
 def request(id, home, **fields) -> Request:

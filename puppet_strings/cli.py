@@ -13,7 +13,13 @@ from puppet_strings.google_auth import AuthError
 from puppet_strings.model import Dataset
 from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
 from puppet_strings.publish.writer import day_sheet, is_published, publish
-from puppet_strings.requests_db import FIXTURE_FILE, RequestDb, clinics_list, open_requests
+from puppet_strings.requests_db import (
+    FIXTURE_FILE,
+    RequestDb,
+    clinics_list,
+    open_requests,
+    request_lists,
+)
 from puppet_strings.session import open_source
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.source import CsvSource, LoadError, Source, Table
@@ -82,16 +88,18 @@ def _run(args, config: Config, target: date) -> int:
         from puppet_strings.training.app import run_training
 
         return run_training()
+    if args.no_cache:
+        config = replace(config, cache=None)
     if args.command in (None, "app"):
         from puppet_strings.app.main import run_app
 
         return run_app(config, args.fixtures)
-    if args.no_cache:
-        config = replace(config, cache=None)
-    if args.command == "export-requests":
-        return _export_requests(_requests_file(config, args.fixtures), args.file)
-    if args.command == "import-requests":
-        return _import_requests(_requests_file(config, args.fixtures), args.file)
+    if args.command in ("export-requests", "import-requests"):
+        # the requests file needs no Google account to read or replace
+        book = open_requests(config, CsvSource(args.fixtures) if args.fixtures else None)
+        if args.command == "export-requests":
+            return _export_requests(book, args.file)
+        return _import_requests(book, args.file)
     source = open_source(config, args.fixtures)
     if args.command == "export-fixtures":
         return _export(source, open_requests(config, source), args.folder)
@@ -112,11 +120,6 @@ def _run(args, config: Config, target: date) -> int:
     for adjustment in dataset.today_adjustments:
         print(f"today: {adjustment.describe(dataset.staff[adjustment.staff].name)}")
     return _solve(source, config, dataset, args)
-
-
-def _requests_file(config: Config, fixtures: Path | None) -> RequestDb:
-    """The requests file, which needs no Google account to read or replace."""
-    return RequestDb(fixtures / FIXTURE_FILE if fixtures else config.requests)
 
 
 def _export_requests(book: RequestDb, target: Path) -> int:
@@ -156,7 +159,7 @@ def _load_offerings(source: Source, config: Config, dataset: Dataset) -> int:
     clinics = clinics_list(dataset.target)
     generated = generated_requests(dataset, home=clinics)
     merged = merge(list(dataset.requests), generated, dataset.target)
-    held = {r.home for r in merged if r.home} | {clinics}
+    held = set(request_lists(dataset.this_span, dataset.target))
     open_requests(config, source).write(tuple(merged), held)
     print(f"loaded {len(generated)} offerings for {dataset.target} into {clinics}")
     return 0

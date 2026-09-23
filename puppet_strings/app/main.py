@@ -115,8 +115,6 @@ class LoadWorker(QThread):
         of the sheets load: which week of which session a date is in is the Calendar sheet's
         to say, and a Skills tab with a bad row has no business emptying it.
         """
-        # what changed since the last load is asked afresh, by listing the folders again
-        self.store.source.refresh()
         # whatever is wrong with the Calendar, the load below is what says so
         with suppress(Exception):
             self.calendar.emit(self.store.calendar(self.target))
@@ -644,10 +642,10 @@ class MainWindow(QMainWindow):
             self.reload()  # standing feeds eligibility, so read everything again
 
     def load_offerings(self) -> None:
-        """Add the Offerings tab's clinics to the Requests sheet, in the background.
+        """Add the Offerings tab's clinics to the day's requests, in the background.
 
-        The write goes out to the sheet, so it runs on a worker like the other slow jobs:
-        on the UI thread the progress panel would sit there unpainted until it finished.
+        It reads and may make the day's spreadsheet, so it runs on a worker like the other
+        slow jobs: on the UI thread the progress panel would sit there unpainted.
         """
         if self.store.dataset is None or self.offerings is not None:
             return
@@ -800,7 +798,9 @@ class MainWindow(QMainWindow):
         return answer == QMessageBox.Save
 
     def _deleted(self, request_id: str) -> None:
-        self._delete([request_id])
+        request = self.model.request(request_id)
+        if request is not None:
+            self._delete([request])
 
     def selected_requests(self) -> list:
         """The requests on the selected rows, top to bottom."""
@@ -826,17 +826,15 @@ class MainWindow(QMainWindow):
         )
         if answer != QMessageBox.Yes:
             return
-        ids = [r.id for r in chosen]
-        if self.editor.original_id in ids:
+        if self.editor.original_id in {r.id for r in chosen}:
             self.new_request()  # the one being edited is gone
-        self._delete(ids)
+        self._delete(chosen)
 
-    def _delete(self, ids: list[str]) -> None:
-        requests = [self.model.request(i) for i in ids]
-        away = any(r is not None and mentions_exclusion(r.skedge) for r in requests)
-        self.store.delete(*ids)
+    def _delete(self, requests: list) -> None:
+        away = any(mentions_exclusion(r.skedge) for r in requests)
+        self.store.delete(*(r.id for r in requests))
         self._requests_changed()
-        said = ids[0] if len(ids) == 1 else f"{len(ids)} requests"
+        said = requests[0].id if len(requests) == 1 else f"{len(requests)} requests"
         self.status_label.setText(f"  Deleted {said}")
         if away:
             self.reload()  # the day has somebody back in it, so read it all again

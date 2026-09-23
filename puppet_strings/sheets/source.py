@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
-from time import sleep
+from time import monotonic, sleep
 from typing import Protocol
 
 from puppet_strings.sheets.cache import TABS, SheetCache
@@ -23,8 +23,11 @@ MAX_PARALLEL = 4  # requests in flight at once; Google starts refusing well abov
 # day that spends them is told to come back later rather than refused outright, so it waits
 # and asks again, for long enough that the minute the quota is counted over has turned over.
 TOO_FAST = (429, 503)
+# How long a spreadsheet's listed version, and a walk of the root, are trusted: one load.
+FRESH_SECONDS = 60
 WAITS = (5, 15, 30)
 DEFAULT_TAB = "Sheet1"  # what Google calls the one tab a new spreadsheet comes with
+FIXTURE_FILE = "requests.sqlite"  # the requests a folder of CSV files carries with it
 
 # What a spreadsheet has to be called in the Puppet Strings folder to be recognised, so that
 # choosing the root is the whole of the setup. Matched without regard to case.
@@ -103,7 +106,14 @@ class NotACampDay(LoadError):
 
 
 class Source(Protocol):
-    """A collection of named spreadsheets, each a collection of named tabs."""
+    """A collection of named spreadsheets, each a collection of named tabs.
+
+    `requests_file` is the requests a source carries with it, or None: a folder standing
+    in for the sheets is a whole copy of a session, requests and all, and Google Sheets
+    holds none, so the requests are then the ones on this computer.
+    """
+
+    requests_file: Path | None
 
     def tabs(self, sheet: str) -> list[str]:
         """Tab names in a spreadsheet."""
@@ -132,9 +142,6 @@ class Source(Protocol):
     def discover(self, root: str, year: int) -> None:
         """Find the named spreadsheets under the root folder. Sources that need no lookup pass."""
 
-    def refresh(self) -> None:
-        """Ask again, from the next read on, what has changed. Sources that keep nothing pass."""
-
     def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
         """Make a spreadsheet with these tabs at `root/<path>`, and the folders above it."""
 
@@ -161,6 +168,7 @@ class CsvSource:
     def __init__(self, root: Path, names: dict[str, str] | None = None) -> None:
         self.root = Path(root)
         self.names = dict(names or {})  # a role -> the folder standing in for its spreadsheet
+        self.requests_file = self.root / FIXTURE_FILE
 
     def folder(self, sheet: str) -> Path:
         """Where a spreadsheet's tabs are, by role or by path."""
@@ -215,9 +223,6 @@ class CsvSource:
     def discover(self, root: str, year: int) -> None:
         """A CSV tree is addressed by folder name, so there is nothing to look up."""
 
-    def refresh(self) -> None:
-        """Every read of a CSV file is already fresh."""
-
     def create(self, root: str, path: tuple[str, ...], title: str, tabs: list[str]) -> str:
         """Make the folders and an empty CSV file per tab."""
         name = "/".join((root, *path, title))
@@ -253,11 +258,15 @@ class SheetsSource:
     A sheet is named either by its role — `config`, `skills` — or by its Drive id, which
     is how a folder of sheets nobody named one at a time can still be read.
 
-    With a `SheetCache`, a spreadsheet whose Drive version was seen in a folder listing
-    since the last `refresh` is read off disk if it was read at that version before. One
-    whose version is not known — named by an id in config.toml, in no folder that was
-    listed — is always read from Google.
+    With a `SheetCache`, a spreadsheet whose Drive version was seen in a folder listing in
+    the last `FRESH_SECONDS` is read off disk if it was read at that version before. That
+    is long enough for one load to list a folder and read what is in it, and short enough
+    that the next load lists again: nothing has to say when a load begins. One whose
+    version is not known — named by an id in config.toml, in no folder that was listed —
+    is always read from Google.
     """
+
+    requests_file = None  # Google Sheets hold no requests
 
     def __init__(
         self,
@@ -273,11 +282,12 @@ class SheetsSource:
         self.sheet_ids = sheet_ids
         self.folder_ids = folders or {}
         self.cache = cache
-        self._versions: dict[str, str] = {}  # spreadsheet id -> its version when last listed
+        self._versions: dict[str, tuple[str, float]] = {}  # id -> version, when it was listed
+        self._clock = monotonic
         self._open: dict[str, object] = {}
         self._tabs: dict[str, list[str]] = {}
         self._folders: dict[tuple[str, tuple[str, ...]], str] = {}  # where a path is in Drive
-        self._discovered: set[tuple[str, int]] = set()
+        self._discovered: dict[tuple[str, int], float] = {}  # when each root and year was walked
         self._drive = None
 
     def _sent(self, call):
@@ -348,32 +358,29 @@ class SheetsSource:
         return self._listed(self.drive.spreadsheets(folder))
 
     def _listed(self, files) -> dict[str, str]:
-        """Spreadsheets by title, remembering the version each was listed at."""
+        """Spreadsheets by title, remembering the version each was listed at, and when."""
+        now = self._clock()
         for f in files:
             if f.version:
-                self._versions[f.id] = f.version
+                self._versions[f.id] = (f.version, now)
         return {f.name: f.id for f in files}
 
-    def refresh(self) -> None:
-        """Forget which versions were seen, so the next load lists the folders again.
+    def _fresh(self, seen: float) -> bool:
+        return self._clock() - seen < FRESH_SECONDS
 
-        Until then a spreadsheet is taken to be as it was when its folder was last listed,
-        which is right for the length of one load and wrong for the length of a day.
-        """
-        self._versions = {}
-        self._discovered = set()
-        self._tabs = {}
+    def _cached_version(self, key: str) -> str | None:
+        """The version to read and keep tabs at, if there is a cache and a fresh listing."""
+        version, seen = self._versions.get(key, ("", 0.0))
+        return version if self.cache is not None and version and self._fresh(seen) else None
 
     def _kept(self, key: str, tabs: list[str]) -> dict[str, list] | None:
         """These tabs off disk, if the spreadsheet has not changed since they were read."""
-        version = self._versions.get(key)
-        if self.cache is None or not version:
-            return None
-        return self.cache.get(key, version, tabs)
+        version = self._cached_version(key)
+        return self.cache.get(key, version, tabs) if version else None
 
     def _keep(self, key: str, tables: dict[str, list]) -> None:
-        version = self._versions.get(key)
-        if self.cache is not None and version:
+        version = self._cached_version(key)
+        if version:
             self.cache.put(key, version, tables)
 
     def _forget(self, sheet: str) -> None:
@@ -410,8 +417,8 @@ class SheetsSource:
         """
         if root not in self.folder_ids:
             raise LoadError(f"{root}: no folder chosen; pick one in Configure")
-        if (root, year) in self._discovered:
-            return  # asked and answered: which spreadsheet is which is a thing of the tree
+        if self._fresh(self._discovered.get((root, year), float("-inf"))):
+            return  # asked and answered this load: which spreadsheet is which is the tree's
         found: dict[str, str] = {}
         for path in ((), (str(year),)):  # the year wins, so it is looked at second
             for title, key in self.documents(root, path).items():
@@ -419,7 +426,7 @@ class SheetsSource:
                 if role is not None:
                     found[role] = key
         self.sheet_ids = {**self.sheet_ids, **found}  # what is in the tree is the truth
-        self._discovered.add((root, year))
+        self._discovered[root, year] = self._clock()
 
     def name(self, role: str, key: str) -> None:
         """Point a role at a Drive id, as `discover` does from the names in the tree."""
@@ -439,7 +446,6 @@ class SheetsSource:
         sheet = self.drive.spreadsheet(folder, title)
         self._forget(sheet.id)
         self._open[sheet.id] = self.client.open_by_key(sheet.id)
-        self._tabs.pop(sheet.id, None)
         have = list(self.tabs(sheet.id))
         for tab in tabs:
             if tab not in have:
@@ -502,14 +508,17 @@ class SheetsSource:
             kept = self._kept(key, [TABS])
             if kept is not None:
                 titles = kept[TABS]
-            elif sheet in self._open:
-                titles = [ws.title for ws in self._open[sheet].worksheets()]
             else:
-                metadata = self._sent(lambda: self.client.http_client.fetch_sheet_metadata(key))
-                titles = [s["properties"]["title"] for s in metadata.get("sheets", [])]
-            self._keep(key, {TABS: titles})
+                titles = self._fetch_tabs(sheet, key)
+                self._keep(key, {TABS: titles})
             self._tabs[sheet] = titles
         return self._tabs[sheet]
+
+    def _fetch_tabs(self, sheet: str, key: str) -> list[str]:
+        if sheet in self._open:
+            return [ws.title for ws in self._open[sheet].worksheets()]
+        metadata = self._sent(lambda: self.client.http_client.fetch_sheet_metadata(key))
+        return [s["properties"]["title"] for s in metadata.get("sheets", [])]
 
     def read(self, sheet: str, tab: str) -> Table:
         """All values of one worksheet."""

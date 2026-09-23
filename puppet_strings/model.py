@@ -591,16 +591,26 @@ class Dataset:
 
     def blocks_on(self, day: date) -> tuple[Block, ...]:
         """Blocks that exist on a date, in Blocks sheet order."""
-        found = self._blocks_on.get(day)
-        if found is None:
-            entry = self.calendar[day]
-            found = tuple(b for b in self.blocks.values() if block_runs_on(b, entry))
-            self._blocks_on[day] = found
-        return found
+        return self.memo(
+            ("blocks_on", day),
+            lambda: tuple(b for b in self.blocks.values() if block_runs_on(b, self.calendar[day])),
+        )
+
+    def memo(self, key, make):
+        """What `make` works out from this dataset, worked out once and kept with it.
+
+        A Dataset is never changed once made, so anything worked out from it holds for as
+        long as it lives: which blocks run on a date, which names the resolver knows.
+        Building a model asks those thousands of times.
+        """
+        try:
+            return self._memo[key]
+        except KeyError:
+            value = self._memo[key] = make()
+            return value
 
     @cached_property
-    def _blocks_on(self) -> dict[date, tuple[Block, ...]]:
-        """`blocks_on` by date, filled as it is asked: building a model asks thousands of times."""
+    def _memo(self) -> dict:
         return {}
 
     def holds(self, staff_id: str, day: date, block_id: str) -> bool:

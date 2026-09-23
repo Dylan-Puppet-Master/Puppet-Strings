@@ -14,41 +14,34 @@ spreadsheet, before Drive has had a chance to be slow about it.
 """
 
 import json
-from pathlib import Path
 
-from puppet_strings.local_db import opened
+from puppet_strings.local_db import LocalDb, marks
 
-DEFAULT_PATH = Path("~/.config/puppet_strings/sheets-cache.sqlite")
 TABS = "\x00tabs"  # where a spreadsheet's list of tab names is kept, beside its tabs
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS tabs (
-    sheet TEXT NOT NULL,
-    tab TEXT NOT NULL,
-    version TEXT NOT NULL,
-    rows TEXT NOT NULL,
-    PRIMARY KEY (sheet, tab)
-)
-"""
 
-
-class SheetCache:
+class SheetCache(LocalDb):
     """Tables by spreadsheet id and tab, each good for the version it was read at."""
 
-    def __init__(self, path: Path = DEFAULT_PATH) -> None:
-        self.path = Path(path).expanduser()
-
-    def _open(self):
-        return opened(self.path, _SCHEMA)
+    SCHEMA = """
+    CREATE TABLE IF NOT EXISTS tabs (
+        sheet TEXT NOT NULL,
+        tab TEXT NOT NULL,
+        version TEXT NOT NULL,
+        rows TEXT NOT NULL,
+        PRIMARY KEY (sheet, tab)
+    )
+    """
 
     def get(self, sheet: str, version: str, tabs: list[str]) -> dict[str, list] | None:
         """Every one of these tabs as read at this version, or None if any is not kept."""
-        marks = ",".join("?" * len(tabs))
+        if not self.exists:
+            return None
         with self._open() as db:
             found = dict(
                 db.execute(
                     "SELECT tab, rows FROM tabs "
-                    f"WHERE sheet = ? AND version = ? AND tab IN ({marks})",
+                    f"WHERE sheet = ? AND version = ? AND tab IN ({marks(len(tabs))})",
                     (sheet, version, *tabs),
                 ).fetchall()
             )
@@ -66,12 +59,12 @@ class SheetCache:
 
     def drop(self, sheet: str) -> None:
         """Forget everything kept of one spreadsheet."""
-        if self.path.exists():
+        if self.exists:
             with self._open() as db:
                 db.execute("DELETE FROM tabs WHERE sheet = ?", (sheet,))
 
     def clear(self) -> None:
         """Forget everything, so the next load reads every sheet from Google."""
-        if self.path.exists():
+        if self.exists:
             with self._open() as db:
                 db.execute("DELETE FROM tabs")

@@ -22,6 +22,7 @@ from puppet_strings.requests_db import (
     clinics_list,
     home_for,
     open_requests,
+    request_lists,
 )
 from puppet_strings.sheets.adjustments import adjustment_rows
 from puppet_strings.sheets.calendar import calendar_days, parse_calendar
@@ -77,7 +78,6 @@ class RequestStore:
         # A group lives on the requests in it, so one just made holds nothing yet and would
         # vanish on the next read. These keep it in the pane until something joins it.
         self.empty_groups: list[str] = []
-        self.held: set[str] = set()  # the request lists the load read, home or not
         self.group_tabs = GroupTabs()  # which list each group's new requests go to
 
     @property
@@ -117,8 +117,6 @@ class RequestStore:
             self.source, self.config, target, history=False, requests=self.book
         )
         self.requests = list(self.dataset.requests)
-        # the lists this load read, so one emptied by a deletion is written empty
-        self.held = {r.home for r in self.requests if r.home}
         self.facets, self.resolved = {}, {}
         for request in self.requests:
             self._index(request)
@@ -341,6 +339,6 @@ class RequestStore:
         self._write()
 
     def _write(self) -> None:
-        """Write each request to its list, and empty any list left with none."""
-        self.held |= {r.home for r in self.requests if r.home}
-        self.book.write(tuple(self.requests), self.held)
+        """Write each request to its list, and empty any list the load read left with none."""
+        read = request_lists(self.dataset.this_span, self.dataset.target)
+        self.book.write(tuple(self.requests), set(read))
