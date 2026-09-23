@@ -28,9 +28,9 @@ def request(id, home, **fields) -> Request:
 
 
 def test_a_load_reads_the_season_then_the_span(book, dataset):
-    requests = book.read(dataset.this_span)
+    requests = book.read(dataset.this_span, dataset.target)
     assert [r.home for r in requests[:2]] == [SEASON, SEASON]
-    assert requests[-1].home == "S1 Clinics"  # read after the season's
+    assert requests[-1].home == "2026-09-16 Clinics"  # read after the season's
     first = requests[0]
     assert first.id == "counselor-hours" and first.weight == 1.0
     assert first.created == date(2026, 9, 1)
@@ -52,7 +52,11 @@ def test_every_field_round_trips(tmp_path):
 
 def test_no_file_is_no_requests_and_reading_makes_none(tmp_path, dataset):
     book = RequestDb(tmp_path / "none.sqlite")
-    assert book.read(dataset.this_span) == () and book.count() == 0 and book.every() == ()
+    assert (
+        book.read(dataset.this_span, dataset.target) == ()
+        and book.count() == 0
+        and book.every() == ()
+    )
     assert not book.path.exists()  # the trainer's data folder is not written to
 
 
@@ -61,7 +65,7 @@ def test_a_write_replaces_only_the_lists_it_was_given(tmp_path, dataset):
     other = request("s2-1", "S2 Special")
     book.write((request("season-1", SEASON), request("s1-1", "S1 Special"), other), set())
     book.write((request("season-2", SEASON), request("season-1", SEASON)), {SEASON, "S1 Special"})
-    assert [r.id for r in book.read(dataset.this_span)] == ["season-2", "season-1"]
+    assert [r.id for r in book.read(dataset.this_span, dataset.target)] == ["season-2", "season-1"]
     assert other in book.every()  # another session's list was not read, so not touched
 
 
@@ -75,7 +79,7 @@ def test_an_id_in_two_lists_read_together_is_refused(tmp_path, dataset):
     book = RequestDb(tmp_path / "r.sqlite")
     book.write((request("x", SEASON), request("x", "S1 Special")), set())
     with pytest.raises(LoadError, match="'x' is in both Season Requests and S1 Special"):
-        book.read(dataset.this_span)
+        book.read(dataset.this_span, dataset.target)
 
 
 def test_the_solvers_own_priority_is_refused(tmp_path):
@@ -144,3 +148,13 @@ def test_a_request_saved_in_the_app_is_in_the_file(fixtures_copy):
     assert saved_requests(fixtures_copy, "S1 Special")["s1-1"].description == "new"
     store.delete("s1-1")
     assert saved_requests(fixtures_copy, "S1 Special") == {}  # the emptied list is emptied
+
+
+def test_one_days_offerings_are_not_another_days(tmp_path, dataset):
+    """Offerings are the day's own, so a load of the next day does not show them."""
+    book = RequestDb(tmp_path / "r.sqlite")
+    today, tomorrow = dataset.target, date(2026, 9, 17)
+    offering = request("offering:2026-09-16:riflery:clinic_1", "2026-09-16 Clinics")
+    book.write((offering, request("s1-1", "S1 Special")), set())
+    assert offering in book.read(dataset.this_span, today)
+    assert [r.id for r in book.read(dataset.this_span, tomorrow)] == ["s1-1"]

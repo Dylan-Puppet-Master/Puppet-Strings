@@ -1303,7 +1303,7 @@ def test_the_editor_keeps_a_request_in_its_own_list(window):
     assert editor.home_box.currentText() == "Season Requests"
     assert [editor.home_box.itemText(i) for i in range(editor.home_box.count())] == [
         "Season Requests",
-        "S1 Clinics",
+        "2026-09-16 Clinics",
         "S1 Special",
     ]
     editor.save_button.click()
@@ -1350,3 +1350,68 @@ def test_a_keyword_is_coloured_in_whichever_case_it_is_written_in(window):
     assert coloured(edit, "EXCLUDE") == palette.KEYWORD
     assert coloured(edit, "ALL_OF") == palette.KEYWORD
     assert coloured(edit, "'offsite'") == palette.STRING
+
+
+# -- moving between days, and deleting many at once ------------------------------------------
+
+
+def test_another_days_offerings_are_not_shown(window):
+    """Offerings are the day's own: moving the date reads the new day, without the old one's."""
+    assert any(r.id.startswith("offering:2026-09-16:") for r in window.store.requests)
+    window.date_edit.setDate(QDate(2026, 9, 17))
+    window.date_edit.editingFinished.emit()  # the date box, finished with
+    window.wait_for_load()
+    assert window.store.dataset.target == date(2026, 9, 17)
+    assert not [r for r in window.store.requests if "generated" in r.tags]
+    window.load_offerings()
+    window.wait_for_offerings()
+    assert all(
+        r.id.startswith("offering:2026-09-17:")
+        for r in window.store.requests
+        if "generated" in r.tags
+    )
+    window.date_edit.setDate(QDate(2026, 9, 16))
+    window.date_edit.editingFinished.emit()
+    window.wait_for_load()
+    generated = [r for r in window.store.requests if "generated" in r.tags]
+    assert generated and all(r.id.startswith("offering:2026-09-16:") for r in generated)
+
+
+def test_the_same_date_is_not_read_again(window):
+    window.date_edit.editingFinished.emit()
+    assert window.loader is None
+
+
+def select_rows(window, count: int) -> list[str]:
+    selection = window.table.selectionModel()
+    selection.clearSelection()
+    for row in range(count):
+        index = window.proxy.index(row, 0)
+        selection.select(index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
+    return [r.id for r in window.selected_requests()]
+
+
+def test_selected_requests_are_deleted_once_confirmed(window, monkeypatch):
+    before = window.model.rowCount()
+    chosen = select_rows(window, 3)
+    asked = []
+
+    def answer(_parent, _title, text, *args):
+        asked.append(text)
+        return QMessageBox.Yes
+
+    monkeypatch.setattr(QMessageBox, "question", answer)
+    QTest.keyClick(window.table, Qt.Key_Delete)
+    assert "Delete 3 requests?" in asked[0] and all(i in asked[0] for i in chosen)
+    assert window.model.rowCount() == before - 3
+    kept = {r.id for r in window.store.book.every()}
+    assert not kept & set(chosen)
+    assert "Deleted 3 requests" in window.status_label.text()
+
+
+def test_nothing_is_deleted_when_the_popup_is_cancelled(window, monkeypatch):
+    before = window.model.rowCount()
+    select_rows(window, 2)
+    monkeypatch.setattr(QMessageBox, "question", lambda *a: QMessageBox.Cancel)
+    QTest.keyClick(window.table, Qt.Key_Delete)
+    assert window.model.rowCount() == before

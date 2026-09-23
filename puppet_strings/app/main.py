@@ -6,7 +6,7 @@ from contextlib import suppress
 from datetime import date, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import QDate, Qt, QThread, Signal
+from PySide6.QtCore import QDate, Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -199,6 +199,7 @@ class MainWindow(QMainWindow):
         self.table.setSortingEnabled(True)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.selectionModel().currentRowChanged.connect(self._select)
+        self.table.delete_requested.connect(self.delete_selected)
         self.editor = RequestEditor()
         self.editor.saved.connect(self._saved)
         self.editor.deleted.connect(self._deleted)
@@ -250,6 +251,11 @@ class MainWindow(QMainWindow):
         self.date_edit = QDateEdit(QDate(date.today() + timedelta(days=1)))
         self.date_edit.setDisplayFormat("yyyy-MM-dd")
         self.date_edit.setCalendarPopup(True)
+        # a finished date, not every keystroke on the way to one
+        self.date_edit.editingFinished.connect(self._target_changed)
+        self.date_edit.calendarWidget().clicked.connect(
+            lambda _: QTimer.singleShot(0, self._target_changed)
+        )
         toolbar.addWidget(self.date_edit)
         toolbar.addAction("Reload", self.reload)
         toolbar.addAction("Load offerings", self.load_offerings)
@@ -458,6 +464,19 @@ class MainWindow(QMainWindow):
     def target(self) -> date:
         """The date in the toolbar."""
         return self.date_edit.date().toPython()
+
+    def _target_changed(self) -> None:
+        """Read the day the date box moved to, so no day is shown under another's date.
+
+        Nothing is read before the first Reload, since the day wanted is often not the
+        default; after it, the window follows the date.
+        """
+        dataset = self.store.dataset
+        if dataset is None or dataset.target == self.target:
+            return
+        if self.loader is not None and self.loader.target == self.target:
+            return  # already on its way
+        self.reload()
 
     def reload(self) -> None:
         """Read every sheet again for the target date, in the background.
@@ -730,12 +749,12 @@ class MainWindow(QMainWindow):
             self.editor.show_request(request)
 
     def _saved(self, request, original_id) -> None:
-        """Write one request to the sheet, and leave the editor saying that it is written."""
+        """Save one request, and leave the editor saying that it is saved."""
         if not self._covers_or_agreed(request):
             self.editor.not_saved("Not saved; still editing")
             self.status_label.setText("  Not saved; still editing")
             return
-        QApplication.setOverrideCursor(Qt.WaitCursor)  # the sheet write is what takes the time
+        QApplication.setOverrideCursor(Qt.WaitCursor)
         try:
             saved = self.store.save(request, original_id)
         finally:
@@ -781,11 +800,44 @@ class MainWindow(QMainWindow):
         return answer == QMessageBox.Save
 
     def _deleted(self, request_id: str) -> None:
-        request = self.model.request(request_id)
-        away = request is not None and mentions_exclusion(request.skedge)
-        self.store.delete(request_id)
+        self._delete([request_id])
+
+    def selected_requests(self) -> list:
+        """The requests on the selected rows, top to bottom."""
+        rows = sorted(self.table.selectionModel().selectedRows(), key=lambda i: i.row())
+        found = (self.proxy.data(index, Qt.UserRole) for index in rows)
+        return [request for request in found if request is not None]
+
+    def delete_selected(self) -> None:
+        """Delete every selected request, once the Puppet Master has said yes."""
+        chosen = self.selected_requests()
+        if not chosen:
+            return
+        shown = "\n".join(r.id for r in chosen[:10])
+        if len(chosen) > 10:
+            shown += f"\nand {len(chosen) - 10} more"
+        many = f"{len(chosen)} requests" if len(chosen) > 1 else "1 request"
+        answer = QMessageBox.question(
+            self,
+            "Delete requests",
+            f"Delete {many}?\n\n{shown}",
+            QMessageBox.Yes | QMessageBox.Cancel,
+            QMessageBox.Cancel,
+        )
+        if answer != QMessageBox.Yes:
+            return
+        ids = [r.id for r in chosen]
+        if self.editor.original_id in ids:
+            self.new_request()  # the one being edited is gone
+        self._delete(ids)
+
+    def _delete(self, ids: list[str]) -> None:
+        requests = [self.model.request(i) for i in ids]
+        away = any(r is not None and mentions_exclusion(r.skedge) for r in requests)
+        self.store.delete(*ids)
         self._requests_changed()
-        self.status_label.setText(f"  Deleted {request_id}")
+        said = ids[0] if len(ids) == 1 else f"{len(ids)} requests"
+        self.status_label.setText(f"  Deleted {said}")
         if away:
             self.reload()  # the day has somebody back in it, so read it all again
 

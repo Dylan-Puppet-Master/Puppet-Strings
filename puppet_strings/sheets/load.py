@@ -147,7 +147,7 @@ def _build(
     skills_read = pool.submit(source.read_many, "skills", [tabs["skills"], tabs["position_skills"]])
     clinics_read = pool.submit(source.read, "clinic_data", tabs["clinics"])
     listing = pool.submit(source.documents, ROOT, span_path(span))
-    requests_read = pool.submit(book.read, span)
+    requests_read = pool.submit(book.read, span, target)
     mappings_read = pool.submit(source.read_many, "config", list(tab_of.values()))
     in_span = listing.result()
     day_sheet = day_title(span, target)

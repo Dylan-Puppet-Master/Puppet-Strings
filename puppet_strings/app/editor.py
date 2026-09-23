@@ -290,7 +290,7 @@ class RequestEditor(QWidget):
     def set_dataset(self, dataset: Dataset | None, groups: list[str] | None = None) -> None:
         """Names are validated and suggested against this dataset."""
         self.dataset = dataset
-        self._fill_homes(request_lists(dataset.this_span) if dataset else ())
+        self._fill_homes(request_lists(dataset.this_span, dataset.target) if dataset else ())
         self.groups = list(groups or [])
         self.requester_names.setStringList(sorted(dataset.staff) if dataset else [])
         self.skedge_edit.set_dataset(dataset)
@@ -315,7 +315,8 @@ class RequestEditor(QWidget):
     def show_request(self, request: Request) -> None:
         """Load a request into the fields."""
         self._fill_homes(
-            request_lists(self.dataset.this_span) if self.dataset else (), request.home
+            request_lists(self.dataset.this_span, self.dataset.target) if self.dataset else (),
+            request.home,
         )
         self.original_id = request.id
         self.id_label.setText(request.id)
@@ -342,7 +343,9 @@ class RequestEditor(QWidget):
         this span's Special list, which is where a request asked for this session belongs.
         """
         self.show_group(group)
-        self._fill_homes(request_lists(self.dataset.this_span) if self.dataset else (), home)
+        self._fill_homes(
+            request_lists(self.dataset.this_span, self.dataset.target) if self.dataset else (), home
+        )
         if self.dataset is not None and not home:
             self.home_box.setCurrentText(special_list(self.dataset.this_span))
         self.original_id = None

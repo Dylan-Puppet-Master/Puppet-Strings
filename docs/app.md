@@ -8,6 +8,7 @@ puppet-strings app
 
 **Toolbar.** Pick the target date (tomorrow by default). Nothing is read when the window
 opens; **Reload** reads every sheet for the date shown, and again whenever it is pressed.
+After the first Reload, changing the date reads the new day by itself.
 The Calendar is read first and the date checked against it, so a date camp is not running
 says so at once — naming the range the calendar covers and the nearest camp day — rather
 than after a slow read of everything else. It is a prompt to pick another date, not a
@@ -36,8 +37,9 @@ Offerings grid copied from the Clinic Schedule template and its other tabs empty
 nobody has set up is one click from being ready, and the click after that reads what you
 put in the grid.
 
-Loading first removes every generated request for the target date, so the sheet mirrors
-that day's Offerings tab: a clinic you removed there disappears here. Hand-written requests are
+Loading first removes every generated request for the target date, so the requests mirror
+that day's Offerings tab: a clinic you removed there disappears here. The generated requests
+are that day's alone, filed in its own Clinics list, so no other day shows them. Hand-written requests are
 never touched. Between loads you can delete a generated request to drop that clinic, or
 edit it, for example to replace `ANY 1 staff.all` with a category to limit who runs it;
 loading again undoes such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
@@ -206,7 +208,8 @@ is going out to the sheet the button reads **Saving…**; when it lands, the lin
 and says `✓ Saved s1-12 at 14:32:05`, with the time, so a second save of the same
 request still visibly does something. The confirmation stays until the next edit, which
 validates the request again. **New** starts a
-fresh request; **Delete** removes the selected one. Saving is instant: requests are kept on
+fresh request; **Delete** removes the one being edited. To delete several, select their
+rows in the table and press the Delete key; a popup lists them and asks first. Saving is instant: requests are kept on
 this computer, not in a sheet. The **in list** box chooses where a request is filed: this
 session's `Special` list, or `Season Requests` for something that holds all season.
 

@@ -148,7 +148,9 @@ class RequestStore:
         list goes to this span's Special list — or its Clinics list, if it was generated.
         Returns the request as saved.
         """
-        request = replace(request, home=home_for(request, self.dataset.this_span))
+        request = replace(
+            request, home=home_for(request, self.dataset.this_span, self.dataset.target)
+        )
         ids = [r.id for r in self.requests]
         if original_id in ids:
             request = replace(request, id=original_id)
@@ -169,7 +171,7 @@ class RequestStore:
         ready rather than a folder to go and build by hand.
         """
         day_sheet(self.source, self.config, self.dataset.this_span, self.dataset.target)
-        generated = generated_requests(self.dataset, home=clinics_list(self.dataset.this_span))
+        generated = generated_requests(self.dataset, home=clinics_list(self.dataset.target))
         self.requests = merge(self.requests, generated, self.dataset.target)
         self._reindex(generated)
         self._write()
@@ -329,11 +331,13 @@ class RequestStore:
             self.requests = rewritten
             self._write()
 
-    def delete(self, request_id: str) -> None:
-        """Remove a request and write its list."""
-        self.requests = [r for r in self.requests if r.id != request_id]
-        self.facets.pop(request_id, None)
-        self.resolved.pop(request_id, None)
+    def delete(self, *request_ids: str) -> None:
+        """Remove requests, however many, and write their lists once."""
+        gone = set(request_ids)
+        self.requests = [r for r in self.requests if r.id not in gone]
+        for request_id in gone:
+            self.facets.pop(request_id, None)
+            self.resolved.pop(request_id, None)
         self._write()
 
     def _write(self) -> None:

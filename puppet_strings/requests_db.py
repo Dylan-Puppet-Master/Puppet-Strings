@@ -5,18 +5,19 @@ at a time, so the requests are a file on that Puppet Master's computer. Export h
 to the next Puppet Master; Import takes one in, keeping the requests it replaces beside it
 in case they were wanted after all.
 
-Every request is filed in one list, its `home`, and a load reads three of them:
+Every request is filed in one list, its `home`, and a load of a day reads three of them:
 
-    Season Requests   what holds all season or crosses sessions: the legal limits, the
-                      standing agreements, anything written for more than one session
-    S1 Clinics        the clinic requests Load offerings makes for session 1's days
-    S1 Special        what was asked for session 1 in particular
+    Season Requests     what holds all season or crosses sessions: the legal limits, the
+                        standing agreements, anything written for more than one session
+    2026-07-08 Clinics  the clinic requests Load offerings makes for that one day
+    S1 Special          what was asked for session 1 in particular
 
 A span that is not a numbered session is labelled by its own name instead of `S1`, so a
-`Staff Week` row on the Calendar sheet gets `Staff Week Clinics` and `Staff Week Special`.
-A request written in the app goes to its session's Special list unless it is said to hold
-all season, and a generated one goes to the session's Clinics list, where the next Load
-offerings can throw it away without touching anything written by hand.
+`Staff Week` row on the Calendar sheet gets `Staff Week Special`. A request written in the
+app goes to its session's Special list unless it is said to hold all season, and a
+generated one goes to its day's Clinics list: the offerings are the day's and nobody
+else's, so no other day shows them, and the next Load offerings can throw them away
+without touching anything written by hand.
 
 A folder of fixtures carries its own `requests.sqlite`, so a copy of a session is one
 folder and running on it touches nothing on the computer it runs on.
@@ -85,9 +86,9 @@ def span_label(span: Span) -> str:
     return f"S{span.session}" if span.session is not None else span.name
 
 
-def clinics_list(span: Span) -> str:
-    """The list holding the span's generated clinic requests."""
-    return f"{span_label(span)}{CLINICS_SUFFIX}"
+def clinics_list(day: date) -> str:
+    """The list holding one day's generated clinic requests."""
+    return f"{day.isoformat()}{CLINICS_SUFFIX}"
 
 
 def special_list(span: Span) -> str:
@@ -95,16 +96,16 @@ def special_list(span: Span) -> str:
     return f"{span_label(span)}{SPECIAL_SUFFIX}"
 
 
-def request_lists(span: Span) -> tuple[str, ...]:
-    """The three lists a load of a day in this span reads."""
-    return (SEASON, clinics_list(span), special_list(span))
+def request_lists(span: Span, day: date) -> tuple[str, ...]:
+    """The three lists a load of `day`, in `span`, reads."""
+    return (SEASON, clinics_list(day), special_list(span))
 
 
-def home_for(request: Request, span: Span) -> str:
+def home_for(request: Request, span: Span, day: date) -> str:
     """Which list a request belongs in: the one it names, or the one its kind implies."""
     if request.home:
         return request.home
-    return clinics_list(span) if GENERATED_TAG in request.tags else special_list(span)
+    return clinics_list(day) if GENERATED_TAG in request.tags else special_list(span)
 
 
 # -- the file ---------------------------------------------------------------------------------
@@ -119,15 +120,15 @@ class RequestDb:
     def _open(self):
         return opened(self.path, _SCHEMA)
 
-    def read(self, span: Span) -> tuple[Request, ...]:
-        """The requests in the season's list and `span`'s own, each list in order.
+    def read(self, span: Span, day: date) -> tuple[Request, ...]:
+        """The requests in the season's list, `day`'s Clinics and `span`'s Special, in order.
 
         A computer with no file yet has no requests; reading makes no file, so a load of a
         folder that is read-only (the trainer's) leaves it as it was.
         """
         if not self.path.exists():
             return ()
-        homes = request_lists(span)
+        homes = request_lists(span, day)
         marks = ",".join("?" * len(homes))
         with self._open() as db:
             rows = db.execute(

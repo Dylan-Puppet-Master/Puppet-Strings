@@ -46,7 +46,7 @@ def test_load_offerings_and_missing_warning(tmp_path, capsys):
     assert "no offerings loaded for 2026-09-17" in capsys.readouterr().out
     assert main(["--fixtures", str(copy), "--date", "2026-09-17", "load-offerings"]) == 0
     assert "loaded 24 offerings for 2026-09-17" in capsys.readouterr().out
-    clinics = saved_requests(copy, "S1 Clinics")
+    clinics = saved_requests(copy, "2026-09-17 Clinics")
     assert "generated" in clinics["offering:2026-09-17:riflery:clinic_3"].tags
     assert main(["--fixtures", str(copy), "--date", "2026-09-17", "solve"]) == 0
     assert "no offerings loaded" not in capsys.readouterr().out

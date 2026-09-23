@@ -262,12 +262,12 @@ the whole season to schedule one day:
 | List | What is in it |
 |---|---|
 | `Season Requests` | What holds all season or crosses sessions: the legal limits, the standing agreements. **Every** load reads it. |
-| `S1 Clinics` | The clinic requests **Load offerings** makes for session 1's days. Loading a day's offerings again throws that day's away and makes them again, so nothing here is worth editing by hand. |
+| `2026-09-16 Clinics` | The clinic requests **Load offerings** makes for that one day. Only a load of that day reads them, so another day never shows them. Loading the day's offerings again throws them away and makes them again, so nothing here is worth editing by hand. |
 | `S1 Special` | What was asked of session 1 in particular. |
 
-A load reads three lists: the season's, and the two of the session the target date falls
-in. A span on the Calendar sheet that is not a numbered session is labelled by its own
-name instead — a `Staff Week` row gets `Staff Week Clinics` and `Staff Week Special`.
+A load reads three lists: the season's, the target date's own Clinics, and the Special
+list of the session it falls in. A span on the Calendar sheet that is not a numbered
+session is labelled by its own name instead — a `Staff Week` row gets `Staff Week Special`.
 Which list a request is in is what says when it applies. The request manager puts a new
 request in the session's Special list; its **in list** box is how to put one in
 `Season Requests` instead.

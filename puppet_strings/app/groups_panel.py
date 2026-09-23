@@ -212,7 +212,7 @@ class GroupsPane(QWidget):
     def _tabs(self) -> tuple[str, ...]:
         """The lists a request could go in, for the span being scheduled."""
         dataset = self.store.dataset
-        return request_lists(dataset.this_span) if dataset is not None else ()
+        return request_lists(dataset.this_span, dataset.target) if dataset is not None else ()
 
     def _set_tab(self, group: str, tab: str) -> None:
         """Remember where this group's new requests go, and say so on the label."""

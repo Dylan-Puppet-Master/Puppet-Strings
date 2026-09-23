@@ -6,7 +6,7 @@ file manager carries a small token instead: one label beside the pointer, with t
 stacked behind it and a count on the corner. That is what a drag here carries too.
 """
 
-from PySide6.QtCore import QPoint, QRectF, Qt
+from PySide6.QtCore import QPoint, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QDrag, QFont, QFontMetrics, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import QTableView
 
@@ -64,13 +64,28 @@ def drag_token(ids: list[str], font: QFont, ratio: float = 1.0) -> QPixmap:
 
 
 class RequestTable(QTableView):
-    """The table of requests, whose rows are dragged onto a group to move them there."""
+    """The table of requests, whose rows are dragged onto a group to move them there.
+
+    Delete (or Backspace) asks for the selected rows to be deleted; the window asks first.
+    """
+
+    delete_requested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
         self.setSelectionBehavior(QTableView.SelectRows)
         self.setDragEnabled(True)
         self.setDragDropMode(QTableView.DragOnly)
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        """Delete or Backspace on a selection asks for it to be deleted."""
+        if (
+            event.key() in (Qt.Key_Delete, Qt.Key_Backspace)
+            and self.selectionModel().hasSelection()
+        ):
+            self.delete_requested.emit()
+            return
+        super().keyPressEvent(event)
 
     def startDrag(self, supported) -> None:  # noqa: N802
         """Carry the rows picked up as a small token beside the pointer.

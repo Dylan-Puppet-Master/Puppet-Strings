@@ -153,7 +153,7 @@ def _names(dataset: Dataset) -> int:
 
 def _load_offerings(source: Source, config: Config, dataset: Dataset) -> int:
     day_sheet(source, config, dataset.this_span, dataset.target)  # made if it is not there yet
-    clinics = clinics_list(dataset.this_span)
+    clinics = clinics_list(dataset.target)
     generated = generated_requests(dataset, home=clinics)
     merged = merge(list(dataset.requests), generated, dataset.target)
     held = {r.home for r in merged if r.home} | {clinics}
