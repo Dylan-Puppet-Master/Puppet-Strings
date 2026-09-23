@@ -320,6 +320,8 @@ class Compiler:
         who = chosen(st.who, "staff")
         whats = chosen(st.what, "activity") if isinstance(st.what, Choice) else {st.what: True}
         blocks = chosen(st.during, "block")
+        if st.during.consecutive:
+            self._adjacent(blocks, st.during.n, st.on.items, active, f"{name}:block")
         roles = chosen(st.role, "role") if st.role else {None: True}
         dates = chosen(st.on, "date")
         made = []
@@ -401,6 +403,8 @@ class Compiler:
         ]
         if len(wide) != 1 or wide[0].kind != ANY or wide[0].var is not None:
             return None
+        if wide[0].consecutive:
+            return None  # which n matters, not only how many
         return wide[0]
 
     def _hold(self, s: str, w, r, b: str, st: Requirement, conds: list, name: str) -> tuple:
@@ -551,6 +555,28 @@ class Compiler:
         else:
             self.model.Add(total == choice.n * active)
         return chosen
+
+    def _adjacent(self, chosen: dict, n: int, days, active: Literal, name: str) -> None:
+        """`ANY_n_OF <blocks> CONSECUTIVE`: the n chosen blocks are a run of adjacent ones.
+
+        Blocks are adjacent when they are next to each other in the Blocks sheet, as they
+        are for a CONSECUTIVE amount, on any of the dates the requirement is about. Exactly
+        one such run is picked when the requirement is active, and it is what is chosen.
+        """
+        runs: set[tuple[str, ...]] = set()
+        for day in days:
+            order = [b.id for b in self.dataset.blocks_on(day)]
+            for i in range(len(order) - n + 1):
+                run = tuple(order[i : i + n])
+                if all(b in chosen for b in run):
+                    runs.add(run)
+        if not runs:
+            self._imply([active], False)  # no n of them are ever next to each other
+            return
+        picked = {run: self.model.NewBoolVar(f"{name}:run:{'+'.join(run)}") for run in sorted(runs)}
+        self.model.Add(sum(picked.values()) == active)
+        for block, literal in chosen.items():
+            self.model.Add(literal == sum(p for run, p in picked.items() if block in run))
 
     def _pool(self, choice: Choice | None) -> dict:
         """Each item of a pool with the condition for its membership: True, or a shared choice."""

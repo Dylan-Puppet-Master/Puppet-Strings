@@ -23,6 +23,22 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             1,
         ),
         (
+            "REQUEST staff.dylan DO 'x' DURING ANY_1_OF blocks.all CONSECUTIVE",
+            Priority.HIGH,
+            "CONSECUTIVE after DURING chooses blocks next to each other, so it needs "
+            "ANY_n_OF with n of 2 or more",
+            1,
+            28,
+        ),
+        (
+            "REQUEST staff.dylan DO 'x' DURING ALL_OF blocks.all_clinics CONSECUTIVE",
+            Priority.HIGH,
+            "CONSECUTIVE after DURING chooses blocks next to each other, so it needs "
+            "ANY_n_OF with n of 2 or more",
+            1,
+            28,
+        ),
+        (
             "REQUEST staff.counselor DO 'x' DURING blocks.clinic_1",
             Priority.HIGH,
             "needs a quantifier: ALL_OF, ANY_n_OF or EACH_OF",

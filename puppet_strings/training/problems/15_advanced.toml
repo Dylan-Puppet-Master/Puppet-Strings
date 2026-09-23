@@ -96,7 +96,7 @@ wrong = ["REQUEST activities.clinics.gravity_zip_line DURING blocks.clinic_2"]
 id = "big-directors-rotation"
 title = "Directors on duty"
 prompt = "In each clinic block, exactly one director is 'on duty', and no director is on duty twice in a row."
-answer = "REQUEST EXACTLY 1 staff.directors DO 'on duty' DURING EACH_OF blocks.all_clinics\nREQUEST AT_MOST 1 EACH_OF staff.directors DO 'on duty' CONSECUTIVE"
+answer = "REQUEST EXACTLY 1 staff.directors DO 'on duty' DURING EACH_OF blocks.all_clinics\nREQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.directors DO 'on duty'"
 priority = "MUST_HAPPEN"
 wrong = ["REQUEST EXACTLY 1 staff.directors DO 'on duty' DURING EACH_OF blocks.all_clinics"]
 
@@ -119,10 +119,15 @@ wrong = ["EACH_OF c IN staff.village_leaders\nIF c NOT FREE DURING {blocks.clini
 [[problem]]
 id = "big-unbroken-training"
 title = "Unbroken training"
-prompt = "Tori trains on Candle Making, as a trainee, for two unbroken hours some day between today and Friday."
-answer = "REQUEST AT_LEAST 2h staff.tori DO activities.clinics.candle_making AS_ROLE roles.trainee ON {dates.target .. 2026-08-07} CONSECUTIVE"
-hints = ["An amount of time, then the pattern, then CONSECUTIVE for back-to-back blocks."]
-wrong = ["REQUEST AT_LEAST 2h staff.tori DO activities.clinics.candle_making AS_ROLE roles.trainee CONSECUTIVE"]
+prompt = "Tori trains on Candle Making, as a trainee, for two clinic blocks in a row, some day between today and Friday."
+answer = "REQUEST staff.tori DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY_2_OF blocks.all_clinics CONSECUTIVE ON ANY_1_OF {dates.target .. 2026-08-07}"
+hints = ["ANY_2_OF blocks.all_clinics CONSECUTIVE chooses two clinic blocks next to each other; ANY_1_OF the dates chooses the day."]
+explain = "The clinic blocks here are an hour each, so AT_LEAST 2h CONSECUTIVE … says the same thing by counting."
+alternatives = ["REQUEST AT_LEAST 2h CONSECUTIVE staff.tori DO activities.clinics.candle_making AS_ROLE roles.trainee ON {dates.target .. 2026-08-07}"]
+wrong = [
+  "REQUEST staff.tori DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY_2_OF blocks.all_clinics ON ANY_1_OF {dates.target .. 2026-08-07}",
+  "REQUEST staff.tori DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY_2_OF blocks.all_clinics CONSECUTIVE",
+]
 
 [[problem]]
 id = "big-trainee-with-trainer"

@@ -182,7 +182,7 @@ class _Builder(Transformer):
     def test(self, meta, items):
         amount = items[0] if isinstance(items[0], ast.Amount) else None
         pattern = next(x for x in items if isinstance(x, ast.Pattern))
-        return ast.Predicate(amount, pattern, _is(items[-1], "CONSECUTIVE"), _pos(meta))
+        return ast.Predicate(amount, pattern, _consecutive(items), _pos(meta))
 
     def labeled(self, meta, items):
         name, statement = items
@@ -226,8 +226,9 @@ class _Builder(Transformer):
         return self._count(meta, items, prefer=True)
 
     def _count(self, meta, items, prefer: bool):
-        amount, pattern = items[0], items[1]
-        return ast.Count(prefer, amount, pattern, _is(items[-1], "CONSECUTIVE"), _pos(meta))
+        amount = items[0]
+        pattern = next(x for x in items if isinstance(x, ast.Pattern))
+        return ast.Count(prefer, amount, pattern, _consecutive(items), _pos(meta))
 
     def prefer_score(self, meta, items):
         pattern, (maximize, call) = items
@@ -276,7 +277,7 @@ class _Builder(Transformer):
         return ast.Selector(_atom(items[0]), kind, n, var, _pos(meta))
 
     def during_c(self, meta, items):
-        return ast.During(_pos(meta), items[0])
+        return ast.During(_pos(meta), items[0], _is(items[-1], "CONSECUTIVE"))
 
     def on_c(self, meta, items):
         return ast.On(_pos(meta), items[0])
@@ -284,7 +285,9 @@ class _Builder(Transformer):
     def as_role_c(self, meta, items):
         return ast.AsRole(_pos(meta), items[0])
 
-    during = during_c
+    def during(self, meta, items):
+        return ast.During(_pos(meta), items[0])
+
     on = on_c
     as_role = as_role_c
 
@@ -328,6 +331,21 @@ class _Builder(Transformer):
         offset = str(items[1]).replace(" ", "").replace("\t", "")
         days = int(offset[1:-1])
         return ast.DateOffset(_atom(items[0]), days if offset[0] == "+" else -days, _pos(meta))
+
+
+def _consecutive(items) -> bool:
+    """Whether an amount is measured in runs: `AT_LEAST 2 CONSECUTIVE <pattern>`.
+
+    CONSECUTIVE used to be written after the pattern, where it reads as though it were about
+    the last clause, `ON {…} CONSECUTIVE` as consecutive dates. It is parsed there only to
+    say where it goes now.
+    """
+    if _is(items[-1], "CONSECUTIVE"):
+        token = items[-1]
+        raise ast.SkedgeError(
+            "CONSECUTIVE goes after the amount: AT_LEAST 2 CONSECUTIVE …", token.line, token.column
+        )
+    return any(_is(x, "CONSECUTIVE") for x in items)
 
 
 def _test(item) -> ast.Test:

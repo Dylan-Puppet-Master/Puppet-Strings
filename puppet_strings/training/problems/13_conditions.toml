@@ -6,7 +6,7 @@ teaches = """
 IF <test>          the request applies only when the test holds
 UNLESS <test>      only when it doesn't
 
-A test is [amount] <pattern> [CONSECUTIVE]; with no amount, one match will do.
+A test is [amount [CONSECUTIVE]] <pattern>; with no amount, one match will do.
 
 UNLESS staff.lisa FREE DURING blocks.clinic_1
 REQUEST ANY_1_OF staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1
@@ -66,7 +66,7 @@ wrong = ["IF staff.rob DO activities.clinics.gravity_zip_line DURING blocks.clin
 id = "if-each-after-clinics"
 title = "After two in a row"
 prompt = "For each village leader: if they run two clinics back to back, they get a free block somewhere today."
-answer = "EACH_OF s IN staff.village_leaders\nIF AT_LEAST 2 s DO activities.clinics.all CONSECUTIVE\nREQUEST s FREE DURING ANY_1_OF blocks.all"
+answer = "EACH_OF s IN staff.village_leaders\nIF AT_LEAST 2 CONSECUTIVE s DO activities.clinics.all\nREQUEST s FREE DURING ANY_1_OF blocks.all"
 priority = "HIGH"
 
 [[problem]]

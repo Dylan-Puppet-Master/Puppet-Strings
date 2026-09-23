@@ -183,6 +183,24 @@ staff time only. `'break' FOR 30m` is a 30-minute break somewhere inside one blo
 Staff View labels the rest of the block `DYOW/WPs`, and several short tasks can share a
 block.
 
+### Blocks in a row
+
+`CONSECUTIVE` right after `ANY_n_OF` blocks chooses blocks that are next to each other:
+
+```skedge
+REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY_2_OF blocks.all CONSECUTIVE
+```
+
+Lucy and Tom take out the garbage together, in two blocks one after the other. Blocks are
+next to each other when they are next to each other in the Blocks sheet, so
+`ANY_2_OF blocks.all_clinics CONSECUTIVE` may be clinic 1 and 2, but not clinic 2 and 3
+with lunch between them. It needs `ANY_n_OF` with n of 2 or more: anything else has nothing
+to choose.
+
+`CONSECUTIVE` always comes right after what it is about. After `ANY_n_OF` blocks it is the
+blocks chosen; after an amount ([patterns](#patterns-who-do-what)) it is the amount,
+measured over runs.
+
 ### Asking for an activity without naming anybody
 
 An activity already records who may run it: each of its positions needs a skill, and a
@@ -274,8 +292,8 @@ becomes something you can request or prefer:
 | `REQUEST AT_LEAST 2h staff.james DO 'dance practice' ON {2026-09-16 .. 2026-09-17}` | James's dance practice adds up to two hours. |
 
 An amount is `AT_LEAST`, `AT_MOST` or `EXACTLY`, then a number of assignments or a length
-of time. Add `CONSECUTIVE` at the end and it is measured over back-to-back blocks on one
-day: `AT_LEAST 2h … CONSECUTIVE` is one unbroken two-hour stretch, `AT_MOST 3 … CONSECUTIVE`
+of time. Add `CONSECUTIVE` right after it and it is measured over back-to-back blocks on one
+day: `AT_LEAST 2h CONSECUTIVE …` is one unbroken two-hour stretch, `AT_MOST 3 CONSECUTIVE …`
 is never more than three in a row.
 
 `REQUEST` and `PREFER` take the same amount and pattern. `REQUEST` is met or not, and can
@@ -589,12 +607,12 @@ Priority `LOW`.
 
 ### Training
 
-Cam VL is trained on candle making for two unbroken hours some day this week.
+Cam VL is trained on candle making for two clinics in a row, some day this week.
 `roles.trainee` resolves to shadow or scaffolded from the Skills sheet, and the trainee is
 additional to the clinic's positions.
 
 ```skedge
-REQUEST AT_LEAST 2h staff.cam_vl DO activities.clinics.candle_making AS_ROLE roles.trainee ON {2026-09-14 .. 2026-09-18} CONSECUTIVE
+REQUEST staff.cam_vl DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY_2_OF blocks.all_clinics CONSECUTIVE ON ANY_1_OF {2026-09-14 .. 2026-09-18}
 ```
 
 Priority `HIGH`.
@@ -645,7 +663,7 @@ Priority `MEDIUM`, weight `0.25`.
 ### Never more than three clinics in a row
 
 ```skedge
-REQUEST AT_MOST 3 EACH_OF staff.all DO activities.clinics.all CONSECUTIVE
+REQUEST AT_MOST 3 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all
 ```
 
 Priority `MUST_HAPPEN`.
@@ -745,7 +763,7 @@ Priority `MUST_HAPPEN`.
 
 ```skedge
 EACH_OF s IN staff.all
-IF AT_LEAST 3 s DO activities.clinics.all CONSECUTIVE
+IF AT_LEAST 3 CONSECUTIVE s DO activities.clinics.all
 REQUEST s FREE DURING ANY_1_OF blocks.all
 ```
 

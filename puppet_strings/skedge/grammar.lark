@@ -22,8 +22,8 @@ request     : _REQUEST chooser _DO do_target do_clause*           -> request_do
             | _REQUEST chooser FREE do_clause*                    -> request_free
             | _REQUEST chooser _NOT _DO target clause*            -> request_not_do
             | _REQUEST chooser _NOT FREE clause*                  -> request_not_free
-            | _REQUEST amount pattern CONSECUTIVE?                -> request_count
-prefer      : _PREFER amount pattern CONSECUTIVE?                 -> prefer_count
+            | _REQUEST amount CONSECUTIVE? pattern CONSECUTIVE?   -> request_count
+prefer      : _PREFER amount CONSECUTIVE? pattern CONSECUTIVE?    -> prefer_count
             | _PREFER pattern goal                                -> prefer_score
 
 // Who is not at camp for part of a day, and what to write where they would have been.
@@ -34,7 +34,7 @@ exclude     : _EXCLUDE chooser _DO STRING do_clause*
 // parentheses, as mixing set operators does, so there is no precedence to remember.
 ?condition  : term ((AND | OR) _NL* term)*        -> junction
 ?term       : test | "(" _NL* condition ")"
-test        : amount? pattern CONSECUTIVE?
+test        : (amount CONSECUTIVE?)? pattern CONSECUTIVE?
 
 pattern     : pool _DO target clause*                            -> pattern_doing
             | pool FREE clause*                                  -> pattern_free
@@ -43,12 +43,15 @@ goal        : (MAXIMIZE | MINIMIZE) call
 call        : REF "(" arg ("," arg)* ")"
 ?arg        : NAME | REF
 
+// CONSECUTIVE goes after the amount it measures in runs. One after the pattern is where it
+// used to go, and is parsed only to say where it goes now.
 amount      : BOUND (INT | DURATION)
 
 // Left of NOT, and in a positive REQUEST, quantifiers choose.
 ?do_target  : chooser | STRING
 ?do_clause  : during_c | on_c | as_role_c | for_ | with_ | without
-during_c    : _DURING chooser
+// CONSECUTIVE after ANY_n_OF blocks: the chosen blocks are next to each other.
+during_c    : _DURING chooser CONSECUTIVE?
 on_c        : _ON chooser
 as_role_c   : _AS_ROLE chooser
 chooser     : (ALL_OF | ANY_N_OF)? set_

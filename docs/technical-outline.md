@@ -765,6 +765,16 @@ Recorded so the outline matches the code.
   spans walks `2027/Main Season` once rather than four times, and `discover` runs once per
   root and year. Measured over a modelled season, a reload 70 published days in goes from
   143 API calls to 73.
+- **CONSECUTIVE comes right after what it is about** (Puppet Master, 2026-09-22). "Two
+  blocks" and "two blocks in a row" differ by one word, and were written two different
+  ways: a requirement, and a counted pattern. `DURING ANY_n_OF <blocks> CONSECUTIVE` now
+  chooses n adjacent blocks in the requirement itself, and the count's `CONSECUTIVE` moves
+  from after the pattern, where `ON {…} CONSECUTIVE` read as consecutive dates, to after
+  the amount. The old place is still parsed, only to say where it goes now. The compiler
+  keeps the block choice's literals and picks exactly one run of adjacent blocks
+  (`_adjacent`), each block chosen when the run holding it is, so everything else a
+  requirement does with a choice (partners, deferral, `ALL_OF` staff together) is
+  unchanged; `_loose` leaves such a choice alone, since which blocks it picks matters.
 - **EXCLUDE takes somebody out of the day** (Puppet Master, 2026-09-22). A day off is not
   something to ask the solver for, so `EXCLUDE <who> DO '<label>' [DURING] [ON]` is applied
   rather than compiled. `puppet_strings/exclude.py` resolves every `EXCLUDE` on the sheet

@@ -3,16 +3,16 @@ name = "Counting"
 blurb = "AT_LEAST, AT_MOST and EXACTLY: how many, how long, how many in a row."
 day = "2026-08-04"
 teaches = """
-REQUEST <amount> <pattern> [CONSECUTIVE]
+REQUEST <amount> [CONSECUTIVE] <pattern>
 
 REQUEST AT_MOST 2 staff.counselors DO 'break' DURING EACH_OF blocks.all
 REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing'
-REQUEST AT_MOST 1 EACH_OF staff.all DO activities.clinics.all CONSECUTIVE
+REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all
 REQUEST staff.rob DO 'break' FOR 30m DURING blocks.clinic_1
 
 • An amount is AT_LEAST, AT_MOST or EXACTLY, then a count (3) or a length (90m, 2h)
 • In a pattern, sets mean "any of these"; EACH_OF splits it to count per item
-• CONSECUTIVE counts back-to-back blocks on one day
+• CONSECUTIVE after the amount counts back-to-back blocks on one day
 • FOR sets how long a quoted task lasts inside its block
 """
 
@@ -72,10 +72,10 @@ wrong = ["REQUEST AT_LEAST 1h staff.cam_vl DO 'video editing'"]
 id = "count-no-two-in-a-row"
 title = "Never two in a row"
 prompt = "Nobody runs two clinics back to back. Count it per person."
-answer = "REQUEST AT_MOST 1 EACH_OF staff.all DO activities.clinics.all CONSECUTIVE"
+answer = "REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all"
 priority = "MUST_HAPPEN"
-hints = ["EACH_OF staff.all counts person by person.", "CONSECUTIVE at the end counts back-to-back blocks."]
-wrong = ["REQUEST AT_MOST 2 EACH_OF staff.all DO activities.clinics.all CONSECUTIVE"]
+hints = ["EACH_OF staff.all counts person by person.", "CONSECUTIVE after the amount counts back-to-back blocks."]
+wrong = ["REQUEST AT_MOST 2 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all"]
 
 [[problem]]
 id = "count-each-at-most-two-clinics"
@@ -141,8 +141,8 @@ wrong = ["REQUEST AT_MOST 1 staff.directors DO 'office' DURING blocks.all_clinic
 id = "count-two-busy-blocks-in-a-row"
 title = "Two in a row"
 prompt = "Charlton works on 'fence building' for two back-to-back blocks today."
-answer = "REQUEST AT_LEAST 2 staff.charlton DO 'fence building' CONSECUTIVE"
-alternatives = ["REQUEST AT_LEAST 2 staff.charlton DO 'fence building' DURING blocks.all CONSECUTIVE"]
+answer = "REQUEST AT_LEAST 2 CONSECUTIVE staff.charlton DO 'fence building'"
+alternatives = ["REQUEST AT_LEAST 2 CONSECUTIVE staff.charlton DO 'fence building' DURING blocks.all"]
 wrong = ["REQUEST AT_LEAST 2 staff.charlton DO 'fence building'"]
 
 [[problem]]

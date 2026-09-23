@@ -139,13 +139,14 @@ def _canon(value, names: dict[str, str], day: tuple[str, ...] = ()):
     if isinstance(value, Choice):
         items = tuple(sorted(value.items, key=str))
         kind, n = value.kind, value.n
-        if kind == ANY and n >= len(items):
+        if kind == ANY and n >= len(items) and not value.consecutive:
             kind = ALL
         if len(items) == 1 and not value.parts:
             kind, n = "one", 1
         var = names.setdefault(value.var, f"v{len(names)}") if value.var else None
         parts = _canon(value.parts, names, day)
-        return ("choice", items, kind, n if kind == ANY else None, var, parts)
+        run = value.consecutive and kind == ANY
+        return ("choice", items, kind, n if kind == ANY else None, var, parts, run)
     if isinstance(value, ast.Gap):
         amount = (value.amount.bound, value.amount.value, value.amount.duration)
         return ("gap", _label(value.first, names), _label(value.second, names), amount)

@@ -59,6 +59,8 @@ class Choice:
     `parts` are choices taken *as well as* these items, which is what a bound name added
     into a set means: `ALL_OF {staff.charlton + videographer}` is charlton, always, and
     whoever the solver picked for `videographer`, whoever that turns out to be.
+
+    `consecutive` is `ANY_n_OF <blocks> CONSECUTIVE`: the n chosen are next to each other.
     """
 
     items: tuple[Item, ...]
@@ -67,6 +69,7 @@ class Choice:
     var: str | None = None
     parts: tuple["Choice", ...] = ()
     pos: ast.Pos = DEFAULT_POS
+    consecutive: bool = False
 
 
 @dataclass(frozen=True)
@@ -124,7 +127,7 @@ class Forbid:
 
 @dataclass(frozen=True)
 class Count:
-    """`REQUEST|PREFER <amount> <pattern> [CONSECUTIVE]`, resolved."""
+    """`REQUEST|PREFER <amount> [CONSECUTIVE] <pattern>`, resolved."""
 
     prefer: bool
     amount: ast.Amount
@@ -589,11 +592,14 @@ def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, poo
     # only the one the request is about, so `activities.cabin_acts.p4 ON <a date>` is one
     # thing and needs no quantifier, while the same name over a week is five.
     when = _choice(on.selector, DATES, scope, pool) if on else target
+    blocks = _choice(during.selector, BLOCKS, scope, pool) if during else None
+    if during and during.consecutive:
+        blocks = replace(blocks, consecutive=True)
     return {
         "what": _choice(what, ACTIVITIES, scope, pool, when.items)
         if isinstance(what, ast.Selector)
         else what,
-        "during": _choice(during.selector, BLOCKS, scope, pool) if during else None,
+        "during": blocks,
         "on": when,
         "role": _choice(role.selector, ROLES, scope, pool) if role else None,
         "minutes": for_.minutes if for_ else None,

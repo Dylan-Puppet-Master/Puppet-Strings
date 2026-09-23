@@ -54,13 +54,13 @@ def test_amount_statements():
     assert count.amount == ast.Amount(ast.AT_MOST, 2, False, ast.Pos(1, 9))
     assert count.pattern.who.quantifier is None and count.pattern.what == ast.Task("break")
     (hours,) = parse(
-        "PREFER AT_LEAST 2h staff.cam_vl DO activities.clinics.candle_making "
-        "AS_ROLE roles.trainee ON {2026-09-14 .. 2026-09-18} CONSECUTIVE"
+        "PREFER AT_LEAST 2h CONSECUTIVE staff.cam_vl DO activities.clinics.candle_making "
+        "AS_ROLE roles.trainee ON {2026-09-14 .. 2026-09-18}"
     ).lines
     assert hours.prefer and hours.consecutive
     assert hours.amount == ast.Amount(ast.AT_LEAST, 120, True, ast.Pos(1, 8))
     role = ast.clause(hours.pattern.clauses, ast.AsRole).selector.expr
-    assert role == ast.Ref("roles", "trainee", ast.Pos(1, 77))
+    assert role == ast.Ref("roles", "trainee", ast.Pos(1, 89))
     assert isinstance(ast.clause(hours.pattern.clauses, ast.On).selector.expr, ast.DateRange)
 
 
@@ -102,7 +102,7 @@ def test_mapping_cells_parse_on_their_own():
 def test_bindings_conditions_labels_and_gaps():
     lines = parse(
         "ANY_2_OF p IN staff.counselor\n"
-        "UNLESS AT_LEAST 3 p DO activities.clinics.all CONSECUTIVE\n"
+        "UNLESS AT_LEAST 3 CONSECUTIVE p DO activities.clinics.all\n"
         "first: REQUEST p DO 'campfire setup' DURING blocks.clinic_4\n"
         "last:  REQUEST p DO 'campfire teardown' DURING blocks.evening\n"
         "GAP first TO last AT_LEAST 0m\n"
@@ -116,7 +116,7 @@ def test_bindings_conditions_labels_and_gaps():
         "p",
     )
     assert unless.unless and unless.test.consecutive and unless.test.amount.value == 3
-    assert unless.test.pattern.who.expr == ast.Var("p", ast.Pos(2, 19))
+    assert unless.test.pattern.who.expr == ast.Var("p", ast.Pos(2, 31))
     assert (first.label, last.label) == ("first", "last") and first.pos == ast.Pos(3, 8)
     assert gap == ast.Gap(
         "first", "last", ast.Amount(ast.AT_LEAST, 0, True, ast.Pos(5, 19)), ast.Pos(5, 1)
@@ -127,7 +127,7 @@ def test_bindings_conditions_labels_and_gaps():
 def test_conditions_join_with_and_and_or_over_several_lines():
     (if_, _) = parse(
         "IF\n"
-        "AT_LEAST 2 staff.counselor DO 'break' DURING EACH_OF blocks.all CONSECUTIVE\n"
+        "AT_LEAST 2 CONSECUTIVE staff.counselor DO 'break' DURING EACH_OF blocks.all\n"
         "AND\n"
         "staff.dylan FREE DURING blocks.lunch\n"
         "REQUEST staff.rob DO 'x' DURING blocks.lunch"
@@ -220,8 +220,29 @@ def test_a_keyword_may_be_written_in_either_case():
         "each_of c in staff.counselor\nrequest c not free during blocks.clinic_1"
     ).lines
     assert binding.selector.quantifier == ast.EACH_OF and line.negated
-    (count,) = parse("prefer at_most 2 staff.all do 'break' consecutive").lines
+    (count,) = parse("prefer at_most 2 consecutive staff.all do 'break'").lines
     assert count.amount.bound == ast.AT_MOST and count.consecutive
+
+
+def test_consecutive_follows_what_it_constrains():
+    """After an amount, the amount is measured in runs; after ANY_n_OF blocks, they adjoin."""
+    (count,) = parse("REQUEST AT_LEAST 2 CONSECUTIVE staff.dylan DO 'x'").lines
+    assert count.consecutive
+    (run,) = parse("REQUEST staff.dylan DO 'x' DURING ANY_2_OF blocks.all CONSECUTIVE").lines
+    during = ast.clause(run.clauses, ast.During)
+    assert during.consecutive and during.selector.n == 2
+    (plain,) = parse("REQUEST staff.dylan DO 'x' DURING ANY_2_OF blocks.all").lines
+    assert not ast.clause(plain.clauses, ast.During).consecutive
+
+
+def test_consecutive_after_the_pattern_says_where_it_goes_now():
+    for text in (
+        "REQUEST AT_LEAST 2 staff.dylan DO 'x' CONSECUTIVE",
+        "IF AT_LEAST 2 s DO 'x' CONSECUTIVE\nREQUEST s FREE DURING blocks.lunch",
+    ):
+        with pytest.raises(ast.SkedgeError) as e:
+            parse(text)
+        assert e.value.message.startswith("CONSECUTIVE goes after the amount")
 
 
 def test_a_name_that_starts_with_a_keyword_is_still_a_name():

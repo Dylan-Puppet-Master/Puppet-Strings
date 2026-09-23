@@ -98,8 +98,8 @@ request     : _REQUEST chooser _DO do_target do_clause*           -> request_do
             | _REQUEST chooser FREE do_clause*                    -> request_free
             | _REQUEST chooser _NOT _DO target clause*            -> request_not_do
             | _REQUEST chooser _NOT FREE clause*                  -> request_not_free
-            | _REQUEST amount pattern CONSECUTIVE?                -> request_count
-prefer      : _PREFER amount pattern CONSECUTIVE?                 -> prefer_count
+            | _REQUEST amount CONSECUTIVE? pattern CONSECUTIVE?   -> request_count
+prefer      : _PREFER amount CONSECUTIVE? pattern CONSECUTIVE?    -> prefer_count
             | _PREFER pattern goal                                -> prefer_score
 
 // Who is not at camp for part of a day, and what to write where they would have been.
@@ -110,7 +110,7 @@ exclude     : _EXCLUDE chooser _DO STRING do_clause*
 // parentheses, as mixing set operators does, so there is no precedence to remember.
 ?condition  : term ((AND | OR) _NL* term)*        -> junction
 ?term       : test | "(" _NL* condition ")"
-test        : amount? pattern CONSECUTIVE?
+test        : (amount CONSECUTIVE?)? pattern CONSECUTIVE?
 
 pattern     : pool _DO target clause*                            -> pattern_doing
             | pool FREE clause*                                  -> pattern_free
@@ -119,12 +119,15 @@ goal        : (MAXIMIZE | MINIMIZE) call
 call        : REF "(" arg ("," arg)* ")"
 ?arg        : NAME | REF
 
+// CONSECUTIVE goes after the amount it measures in runs. One after the pattern is where it
+// used to go, and is parsed only to say where it goes now.
 amount      : BOUND (INT | DURATION)
 
 // Left of NOT, and in a positive REQUEST, quantifiers choose.
 ?do_target  : chooser | STRING
 ?do_clause  : during_c | on_c | as_role_c | for_ | with_ | without
-during_c    : _DURING chooser
+// CONSECUTIVE after ANY_n_OF blocks: the chosen blocks are next to each other.
+during_c    : _DURING chooser CONSECUTIVE?
 on_c        : _ON chooser
 as_role_c   : _AS_ROLE chooser
 chooser     : (ALL_OF | ANY_N_OF)? set_
@@ -329,6 +332,12 @@ thing happens in at least one of them, and says nothing against both.
 The activity and `AS_ROLE` of a requirement take an item, `ANY_1_OF` or `EACH_OF`, since a
 person does one thing at a time. `ANY_n_OF` over fewer than `n` members cannot hold.
 
+`DURING ANY_n_OF <blocks> CONSECUTIVE` chooses `n` blocks that are next to each other in
+the Blocks sheet, on a date the requirement is about, which is what adjacent means for an
+amount too (§8.1). The choice is still one choice, made once, so everyone chosen does it in
+the same run of blocks. It takes `ANY_n_OF` with `n` of 2 or more, and cannot hold when no
+`n` members of the set are next to each other.
+
 ### 6.3 Sets in a pattern
 
 In a pattern a set is a **pool**: the pattern matches an assignment whose field is any
@@ -419,7 +428,7 @@ An amount turns a pattern into a condition.
 
 `n` is at least 1. `AT_MOST 0` and `EXACTLY 0` are errors: write `NOT DO`.
 
-With `CONSECUTIVE` after the pattern, the amount is measured over **runs**. A run is one
+With `CONSECUTIVE` after the amount, the amount is measured over **runs**. A run is one
 staff member's matches in adjacent blocks on one date, blocks being adjacent when they are
 next to each other in the Blocks sheet. `AT_LEAST` holds when some run reaches the amount,
 `AT_MOST` when no run exceeds it, `EXACTLY` when both do.
@@ -429,8 +438,8 @@ next to each other in the Blocks sheet. `AT_LEAST` holds when some run reaches t
 | Statement | Met |
 |---|---|
 | `REQUEST <requirement>` | when the requirement holds |
-| `REQUEST <amount> <pattern> [CONSECUTIVE]` | when the condition holds |
-| `PREFER <amount> <pattern> [CONSECUTIVE]` | by degree: the closer the matches are to the amount, the better |
+| `REQUEST <amount> [CONSECUTIVE] <pattern>` | when the condition holds |
+| `PREFER <amount> [CONSECUTIVE] <pattern>` | by degree: the closer the matches are to the amount, the better |
 | `PREFER <pattern> MAXIMIZE mappings.x(args)` | by degree: each match earns the mapping's value |
 | `PREFER <pattern> MINIMIZE mappings.x(args)` | by degree: each match costs the mapping's value |
 | `EXCLUDE <who> DO '<label>' [DURING] [ON]` | not met or unmet: applied (§9.2) |
@@ -502,7 +511,7 @@ A declaration is lines of these kinds, in any order.
 | Negative condition | `UNLESS <test>` | The statements apply only when this does not hold. |
 | Gap | `GAP a TO b <amount>` | Relates the assignments of the `REQUEST` labeled `a` to those of the one labeled `b`. |
 
-A test is `[amount] <pattern> [CONSECUTIVE]`, which with no amount holds when there is a
+A test is `[<amount> [CONSECUTIVE]] <pattern>`, which with no amount holds when there is a
 match, or several tests joined by `AND` (all hold) or by `OR` (at least one does).
 Parentheses group, and mixing `AND` with `OR` requires them. A condition may run over as
 many lines as it reads well on: a line may end in `IF`, `UNLESS`, `AND`, `OR` or `(`, and
@@ -621,8 +630,10 @@ The solver schedules `dates.target`.
 Every error names the line and column. The parser reports what it expected, which covers
 `ALL_OF` or `ANY_n_OF` inside a pattern or to the right of `NOT` (other than after `WITH` or
 `WITHOUT`), `PREFER` with a
-requirement, a label on a `PREFER`, `CONSECUTIVE` without a pattern, and `MAXIMIZE` without
-a mapping call. The validator and the solver report:
+requirement, a label on a `PREFER`, `CONSECUTIVE` without an amount or anywhere but after
+one or after `DURING`'s blocks, and `MAXIMIZE` without a mapping call. `CONSECUTIVE` after
+a pattern, where it used to go, is told `CONSECUTIVE goes after the amount`. The validator
+and the solver report:
 
 | Message | Condition |
 |---|---|
@@ -633,6 +644,7 @@ a mapping call. The validator and the solver report:
 | `takes ALL_OF or ANY_n_OF, not EACH_OF` | `WITH EACH_OF staff.mfgs`; likewise `WITHOUT`. |
 | `one activity at a time` | `ALL_OF` or `ANY_2_OF` on a requirement's activity or `AS_ROLE`. |
 | `needs DURING` | A positive requirement with no `DURING`. |
+| `CONSECUTIVE after DURING chooses blocks next to each other` | `CONSECUTIVE` after `DURING` a single block, `ALL_OF`, `EACH_OF` or `ANY_1_OF`. |
 | `given twice` | A clause repeated in one statement. |
 | `only one IF or UNLESS per declaration` | Two condition lines. |
 | `unknown … name` | A name that does not exist in its namespace. |

@@ -119,6 +119,14 @@ def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target) -> None:
         if type(clause) in seen:
             raise _error(f"{CLAUSE_NAMES[type(clause)]} given twice", clause.pos)
         seen.add(type(clause))
+        if isinstance(clause, ast.During) and clause.consecutive:
+            selector = clause.selector
+            if selector.quantifier != ast.ANY_OF or selector.n < 2:
+                raise _error(
+                    "CONSECUTIVE after DURING chooses blocks next to each other, so it needs "
+                    "ANY_n_OF with n of 2 or more",
+                    clause.pos,
+                )
         if isinstance(clause, ast.AsRole) and not isinstance(what, ast.Selector):
             raise _error("AS_ROLE needs an activity", clause.pos)
         if isinstance(clause, ast.For) and not isinstance(what, ast.Task):

@@ -836,7 +836,7 @@ def test_a_duration_amount_sums_lengths_and_past_dates_count():
 
 
 def test_consecutive_needs_adjacent_blocks():
-    text = "REQUEST AT_LEAST 1.5h staff.james DO 'training' DURING {{{blocks}}} CONSECUTIVE"
+    text = "REQUEST AT_LEAST 1.5h CONSECUTIVE staff.james DO 'training' DURING {{{blocks}}}"
     adjacent = dataset(
         [staff("James")],
         [],
@@ -864,6 +864,43 @@ def test_consecutive_needs_adjacent_blocks():
     assert ids(run(apart).unsatisfied) == ["t"]
 
 
+def test_any_n_of_blocks_consecutive_chooses_blocks_next_to_each_other():
+    """Clinic 2 and 3 are the two James is free to give, but lunch sits between them."""
+    text = (
+        "REQUEST ALL_OF {staff.james + staff.lucy} DO 'training' DURING ANY_2_OF blocks.all_clinics"
+    )
+    keep_free = request(
+        "free",
+        "REQUEST staff.james FREE DURING EACH_OF {blocks.clinic_1 + blocks.clinic_4}",
+        Priority.HIGH,
+    )
+    members = [staff("James"), staff("Lucy")]
+
+    def blocks_of(skedge):
+        ds = dataset(members, [], requests=[request("t", skedge, Priority.MUST_HAPPEN), keep_free])
+        result = run(ds)
+        assert result.feasible
+        rows = where(result, activity="training")
+        chosen = {a.block for a in rows if a.staff == "james"}
+        assert chosen == {a.block for a in rows if a.staff == "lucy"}  # together
+        return chosen
+
+    assert blocks_of(text) == {"clinic_2", "clinic_3"}
+    assert blocks_of(f"{text} CONSECUTIVE") in ({"clinic_1", "clinic_2"}, {"clinic_3", "clinic_4"})
+    apart = dataset(
+        members,
+        [],
+        requests=[
+            request(
+                "t",
+                "REQUEST staff.james DO 'training' "
+                "DURING ANY_2_OF {blocks.clinic_2 + blocks.clinic_3} CONSECUTIVE",
+            )
+        ],
+    )
+    assert ids(run(apart).unsatisfied) == ["t"]
+
+
 def test_at_most_consecutive_breaks_up_a_run():
     members = [
         staff("Dylan", archery_1_2=OK, candle_making=OK),
@@ -881,7 +918,7 @@ def test_at_most_consecutive_breaks_up_a_run():
             ),
             request(
                 "row",
-                "REQUEST AT_MOST 1 EACH_OF staff.all DO activities.clinics.all CONSECUTIVE",
+                "REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all",
                 Priority.HIGH,
             ),
         ],
@@ -898,7 +935,7 @@ def test_at_most_consecutive_caps_a_run_of_three_adjacent_blocks():
     offerings = [(f"C{i}", [f"clinic_{i + 1}"]) for i in range(3)]
     cap = request(
         "row",
-        "REQUEST AT_MOST 2 EACH_OF staff.all DO activities.clinics.all CONSECUTIVE",
+        "REQUEST AT_MOST 2 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all",
         Priority.MUST_HAPPEN,
     )
     blocks = blocks_with_meals(0)
@@ -914,7 +951,7 @@ def test_at_most_consecutive_caps_a_run_of_three_adjacent_blocks():
     assert len(where(run(without_cap), staff="dylan")) == 3
     loose = request(
         "row",
-        "REQUEST AT_MOST 3 EACH_OF staff.all DO activities.clinics.all CONSECUTIVE",
+        "REQUEST AT_MOST 3 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all",
         Priority.MUST_HAPPEN,
     )
     only_dylan = [staff("Dylan", archery_1_2=OK)]
@@ -1158,7 +1195,7 @@ def test_unless_applies_only_when_the_pattern_has_no_match():
 def test_if_with_an_amount_over_a_run():
     text = (
         "EACH_OF s IN staff.all\n"
-        "IF AT_LEAST 2 s DO activities.clinics.all CONSECUTIVE\n"
+        "IF AT_LEAST 2 CONSECUTIVE s DO activities.clinics.all\n"
         "REQUEST s FREE DURING blocks.clinic_3"
     )
     ds = dataset(

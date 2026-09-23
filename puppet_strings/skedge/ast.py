@@ -132,9 +132,10 @@ class Clause:
 
 @dataclass(frozen=True)
 class During(Clause):
-    """`DURING <blocks>`."""
+    """`DURING <blocks>`, and with `consecutive`, `DURING ANY_n_OF <blocks> CONSECUTIVE`."""
 
     selector: Selector
+    consecutive: bool = False
 
 
 @dataclass(frozen=True)
@@ -211,7 +212,7 @@ class Requirement:
 
 @dataclass(frozen=True)
 class Count:
-    """`REQUEST|PREFER <amount> <pattern> [CONSECUTIVE]`."""
+    """`REQUEST|PREFER <amount> [CONSECUTIVE] <pattern>`."""
 
     prefer: bool
     amount: Amount
@@ -259,7 +260,7 @@ class Binding:
 
 @dataclass(frozen=True)
 class Predicate:
-    """`[amount] <pattern> [CONSECUTIVE]`: one thing a condition asks about."""
+    """`[<amount> [CONSECUTIVE]] <pattern>`: one thing a condition asks about."""
 
     amount: Amount | None
     pattern: Pattern
