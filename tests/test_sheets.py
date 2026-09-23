@@ -650,6 +650,23 @@ def test_a_load_can_leave_the_days_behind_it_for_later(source):
     assert load_dataset(source, CONFIG, target).published == filled.published
 
 
+def test_a_cabin_act_at_rest_hour_says_so_at_one_end_of_its_title():
+    from datetime import date as _date
+
+    from puppet_strings.sheets.cabin_acts import CabinAct, _activity
+
+    def read(title: str) -> tuple[bool, list[str]]:
+        act = CabinAct("M2", "monday", title, ("hero",))
+        activity, said = _activity(act, _date(2026, 9, 14), "Board", {}, {"hero": frozenset()}, {})
+        return activity.rest_hour, said
+
+    for title in ("RH: Fruit Ninja", "RH - Bubble Lake", "REST HOUR Mafia", "Stranded - Rest Hour"):
+        assert read(title) == (True, [])
+    assert read("Rhythm Game") == (False, [])
+    rest_hour, (told,) = read("CA: Blackberry picking, RH: muffins")
+    assert not rest_hour and "mentions rest hour in the middle" in told
+
+
 def test_a_cabin_act_warns_only_when_a_hero_is_actually_dropped():
     """Six heroes fill the six positions and nothing is lost; the seventh is what is lost."""
     from datetime import date as _date

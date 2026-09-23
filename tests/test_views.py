@@ -58,6 +58,7 @@ def test_staff_view(dataset):
         "Lunch",
         "Cabin Act",
         "Clinic 3",
+        "Rest Hour",
         "Clinic 4",
         "Playstation",
         "Evening",

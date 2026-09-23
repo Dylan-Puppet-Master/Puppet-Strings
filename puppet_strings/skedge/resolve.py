@@ -23,6 +23,8 @@ from puppet_strings.names import normalize
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.namespaces import (
     ACTIVITIES,
+    AT_CABIN_ACT,
+    AT_REST_HOUR,
     BLOCKS,
     CABIN_ACTS,
     CLINICS,
@@ -296,7 +298,8 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
     A clinic is named by itself or by its Clinic_Data category. A cabin act is named by its
     cabin and nothing else: `activities.cabin_acts.p4` is P4's act, and which day's act
     that is comes from the dates the request is about. Its own generated id is not a name,
-    because nobody should have to write a date into one.
+    because nobody should have to write a date into one. `at_cabin_act` and `at_rest_hour`
+    split the board by the block each act is in, so each half is asked for on its own.
     """
     clinics = {i: a for i, a in dataset.activities.items() if not a.cabin}
     cabin_acts = {i: a for i, a in dataset.activities.items() if a.cabin}
@@ -314,6 +317,10 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
         CABIN_ACTS,
         {
             ALL_NAME: Named(frozenset(cabin_acts), False),
+            AT_CABIN_ACT: Named(
+                frozenset(i for i, a in cabin_acts.items() if not a.rest_hour), False
+            ),
+            AT_REST_HOUR: Named(frozenset(i for i, a in cabin_acts.items() if a.rest_hour), False),
             **{cabin: Named(ids, False) for cabin, ids in _cabin_categories(cabin_acts).items()},
         },
     )

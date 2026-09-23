@@ -5,6 +5,7 @@ clinic_2,10:45,12:00,weekday,main season,all_clinics
 lunch,12:00,13:00,"weekday, weekend","main season, other",meals
 cabin_act,13:00,14:00,weekday,main season,
 clinic_3,14:00,15:15,weekday,main season,all_clinics
+rest_hour,15:15,15:45,weekday,main season,
 clinic_4,15:45,17:00,weekday,main season,all_clinics
 playstation,17:00,18:00,"weekday, weekend","main season, other",
 evening,18:30,20:00,weekday,main season,

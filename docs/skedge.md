@@ -243,11 +243,13 @@ same thing twice. Filling one position of an activity fills them all, so this is
 for every person it needs, and the report names the activity once rather than once per
 position.
 
-`EACH_OF` over a set asks for each of them separately, which is how one line asks for a
-whole board of cabin acts:
+`EACH_OF` over a set asks for each of them separately, which is how two lines ask for a
+whole board of cabin acts: one for the acts in the cabin act block, one for those the
+board moved to rest hour:
 
 ```skedge
-REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act
+REQUEST EACH_OF activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
+REQUEST EACH_OF activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
 ```
 
 To narrow who may run something beyond what the activity says, say so in a second

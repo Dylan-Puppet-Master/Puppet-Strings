@@ -172,6 +172,8 @@ class Activity:
     day: date | None = None
     # What the cabin act board wrote on the card, label by label, for the app to show.
     card: tuple[tuple[str, str], ...] = ()
+    # A cabin act the board moved to rest hour rather than the cabin act block.
+    rest_hour: bool = False
 
     def position(self, role: str) -> Position | None:
         """The position with this role, if any."""

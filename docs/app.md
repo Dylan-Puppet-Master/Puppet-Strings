@@ -49,10 +49,12 @@ clinic view and the report; it asks first if no offerings are loaded for the dat
 published.
 
 **Cabin acts** need no button. They are activities, read from every sheet in the Cabin
-Acts folder each time **Reload** runs, and one request asks for all of them:
+Acts folder each time **Reload** runs. Two requests ask for all of them, one for the acts
+in the cabin act block and one for those the board moved to rest hour:
 
 ```skedge
-REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act
+REQUEST EACH_OF activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
+REQUEST EACH_OF activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
 ```
 
 Each act's HEROES cell becomes its positions, so who may fill them is already written

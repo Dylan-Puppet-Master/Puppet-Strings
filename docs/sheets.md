@@ -102,13 +102,14 @@ pane, and every one of them is read each time the sheets are read.
 
 A cabin act is an **activity**, like a clinic: a thing that happens, with a position per
 person it needs. It is not a request, so nothing has to be imported and there is no button
-to press. One request asks for all of them:
+to press. Two requests ask for all of them:
 
 ```skedge
-REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act
+REQUEST EACH_OF activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
+REQUEST EACH_OF activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
 ```
 
-The Blocks tab must therefore have a `cabin_act` row, which is the slot they run in.
+The Blocks tab must therefore have a `cabin_act` row and a `rest_hour` row.
 
 The sheet's **title** says which week it is for: `S5W1` is session 5, week 1, matched
 anywhere in the title, so `Cabin Act Sorting - S5W1` works. Those two numbers and the
@@ -142,9 +143,17 @@ An item that is none of the three is a warning naming the cabin and the day, and
 of that cabin act is still staffed. A cabin act with an empty HEROES cell asks nothing of
 anybody and becomes no activity at all.
 
-The names it makes are `activities.cabin_acts.<cabin>` — `activities.cabin_acts.p4` — and
-`activities.cabin_acts.all`. A cabin's name stands for its act on whichever days the
-request is about, so over one day it is one thing and over a week it is five.
+An **Activity** that starts or ends with `RH` or `Rest Hour` (`RH: Fruit Ninja`,
+`REST HOUR Aerial Yoga`, `Stranded in the back 40 - Rest Hour`) is moved to rest hour, and
+the cabin rests in the cabin act block instead. One that mentions rest hour only in the
+middle, such as `CA: Blackberry picking, RH: muffins`, is a warning and is treated as an
+ordinary cabin act. Ask for its rest hour part in a request of its own.
+
+The names it makes are `activities.cabin_acts.<cabin>` (for example
+`activities.cabin_acts.p4`), `activities.cabin_acts.all`, and the two halves of the board:
+`activities.cabin_acts.at_cabin_act` and `activities.cabin_acts.at_rest_hour`. A cabin's
+name stands for its act on whichever days the request is about, so over one day it is one
+thing and over a week it is five.
 
 ## Blocks (config spreadsheet)
 

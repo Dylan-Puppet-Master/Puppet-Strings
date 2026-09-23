@@ -19,6 +19,10 @@ filling it in. The Support Requests tab says the same thing a second time and is
 Each act becomes an `Activity` under `activities.cabin_acts`, staffed like a clinic: one
 position per hero the HEROES cell names. That is why a cabin act needs no requests of its
 own — one request asks for all of them, and the positions say who by.
+
+An act whose title starts or ends with "RH" or "Rest Hour" is moved to rest hour, and the
+cabin rests in the cabin act block instead. It is marked so, and `activities.cabin_acts`
+names the two kinds apart; which block each runs in is still for a request to say.
 """
 
 import re
@@ -48,6 +52,12 @@ WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday")
 
 # "Cabin Act Sorting - S5W1" -> session 5, week 1.
 TITLE_PATTERN = re.compile(r"s\s*(\d+)\s*w\s*(\d+)", re.IGNORECASE)
+
+# An act moved to rest hour says so at one end of its title, however the board spells it:
+# "RH: Fruit Ninja", "RH - Bubble Lake", "REST HOUR Aerial Yoga", "Stranded - Rest Hour".
+_REST_HOUR = r"(?:rh|rest\s*hour)"
+AT_REST_HOUR = re.compile(rf"^\W*{_REST_HOUR}\b|\b{_REST_HOUR}\W*$", re.IGNORECASE)
+MENTIONS_REST_HOUR = re.compile(rf"\b{_REST_HOUR}\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -199,6 +209,14 @@ def _activity(
         positions.append(position)
     if not positions:  # an act nobody is asked for needs nobody scheduled
         return None, warnings
+    rest_hour = bool(AT_REST_HOUR.search(act.activity))
+    if not rest_hour and MENTIONS_REST_HOUR.search(act.activity):
+        # "CA: Blackberry picking, RH: muffins" is split between the two blocks, and which
+        # heroes are for which half is not something the board says
+        warnings.append(
+            f"{title}: {act.cabin} on {day} mentions rest hour in the middle of "
+            f"'{act.activity}', so it is read as a cabin act block act"
+        )
     return (
         Activity(
             name=f"{act.cabin} {act.activity}".strip() if act.activity else f"{act.cabin} CA",
@@ -209,6 +227,7 @@ def _activity(
             cabin=act.cabin,
             day=day,
             card=act.card,
+            rest_hour=rest_hour,
         ),
         warnings,
     )

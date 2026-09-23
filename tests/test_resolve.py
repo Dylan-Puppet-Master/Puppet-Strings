@@ -320,6 +320,22 @@ def test_each_of_the_cabin_acts_is_only_the_ones_on_the_day(dataset):
     assert len(week) == 3  # Monday's, Wednesday's and Friday's; the 28th is another week
 
 
+def test_the_board_splits_into_cabin_act_and_rest_hour_acts(dataset):
+    """An act titled "RH: …" is under at_rest_hour; every other one is under at_cabin_act."""
+    split = {
+        name: resolve(
+            dataset,
+            f"REQUEST EACH_OF activities.cabin_acts.{name} DURING "
+            "blocks.cabin_act ON EACH_OF dates.season.all",
+        )
+        for name in ("all", "at_cabin_act", "at_rest_hour")
+    }
+    acts = {n: {c.statements[0].what.items[0] for c in copies} for n, copies in split.items()}
+    assert {dataset.activities[i].name for i in acts["at_rest_hour"]} == {"M1 RH: Gaga Ball"}
+    assert acts["at_cabin_act"] | acts["at_rest_hour"] == acts["all"]
+    assert not acts["at_cabin_act"] & acts["at_rest_hour"]
+
+
 def test_a_bound_cabin_act_on_another_day_is_no_copy(dataset):
     bound = resolve(
         dataset, "EACH_OF a IN activities.cabin_acts.all\nREQUEST a DURING blocks.cabin_act"

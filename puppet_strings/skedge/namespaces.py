@@ -20,5 +20,10 @@ ALL = "all"  # every name in a namespace or one of its branches
 CLINICS = "clinics"
 CABIN_ACTS = "cabin_acts"
 
+# The two kinds of cabin act, under `activities.cabin_acts`: most run in the cabin act
+# block, and a few the board moves to rest hour.
+AT_CABIN_ACT = "at_cabin_act"
+AT_REST_HOUR = "at_rest_hour"
+
 # What a mapping key may name: any namespace but `mappings` itself.
 KEY_NAMESPACES = (STAFF, ACTIVITIES, BLOCKS, DATES, ROLES)
