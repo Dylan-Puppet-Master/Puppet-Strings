@@ -76,7 +76,7 @@ prompt = "Hailey does 'feed the horses' during breakfast on each weekday, Monday
 answer = "REQUEST staff.hailey DO 'feed the horses' DURING blocks.breakfast ON EACH_OF {2026-08-03 .. 2026-08-07}"
 priority = "HIGH"
 hints = ["The dates are {2026-08-03 .. 2026-08-07}, and you want one request for each of them."]
-alternatives = ["REQUEST staff.hailey DO 'feed the horses' DURING blocks.breakfast ON EACH_OF {dates.session.six.week.one.monday .. dates.session.six.week.one.friday}"]
+alternatives = ["REQUEST staff.hailey DO 'feed the horses' DURING blocks.breakfast ON EACH_OF {dates.session_six.week_one.monday .. dates.session_six.week_one.friday}"]
 wrong = ["REQUEST staff.hailey DO 'feed the horses' DURING blocks.breakfast ON ALL_OF {2026-08-03 .. 2026-08-07}"]
 
 [[problem]]
@@ -181,5 +181,5 @@ title = "Two days, separately"
 prompt = "Donny does 'kayak repair' during clinic 4 on Wednesday and on Thursday, each day counting on its own."
 answer = "REQUEST staff.donny DO 'kayak repair' DURING blocks.clinic_4 ON EACH_OF {2026-08-05 + 2026-08-06}"
 priority = "MEDIUM"
-alternatives = ["REQUEST staff.donny DO 'kayak repair' DURING blocks.clinic_4 ON EACH_OF {dates.session.six.week.one.wednesday + dates.session.six.week.one.thursday}"]
+alternatives = ["REQUEST staff.donny DO 'kayak repair' DURING blocks.clinic_4 ON EACH_OF {dates.session_six.week_one.wednesday + dates.session_six.week_one.thursday}"]
 wrong = ["REQUEST staff.donny DO 'kayak repair' DURING blocks.clinic_4 ON ALL_OF {2026-08-05 + 2026-08-06}"]

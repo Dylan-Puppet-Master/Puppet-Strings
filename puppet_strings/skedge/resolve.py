@@ -16,6 +16,7 @@ from puppet_strings.model import (
     LIFEGUARD_ROLES,
     POSITION_ROLES,
     TRAINEE_ROLES,
+    WEEK_PREFIX,
     Dataset,
     MappingTable,
 )
@@ -36,10 +37,6 @@ from puppet_strings.skedge.namespaces import (
 )
 from puppet_strings.skedge.namespaces import ALL as ALL_NAME  # `all`, not the quantifier
 from puppet_strings.skedge.parser import parse_default, parse_domain
-
-SESSION = "session"  # where a numbered main season span hangs in the `dates` tree
-OTHER = "other"  # where a span that is not a numbered session hangs
-WEEK = "week"
 
 Item = str | date
 
@@ -342,11 +339,11 @@ def date_names(dataset: Dataset) -> dict[str, Named]:
     same names, so what can be said of one can be said of any other:
 
         dates.season.all                     every camp day
-        dates.session.four.all               every date of session 4
-        dates.session.four.mondays           every Monday of it
-        dates.session.four.week.two.all      every date of its second week
-        dates.session.four.week.two.monday   one date
-        dates.other.family_camp.all          a span that is not a numbered session
+        dates.session_four.all               every date of session 4
+        dates.session_four.mondays           every Monday of it
+        dates.session_four.week_two.all      every date of its second week
+        dates.session_four.week_two.monday   one date
+        dates.family_camp.all                a span that is not a numbered session
 
     Every name here is the same on every day of the season, and every one of them says
     which span it means. `dates.target` is the only name that follows the date being
@@ -355,22 +352,15 @@ def date_names(dataset: Dataset) -> dict[str, Named]:
     names = {"target": Named(frozenset({dataset.target}), True)}
     _add(names, "season", _span_names(dataset.season_dates))
     for span in dataset.spans:
-        _add(names, _span_path(span), _one_span(dataset, span))
+        _add(names, span.date_name, _one_span(dataset, span))
     return names
-
-
-def _span_path(span) -> str:
-    """Where a span hangs: a numbered session by its number, anything else by its name."""
-    if span.session is not None:
-        return f"{SESSION}.{CARDINAL_WORDS[span.session - 1]}"
-    return f"{OTHER}.{span.id}"
 
 
 def _one_span(dataset: Dataset, span) -> dict[str, Named]:
     """One span's own names, with its weeks nested underneath."""
     names = _span_names(dataset.span_dates(span))
     for week, dates in dataset.span_weeks(span).items():
-        _add(names, f"{WEEK}.{CARDINAL_WORDS[week - 1]}", _week_names(dates))
+        _add(names, f"{WEEK_PREFIX}{CARDINAL_WORDS[week - 1]}", _week_names(dates))
     return names
 
 

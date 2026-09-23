@@ -253,3 +253,18 @@ def test_the_old_generated_tag_is_renamed_on_open(fixtures_copy):
     imported = [r for r in requests if r.id.startswith("offering:")]
     assert imported and all(r.tags == ("clinic_import", "pin") for r in imported)
     assert not [r for r in requests if "generated" in r.tags]
+
+
+def test_old_nested_date_names_are_rewritten_on_open(fixtures_copy):
+    """A request written before `dates.session.one` became `dates.session_one` still loads."""
+    old = "REQUEST staff.dylan DO 'x' ON {dates.session.one.week.two.all + dates.other.camp.all}"
+    with sqlite3.connect(fixtures_copy / FIXTURE_FILE) as db:
+        db.execute("UPDATE requests SET skedge = ? WHERE rowid = 1", (old,))
+    (renamed,) = [
+        r.skedge
+        for r in RequestDb(fixtures_copy / FIXTURE_FILE).every()
+        if "dates.camp" in r.skedge
+    ]
+    assert (
+        renamed == "REQUEST staff.dylan DO 'x' ON {dates.session_one.week_two.all + dates.camp.all}"
+    )

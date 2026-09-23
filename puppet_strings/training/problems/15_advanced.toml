@@ -58,9 +58,9 @@ wrong = ["REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act\nREQ
 id = "big-ropes-rotation"
 title = "Rotating ropes"
 prompt = "Over the session, we'd like nobody to be first on the Climbing Wall more than 3 times."
-answer = "PREFER AT_MOST 3 EACH_OF staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first ON dates.session.six.all"
+answer = "PREFER AT_MOST 3 EACH_OF staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first ON dates.session_six.all"
 priority = "LOW"
-wrong = ["REQUEST AT_MOST 3 EACH_OF staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first ON dates.session.six.all"]
+wrong = ["REQUEST AT_MOST 3 EACH_OF staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first ON dates.session_six.all"]
 
 [[problem]]
 id = "big-new-archer"

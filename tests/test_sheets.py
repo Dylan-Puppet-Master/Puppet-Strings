@@ -388,6 +388,8 @@ def test_a_day_carries_its_span_session_and_week():
         (["Session 1", "2026-10-08", "2026-10-09", "main season"], "both named 'Session 1'"),
         (["Extra", "2026-09-20", "2026-09-21", "other"], "is in both 'Session 1' and 'Extra'"),
         (["Extra", "2026-10-08", "2027-04-08", "other"], "at most 20 are supported"),
+        (["Target", "2026-10-08", "2026-10-09", "other"], "'dates.target' is already a name"),
+        (["Session Four", "2026-10-08", "2026-10-09", "other"], "'dates.session_four' is"),
     ],
 )
 def test_calendar_rejects_a_span_it_cannot_read(row, message):

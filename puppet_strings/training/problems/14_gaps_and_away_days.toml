@@ -46,7 +46,7 @@ answer = "EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all ON 2026-08-0
 priority = "MUST_HAPPEN"
 hints = ["EXCLUDE <who> DO '<label>' …"]
 explain = "An EXCLUDE is a fact about the day, not a wish: it takes Dylan out of every block."
-alternatives = ["EXCLUDE staff.dylan DO 'offsite' ON 2026-08-05", "EXCLUDE staff.dylan DO 'offsite' ON dates.session.six.week.one.wednesday"]
+alternatives = ["EXCLUDE staff.dylan DO 'offsite' ON 2026-08-05", "EXCLUDE staff.dylan DO 'offsite' ON dates.session_six.week_one.wednesday"]
 wrong = [
   "EXCLUDE staff.dylan DO 'offsite' ON 2026-08-06",
   "REQUEST staff.dylan FREE DURING ALL_OF blocks.all ON 2026-08-05",
@@ -66,7 +66,7 @@ title = "Board meeting"
 prompt = "All three directors are at a 'board meeting' offsite during the whole morning — setup, breakfast, clinic 1 and clinic 2 — on Thursday."
 answer = "EXCLUDE ALL_OF staff.directors DO 'board meeting' DURING ALL_OF {blocks.setup + blocks.breakfast + blocks.clinic_1 + blocks.clinic_2} ON 2026-08-06"
 priority = "MUST_HAPPEN"
-alternatives = ["EXCLUDE ALL_OF {staff.david + staff.lisa + staff.matthew} DO 'board meeting' DURING ALL_OF {blocks.setup + blocks.breakfast + blocks.clinic_1 + blocks.clinic_2} ON dates.session.six.week.one.thursday"]
+alternatives = ["EXCLUDE ALL_OF {staff.david + staff.lisa + staff.matthew} DO 'board meeting' DURING ALL_OF {blocks.setup + blocks.breakfast + blocks.clinic_1 + blocks.clinic_2} ON dates.session_six.week_one.thursday"]
 wrong = ["EXCLUDE ALL_OF staff.directors DO 'board meeting' DURING ALL_OF {blocks.breakfast + blocks.clinic_1 + blocks.clinic_2} ON 2026-08-06"]
 
 [[problem]]

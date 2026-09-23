@@ -52,7 +52,7 @@ Skedge has two statements and two ways of talking about assignments.
 |---|---|
 | Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `AND`, `OR`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
 | Quantifier | `ALL_OF`, `EACH_OF`, and `ANY n` for any whole `n` from 1: `ANY 1`, `ANY 3` |
-| Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session.four.week.two.monday` |
+| Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session_four.week_two.monday` |
 | Variable, label | A bare identifier: `s`, `morning`. A label or a definition is followed by a colon. |
 | Quoted task | Single quotes, any text but a quote: `'archery maintenance'` |
 | Date | `2026-06-14` |
@@ -264,9 +264,9 @@ same names, and a span's weeks are its days seven at a time from the start.
 |---|---|---|
 | `dates.target` | item | the date being scheduled |
 | `dates.season.all` | set | every date the Calendar sheet covers |
-| `dates.session.one.all` … `dates.session.twenty.all` | set | a `main season` row, numbered in sheet order |
-| `dates.other.<name>.all` | set | any other row, by its `name` column normalized |
-| `dates.<span>.week.one.all` … `.week.twenty.all` | set | that week of that span |
+| `dates.session_one.all` … `dates.session_twenty.all` | set | a `main season` row, numbered in sheet order |
+| `dates.<name>.all` | set | any other row, by its `name` column normalized |
+| `dates.<span>.week_one.all` … `.week_twenty.all` | set | that week of that span |
 
 | Name within any span | Kind | Holds |
 |---|---|---|
@@ -280,7 +280,7 @@ same names, and a span's weeks are its days seven at a time from the start.
 | `monday` … `sunday` | item | that weekday of the week |
 | `first`, `last` | item | the week's first and last date |
 
-A name exists only if the span reaches it: `dates.session.two.week.two.all` is a name only
+A name exists only if the span reaches it: `dates.session_two.week_two.all` is a name only
 when session 2 runs to a second week. At most 20 main season rows and 20 weeks per span.
 
 There are no `first_monday` / `last_friday` names and no cross-session `first_mondays`

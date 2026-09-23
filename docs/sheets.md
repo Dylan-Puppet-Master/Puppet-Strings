@@ -217,9 +217,11 @@ Example:
 | Family Camp | 2026-09-01 | 2026-09-05 | other |
 
 **The main season rows are numbered in sheet order**, and that number is the name in
-Skedge: the first is `dates.session.one.all`, the second `dates.session.two.all`. Anything
-else is reached by its name, as `dates.other.family_camp.all`. Inserting a main season row
-renumbers the ones after it, so a request naming `dates.session.four` follows the sheet.
+Skedge: the first is `dates.session_one.all`, the second `dates.session_two.all`. Anything
+else is reached by its name, as `dates.family_camp.all`. Inserting a main season row
+renumbers the ones after it, so a request naming `dates.session_four` follows the sheet.
+A row that is not main season cannot be named so that it would read as one of the other
+date names — `Season`, `Target`, `Session Four` — and a load says so.
 
 The target date must be one of these spans. It is the first thing checked on every load,
 before any other sheet is read, because no block exists on a day camp is not running and so
@@ -241,8 +243,8 @@ starts on the day your weeks start therefore lines up with the calendar, and the
 manager's calendar shows each row's `S<session>` and `W<week>` down the left-hand side, so
 you can see at a glance whether it does.
 
-`dates.session.four.mondays` is every Monday of session 4,
-`dates.session.four.week.two.monday` is the one Monday of its second week, and
+`dates.session_four.mondays` is every Monday of session 4,
+`dates.session_four.week_two.monday` is the one Monday of its second week, and
 `dates.season.all` is every date the sheet covers. See
 [Dates](skedge.md#dates) for the full list of date names.
 

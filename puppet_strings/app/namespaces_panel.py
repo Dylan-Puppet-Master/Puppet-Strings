@@ -1,9 +1,9 @@
 """A tree of every valid Skedge name, by namespace.
 
-Names nest on their dots, so `dates.session.four.second_week.monday` is five levels deep
-rather than one line among hundreds. A node that is a name in its own right — `dates.session.four`
-is a name as well as a parent — carries what it stands for beside it; a node that is only a
-step on the way to one, such as `dates.session`, does not.
+Names nest on their dots, so `dates.session_four.week_two.monday` is four levels deep
+rather than one line among hundreds. A node that is a name in its own right carries what it
+stands for beside it; a node that is only a step on the way to one, such as the span
+`dates.session_four` (its dates are `dates.session_four.all`), does not.
 
 Double-click opens a name to see what it stands for, which is the question the one-line
 note cannot answer. Enter, or the right-click menu, puts it into the request being edited.

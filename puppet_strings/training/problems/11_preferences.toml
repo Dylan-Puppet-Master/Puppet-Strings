@@ -140,6 +140,6 @@ wrong = ["PREFER AT_LEAST 1h staff.directors FREE DURING {blocks.clinic_3 + bloc
 id = "prefer-weekly-balance"
 title = "Share the load"
 prompt = "Over the whole session, we'd like no counselor to run more than 8 clinics."
-answer = "PREFER AT_MOST 8 EACH_OF staff.counselors DO activities.clinics.all ON dates.session.six.all"
+answer = "PREFER AT_MOST 8 EACH_OF staff.counselors DO activities.clinics.all ON dates.session_six.all"
 priority = "MEDIUM"
 wrong = ["PREFER AT_MOST 8 EACH_OF staff.counselors DO activities.clinics.all"]

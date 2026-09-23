@@ -21,6 +21,7 @@ A folder of fixtures carries its own `requests.sqlite`, so a copy of a session i
 folder and running on it touches nothing on the computer it runs on.
 """
 
+import re
 import shutil
 import sqlite3
 from datetime import date
@@ -51,6 +52,8 @@ SUFFIX = ".sqlite"
 SCHEMA_VERSION = "2"
 DEFAULT_SCOPE = SESSION  # what a request written in the app is read over, unless it says
 OLD_IMPORT_TAG = "generated"  # what IMPORT_TAG was called before, renamed on open
+# A date name from before `dates.session.four.week.two` became `dates.session_four.week_two`
+OLD_DATE_NAME = re.compile(r"\bdates\.(?:session\.|other\.)[a-z0-9_.]*")
 
 _FIELDS = (
     "id",
@@ -149,6 +152,7 @@ class RequestDb(LocalDb):
         _same_version(db, self.path)
         db.executescript(_TABLES)
         _retag_imports(db)
+        _rename_dates(db)
 
     def read(self, day: date) -> tuple[Request, ...]:
         """Every request whose scope covers `day`, broadest scope first.
@@ -231,6 +235,7 @@ class RequestDb(LocalDb):
             db.execute("DELETE FROM requests")
             db.executemany(_PUT, rows)
             _retag_imports(db)
+            _rename_dates(db)
         return len(rows), kept
 
 
@@ -259,6 +264,38 @@ def _retag_imports(db: sqlite3.Connection) -> None:
         db.execute('UPDATE requests SET "tags" = ? WHERE "id" = ?', (", ".join(renamed), id))
     if rows:
         db.commit()
+
+
+def _rename_dates(db: sqlite3.Connection) -> None:
+    """Write the old nested date names the way they are written now.
+
+    `dates.session.four.week.two.monday` is `dates.session_four.week_two.monday`, and
+    `dates.other.family_camp.all` is `dates.family_camp.all`. A request from before the
+    rename would otherwise stop validating the day the app is updated.
+    """
+    rows = db.execute(
+        """SELECT "id", "skedge" FROM requests
+        WHERE "skedge" LIKE '%dates.session.%' OR "skedge" LIKE '%dates.other.%'"""
+    ).fetchall()
+    for id, skedge in rows:
+        renamed = OLD_DATE_NAME.sub(lambda m: _flat_date_name(m.group()), skedge)
+        db.execute('UPDATE requests SET "skedge" = ? WHERE "id" = ?', (renamed, id))
+    if rows:
+        db.commit()
+
+
+def _flat_date_name(name: str) -> str:
+    """`dates.session.four.week.two.all` as it is written now: `dates.session_four.week_two.all`."""
+    parts = name.split(".")
+    flat = [parts[0]]
+    rest = iter(parts[1:])
+    for part in rest:
+        if part == "other":
+            continue
+        if part in ("session", "week"):
+            part = f"{part}_{next(rest, '')}".rstrip("_")
+        flat.append(part)
+    return ".".join(flat)
 
 
 def _same_version(db: sqlite3.Connection, where: Path) -> None:

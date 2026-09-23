@@ -228,7 +228,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             62,
         ),
         (
-            f"{DO} ON {{dates.session.one.all - 1d}}",
+            f"{DO} ON {{dates.session_one.all - 1d}}",
             Priority.HIGH,
             "needs a single date here",
             1,
@@ -236,9 +236,9 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         ),
         (f"{DO} ON 2026-13-01", Priority.HIGH, "invalid date", 1, 54),
         (
-            "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON dates.session.one.week.nine.all",
+            "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON dates.session_one.week_nine.all",
             Priority.HIGH,
-            "unknown name 'dates.session.one.week.nine.all'",
+            "unknown name 'dates.session_one.week_nine.all'",
             1,
             55,
         ),

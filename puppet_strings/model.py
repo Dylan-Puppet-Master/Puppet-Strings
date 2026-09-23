@@ -259,14 +259,20 @@ WEEKEND = "weekend"
 DAY_TYPES = (FIRST_DAY, LAST_DAY, WEEKDAY, WEEKEND)
 
 DAYS_PER_WEEK = 7
+SESSION_PREFIX = "session_"  # `dates.session_four`
+WEEK_PREFIX = "week_"  # `dates.session_four.week_two`
+# `dates.<name>` a row that is not a numbered session cannot be called, since these are taken
+RESERVED_DATE_NAMES = frozenset(
+    {"season", "target", *(f"{SESSION_PREFIX}{word}" for word in CARDINAL_WORDS)}
+)
 
 
 @dataclass(frozen=True)
 class Span:
     """One row of the Calendar sheet: a named run of days running one programme.
 
-    A main season span is also numbered, in sheet order, which is what `dates.session.four`
-    is named after. Anything else is named only, and is reached as `dates.other.<name>`.
+    A main season span is also numbered, in sheet order, which is what `dates.session_four`
+    is named after. Anything else is reached by its own name, as `dates.family_camp`.
     """
 
     name: str
@@ -275,6 +281,13 @@ class Span:
     end: date
     program_type: str
     session: int | None = None
+
+    @property
+    def date_name(self) -> str:
+        """What it is called in the `dates` namespace: `session_four`, or its own name."""
+        if self.session is not None:
+            return f"{SESSION_PREFIX}{CARDINAL_WORDS[self.session - 1]}"
+        return self.id
 
     @property
     def dates(self) -> tuple[date, ...]:

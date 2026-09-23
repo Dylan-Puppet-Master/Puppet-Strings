@@ -4,8 +4,8 @@ Columns: `name`, `start date`, `end date`, `program type`. A row covers every da
 start to its end, so a fortnight is one row rather than fourteen.
 
 The main season rows are numbered in sheet order, and that number is what
-`dates.session.four` is named after; anything else is reached by its name, as
-`dates.other.family_camp`. Weeks are not written down: a span's week 1 is its first seven
+`dates.session_four` is named after; anything else is reached by its name, as
+`dates.family_camp`. Weeks are not written down: a span's week 1 is its first seven
 days, week 2 the next seven, which is why a row aligned to calendar weeks shows the week
 labels you would expect down the side of the calendar pane.
 """
@@ -16,6 +16,7 @@ from puppet_strings.model import (
     MAIN_SEASON,
     MAX_COUNTED,
     PROGRAM_TYPES,
+    RESERVED_DATE_NAMES,
     CalendarDay,
     Span,
 )
@@ -97,6 +98,12 @@ def _check(spans: list[Span], where: str) -> None:
                     "a day belongs to one row"
                 )
             covered[day] = span
+    for span in spans:
+        if span.session is None and span.id in RESERVED_DATE_NAMES:
+            raise LoadError(
+                f"{where} row '{span.name}': 'dates.{span.id}' is already a name in Skedge; "
+                "give the row another name"
+            )
     sessions = [s for s in spans if s.session is not None]
     if len(sessions) > MAX_COUNTED:
         raise LoadError(f"{where}: at most {MAX_COUNTED} main season rows are supported")

@@ -118,7 +118,7 @@ prompt = "Sometime this week (Monday to Friday), Charlton does 'shop cleanup' du
 answer = "REQUEST staff.charlton DO 'shop cleanup' DURING blocks.rest_hour ON ANY 1 {2026-08-03 .. 2026-08-07}"
 hints = ["A run of dates is written {first .. last}.", "The choice is in the dates: ON ANY 1 {...}."]
 explain = "A request that can still happen later doesn't have to happen today. The solver waits until the last day it could."
-alternatives = ["REQUEST staff.charlton DO 'shop cleanup' DURING blocks.rest_hour ON ANY 1 {dates.session.six.week.one.monday .. dates.session.six.week.one.friday}"]
+alternatives = ["REQUEST staff.charlton DO 'shop cleanup' DURING blocks.rest_hour ON ANY 1 {dates.session_six.week_one.monday .. dates.session_six.week_one.friday}"]
 wrong = ["REQUEST staff.charlton DO 'shop cleanup' DURING blocks.rest_hour ON ANY 1 {2026-08-03 .. 2026-08-06}"]
 
 [[problem]]
@@ -154,7 +154,7 @@ wrong = ["REQUEST ANY 2 {staff.gabe + staff.julian + staff.nathan} DO 'target re
 id = "any-weekend-meal"
 title = "Saturday meal"
 prompt = "On the last day of the session, one director does 'parent greeting' at one of the meals."
-answer = "REQUEST ANY 1 staff.directors DO 'parent greeting' DURING ANY 1 blocks.meals ON dates.session.six.last"
+answer = "REQUEST ANY 1 staff.directors DO 'parent greeting' DURING ANY 1 blocks.meals ON dates.session_six.last"
 alternatives = ["REQUEST ANY 1 staff.directors DO 'parent greeting' DURING ANY 1 blocks.meals ON 2026-08-08"]
 wrong = ["REQUEST ANY 1 staff.directors DO 'parent greeting' DURING ANY 1 blocks.meals"]
 
