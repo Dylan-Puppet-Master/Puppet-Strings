@@ -195,7 +195,7 @@ One row per time block, as in the proposal.
 | `start` | HH:MM | `09:15` |
 | `end` | HH:MM | `10:30` |
 | `day_types` | comma list | `regular` |
-| `categories` | comma list | `any, any_clinic` |
+| `categories` | comma list | `any, all_clinics` |
 | `display_group` | text, optional | `break_then_work_projects` |
 
 `blocks.any` is added automatically. A block exists on a date only if the date's day type is in `day_types`. Overlap is computed from `start`/`end`.

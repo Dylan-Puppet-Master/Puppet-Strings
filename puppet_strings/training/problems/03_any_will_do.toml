@@ -7,7 +7,7 @@ ANY_n_OF <set>      n of them — the solver picks which
 
 REQUEST ANY_1_OF staff.directors DO 'office' DURING blocks.clinic_1
 REQUEST staff.rob DO 'break' DURING ANY_1_OF blocks.meals
-REQUEST ANY_2_OF staff.mfgs DO 'mowing' DURING ANY_1_OF blocks.any_clinic
+REQUEST ANY_2_OF staff.mfgs DO 'mowing' DURING ANY_1_OF blocks.all_clinics
 
 • The solver chooses once, then everyone chosen does it in every block chosen
 • A single name (staff.rob) never takes a quantifier
@@ -63,13 +63,13 @@ title = "Whenever it fits"
 prompt = "Dylan does 'archery maintenance' at some point today — any block at all."
 answer = "REQUEST staff.dylan DO 'archery maintenance' DURING ANY_1_OF blocks.all"
 hints = ["Every block is blocks.all; you want one of them."]
-wrong = ["REQUEST staff.dylan DO 'archery maintenance' DURING ANY_1_OF blocks.any_clinic"]
+wrong = ["REQUEST staff.dylan DO 'archery maintenance' DURING ANY_1_OF blocks.all_clinics"]
 
 [[problem]]
 id = "any-clinic-block"
 title = "Some clinic block"
 prompt = "Vic spends one of the four clinic blocks on 'harness inspection'."
-answer = "REQUEST staff.vic DO 'harness inspection' DURING ANY_1_OF blocks.any_clinic"
+answer = "REQUEST staff.vic DO 'harness inspection' DURING ANY_1_OF blocks.all_clinics"
 alternatives = ["REQUEST staff.vic DO 'harness inspection' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2 + blocks.clinic_3 + blocks.clinic_4}"]
 wrong = ["REQUEST staff.vic DO 'harness inspection' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}"]
 
@@ -77,9 +77,9 @@ wrong = ["REQUEST staff.vic DO 'harness inspection' DURING ANY_1_OF {blocks.clin
 id = "any-two-blocks"
 title = "Twice today"
 prompt = "Hailey does 'horse check' in two of today's clinic blocks."
-answer = "REQUEST staff.hailey DO 'horse check' DURING ANY_2_OF blocks.any_clinic"
+answer = "REQUEST staff.hailey DO 'horse check' DURING ANY_2_OF blocks.all_clinics"
 wrong = [
-  "REQUEST staff.hailey DO 'horse check' DURING ANY_1_OF blocks.any_clinic",
+  "REQUEST staff.hailey DO 'horse check' DURING ANY_1_OF blocks.all_clinics",
   "REQUEST staff.hailey DO 'horse check' DURING ANY_2_OF blocks.all",
 ]
 

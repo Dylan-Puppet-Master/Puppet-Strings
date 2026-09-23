@@ -102,8 +102,8 @@ wrong = ["REQUEST staff.tori DO 'night watch' DURING blocks.embers"]
 id = "together-clinic-blocks"
 title = "All the clinic blocks"
 prompt = "Charlton does 'shop inventory' in every clinic block today."
-answer = "REQUEST staff.charlton DO 'shop inventory' DURING ALL_OF blocks.any_clinic"
-hints = ["The clinic blocks are blocks.any_clinic."]
+answer = "REQUEST staff.charlton DO 'shop inventory' DURING ALL_OF blocks.all_clinics"
+hints = ["The clinic blocks are blocks.all_clinics."]
 alternatives = ["REQUEST staff.charlton DO 'shop inventory' DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2 + blocks.clinic_3 + blocks.clinic_4}"]
 wrong = ["REQUEST staff.charlton DO 'shop inventory' DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2 + blocks.clinic_3}"]
 

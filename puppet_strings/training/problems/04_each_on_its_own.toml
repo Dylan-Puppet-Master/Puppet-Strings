@@ -129,10 +129,10 @@ wrong = ["REQUEST ALL_OF staff.mfgs DO 'tool inventory' DURING blocks.rest_hour 
 id = "each-clinic-block"
 title = "Coverage in every clinic"
 prompt = "In each of the four clinic blocks, one of the directors does 'walkabout'. Each block counts separately."
-answer = "REQUEST ANY_1_OF staff.directors DO 'walkabout' DURING EACH_OF blocks.any_clinic"
+answer = "REQUEST ANY_1_OF staff.directors DO 'walkabout' DURING EACH_OF blocks.all_clinics"
 priority = "HIGH"
 explain = "EACH_OF splits first, then ANY_1_OF chooses once per copy — so each block gets its own director, maybe different ones."
-wrong = ["REQUEST ANY_1_OF staff.directors DO 'walkabout' DURING ALL_OF blocks.any_clinic"]
+wrong = ["REQUEST ANY_1_OF staff.directors DO 'walkabout' DURING ALL_OF blocks.all_clinics"]
 
 [[problem]]
 id = "each-heroes-dinner"
@@ -170,10 +170,10 @@ wrong = ["REQUEST ANY_2_OF staff.counselors DO 'bus tables' DURING ALL_OF blocks
 id = "each-staff-all-break"
 title = "Everyone gets a break"
 prompt = "Every single staff member gets a 'break' in one of today's clinic blocks. Each person counts separately."
-answer = "REQUEST EACH_OF staff.all DO 'break' DURING ANY_1_OF blocks.any_clinic"
+answer = "REQUEST EACH_OF staff.all DO 'break' DURING ANY_1_OF blocks.all_clinics"
 priority = "HIGH"
 hints = ["Everybody on staff this session is staff.all."]
-wrong = ["REQUEST EACH_OF staff.counselors DO 'break' DURING ANY_1_OF blocks.any_clinic"]
+wrong = ["REQUEST EACH_OF staff.counselors DO 'break' DURING ANY_1_OF blocks.all_clinics"]
 
 [[problem]]
 id = "each-wednesday-thursday"

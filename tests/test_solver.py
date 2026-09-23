@@ -333,8 +333,8 @@ def test_gap_at_most_rejects_the_far_pair():
 
 MEETINGS = (
     "first: REQUEST staff.dylan DO 'meeting' FOR 1h\n"
-    "DURING ANY_1_OF blocks.any_clinic ON ANY_1_OF {{{yesterday} .. {target}}}\n"
-    "second: REQUEST staff.dylan DO 'meeting' FOR 1h DURING ANY_1_OF blocks.any_clinic\n"
+    "DURING ANY_1_OF blocks.all_clinics ON ANY_1_OF {{{yesterday} .. {target}}}\n"
+    "second: REQUEST staff.dylan DO 'meeting' FOR 1h DURING ANY_1_OF blocks.all_clinics\n"
     "GAP first TO second AT_LEAST {gap}"
 )
 
@@ -507,9 +507,9 @@ MEAL_TIMES = [("08:00", "09:00"), ("12:00", "13:00"), ("17:30", "18:30"), ("10:3
 def blocks_with_meals(count):
     """Three clinic blocks plus `count` meal blocks."""
     blocks = {
-        "clinic_1": ("09:15", "10:30", ("any_clinic",)),
-        "clinic_2": ("10:45", "12:00", ("any_clinic",)),
-        "clinic_3": ("14:00", "15:15", ("any_clinic",)),
+        "clinic_1": ("09:15", "10:30", ("all_clinics",)),
+        "clinic_2": ("10:45", "12:00", ("all_clinics",)),
+        "clinic_3": ("14:00", "15:15", ("all_clinics",)),
     }
     for i, (start, end) in enumerate(MEAL_TIMES[:count]):
         blocks[f"meal_{i}"] = (start, end, ("meals",))
@@ -541,9 +541,9 @@ def test_avoid_is_one_small_request_per_person_and_block(meals):
 def test_a_block_overlapping_two_clinics_does_not_stop_anyone_working_both():
     """Overlap is not transitive: rest hour meets both clinics, which do not meet each other."""
     blocks = {
-        "clinic_1": ("09:15", "10:30", ("any_clinic",)),
+        "clinic_1": ("09:15", "10:30", ("all_clinics",)),
         "rest_hour": ("10:00", "11:00", ()),
-        "clinic_2": ("10:45", "12:00", ("any_clinic",)),
+        "clinic_2": ("10:45", "12:00", ("all_clinics",)),
     }
     ds = dataset(
         [staff("Dylan", archery_1_2=OK)],
@@ -559,9 +559,9 @@ def test_a_block_overlapping_two_clinics_does_not_stop_anyone_working_both():
 def test_a_block_on_another_kind_of_day_never_clashes():
     """pack_out belongs to changeover days, so it cannot stop work on a regular day."""
     blocks = {
-        "clinic_1": ("09:15", "10:30", ("any_clinic",)),
+        "clinic_1": ("09:15", "10:30", ("all_clinics",)),
         "pack_out": ("09:15", "11:00", ()),
-        "clinic_2": ("10:45", "12:00", ("any_clinic",)),
+        "clinic_2": ("10:45", "12:00", ("all_clinics",)),
     }
     ds = dataset(
         [staff("Dylan", archery_1_2=OK)],
@@ -817,7 +817,7 @@ def test_a_counted_pattern_measures_clinics_without_starting_one():
 
 def test_a_duration_amount_sums_lengths_and_past_dates_count():
     yesterday = TARGET - timedelta(days=1)
-    text = "REQUEST AT_LEAST 2h staff.james DO 'dance practice' DURING blocks.any_clinic ON {(dates.target - 1d) .. dates.target}"
+    text = "REQUEST AT_LEAST 2h staff.james DO 'dance practice' DURING blocks.all_clinics ON {(dates.target - 1d) .. dates.target}"
     ds = dataset(
         [staff("James")],
         [],
@@ -1443,7 +1443,7 @@ def test_each_of_still_expands_the_whole_block():
             request(
                 "each-one",
                 "EACH_OF s IN staff.all\n"
-                "REQUEST s DO activities.clinics.candle_making DURING ANY_1_OF blocks.any_clinic\n"
+                "REQUEST s DO activities.clinics.candle_making DURING ANY_1_OF blocks.all_clinics\n"
                 "PREFER AT_MOST 1 s DO activities.clinics.candle_making",
                 Priority.MEDIUM,
             )

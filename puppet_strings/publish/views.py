@@ -25,7 +25,7 @@ from puppet_strings.solver.result import RequestOutcome, Result
 AVAILABLE = "Available"
 FREE = "free"
 PLAYSTATION = "playstation"
-ANY_CLINIC = "any_clinic"
+ALL_CLINICS = "all_clinics"
 HEADINGS_ROW = 1  # row 0 is the title; row 1 names the blocks
 
 
@@ -135,7 +135,7 @@ def clinic_view(
     Clinic_Data has its own, on the name of every clinic in it. A category is a run of
     rows down the left-hand column, so one colour marks where it starts and ends.
     """
-    clinic_ids = dataset.block_categories.get(ANY_CLINIC, frozenset())
+    clinic_ids = dataset.block_categories.get(ALL_CLINICS, frozenset())
     blocks = [b.id for b in dataset.blocks_on(dataset.target) if b.id in clinic_ids]
     names = {s: dataset.staff[s].name for s in dataset.staff}
     rows: Table = [[_title(dataset)], ["Clinic"] + [_label(b) for b in blocks]]

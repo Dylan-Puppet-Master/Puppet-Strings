@@ -186,7 +186,7 @@ def test_weeks_of_a_session(dataset):
 def test_roles(dataset):
     (copy,) = resolve(
         dataset,
-        "REQUEST staff.dylan DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY_1_OF blocks.any_clinic",
+        "REQUEST staff.dylan DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY_1_OF blocks.all_clinics",
     )
     assert copy.statements[0].role.items == ("trainee",)
     (copy,) = resolve(

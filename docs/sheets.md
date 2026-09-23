@@ -156,7 +156,7 @@ One row per time block. Blocks are the units the solver assigns staff to.
 | `start`, `end` | The block's times, written any ordinary way: `8:30`, `08:30` and `8:30 AM` all mean the same thing. Blocks may overlap; the solver never gives one person two assignments that overlap in time. |
 | `day_types` | **Comma-separated**, from `first_day`, `last_day`, `weekday`, `weekend`. Which kinds of day the block exists on. |
 | `program_type` | **Comma-separated**, from `main season`, `other`. Which programmes it exists in. |
-| `categories` | **Comma-separated.** Groups of blocks a request can name at once: `blocks.any_clinic`, `blocks.meals`. `blocks.all` (every block) is built in and may not be used as a category name. |
+| `categories` | **Comma-separated.** Groups of blocks a request can name at once: `blocks.all_clinics`, `blocks.meals`. `blocks.all` (every block) is built in and may not be used as a category name. |
 
 A block exists on a day when the day runs one of its programmes **and** is one of its kinds
 of day. Nothing writes a day's kinds down: a day is `weekday` or `weekend` by the calendar,
@@ -171,7 +171,7 @@ Example:
 | block_id | start | end | day_types | program_type | categories |
 |---|---|---|---|---|---|
 | breakfast | 08:00 | 09:00 | weekday, weekend | main season, other | meals |
-| clinic_1 | 09:15 | 10:30 | weekday | main season | any_clinic |
+| clinic_1 | 09:15 | 10:30 | weekday | main season | all_clinics |
 | cabin_act | 13:00 | 14:00 | weekday | main season | |
 | pack_out | 09:15 | 11:00 | last_day | main season | |
 | playstation | 17:00 | 18:00 | weekday, weekend | main season, other | |

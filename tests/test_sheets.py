@@ -477,7 +477,7 @@ def test_dataset(dataset):
         "canopy_tour_dbl",
         "lvl_2_on_ground",
     }
-    assert dataset.block_categories["any_clinic"] == {
+    assert dataset.block_categories["all_clinics"] == {
         "clinic_1",
         "clinic_2",
         "clinic_3",

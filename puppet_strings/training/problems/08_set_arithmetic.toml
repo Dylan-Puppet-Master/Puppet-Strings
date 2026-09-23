@@ -52,10 +52,10 @@ wrong = ["REQUEST ANY_1_OF {staff.permanent_heroes + staff.eq_staff} DO 'trail r
 id = "sets-non-counselor-breaks"
 title = "Non-counselor breaks"
 prompt = "Each staff member who is neither a director nor a counselor gets a 'break' in one of the clinic blocks."
-answer = "REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' DURING ANY_1_OF blocks.any_clinic"
+answer = "REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' DURING ANY_1_OF blocks.all_clinics"
 priority = "HIGH"
-alternatives = ["REQUEST EACH_OF {staff.all - (staff.directors + staff.counselors)} DO 'break' DURING ANY_1_OF blocks.any_clinic"]
-wrong = ["REQUEST EACH_OF {staff.all - staff.counselors} DO 'break' DURING ANY_1_OF blocks.any_clinic"]
+alternatives = ["REQUEST EACH_OF {staff.all - (staff.directors + staff.counselors)} DO 'break' DURING ANY_1_OF blocks.all_clinics"]
+wrong = ["REQUEST EACH_OF {staff.all - staff.counselors} DO 'break' DURING ANY_1_OF blocks.all_clinics"]
 
 [[problem]]
 id = "sets-parentheses"
@@ -71,9 +71,9 @@ wrong = ["REQUEST ALL_OF {staff.all - staff.counselors} NOT DO 'pool duty'"]
 id = "sets-afternoon-clinics"
 title = "Afternoon clinic blocks"
 prompt = "Hailey is free during every clinic block except clinic 1."
-answer = "REQUEST staff.hailey FREE DURING ALL_OF {blocks.any_clinic - blocks.clinic_1}"
+answer = "REQUEST staff.hailey FREE DURING ALL_OF {blocks.all_clinics - blocks.clinic_1}"
 alternatives = ["REQUEST staff.hailey FREE DURING ALL_OF {blocks.clinic_2 + blocks.clinic_3 + blocks.clinic_4}"]
-wrong = ["REQUEST staff.hailey FREE DURING ALL_OF blocks.any_clinic"]
+wrong = ["REQUEST staff.hailey FREE DURING ALL_OF blocks.all_clinics"]
 
 [[problem]]
 id = "sets-leaders-minus-one"
@@ -150,7 +150,7 @@ wrong = ["REQUEST staff.leni DO 'dish pit' DURING ALL_OF blocks.meals"]
 id = "sets-mfgs-not-counselors"
 title = "The other MFGs"
 prompt = "Each MFG who isn't also a counselor does 'woodpile' in one clinic block."
-answer = "REQUEST EACH_OF {staff.mfgs - staff.counselors} DO 'woodpile' DURING ANY_1_OF blocks.any_clinic"
+answer = "REQUEST EACH_OF {staff.mfgs - staff.counselors} DO 'woodpile' DURING ANY_1_OF blocks.all_clinics"
 priority = "MEDIUM"
-alternatives = ["REQUEST EACH_OF {staff.charlton + staff.connor} DO 'woodpile' DURING ANY_1_OF blocks.any_clinic"]
-wrong = ["REQUEST EACH_OF staff.mfgs DO 'woodpile' DURING ANY_1_OF blocks.any_clinic"]
+alternatives = ["REQUEST EACH_OF {staff.charlton + staff.connor} DO 'woodpile' DURING ANY_1_OF blocks.all_clinics"]
+wrong = ["REQUEST EACH_OF staff.mfgs DO 'woodpile' DURING ANY_1_OF blocks.all_clinics"]

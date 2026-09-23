@@ -63,7 +63,7 @@ wrong = ["REQUEST activities.clinics.candle_making DURING ANY_1_OF {blocks.clini
 id = "clinic-guitar-someone"
 title = "Guitar, some block"
 prompt = "Guitar runs once today, in whichever clinic block works."
-answer = "REQUEST activities.clinics.guitar DURING ANY_1_OF blocks.any_clinic"
+answer = "REQUEST activities.clinics.guitar DURING ANY_1_OF blocks.all_clinics"
 wrong = ["REQUEST activities.clinics.guitar DURING blocks.clinic_2"]
 
 [[problem]]
@@ -103,7 +103,7 @@ wrong = ["REQUEST staff.caroline DO activities.clinics.climbing_wall AS_ROLE rol
 id = "clinic-trainee-riflery"
 title = "Learning riflery"
 prompt = "Leah trains on Riflery (as a trainee) in one of the clinic blocks today."
-answer = "REQUEST staff.leah DO activities.clinics.riflery AS_ROLE roles.trainee DURING ANY_1_OF blocks.any_clinic"
+answer = "REQUEST staff.leah DO activities.clinics.riflery AS_ROLE roles.trainee DURING ANY_1_OF blocks.all_clinics"
 wrong = ["REQUEST staff.leah DO activities.clinics.riflery AS_ROLE roles.trainee DURING blocks.clinic_1"]
 
 [[problem]]

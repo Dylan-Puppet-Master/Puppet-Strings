@@ -30,11 +30,11 @@ SCAF = SkillStatus.NEEDS_SCAFFOLD
 SHADOW = SkillStatus.NEEDS_SHADOW
 
 BLOCKS = {
-    "clinic_1": ("09:15", "10:30", ("any_clinic",)),
-    "clinic_2": ("10:45", "12:00", ("any_clinic",)),
+    "clinic_1": ("09:15", "10:30", ("all_clinics",)),
+    "clinic_2": ("10:45", "12:00", ("all_clinics",)),
     "lunch": ("12:00", "13:00", ("meals",)),
-    "clinic_3": ("14:00", "15:15", ("any_clinic",)),
-    "clinic_4": ("15:45", "17:00", ("any_clinic",)),
+    "clinic_3": ("14:00", "15:15", ("all_clinics",)),
+    "clinic_4": ("15:45", "17:00", ("all_clinics",)),
     "playstation": ("17:00", "18:00", ()),
 }
 

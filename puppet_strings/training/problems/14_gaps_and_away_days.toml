@@ -27,7 +27,7 @@ prompt = "Charlton does 'fence posts' in one of the morning clinic blocks and 'f
 answer = "posts: REQUEST staff.charlton DO 'fence posts' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING ANY_1_OF {blocks.clinic_3 + blocks.clinic_4}\nGAP posts TO rails AT_LEAST 0m"
 hints = ["Label each REQUEST with a name and a colon, then GAP posts TO rails AT_LEAST 0m."]
 explain = "AT_LEAST 0m is plain ordering: the second starts after the first ends."
-wrong = ["posts: REQUEST staff.charlton DO 'fence posts' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING ANY_1_OF blocks.any_clinic\nGAP posts TO rails AT_LEAST 0m"]
+wrong = ["posts: REQUEST staff.charlton DO 'fence posts' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING ANY_1_OF blocks.all_clinics\nGAP posts TO rails AT_LEAST 0m"]
 
 [[problem]]
 id = "gap-setup-teardown"

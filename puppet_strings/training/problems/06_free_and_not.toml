@@ -63,7 +63,7 @@ answer = "REQUEST staff.rob NOT DO activities.clinics.ropes"
 hints = ["All the ropes clinics are a category: activities.clinics.ropes.", "Leave out DURING to mean all day."]
 explain = "With no DURING, NOT DO covers the whole day."
 alternatives = ["REQUEST staff.rob NOT DO activities.clinics.ropes DURING blocks.all"]
-wrong = ["REQUEST staff.rob NOT DO activities.clinics.ropes DURING {blocks.any_clinic - blocks.clinic_4}"]
+wrong = ["REQUEST staff.rob NOT DO activities.clinics.ropes DURING {blocks.all_clinics - blocks.clinic_4}"]
 
 [[problem]]
 id = "free-each-director"
@@ -104,8 +104,8 @@ wrong = ["REQUEST staff.kara FREE DURING ANY_1_OF {blocks.clinic_3 + blocks.clin
 id = "free-any-clinic-block"
 title = "One free clinic"
 prompt = "Mogee gets one clinic block free today — any of the four."
-answer = "REQUEST staff.mogee FREE DURING ANY_1_OF blocks.any_clinic"
-wrong = ["REQUEST staff.mogee FREE DURING ALL_OF blocks.any_clinic"]
+answer = "REQUEST staff.mogee FREE DURING ANY_1_OF blocks.all_clinics"
+wrong = ["REQUEST staff.mogee FREE DURING ALL_OF blocks.all_clinics"]
 
 [[problem]]
 id = "free-not-archery"

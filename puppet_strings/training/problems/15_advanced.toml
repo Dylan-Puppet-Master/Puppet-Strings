@@ -94,9 +94,9 @@ wrong = ["REQUEST activities.clinics.gravity_zip_line DURING blocks.clinic_2"]
 id = "big-directors-rotation"
 title = "Directors on duty"
 prompt = "In each clinic block, exactly one director is 'on duty', and no director is on duty twice in a row."
-answer = "REQUEST EXACTLY 1 staff.directors DO 'on duty' DURING EACH_OF blocks.any_clinic\nREQUEST AT_MOST 1 EACH_OF staff.directors DO 'on duty' CONSECUTIVE"
+answer = "REQUEST EXACTLY 1 staff.directors DO 'on duty' DURING EACH_OF blocks.all_clinics\nREQUEST AT_MOST 1 EACH_OF staff.directors DO 'on duty' CONSECUTIVE"
 priority = "MUST_HAPPEN"
-wrong = ["REQUEST EXACTLY 1 staff.directors DO 'on duty' DURING EACH_OF blocks.any_clinic"]
+wrong = ["REQUEST EXACTLY 1 staff.directors DO 'on duty' DURING EACH_OF blocks.all_clinics"]
 
 [[problem]]
 id = "big-video-day"

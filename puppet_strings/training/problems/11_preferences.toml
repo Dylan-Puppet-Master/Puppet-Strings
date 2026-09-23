@@ -82,9 +82,9 @@ wrong = [
 id = "prefer-two-hours-rest"
 title = "Plenty of rest"
 prompt = "We'd like each counselor to be free for at least two hours of clinic time today."
-answer = "PREFER AT_LEAST 2h EACH_OF staff.counselors FREE DURING blocks.any_clinic"
+answer = "PREFER AT_LEAST 2h EACH_OF staff.counselors FREE DURING blocks.all_clinics"
 priority = "LOW"
-wrong = ["PREFER AT_LEAST 2h staff.counselors FREE DURING blocks.any_clinic"]
+wrong = ["PREFER AT_LEAST 2h staff.counselors FREE DURING blocks.all_clinics"]
 
 [[problem]]
 id = "prefer-not-three-in-a-row"

@@ -116,10 +116,10 @@ wrong = ["REQUEST AT_MOST 2 staff.tyson DO activities.clinics.archery_1_2"]
 id = "count-at-least-one-free-clinic"
 title = "One free clinic block"
 prompt = "Each counselor is free for at least one of the four clinic blocks today."
-answer = "REQUEST AT_LEAST 1 EACH_OF staff.counselors FREE DURING blocks.any_clinic"
+answer = "REQUEST AT_LEAST 1 EACH_OF staff.counselors FREE DURING blocks.all_clinics"
 priority = "HIGH"
-alternatives = ["REQUEST EACH_OF staff.counselors FREE DURING ANY_1_OF blocks.any_clinic"]
-wrong = ["REQUEST AT_LEAST 2 EACH_OF staff.counselors FREE DURING blocks.any_clinic"]
+alternatives = ["REQUEST EACH_OF staff.counselors FREE DURING ANY_1_OF blocks.all_clinics"]
+wrong = ["REQUEST AT_LEAST 2 EACH_OF staff.counselors FREE DURING blocks.all_clinics"]
 
 [[problem]]
 id = "count-hour-of-kitchen"
@@ -133,9 +133,9 @@ wrong = ["REQUEST AT_LEAST 1h EACH_OF staff.mfgs DO 'kitchen repair'"]
 id = "count-at-most-one-in-office"
 title = "Not a crowd"
 prompt = "At most one director is in the 'office' during each clinic block."
-answer = "REQUEST AT_MOST 1 staff.directors DO 'office' DURING EACH_OF blocks.any_clinic"
+answer = "REQUEST AT_MOST 1 staff.directors DO 'office' DURING EACH_OF blocks.all_clinics"
 priority = "MUST_HAPPEN"
-wrong = ["REQUEST AT_MOST 1 staff.directors DO 'office' DURING blocks.any_clinic"]
+wrong = ["REQUEST AT_MOST 1 staff.directors DO 'office' DURING blocks.all_clinics"]
 
 [[problem]]
 id = "count-two-busy-blocks-in-a-row"
