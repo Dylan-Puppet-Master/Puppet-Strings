@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, time, timedelta
 from enum import Enum
+from functools import cached_property
 
 
 class SkillStatus(Enum):
@@ -591,8 +592,17 @@ class Dataset:
 
     def blocks_on(self, day: date) -> tuple[Block, ...]:
         """Blocks that exist on a date, in Blocks sheet order."""
-        entry = self.calendar[day]
-        return tuple(b for b in self.blocks.values() if block_runs_on(b, entry))
+        found = self._blocks_on.get(day)
+        if found is None:
+            entry = self.calendar[day]
+            found = tuple(b for b in self.blocks.values() if block_runs_on(b, entry))
+            self._blocks_on[day] = found
+        return found
+
+    @cached_property
+    def _blocks_on(self) -> dict[date, tuple[Block, ...]]:
+        """`blocks_on` by date, filled as it is asked: building a model asks thousands of times."""
+        return {}
 
     def holds(self, staff_id: str, day: date, block_id: str) -> bool:
         """Whether a date can hold an assignment: the block exists and the person is not resting."""

@@ -631,8 +631,8 @@ class Compiler:
                 continue
             ids = {b.id for b in on_day}
             activities = [pattern.what.text] if whats is None else list(whats)
-            for row in self._rows(d, who, activities):
-                if row.block not in ids or (roles is not None and row.role not in roles):
+            for row in self._rows(d, who, activities, ids):
+                if roles is not None and row.role not in roles:
                     continue
                 parts = [row.literal, who[row.staff], whats[row.activity] if whats else True]
                 parts.append(self._length_is(row, pattern.minutes))
@@ -649,15 +649,21 @@ class Compiler:
         free = self.variables.was_free(s, d, b)
         return not free if busy else free
 
-    def _rows(self, d: date, staff_ids, activities) -> Iterator[Row]:
-        """The assignments of these people to these activities on a date, from the indexes."""
+    def _rows(self, d: date, staff_ids, activities, blocks: set[str]) -> Iterator[Row]:
+        """The assignments of these people to these activities in these blocks on a date.
+
+        The blocks are checked before a row is made: most of a person's assignments to a
+        category of clinics are in blocks the pattern is not about.
+        """
         if d != self.dataset.target:
             index = self._published_rows(d)
             for key in product(staff_ids, activities):
-                yield from index.get(key, ())
+                yield from (row for row in index.get(key, ()) if row.block in blocks)
             return
         for key in product(staff_ids, activities):
             for slot in self.variables.slots.get(key, ()):
+                if slot.block not in blocks:
+                    continue
                 interval = self.variables.intervals[slot]
                 yield Row(
                     slot.staff,
@@ -904,8 +910,11 @@ class Compiler:
                 self.model.Add(miss >= total - n)
             return miss, bound
         gated, bound = [], 0
-        for i, window in enumerate(self._windows(matches)):
-            present, terms, constant, most = self._window(window, amount.duration, f"{name}:run{i}")
+        # a run short of AT_LEAST still counts, since the miss is how far the best run falls short
+        needed = _needed(amount) if amount.bound == ast.AT_MOST else 1
+        windows = self._windows(matches, amount.duration, needed, name)
+        for i, (blocks, terms, constant, most) in enumerate(windows):
+            present = self._all_of(blocks, f"{name}:run{i}:present")
             if present is False:
                 continue
             reach = self.model.NewIntVar(0, most, f"{name}:run{i}:amount")

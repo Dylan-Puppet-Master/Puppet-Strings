@@ -15,7 +15,7 @@ This outline was written after reading the four existing sheets (Clinic_Data, Cl
 
 ### 1.1 Overview
 
-Puppet Strings is one Python package, `puppet_strings`, exposed two ways: a command line tool and a desktop window. Both call the same library functions. Google Sheets is the only data store; nothing is cached locally except credentials and a config file.
+Puppet Strings is one Python package, `puppet_strings`, exposed two ways: a command line tool and a desktop window. Both call the same library functions. Google Sheets is the only data store; nothing is cached locally except credentials, a config file, and the Skedge parser's tables (`parser.cache`, rebuilt whenever the grammar changes).
 
 ```
  Google Sheets                          Puppet Master's laptop

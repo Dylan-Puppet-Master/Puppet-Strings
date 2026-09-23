@@ -60,12 +60,13 @@ def solve(
     _check_adhoc_tasks(copies)
     model, variables, compiler, active = build_model(dataset, copies, cancel)
     baseline = dataset.baseline if same_day else None
+    hints: dict[int, tuple[cp_model.IntVar, int]] = {}
     if baseline is not None:
-        _hold_to(model, compiler, variables, baseline)
-
+        _hold_to(compiler, variables, baseline, hints)
     for compiled in compiler.compiled:  # start from "every request is met" and repair
-        if isinstance(compiled.sat, cp_model.IntVar):
-            model.AddHint(compiled.sat, 1)
+        _hint(hints, compiled.sat, True)
+    for var, value in hints.values():
+        model.AddHint(var, value)
 
     unique = {var.Index(): var for var in variables.x.values()}
     placement = [
@@ -163,17 +164,28 @@ def _asks(statement) -> bool:
     )
 
 
-def _hold_to(model, compiler: Compiler, variables: Variables, baseline) -> None:
+def _hold_to(compiler: Compiler, variables: Variables, baseline, hints: dict) -> None:
     """Reward every published assignment the day can still keep, and start the solver there."""
-    hinted = set()
     for a in baseline:
         var = variables.x.get(Slot(a.staff, a.activity, a.role, a.block))
         if var is None:
             continue  # nobody can hold it today, so there is nothing to keep
         compiler.terms[Priority.STABILITY].append((SCALE, var))
-        if var.Index() not in hinted:  # one hint per variable, not per block of a (DBL)
-            hinted.add(var.Index())
-            model.AddHint(var, 1)
+        _hint(hints, var, True)
+
+
+def _hint(hints: dict, literal, value: bool) -> None:
+    """Hint a literal, once per variable: CP-SAT rejects a model that hints one twice.
+
+    Two copies can be met by the same literal (`Compiler._collapse`), a (DBL) holds one
+    variable in two blocks, and a copy may be met by a negated literal. The first hint for a
+    variable stands, so a published assignment the day is holding to outranks a request.
+    """
+    if isinstance(literal, bool):
+        return
+    if not isinstance(literal, cp_model.IntVar):
+        literal, value = literal.Not(), not value
+    hints.setdefault(literal.Index(), (literal, int(value)))
 
 
 def _changes(baseline, assignments: tuple[Assignment, ...]) -> tuple[Change, ...]:

@@ -29,6 +29,7 @@ through this in the test suite, alongside answers that must be told apart.
 
 import random
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import date
 
@@ -358,18 +359,22 @@ def _tell_apart(dataset: Dataset, answer, expected, priority: Priority, rng: ran
     # are checked against the answer's model, and the other way round. Each is built once;
     # a sample only changes what it aims for. The two take turns, so that a difference the
     # fullest day shows in the second is found before the first has run through its aims.
+    # The two samples of one aim are separate models, so they are solved side by side; they
+    # are aimed, and then judged, in the same order as if they took turns.
     requiring = {
         False: _build(dataset, expected, answer, universe),
         True: _build(dataset, answer, expected, universe),
     }
     live = [False, True]  # whether the day being sampled is one the answer meets
-    for aim in AIMS:
-        for answer_met in list(live):
-            sample = _sample(requiring[answer_met], universe, rng, aim)
-            if sample is None:
-                live.remove(answer_met)  # nothing meets that side today
-            elif not _meets(requiring[not answer_met], sample):
-                return sample, answer_met, universe
+    with ThreadPoolExecutor(max_workers=len(live)) as pool:
+        for aim in AIMS:
+            aimed = [(side, _aim(requiring[side], universe, rng, aim)) for side in live]
+            samples = pool.map(lambda job: _sample(requiring[job[0]], job[1]), aimed)
+            for (answer_met, _), sample in zip(aimed, list(samples), strict=True):
+                if sample is None:
+                    live.remove(answer_met)  # nothing meets that side today
+                elif not _meets(requiring[not answer_met], sample):
+                    return sample, answer_met, universe
     return None
 
 
@@ -578,8 +583,8 @@ def _build(dataset: Dataset, hard, soft, universe: _Universe) -> _Built:
 AIMS = ("fewest+", "fewest-", "most", "random+", "fewest+", "random", "fewest-", "random+")
 
 
-def _sample(built: _Built, universe: _Universe, rng, aim: str) -> _Sample | None:
-    """A schedule meeting what the model requires, aimed as `aim` says."""
+def _aim(built: _Built, universe: _Universe, rng, aim: str) -> cp_model.CpSolver:
+    """Point the model at what `aim` says, and give back the solver to sample it with."""
     weights = {}
     for slot, var in built.variables.x.items():
         differs = {slot.staff, slot.activity, slot.block} & universe.differing
@@ -601,7 +606,11 @@ def _sample(built: _Built, universe: _Universe, rng, aim: str) -> _Sample | None
         weights.setdefault(var.Index(), (weight, var))
     built.model.ClearObjective()
     built.model.Maximize(sum(round(100 * w) * var for w, var in weights.values()))
-    solver = _solver(rng)
+    return _solver(rng)
+
+
+def _sample(built: _Built, solver: cp_model.CpSolver) -> _Sample | None:
+    """A schedule meeting what the model requires, as it was aimed; None if there is none."""
     if solver.Solve(built.model) not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return None
     on = frozenset(slot for slot, var in built.variables.x.items() if solver.Value(var))

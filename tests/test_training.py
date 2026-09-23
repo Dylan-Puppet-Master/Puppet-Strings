@@ -46,7 +46,8 @@ def test_the_answer_is_valid_and_can_be_met(problem):
         copies = check._meetable(ds, copies, universe, random.Random(0))
     assert copies
     built = check._build(ds, copies, (), universe)
-    assert check._sample(built, universe, random.Random(0), check.AIMS[0]) is not None
+    solver = check._aim(built, universe, random.Random(0), check.AIMS[0])
+    assert check._sample(built, solver) is not None
 
 
 @pytest.mark.parametrize(

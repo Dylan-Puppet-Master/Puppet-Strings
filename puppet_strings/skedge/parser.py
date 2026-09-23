@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, replace
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 
 from lark import Lark, Token, Transformer, UnexpectedInput, v_args
@@ -10,11 +11,29 @@ from lark.exceptions import VisitError
 from puppet_strings.skedge import ast
 
 _GRAMMAR = (Path(__file__).parent / "grammar.lark").read_text()
+_CACHE = Path("~/.config/puppet_strings/parser.cache").expanduser()
+
+
+def _cache() -> str | bool:
+    """Where to keep the parse tables, which take longer to build than the rest of startup.
+
+    Lark checks the file against the grammar and throws it away if the grammar changed. It
+    is a pickle, so it lives in the user's own folder rather than the shared temp folder,
+    where anybody could leave one under the name Lark would look for.
+    """
+    try:
+        _CACHE.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return False
+    return str(_CACHE)
+
+
 _parser = Lark(
     _GRAMMAR,
     parser="lalr",
     propagate_positions=True,
     start=["start", "mapping_domain", "mapping_default"],
+    cache=_cache(),
 )
 
 
@@ -33,7 +52,13 @@ def parse_default(text: str) -> ast.Selector:
     return _parse(text, "mapping_default")
 
 
+@lru_cache(maxsize=4096)
 def _parse(text: str, start: str):
+    """The tree for some text, kept: a tree is immutable, and the same text is parsed often.
+
+    Loading the window reads each request twice over, the editor re-reads what is typed
+    each time it stops, and the trainer checks two answers on every day they are about.
+    """
     try:
         tree = _parser.parse(text, start=start)
     except UnexpectedInput as e:

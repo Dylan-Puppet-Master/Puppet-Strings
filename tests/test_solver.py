@@ -971,6 +971,69 @@ def test_at_most_consecutive_breaks_up_a_run():
     assert ids(result.unsatisfied) == ["dylan"]
 
 
+def test_prefer_at_most_consecutive_weighs_a_run():
+    members = [
+        staff("Dylan", archery_1_2=OK, candle_making=OK),
+        staff("Randy", archery_1_2=OK, candle_making=OK),
+    ]
+    ds = dataset(
+        members,
+        [ARCHERY, CANDLE],
+        offerings=[("Archery 1 & 2", ["clinic_1"]), ("Candle Making", ["clinic_2"])],
+        requests=[
+            request(
+                "dylan",
+                "REQUEST staff.dylan DO ANY 1 activities.clinics.all DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}",
+                Priority.MEDIUM,
+            ),
+            request(
+                "row",
+                "PREFER AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all",
+                Priority.HIGH,
+            ),
+        ],
+    )
+    result = run(ds)
+    assert result.feasible
+    assert ids(result.unsatisfied) == ["dylan"]  # the preference outranks the request
+
+
+def test_prefer_at_least_consecutive_rewards_a_run():
+    members = [
+        staff("Dylan", archery_1_2=OK, candle_making=OK),
+        staff("Randy", archery_1_2=OK, candle_making=OK),
+    ]
+    ds = dataset(
+        members,
+        [ARCHERY, CANDLE],
+        offerings=[("Archery 1 & 2", ["clinic_1"]), ("Candle Making", ["clinic_2"])],
+        requests=[
+            request(
+                "row",
+                "PREFER AT_LEAST 2 CONSECUTIVE staff.dylan DO activities.clinics.all",
+                Priority.HIGH,
+            ),
+        ],
+    )
+    result = run(ds)
+    assert {a.block for a in where(result, staff="dylan")} == {"clinic_1", "clinic_2"}
+
+
+def test_two_requests_met_by_the_same_assignment_both_solve():
+    """Each copy is hinted as met, and CP-SAT refuses a model hinting one variable twice."""
+    ds = dataset(
+        [staff("Dylan", archery_1_2=OK), staff("Randy", archery_1_2=OK)],
+        [ARCHERY],
+        offerings=[("Archery 1 & 2", ["clinic_1"])],
+        requests=[
+            request("free", "REQUEST staff.dylan FREE DURING blocks.playstation"),
+            request("again", "REQUEST staff.dylan FREE DURING blocks.playstation"),
+        ],
+    )
+    result = run(ds)
+    assert result.feasible and not result.unsatisfied
+
+
 def test_at_most_consecutive_caps_a_run_of_three_adjacent_blocks():
     """The run bound counts what a person can really hold, one assignment per block."""
     members = [staff("Dylan", archery_1_2=OK), staff("Randy", archery_1_2=OK)]

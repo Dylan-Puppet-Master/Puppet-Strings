@@ -4,6 +4,7 @@ Names are looked up, set expressions evaluated, and `EACH_OF` expanded into inde
 copies of the declaration. A copy is what the solver compiles.
 """
 
+import weakref
 from collections.abc import Iterator, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
@@ -223,7 +224,7 @@ class Named:
 
 def resolve(declaration: ast.Declaration, dataset: Dataset) -> tuple[Resolved, ...]:
     """Resolve names and expand EACH_OF. Raises SkedgeError on unknown or misused names."""
-    scope = _Scope(_Names(dataset), dataset)
+    scope = _Scope(_names(dataset), dataset)
     for binding in declaration.bindings:
         if binding.selector.quantifier == ast.ANY_OF:
             scope = scope.with_any(binding.selector)
@@ -271,6 +272,24 @@ class _Names:
         """The nearest name there is, so a near miss says what to write instead."""
         close = get_close_matches(name, self.spaces[namespace], n=1, cutoff=0.6)
         return f"; did you mean '{namespace}.{close[0]}'?" if close else ""
+
+
+_names_of: dict[int, _Names] = {}
+
+
+def _names(dataset: Dataset) -> _Names:
+    """The dataset's names, built once and kept while it lives.
+
+    A Dataset is never changed after it is made, and every request resolved against it
+    looks names up in the same table, which takes longer to build than most requests take
+    to resolve. The table is dropped with the dataset.
+    """
+    key = id(dataset)
+    names = _names_of.get(key)
+    if names is None:
+        names = _names_of[key] = _Names(dataset)
+        weakref.finalize(dataset, _names_of.pop, key, None)
+    return names
 
 
 def _members(items, categories) -> dict[str, Named]:
@@ -428,7 +447,7 @@ def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
         MAPPINGS: {m: _mapping_note(v) for m, v in dataset.mappings.items()},
     }
     listing = {}
-    for namespace, names in _Names(dataset).spaces.items():
+    for namespace, names in _names(dataset).spaces.items():
         rows = [
             (name, described.get(namespace, {}).get(name) or _note(namespace, name, named))
             for name, named in names.items()
@@ -828,7 +847,7 @@ class Domains:
 
     def __init__(self, dataset: Dataset) -> None:
         self.dataset = dataset
-        self.names = _Names(dataset)
+        self.names = _names(dataset)
 
     def of(self, text: str) -> tuple[str, frozenset[Item]]:
         """A `keys` or `value` entry, as its namespace and its items. Raises SkedgeError."""
