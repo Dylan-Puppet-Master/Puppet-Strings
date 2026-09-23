@@ -8,7 +8,7 @@ from puppet_strings.app.groups import ALL, UNGROUPED, same_group
 from puppet_strings.app.store import RequestStore
 from puppet_strings.model import Request
 
-COLUMNS = ("id", "priority", "group", "tags", "requester", "valid", "description")
+COLUMNS = ("id", "priority", "group", "tags", "requester", "description")
 REQUEST_IDS = "application/x-puppet-strings-requests"  # what a dragged row carries
 
 
@@ -52,7 +52,6 @@ class RequestsModel(QAbstractTableModel):
             return request
         if role != Qt.DisplayRole:
             return None
-        facet = self.store.facets.get(request.id)
         return {
             "id": request.id,
             "priority": request.priority.value,
@@ -60,7 +59,6 @@ class RequestsModel(QAbstractTableModel):
             "tags": ", ".join(request.tags),
             "requester": request.requester,
             "description": request.description,
-            "valid": "" if facet is None or facet.valid else "error",
         }[COLUMNS[index.column()]]
 
     def request(self, request_id: str) -> Request | None:
