@@ -1506,3 +1506,29 @@ def test_a_broken_request_is_not_hidden_by_the_date(window):
     window.model.refresh()
     assert not window.store.facet(window.model.request("breaks")).valid
     assert window.date_check.isChecked() and "breaks" in visible_ids(window)
+
+
+def test_the_group_counts_follow_the_filters(window):
+    """Each group says how many rows picking it would show, whatever is filtering them."""
+
+    def counts():
+        items = [window.groups.list.item(i) for i in range(window.groups.list.count())]
+        return {i.data(Qt.UserRole): int(i.text().rsplit("(", 1)[1][:-1]) for i in items}
+
+    def rows(group):
+        window.groups.list.setCurrentRow(window.groups._row_of(group))
+        return window.proxy.rowCount()
+
+    for change in (
+        lambda: window.date_check.setChecked(False),
+        lambda: window.date_check.setChecked(True),
+        lambda: window.tag_filter.setCurrentText("clinic_import"),
+        lambda: window.text_filter.setText("dylan"),
+    ):
+        change()
+        now = counts()
+        assert now == {group: rows(group) for group in now}
+    window.tag_filter.setCurrentIndex(0)
+    window.text_filter.setText("")
+    window.date_check.setChecked(False)
+    assert counts()[ALL] == len(window.store.every) == window.store.book.count()

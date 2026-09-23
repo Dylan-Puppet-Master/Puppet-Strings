@@ -117,7 +117,8 @@ until you close the app.
 **The table.** One row per request. Click a column heading to sort by it. Filters above
 it: free text over id, description, Skedge and requester; priority; tag; staff; activity;
 and a date. These narrow whatever group is showing, so the group is the shelf and the
-filters are the search. To ask how far a request reaches, filter by the date itself.
+filters are the search. The number beside each group counts the requests in it that the
+filters let through, which is how many rows picking it would show. To ask how far a request reaches, filter by the date itself.
 
 **on date** is ticked to begin with, and starts on the date being scheduled and follows it,
 because that is the day you are almost always asking about. Ticked, the table shows the

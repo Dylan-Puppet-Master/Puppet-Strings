@@ -112,15 +112,17 @@ class RequestFilter(QSortFilterProxyModel):
         return same_group(self.group, request.group)
 
     def filterAcceptsRow(self, row, parent) -> bool:  # noqa: N802
-        """Whether the request at this source row passes every active filter.
+        """Whether the request at this source row is on the group shown and passes the rest."""
+        request = self.store.every[row]
+        return self._in_group(request) and self.passes(request)
+
+    def passes(self, request: Request) -> bool:
+        """Whether a request passes every filter but the group, which is what a group counts.
 
         With a date, a request passes when it is read on that date and is about it. One
         that does not validate is about nothing anybody can tell, so the date lets it
         through rather than hiding a broken request from the view it would be fixed in.
         """
-        request = self.store.every[row]
-        if not self._in_group(request):
-            return False
         text = (self.text or "").lower()
         haystack = f"{request.id} {request.description} {request.skedge} {request.requester}"
         if text and text not in haystack.lower():

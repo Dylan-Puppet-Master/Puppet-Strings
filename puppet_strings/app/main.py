@@ -210,6 +210,7 @@ class MainWindow(QMainWindow):
         self.calendar = SessionCalendar()
         self.calendar.picked.connect(self.insert_date)
         self.groups = GroupsPane(store)
+        self.groups.shown = self.proxy.passes
         self.groups.chosen.connect(self._group_chosen)
         self.groups.dropped.connect(self._set_group)
         self.groups.rescoped.connect(lambda _: self.editor_new_if_empty())
@@ -374,7 +375,7 @@ class MainWindow(QMainWindow):
         return layout
 
     def apply_filters(self) -> None:
-        """Push the filter widgets' state into the proxy model."""
+        """Push the filter widgets' state into the proxy model, and recount the groups."""
         self.proxy.set_filters(
             group=self.groups.current,
             text=self.text_filter.text(),
@@ -384,6 +385,7 @@ class MainWindow(QMainWindow):
             activity=_choice(self.activity_filter),
             date=self.date_filter.date().toPython() if self.date_check.isChecked() else None,
         )
+        self.groups.refresh()
 
     def show_request(self, request_id: str) -> None:
         """Open a request in the editor, and select its row when the table is showing it."""
@@ -406,8 +408,8 @@ class MainWindow(QMainWindow):
         return conflicts, errors
 
     def _group_chosen(self, group: str) -> None:
-        """Show the group the pane switched to."""
-        self.apply_filters()
+        """Show the group the pane switched to. The counts stay: no filter changed."""
+        self.proxy.set_filters(group=group)
         chosen = "" if group == ALL else f" in {group}"
         self.status_label.setText(f"  {self.proxy.rowCount()} requests{chosen}")
 

@@ -5,6 +5,8 @@ by dragging its row onto another group's label — which is why there is no grou
 the editor: the pane is where a request's group is decided, all of it in one place.
 """
 
+from collections.abc import Callable
+
 from PySide6.QtCore import QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
@@ -20,10 +22,10 @@ from PySide6.QtWidgets import (
 )
 
 from puppet_strings.app import palette
-from puppet_strings.app.groups import ALL, DEFAULT_GROUPS, UNGROUPED
+from puppet_strings.app.groups import ALL, DEFAULT_GROUPS, UNGROUPED, same_group
 from puppet_strings.app.requests_model import REQUEST_IDS, request_ids
 from puppet_strings.app.store import RequestStore
-from puppet_strings.model import SCOPES
+from puppet_strings.model import SCOPES, Request
 
 
 class GroupList(QListWidget):
@@ -144,6 +146,8 @@ class GroupsPane(QWidget):
     def __init__(self, store: RequestStore) -> None:
         super().__init__()
         self.store = store
+        # which requests the filters let through; each group counts only those
+        self.shown: Callable[[Request], bool] = lambda _: True
         self.list = GroupList()
         self.list.dropped.connect(self.dropped.emit)
         self.list.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -171,15 +175,19 @@ class GroupsPane(QWidget):
         return item.data(Qt.UserRole) if item else ALL
 
     def refresh(self, keep: str | None = None) -> None:
-        """Rebuild the list from the store, staying on the group that was picked."""
+        """Rebuild the list from the store, staying on the group that was picked.
+
+        Each group counts the requests in it that the filters let through, so the numbers
+        are the rows the table would show on picking it.
+        """
         wanted = keep or self.current
+        shown = [r for r in self.store.every if self.shown(r)]
         self.list.blockSignals(True)
         self.list.clear()
-        ungrouped = sum(1 for r in self.store.every if not r.group)
-        self._add(ALL, len(self.store.every))
-        self._add(UNGROUPED, ungrouped)
+        self._add(ALL, len(shown))
+        self._add(UNGROUPED, sum(1 for r in shown if not r.group))
         for group in self.store.groups:
-            self._add(group, self.store.count(group))
+            self._add(group, sum(1 for r in shown if same_group(group, r.group)))
         self.list.setCurrentRow(self._row_of(wanted))
         self.list.blockSignals(False)
         self._enable()
