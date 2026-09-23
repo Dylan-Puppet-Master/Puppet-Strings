@@ -1,7 +1,6 @@
 # Skedge reference
 
-Skedge is the language requests are written in. A request reads as a sentence with a
-subject, a verb and an object:
+Skedge is the language requests are written in. A request reads as a sentence with a subject, a verb and an object:
 
 ```skedge
 REQUEST staff.dylan DO 'archery maintenance' DURING ANY 1 blocks.all ON ANY 1 {2026-09-14 .. 2026-09-18}
@@ -564,7 +563,7 @@ its own or beside requirements; a cap that must hold is `REQUEST AT_MOST`.
 ## EXCLUDE: somebody who is not here
 
 A day off, a training course, a dentist's appointment. `EXCLUDE` says that somebody is not
-at camp for some of a day, which is not a thing to ask for — it is what the day is like:
+at camp for some of a day. This is different from a break -- someone who is excluded would not factor into the staff pool during the times they are gone.
 
 ```skedge
 EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all ON 2026-09-16
