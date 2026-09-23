@@ -70,6 +70,14 @@ class Choice:
 
 
 @dataclass(frozen=True)
+class Company:
+    """Who a WITH or WITHOUT counts: `n` of these staff, or (`n` None) all of them."""
+
+    staff: frozenset[str]
+    n: int | None
+
+
+@dataclass(frozen=True)
 class Pattern:
     """`<who> DO <what> …`, `<who> FREE …` or (`busy`) `<who> NOT FREE …`, resolved."""
 
@@ -80,8 +88,8 @@ class Pattern:
     on: Choice
     role: Choice | None
     minutes: int | None
-    with_: frozenset[str] | None
-    without: frozenset[str] | None
+    with_: Company | None
+    without: Company | None
     pos: ast.Pos
 
 
@@ -95,8 +103,8 @@ class Requirement:
     on: Choice
     role: Choice | None
     minutes: int | None
-    with_: frozenset[str] | None
-    without: frozenset[str] | None
+    with_: Company | None
+    without: Company | None
     label: str | None
     pos: ast.Pos
 
@@ -589,14 +597,20 @@ def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, poo
         "on": when,
         "role": _choice(role.selector, ROLES, scope, pool) if role else None,
         "minutes": for_.minutes if for_ else None,
-        "with_": _staff(with_.staff, scope) if with_ else None,
-        "without": _staff(without.staff, scope) if without else None,
+        "with_": _company(with_.selector, scope) if with_ else None,
+        "without": _company(without.selector, scope) if without else None,
     }
 
 
-def _staff(expr: ast.SetExpr, scope: _Scope) -> frozenset[str]:
-    items, _ = _evaluate(expr, STAFF, scope)
-    return items
+def _company(selector: ast.Selector, scope: _Scope) -> Company:
+    """One name alongside, or several with a quantifier to say how many of them."""
+    items, single = _evaluate(selector.expr, STAFF, scope)
+    if selector.quantifier is None:
+        if not single:
+            raise _error("needs a quantifier: ALL_OF or ANY_n_OF", selector.pos)
+        return Company(items, None)
+    _no_quantifier_on_one(selector.expr, single, selector.pos)
+    return Company(items, selector.n if selector.quantifier == ast.ANY_OF else None)
 
 
 def _condition(condition: ast.Condition, scope: _Scope) -> Condition:

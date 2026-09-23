@@ -175,8 +175,8 @@ request is soft: `ALL_OF` earns nothing for half, `EACH_OF` earns half.
 | `ON <dates>` | Which dates. Left out: the day being scheduled. |
 | `AS_ROLE <role>` | In that position or trainee role. Left out: any position. |
 | `FOR <duration>` | How long each one is. Ad hoc tasks only; left out, a task fills its block. |
-| `WITH <staff>` | Someone from that set is working the same clinic or task alongside. |
-| `WITHOUT <staff>` | Nobody from that set is. |
+| `WITH <staff>` | That person is working the same clinic or task alongside; of a set, `ANY_n_OF` or `ALL_OF` says how many of it. |
+| `WITHOUT <staff>` | The opposite of `WITH` the same. |
 
 An ad hoc task such as `'break'` has no positions, skills or camper slots; it occupies
 staff time only. `'break' FOR 30m` is a 30-minute break somewhere inside one block, the
@@ -230,8 +230,9 @@ do is `FREE`, something to do is `NOT FREE`.
 The subject of a `NOT` still chooses: `ALL_OF {…} NOT DO` is "none of them does",
 `ANY_1_OF {…} NOT DO` is "one of them doesn't". Everything to the right of `NOT` is a plain
 description of what must not happen: sets there mean "any of these", `DURING` can be left
-out to mean all day, and the only quantifier allowed is `EACH_OF`. `NOT DO ANY_1_OF …` is
-rejected, because it reads two ways in English.
+out to mean all day, and the only quantifier allowed is `EACH_OF` (`WITH` and `WITHOUT`
+count company instead, below). `NOT DO ANY_1_OF …` is rejected, because it reads two ways
+in English.
 
 **This is how "avoid" is written.** A `REQUEST` is all or nothing, so split it small and
 give it a soft priority:
@@ -248,8 +249,13 @@ exactly one of them, so three such breaks are three times as bad as one.
 | Request | Meaning |
 |---|---|
 | `REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT staff.vic` | If Rob is on ropes, Vic must be on it too. |
-| `REQUEST EACH_OF staff.junior NOT DO activities.clinics.waterfront WITHOUT staff.senior` | No junior at the waterfront unless a senior is there. |
+| `REQUEST EACH_OF staff.junior NOT DO activities.clinics.waterfront WITHOUT ANY_1_OF staff.senior` | No junior at the waterfront unless a senior is there. |
+| `REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT ALL_OF {staff.vic + staff.charlton}` | Rob is on ropes only with both Vic and Charlton. |
 | `REQUEST staff.jack NOT DO activities.clinics.all WITH staff.lucy` | Jack and Lucy never share a clinic. |
+
+One name stands alone. A set of several needs `ANY_n_OF` (at least n of them) or `ALL_OF`
+(every one of them), even to the right of `NOT`: `WITHOUT staff.senior` would not say
+whether one senior is enough.
 
 "X only if Y is there too" is always "X `NOT DO` it `WITHOUT` Y". At `MUST_HAPPEN` these
 are hard rules; at a soft priority they are wishes.
@@ -258,7 +264,7 @@ are hard rules; at a soft priority they are wishes.
 
 A pattern describes assignments without asking for them. It is the same `DO` a requirement
 is written with; what makes it a pattern is the amount in front of it. Sets in a pattern
-are pools ("any of these"), and the only quantifier is `EACH_OF`. Put an amount in front and it
+are pools ("any of these"), and the only quantifier is `EACH_OF`, apart from `WITH` and `WITHOUT`. Put an amount in front and it
 becomes something you can request or prefer:
 
 | Request | Meaning |

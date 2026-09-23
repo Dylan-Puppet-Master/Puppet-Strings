@@ -66,8 +66,10 @@ pool        : set_
             | EACH_OF NAME _IN set_
 
 for_        : _FOR DURATION
-with_       : _WITH set_
-without     : _WITHOUT set_
+// Who is alongside: one name, or several with ALL_OF or ANY_n_OF to say how many.
+with_       : _WITH company
+without     : _WITHOUT company
+company     : (ALL_OF | ANY_N_OF | EACH_OF)? set_
 
 ?set_       : REF | NAME | DATE | call | "{" setexpr "}"
 ?setexpr    : range (SETOP range)*     -> setop

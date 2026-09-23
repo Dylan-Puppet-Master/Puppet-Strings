@@ -142,8 +142,10 @@ pool        : set_
             | EACH_OF NAME _IN set_
 
 for_        : _FOR DURATION
-with_       : _WITH set_
-without     : _WITHOUT set_
+// Who is alongside: one name, or several with ALL_OF or ANY_n_OF to say how many.
+with_       : _WITH company
+without     : _WITHOUT company
+company     : (ALL_OF | ANY_N_OF | EACH_OF)? set_
 
 ?set_       : REF | NAME | DATE | call | "{" setexpr "}"
 ?setexpr    : range (SETOP range)*     -> setop
@@ -331,7 +333,8 @@ person does one thing at a time. `ANY_n_OF` over fewer than `n` members cannot h
 
 In a pattern a set is a **pool**: the pattern matches an assignment whose field is any
 member. The only quantifier a pattern takes is `EACH_OF`, which splits the declaration
-exactly as above. `ALL_OF` and `ANY_n_OF` are parse errors in a pattern.
+exactly as above. `ALL_OF` and `ANY_n_OF` are parse errors in a pattern, except after `WITH`
+and `WITHOUT`, which count company rather than choose it (§8).
 
 ### 6.4 Variables
 
@@ -363,7 +366,8 @@ do is `FREE`, and something to do is `NOT FREE`.
 in the language; it is the only default.
 
 Everything to the right of `NOT` is a pattern (§8): sets there are pools, `DURING` may be
-left out to mean every block, and only `EACH_OF` may quantify. The subject to the left of
+left out to mean every block, and only `EACH_OF` may quantify, apart from `WITH` and
+`WITHOUT` (§8). The subject to the left of
 `NOT` still chooses, so `ANY_1_OF {staff.lucy + staff.tom} NOT DO 'break'` is "one of them
 takes no break" and `ALL_OF {…} NOT DO` is "none of them does".
 
@@ -374,8 +378,8 @@ Clauses of a requirement:
 | `DURING <blocks>`, `ON <dates>` | When. |
 | `AS_ROLE <role>` | In that role. Without it, any position of the activity; a trainee role only when named. |
 | `FOR <duration>` | The length of each assignment. Quoted tasks only. |
-| `WITH <staff>` | Someone else from the set is on the same instance. |
-| `WITHOUT <staff>` | Nobody else from the set is on the same instance. |
+| `WITH <staff>` | Enough others from the set are on the same instance (§8). |
+| `WITHOUT <staff>` | Not enough are. |
 
 ## 8. Patterns
 
@@ -389,11 +393,18 @@ free, and `<who> NOT FREE [clauses]` every one in which they are busy. A clause 
 | `DO <what>` | its activity is in the pool, or is that quoted task |
 | `DURING`, `ON`, `AS_ROLE` | its block, date, role is in the pool |
 | `FOR <duration>` | its length is exactly the duration |
-| `WITH <staff>` | someone else in the set holds an assignment on the same instance |
-| `WITHOUT <staff>` | nobody else in the set holds an assignment on the same instance |
+| `WITH <staff>` | enough others in the set hold an assignment on the same instance |
+| `WITHOUT <staff>` | not enough do |
 
-`WITH` and `WITHOUT` are exact opposites. "Someone else" excludes the assignment's own staff
-member and counts any role, trainees included. For a quoted task shorter than its block,
+`WITH` and `WITHOUT` take one name, or a set with `ALL_OF` or `ANY_n_OF` to say how many is
+enough: `WITH staff.vic` is Vic, `WITH ANY_2_OF staff.mfgs` at least two MFGs, `WITH ALL_OF
+staff.mfgs` every MFG. A set of several with no quantifier is an error, as in a
+requirement, and so is `EACH_OF`. This holds on both sides of `NOT`.
+
+`WITH` and `WITHOUT` are exact opposites: `WITHOUT ANY_1_OF staff.mfgs` is no MFG,
+`WITHOUT ALL_OF staff.mfgs` is not every MFG. "Others" excludes the assignment's own staff
+member, so `ALL_OF` does not ask anyone to be alongside themselves, and counts any role,
+trainees included. For a quoted task shorter than its block,
 "the same instance" also means the same start time. `AS_ROLE` needs an activity; `FOR` needs a quoted task; `WITH`, `WITHOUT`, `AS_ROLE` and `FOR` cannot follow
 `FREE`.
 
@@ -608,7 +619,8 @@ The solver schedules `dates.target`.
 ## 15. Errors
 
 Every error names the line and column. The parser reports what it expected, which covers
-`ALL_OF` or `ANY_n_OF` inside a pattern or to the right of `NOT`, `PREFER` with a
+`ALL_OF` or `ANY_n_OF` inside a pattern or to the right of `NOT` (other than after `WITH` or
+`WITHOUT`), `PREFER` with a
 requirement, a label on a `PREFER`, `CONSECUTIVE` without a pattern, and `MAXIMIZE` without
 a mapping call. The validator and the solver report:
 
@@ -617,6 +629,8 @@ a mapping call. The validator and the solver report:
 | `a declaration needs at least one statement` | Only bindings, conditions or `GAP` lines. |
 | `needs a quantifier: ALL_OF, ANY_n_OF or EACH_OF` | A set with no quantifier in a requirement. |
 | `is one item and takes no quantifier` | `ANY_1_OF staff.rob`. |
+| `needs a quantifier: ALL_OF or ANY_n_OF` | `WITH` or `WITHOUT` a set of several, with no quantifier. |
+| `takes ALL_OF or ANY_n_OF, not EACH_OF` | `WITH EACH_OF staff.mfgs`; likewise `WITHOUT`. |
 | `one activity at a time` | `ALL_OF` or `ANY_2_OF` on a requirement's activity or `AS_ROLE`. |
 | `needs DURING` | A positive requirement with no `DURING`. |
 | `given twice` | A clause repeated in one statement. |

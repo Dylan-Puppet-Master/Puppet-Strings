@@ -35,7 +35,9 @@ def test_negation_and_free():
         "REQUEST ANY_1_OF {staff.lucy + staff.tom} NOT DO 'break' WITHOUT staff.rob"
     ).lines
     assert forbid.negated and forbid.what == ast.Task("break")
-    assert ast.clause(forbid.clauses, ast.Without).staff == ast.Ref("staff", "rob", ast.Pos(1, 66))
+    assert ast.clause(forbid.clauses, ast.Without).selector.expr == ast.Ref(
+        "staff", "rob", ast.Pos(1, 66)
+    )
     (free,) = parse("REQUEST staff.dylan FREE DURING ALL_OF blocks.all ON 2026-09-16").lines
     assert free.what is None and not free.negated
     assert ast.clause(free.clauses, ast.On).selector.expr == ast.DateLiteral(

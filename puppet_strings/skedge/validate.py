@@ -123,8 +123,14 @@ def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target) -> None:
             raise _error("AS_ROLE needs an activity", clause.pos)
         if isinstance(clause, ast.For) and not isinstance(what, ast.Task):
             raise _error("FOR needs a quoted task", clause.pos)
-        if isinstance(clause, ast.With | ast.Without) and what is None:
-            raise _error("FREE has no instance", clause.pos)
+        if isinstance(clause, ast.With | ast.Without):
+            if what is None:
+                raise _error("FREE has no instance", clause.pos)
+            if clause.selector.quantifier == ast.EACH_OF:
+                raise _error(
+                    f"{CLAUSE_NAMES[type(clause)]} takes ALL_OF or ANY_n_OF, not EACH_OF",
+                    clause.selector.pos,
+                )
 
 
 def _one_at_a_time(selector: ast.Selector | ast.Task | None) -> None:

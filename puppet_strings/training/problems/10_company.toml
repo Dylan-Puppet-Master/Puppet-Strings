@@ -3,8 +3,12 @@ name = "WITH and WITHOUT"
 blurb = "Who is working alongside whom."
 day = "2026-08-04"
 teaches = """
-... WITH <staff>       someone from that set is on the same clinic or task, alongside
-... WITHOUT <staff>    nobody from that set is
+... WITH staff.vic              Vic is on the same clinic or task, alongside
+... WITH ANY_1_OF staff.mfgs    at least one MFG is (ANY_2_OF: at least two)
+... WITH ALL_OF staff.mfgs      every MFG is
+... WITHOUT <staff>             the opposite of WITH <staff>
+
+One name stands alone; a set of several says how many of it with ALL_OF or ANY_n_OF.
 
 REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT staff.vic
 REQUEST staff.jack NOT DO activities.clinics.all WITH staff.lucy
@@ -47,17 +51,17 @@ wrong = ["REQUEST staff.jana DO 'camp store' DURING blocks.clinic_1"]
 id = "with-junior-senior"
 title = "Never alone on the water"
 prompt = "No counselor does 'canoe safety' unless a director is doing it with them. One request per counselor."
-answer = "REQUEST EACH_OF staff.counselors NOT DO 'canoe safety' WITHOUT staff.directors"
+answer = "REQUEST EACH_OF staff.counselors NOT DO 'canoe safety' WITHOUT ANY_1_OF staff.directors"
 priority = "HIGH"
-wrong = ["REQUEST EACH_OF staff.counselors NOT DO 'canoe safety' WITH staff.directors"]
+wrong = ["REQUEST EACH_OF staff.counselors NOT DO 'canoe safety' WITH ANY_1_OF staff.directors"]
 
 [[problem]]
 id = "with-no-mfg-together"
 title = "Spread the MFGs"
 prompt = "Charlton never does 'trail work' alongside another MFG."
-answer = "REQUEST staff.charlton NOT DO 'trail work' WITH {staff.mfgs - staff.charlton}"
+answer = "REQUEST staff.charlton NOT DO 'trail work' WITH ANY_1_OF {staff.mfgs - staff.charlton}"
 priority = "MUST_HAPPEN"
-alternatives = ["REQUEST staff.charlton NOT DO 'trail work' WITH {staff.alan + staff.connor}"]
+alternatives = ["REQUEST staff.charlton NOT DO 'trail work' WITH ANY_1_OF {staff.alan + staff.connor}"]
 wrong = ["REQUEST staff.charlton NOT DO 'trail work' WITH staff.alan"]
 
 [[problem]]
@@ -80,16 +84,16 @@ wrong = ["REQUEST staff.charlton NOT DO activities.clinics.climbing_wall WITHOUT
 id = "with-heroes-pair"
 title = "Partners"
 prompt = "Khushi does 'cabin inspections' during rest hour, alongside some village leader."
-answer = "REQUEST staff.khushi DO 'cabin inspections' DURING blocks.rest_hour WITH staff.village_leaders"
+answer = "REQUEST staff.khushi DO 'cabin inspections' DURING blocks.rest_hour WITH ANY_1_OF staff.village_leaders"
 wrong = ["REQUEST staff.khushi DO 'cabin inspections' DURING blocks.rest_hour"]
 
 [[problem]]
 id = "with-without-directors-desk"
 title = "Never alone at the desk"
 prompt = "Each village hero may only do 'front desk' when a permanent hero is on the desk with them."
-answer = "REQUEST EACH_OF staff.village_heroes NOT DO 'front desk' WITHOUT staff.permanent_heroes"
+answer = "REQUEST EACH_OF staff.village_heroes NOT DO 'front desk' WITHOUT ANY_1_OF staff.permanent_heroes"
 priority = "HIGH"
-wrong = ["REQUEST EACH_OF staff.village_heroes NOT DO 'front desk' WITHOUT staff.directors"]
+wrong = ["REQUEST EACH_OF staff.village_heroes NOT DO 'front desk' WITHOUT ANY_1_OF staff.directors"]
 
 [[problem]]
 id = "with-apart-at-meals"
@@ -103,9 +107,22 @@ wrong = ["REQUEST staff.diya NOT DO 'kitchen help' WITH staff.audrey DURING bloc
 id = "with-ropes-pair-each"
 title = "Every ropes counselor has backup"
 prompt = "No counselor is on the Giant Swing unless an MFG is on it with them. One request per counselor."
-answer = "REQUEST EACH_OF staff.counselors NOT DO activities.clinics.giant_swing WITHOUT staff.mfgs"
+answer = "REQUEST EACH_OF staff.counselors NOT DO activities.clinics.giant_swing WITHOUT ANY_1_OF staff.mfgs"
 priority = "HIGH"
-wrong = ["REQUEST EACH_OF staff.counselors NOT DO activities.clinics.giant_swing WITH staff.mfgs"]
+hints = ["An MFG is any one of them: ANY_1_OF staff.mfgs."]
+wrong = [
+  "REQUEST EACH_OF staff.counselors NOT DO activities.clinics.giant_swing WITH ANY_1_OF staff.mfgs",
+  "REQUEST EACH_OF staff.counselors NOT DO activities.clinics.giant_swing WITHOUT ALL_OF staff.mfgs",
+]
+
+[[problem]]
+id = "with-both-trainers"
+title = "Both trainers"
+prompt = "Rob only works ropes when both Vic and Charlton are on it with him."
+answer = "REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT ALL_OF {staff.vic + staff.charlton}"
+priority = "MUST_HAPPEN"
+explain = "WITHOUT ALL_OF: if either of them is missing, Rob is off ropes."
+wrong = ["REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT ANY_1_OF {staff.vic + staff.charlton}"]
 
 [[problem]]
 id = "with-both-on-it"

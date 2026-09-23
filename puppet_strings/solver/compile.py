@@ -35,6 +35,7 @@ from puppet_strings.skedge.resolve import (
     DEFAULT_POS,
     TRAINEE,
     Choice,
+    Company,
     Condition,
     Count,
     Exclusion,
@@ -154,7 +155,7 @@ class Compiler:
     def _create(self, staff_ids, what, during, role, partners, source: str, clinics=True) -> None:
         today = [b.id for b in self.dataset.blocks_on(self.dataset.target)]
         blocks = [b for b in (during.items if during else today) if b in today]
-        people = set(staff_ids) | (partners or frozenset())
+        people = set(staff_ids) | (partners.staff if partners else frozenset())
         if isinstance(what, ast.Task):
             for s, b in product(people, blocks):
                 self.variables.adhoc(s, what.text, b, source)
@@ -430,19 +431,30 @@ class Compiler:
         return held, block.start_minute, block.end_minute
 
     def _partners(self, s: str, w, b: str, st: Requirement, conds: list, name: str) -> None:
-        """WITH: someone else from the set is on the same instance. WITHOUT: nobody is."""
+        """WITH: enough others from the set are on the same instance. WITHOUT: not so."""
+        target = self.dataset.target
         if st.with_ is not None:
-            others = [p for p in st.with_ if p != s]
             if isinstance(w, ast.Task):
                 selector = self._all_of(conds, f"asks:{name}:{s}:{b}:with")
-                for p in others:
+                for p in st.with_.staff - {s}:
                     self.asked_for.setdefault(Slot(p, w.text, None, b), []).append(selector)
-            together = [self._together(s, p, w, self.dataset.target, b) for p in others]
-            self._imply(conds, self._any_of(together, f"with:{name}:{s}:{b}"))
+            self._imply(conds, self._company(s, w, target, b, st.with_, f"with:{name}:{s}:{b}"))
         if st.without is not None:
-            for p in st.without:
-                if p != s:
-                    self._imply(conds, _negate(self._together(s, p, w, self.dataset.target, b)))
+            company = self._company(s, w, target, b, st.without, f"without:{name}:{s}:{b}")
+            self._imply(conds, _negate(company))
+
+    def _company(self, s: str, what, d: date, b: str, company: Company, name: str) -> Literal:
+        """Whether `n` others from the set, or all of them, share the instance `s` is on."""
+        together = [self._together(s, p, what, d, b) for p in sorted(company.staff - {s})]
+        n = len(together) if company.n is None else company.n
+        if n > len(together):
+            return False
+        if n == len(together):
+            return self._all_of(together, name)
+        if n == 1:
+            return self._any_of(together, name)
+        terms = [t for t in together if not isinstance(t, bool)]
+        return self._at_least(terms, sum(t is True for t in together), n, name)
 
     def _together(self, s: str, p: str, what, d: date, b: str) -> Literal:
         """Whether `p` holds an assignment on the same instance as `s`, in any role.
@@ -497,11 +509,9 @@ class Compiler:
         return self._partners_were(s, w, d, b, st.with_, st.without)
 
     def _partners_were(self, s, what, d, b, with_, without) -> bool:
-        if with_ is not None and not any(self._together(s, p, what, d, b) for p in with_ if p != s):
+        if with_ is not None and not self._company(s, what, d, b, with_, ""):
             return False
-        return without is None or not any(
-            self._together(s, p, what, d, b) for p in without if p != s
-        )
+        return without is None or not self._company(s, what, d, b, without, "")
 
     def _forbid(self, st: Forbid, active, name: str) -> None:
         """NOT DO: no assignment of a chosen staff member matches. NOT FREE: they are busy."""
@@ -633,22 +643,14 @@ class Compiler:
 
     def _partner_matches(self, row: Row, pattern: Pattern, d: date) -> Literal:
         what = pattern.what if isinstance(pattern.what, ast.Task) else row.activity
+        where = f"{row.staff}:{row.activity}:{d}:{row.block}"
         if pattern.with_ is not None:
-            others = [
-                self._together(row.staff, p, what, d, row.block)
-                for p in pattern.with_
-                if p != row.staff
-            ]
-            return self._any_of(others, f"with:{row.staff}:{row.activity}:{d}:{row.block}")
+            return self._company(row.staff, what, d, row.block, pattern.with_, f"with:{where}")
         if pattern.without is not None:
-            others = [
-                self._together(row.staff, p, what, d, row.block)
-                for p in pattern.without
-                if p != row.staff
-            ]
-            return _negate(
-                self._any_of(others, f"without:{row.staff}:{row.activity}:{d}:{row.block}")
+            company = self._company(
+                row.staff, what, d, row.block, pattern.without, f"without:{where}"
             )
+            return _negate(company)
         return True
 
     @staticmethod
@@ -919,7 +921,7 @@ class Compiler:
             if m.date != self.dataset.target:
                 continue
             if isinstance(p.what, ast.Task):
-                for s in {m.staff, *(p.with_ or ())}:
+                for s in {m.staff, *(p.with_.staff if p.with_ else ())}:
                     self.asked_for.setdefault(Slot(s, m.activity, None, m.block), []).append(active)
                 continue
             if m.role in TRAINEE_ROLES:  # a clinic itself runs only where a REQUEST … DO says

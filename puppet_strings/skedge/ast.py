@@ -160,16 +160,16 @@ class For(Clause):
 
 @dataclass(frozen=True)
 class With(Clause):
-    """`WITH <staff>`."""
+    """`WITH <staff>`: one name, or ALL_OF or ANY_n_OF a set."""
 
-    staff: SetExpr
+    selector: Selector
 
 
 @dataclass(frozen=True)
 class Without(Clause):
-    """`WITHOUT <staff>`."""
+    """`WITHOUT <staff>`: not WITH the same."""
 
-    staff: SetExpr
+    selector: Selector
 
 
 @dataclass(frozen=True)
@@ -387,7 +387,7 @@ def set_exprs(line: Line) -> Iterator[SetExpr]:
         if isinstance(part, Requirement | Pattern | Exclude):
             for c in part.clauses:
                 if isinstance(c, With | Without):
-                    yield c.staff
+                    yield c.selector.expr
     if isinstance(line, Score):
         yield from line.args
 

@@ -291,11 +291,14 @@ class _Builder(Transformer):
     def for_(self, meta, items):
         return ast.For(_pos(meta), _duration(items[0]))
 
+    def company(self, meta, items):
+        return self._selector(meta, items)
+
     def with_(self, meta, items):
-        return ast.With(_pos(meta), _atom(items[0]))
+        return ast.With(_pos(meta), items[0])
 
     def without(self, meta, items):
-        return ast.Without(_pos(meta), _atom(items[0]))
+        return ast.Without(_pos(meta), items[0])
 
     # -- set expressions --------------------------------------------------------------------
 

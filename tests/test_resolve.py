@@ -7,7 +7,15 @@ import pytest
 from puppet_strings.model import Priority, Request
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.ast import SkedgeError
-from puppet_strings.skedge.resolve import ALL, ANY, POOL, Forbid, Requirement, name_listing
+from puppet_strings.skedge.resolve import (
+    ALL,
+    ANY,
+    POOL,
+    Company,
+    Forbid,
+    Requirement,
+    name_listing,
+)
 from puppet_strings.skedge.validate import validate_request
 
 
@@ -105,9 +113,23 @@ def test_negation_makes_a_pattern_of_pools(dataset):
     assert isinstance(st, Forbid) and st.who.kind == ALL
     assert st.pattern.who.kind == POOL and st.pattern.who.items == st.who.items
     assert st.pattern.what.kind == POOL and st.pattern.during is None
-    assert st.pattern.on.items == (dataset.target,) and st.pattern.without == frozenset({"vic"})
+    assert st.pattern.on.items == (dataset.target,) and st.pattern.without == Company(
+        frozenset({"vic"}), None
+    )
     copies = resolve(dataset, "REQUEST EACH_OF staff.counselor NOT FREE DURING blocks.clinic_1")
     assert copies[0].statements[0].pattern.what is None and copies[0].statements[0].pattern.busy
+
+
+def test_with_takes_one_name_or_a_quantified_set(dataset):
+    base = "REQUEST staff.rob NOT DO activities.clinics.ropes "
+    (copy,) = resolve(dataset, base + "WITH ANY_2_OF {staff.vic + staff.dylan + staff.randy}")
+    assert copy.statements[0].pattern.with_ == Company(frozenset({"vic", "dylan", "randy"}), 2)
+    (copy,) = resolve(dataset, base + "WITHOUT ALL_OF {staff.vic + staff.dylan}")
+    assert copy.statements[0].pattern.without == Company(frozenset({"vic", "dylan"}), None)
+    with pytest.raises(SkedgeError, match="needs a quantifier: ALL_OF or ANY_n_OF"):
+        resolve(dataset, base + "WITHOUT {staff.vic + staff.dylan}")
+    with pytest.raises(SkedgeError, match="is one item and takes no quantifier"):
+        resolve(dataset, base + "WITH ANY_1_OF staff.vic")
 
 
 def test_patterns_conditions_and_mappings(dataset):

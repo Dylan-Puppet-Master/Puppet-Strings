@@ -1054,6 +1054,31 @@ def test_not_do_without_means_only_together():
     assert ids(result.unsatisfied) == ["sarah"]
 
 
+@pytest.mark.parametrize(
+    ("company", "partners", "done"),
+    [
+        ("ANY_1_OF", ["sarah"], True),
+        ("ANY_2_OF", ["sarah"], False),
+        ("ANY_2_OF", ["sarah", "vic"], True),
+        ("ALL_OF", ["sarah", "vic"], False),
+    ],
+)
+def test_without_counts_how_many_of_the_set_are_there(company, partners, done):
+    rule = f"REQUEST staff.dylan NOT DO 'setup' WITHOUT {company} {{staff.sarah + staff.vic + staff.randy}}"
+    setup = "REQUEST staff.{} DO 'setup' FOR 30m DURING blocks.clinic_1"
+    ds = dataset(
+        [staff("Dylan"), staff("Sarah"), staff("Vic"), staff("Randy")],
+        [],
+        requests=[
+            request("rule", rule, Priority.MUST_HAPPEN),
+            request("dylan", setup.format("dylan"), Priority.HIGH),
+            *(request(p, setup.format(p), Priority.MUST_HAPPEN) for p in partners),
+        ],
+    )
+    result = run(ds)
+    assert result.feasible and ids(result.unsatisfied) == ([] if done else ["dylan"])
+
+
 def test_with_on_a_quoted_task_means_the_same_start():
     together = (
         "prep:  REQUEST staff.dylan DO 'prep' FOR 30m DURING blocks.clinic_1\n"

@@ -138,6 +138,13 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             39,
         ),
         (
+            "REQUEST staff.dylan NOT DO 'x' WITH EACH_OF staff.all",
+            Priority.HIGH,
+            "WITH takes ALL_OF or ANY_n_OF, not EACH_OF",
+            1,
+            37,
+        ),
+        (
             "REQUEST AT_LEAST 0 staff.all DO 'x'",
             Priority.HIGH,
             "amount must be at least 1",
