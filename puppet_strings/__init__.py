@@ -1,3 +1,3 @@
 """Puppet Strings: staff schedule automation for Camp Augusta."""
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"

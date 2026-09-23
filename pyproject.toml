@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "puppet-strings"
-version = "0.1.0"
+version = {attr = "puppet_strings.__version__"}
 description = "Staff schedule automation for Camp Augusta"
 readme = "README.md"
 requires-python = ">=3.12"
