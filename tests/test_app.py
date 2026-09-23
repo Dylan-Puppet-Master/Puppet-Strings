@@ -1347,7 +1347,7 @@ def test_every_keyword_the_grammar_has_is_a_keyword_to_the_editor():
     words = set(re.findall(r"/([A-Z_]+)\\b/i", grammar))
     assert len(words) > 20
     assert words <= set(KEYWORD_WORDS), sorted(words - set(KEYWORD_WORDS))
-    assert is_keyword("ANY_3_OF") and is_keyword("exclude")  # and the one that counts
+    assert is_keyword("any") and is_keyword("exclude")
 
 
 def test_a_keyword_is_coloured_in_whichever_case_it_is_written_in(window):

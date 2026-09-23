@@ -64,9 +64,9 @@ def test_a_clinic_the_day_does_not_run_at_all(dataset):
 
 def test_a_choice_the_solver_makes_is_not_an_error(dataset):
     """Who a quantifier picks is the solver's business: it picks somebody who can."""
-    anyone = RIFLERY.replace("staff.dylan", "ANY_1_OF staff.all")
+    anyone = RIFLERY.replace("staff.dylan", "ANY 1 staff.all")
     assert found(dataset, req("any", anyone)) == ()
-    somewhere = ARCHERY.replace("blocks.clinic_1", "ANY_1_OF blocks.all_clinics")
+    somewhere = ARCHERY.replace("blocks.clinic_1", "ANY 1 blocks.all_clinics")
     assert found(dataset, req("loose", somewhere)) == ()
 
 

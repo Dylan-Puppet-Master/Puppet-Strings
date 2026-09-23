@@ -9,70 +9,69 @@
 // it only ever takes a whole word: `format` is a name, not `FOR` and then `mat`.
 
 start       : _NL* line (_NL+ line)* _NL*
-?line       : binding | if_ | unless | labeled | request | prefer | gap | exclude
+?line       : binding | define | if_ | unless | labeled | request | prefer | gap | exclude
 
-binding     : (EACH_OF | ANY_N_OF) NAME _IN set_
+binding     : (EACH_OF | any_n) NAME _IN set_
+// A name for a set, written once and meaning the same wherever it is used. With ANY n or
+// EACH_OF in front it is a binding line spelled the other way round.
+define      : NAME ":" (ALL_OF | EACH_OF | any_n)? set_
 if_         : _IF _NL* condition
 unless      : _UNLESS _NL* condition
 labeled     : NAME ":" request
 gap         : _GAP NAME _TO NAME amount
 
-request     : _REQUEST chooser _DO do_target do_clause*           -> request_do
-            | _REQUEST chooser do_clause*                         -> request_activity
-            | _REQUEST chooser FREE do_clause*                    -> request_free
-            | _REQUEST chooser _NOT _DO target clause*            -> request_not_do
-            | _REQUEST chooser _NOT FREE clause*                  -> request_not_free
-            | _REQUEST amount CONSECUTIVE? pattern CONSECUTIVE?   -> request_count
-prefer      : _PREFER amount CONSECUTIVE? pattern CONSECUTIVE?    -> prefer_count
-            | _PREFER pattern goal                                -> prefer_score
+// A statement is its subject, verb and object in that order, with its clauses -- DURING,
+// ON, AS_ROLE, FOR, WITH, WITHOUT -- anywhere among them: before the subject, between the
+// subject and the verb, after the object.
+request     : _REQUEST _clauses chooser _clauses _DO _clauses do_target _clauses              -> request_do
+            | _REQUEST _clauses chooser _clauses                                            -> request_activity
+            | _REQUEST _clauses chooser _clauses FREE _clauses                               -> request_free
+            | _REQUEST _clauses chooser _clauses _NOT _DO _clauses do_target _clauses         -> request_not_do
+            | _REQUEST _clauses chooser _clauses _NOT FREE _clauses                          -> request_not_free
+            | _REQUEST _clauses amount CONSECUTIVE? pattern                                -> request_count
+prefer      : _PREFER _clauses amount CONSECUTIVE? pattern                                 -> prefer_count
+            | _PREFER pattern goal _clauses                                                -> prefer_score
+            | _PREFER _clauses goal pattern                                                -> prefer_score
 
 // Who is not at camp for part of a day, and what to write where they would have been.
 // It takes a quoted label rather than an activity: they are not doing anything here.
-exclude     : _EXCLUDE chooser _DO STRING do_clause*
+exclude     : _EXCLUDE _clauses chooser _clauses _DO _clauses STRING _clauses
 
 // A condition is one test, or several joined by AND or by OR. Mixing the two needs
 // parentheses, as mixing set operators does, so there is no precedence to remember.
 ?condition  : term ((AND | OR) _NL* term)*        -> junction
 ?term       : test | "(" _NL* condition ")"
-test        : (amount CONSECUTIVE?)? pattern CONSECUTIVE?
+test        : (amount CONSECUTIVE?)? pattern
 
-pattern     : pool _DO target clause*                            -> pattern_doing
-            | pool FREE clause*                                  -> pattern_free
-            | pool _NOT FREE clause*                             -> pattern_busy
+// A pattern matches rather than chooses, so the parser takes a quantifier anywhere and the
+// builder refuses the ones that choose, with a message saying why.
+pattern     : _clauses chooser _clauses _DO _clauses do_target _clauses              -> pattern_doing
+            | _clauses chooser _clauses FREE _clauses                              -> pattern_free
+            | _clauses chooser _clauses _NOT FREE _clauses                         -> pattern_busy
 goal        : (MAXIMIZE | MINIMIZE) call
 call        : REF "(" arg ("," arg)* ")"
 ?arg        : NAME | REF
 
-// CONSECUTIVE goes after the amount it measures in runs. One after the pattern is where it
-// used to go, and is parsed only to say where it goes now.
+// CONSECUTIVE goes after the amount it measures in runs.
 amount      : BOUND (INT | DURATION)
 
-// Left of NOT, and in a positive REQUEST, quantifiers choose.
 ?do_target  : chooser | STRING
-?do_clause  : during_c | on_c | as_role_c | for_ | with_ | without
-// CONSECUTIVE after ANY_n_OF blocks: the chosen blocks are next to each other.
-during_c    : _DURING chooser CONSECUTIVE?
-on_c        : _ON chooser
-as_role_c   : _AS_ROLE chooser
-chooser     : (ALL_OF | ANY_N_OF)? set_
-            | EACH_OF set_
-            | EACH_OF NAME _IN set_
-
-// In a pattern, a set is a pool; only EACH_OF may precede it.
-?target     : pool | STRING
+_clauses    : clause*
 ?clause     : during | on | as_role | for_ | with_ | without
-during      : _DURING pool
-on          : _ON pool
-as_role     : _AS_ROLE pool
-pool        : set_
+// CONSECUTIVE after ANY n blocks: the chosen blocks are next to each other.
+during      : _DURING chooser CONSECUTIVE?
+on          : _ON chooser
+as_role     : _AS_ROLE chooser
+for_        : _FOR DURATION
+// Who is alongside: one name, or several with ALL_OF or ANY n to say how many.
+with_       : _WITH chooser
+without     : _WITHOUT chooser
+
+chooser     : (ALL_OF | any_n)? set_
             | EACH_OF set_
             | EACH_OF NAME _IN set_
-
-for_        : _FOR DURATION
-// Who is alongside: one name, or several with ALL_OF or ANY_n_OF to say how many.
-with_       : _WITH company
-without     : _WITHOUT company
-company     : (ALL_OF | ANY_N_OF | EACH_OF)? set_
+any_n       : ANY INT
+            | ANY_N_OF                 // the old spelling, parsed only to say the new one
 
 ?set_       : REF | NAME | DATE | call | "{" setexpr "}"
 ?setexpr    : range (SETOP range)*     -> setop
@@ -81,6 +80,7 @@ company     : (ALL_OF | ANY_N_OF | EACH_OF)? set_
 ?primary    : date_atom OFFSET         -> date_offset
             | date_atom
             | "(" setexpr ")"
+            | "(" (ALL_OF | any_n) set_ ")"   -> group
 ?date_atom  : DATE | REF | NAME | call
 
 // Two more ways in, for the cells of the Mappings tab rather than for a request: what a
@@ -109,7 +109,8 @@ _WITHOUT.5  : /WITHOUT\b/i
 BOUND.5     : /AT_LEAST\b/i | /AT_MOST\b/i | /EXACTLY\b/i
 ALL_OF.5    : /ALL_OF\b/i
 EACH_OF.5   : /EACH_OF\b/i
-ANY_N_OF.5  : /ANY_[1-9][0-9]*_OF\b/i
+ANY.5       : /ANY\b/i
+ANY_N_OF.5  : /ANY_[0-9]+_OF\b/i
 FREE.5      : /FREE\b/i
 MAXIMIZE.5  : /MAXIMIZE\b/i
 MINIMIZE.5  : /MINIMIZE\b/i
@@ -127,13 +128,12 @@ NAME        : /[a-z_][a-z0-9_]*/
 
 COMMENT     : /#[^\n]*/
 
-// A statement may be written over as many lines as it reads well on. A line beginning
-// with a word that continues a statement -- DO, DURING, ON, FOR, AND, a set operator -- is
-// a continuation of the one above, and the newline before it is nothing. A line ending in
-// IF, UNLESS, AND, OR or an opening parenthesis runs on into the next, by the grammar. EACH_OF and
-// ANY_n_OF are deliberately not on the list: they begin a binding line of their own, and
-// a line starting with a bare name may be a label, so neither can continue anything.
-_CONTINUES  : /(\r?\n[ \t]*)+(?=(?i:DO|NOT|FREE|DURING|ON|AS_ROLE|FOR|WITH|WITHOUT|IN|TO|CONSECUTIVE|ALL_OF|MAXIMIZE|MINIMIZE|AND|OR)\b|[+&}),]|\.\.|-[ \t]*[a-z_{(])/
+// A statement may be written over as many lines as it reads well on. A new line starts a new
+// statement only where one can start: at REQUEST, PREFER, EXCLUDE, IF, UNLESS or GAP, at a
+// binding (`EACH_OF x IN`, `ANY n x IN`), or at a name and a colon. Anywhere else the
+// newline before it is nothing, so the line carries on the statement above it. The
+// lookahead spells out how `binding`, `define` and `labeled` begin, so it changes with them.
+_CONTINUES  : /(\r?\n[ \t]*)+(?![ \t\r\n]|(?i:REQUEST|PREFER|EXCLUDE|IF|UNLESS|GAP)\b|(?i:EACH_OF|ANY[ \t]+\d+|ANY_\d+_OF)[ \t]+[a-z_][a-z0-9_]*[ \t]+(?i:IN)\b|[a-z_][a-z0-9_]*[ \t]*:|$)/
 _NL         : /(\r?\n[ \t]*)+/
 %import common.INT
 %import common.WS_INLINE

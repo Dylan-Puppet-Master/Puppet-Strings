@@ -1,6 +1,6 @@
 """Text to syntax tree, using the Lark grammar in grammar.lark."""
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 
@@ -57,7 +57,7 @@ def _position(error: UnexpectedInput, text: str) -> tuple[int, int]:
 def _describe(error: UnexpectedInput) -> str:
     expected = getattr(error, "expected", None) or getattr(error, "allowed", None)
     if expected:
-        names = sorted(_TERMINAL_NAMES.get(t, t) for t in expected)
+        names = sorted({_TERMINAL_NAMES.get(t, t.lstrip("_")) for t in expected})
         return f"unexpected input; expected one of {', '.join(names)}"
     return "unexpected input"
 
@@ -78,7 +78,8 @@ _TERMINAL_NAMES = {
     "_NL": "a new line",
     "$END": "end of text",
     "BOUND": "AT_LEAST, AT_MOST or EXACTLY",
-    "ANY_N_OF": "ANY_n_OF",
+    "ANY": "ANY n",
+    "ANY_N_OF": "ANY n",
     "SETOP": "+, - or &",
     "OFFSET": "a day offset such as - 6d",
 }
@@ -123,15 +124,26 @@ def _atom(item) -> ast.SetExpr:
     return ast.Var(str(item), _token_pos(item))
 
 
-def _quantifier(token: Token) -> tuple[str, int | None]:
-    """The quantifier a token stands for, in the one case the tree holds it in.
+@dataclass(frozen=True)
+class _Any:
+    """`ANY n`, as the `any_n` rule hands it on."""
+
+    n: int
+
+
+def _quantifier(item) -> tuple[str, int | None]:
+    """The quantifier a token or an `ANY n` stands for.
 
     A keyword may be written in either case, so what the token says is upper-cased before
     anything is compared with it: `each_of` and `EACH_OF` are the same quantifier.
     """
-    if token.type == "ANY_N_OF":
-        return ast.ANY_OF, int(str(token)[len("ANY_") : -len("_OF")])
-    return str(token).upper(), None
+    if isinstance(item, _Any):
+        return ast.ANY_OF, item.n
+    return str(item).upper(), None
+
+
+def _is_quantifier(item) -> bool:
+    return isinstance(item, _Any) or _is(item, "ALL_OF") or _is(item, "EACH_OF")
 
 
 def _duration(token: Token) -> int:
@@ -150,7 +162,9 @@ class _Builder(Transformer):
     """Turns the Lark tree into ast nodes."""
 
     def start(self, meta, lines):
-        return ast.Declaration(tuple(lines))
+        declaration = _define(ast.Declaration(tuple(lines)))
+        _check_pools(declaration)
+        return declaration
 
     # -- lines ------------------------------------------------------------------------------
 
@@ -159,6 +173,24 @@ class _Builder(Transformer):
         kind, n = _quantifier(quantifier)
         selector = ast.Selector(_atom(expr), kind, n, str(name), _pos(meta))
         return ast.Binding(selector, _pos(meta))
+
+    def define(self, meta, items):
+        """`x: <set>` names a set; `x: ANY n <set>` and `x: EACH_OF <set>` bind x."""
+        name, *quantifier, expr = items
+        kind, n = _quantifier(quantifier[0]) if quantifier else (None, None)
+        if kind in (ast.ANY_OF, ast.EACH_OF):
+            selector = ast.Selector(_atom(expr), kind, n, str(name), _pos(meta))
+            return ast.Binding(selector, _pos(meta))
+        return ast.Definition(str(name), _atom(expr), _pos(meta))
+
+    def any_n(self, meta, items):
+        token = items[-1]
+        if token.type == "ANY_N_OF":
+            n = str(token)[len("ANY_") : -len("_OF")]
+            raise _error(f"write ANY {n}, not {token}", _token_pos(token))
+        if int(token) < 1:
+            raise _error("ANY needs a number of 1 or more", _token_pos(token))
+        return _Any(int(token))
 
     def if_(self, meta, items):
         return ast.Condition(False, _test(items[0]), _pos(meta))
@@ -195,29 +227,29 @@ class _Builder(Transformer):
     # -- statements -------------------------------------------------------------------------
 
     def request_do(self, meta, items):
-        who, what, *clauses = items
-        return ast.Requirement(who, _target(what), False, tuple(clauses), _pos(meta))
+        (who, what), clauses = _phrases(items)
+        return ast.Requirement(who, _target(what), False, clauses, _pos(meta))
 
     def request_activity(self, meta, items):
         """`REQUEST <activity>`: the activity happens, and its own positions say who by."""
-        what, *clauses = items
-        return ast.Requirement(None, _target(what), False, tuple(clauses), _pos(meta))
+        (what,), clauses = _phrases(items)
+        return ast.Requirement(None, _target(what), False, clauses, _pos(meta))
 
     def request_free(self, meta, items):
-        who, _, *clauses = items
-        return ast.Requirement(who, None, False, tuple(clauses), _pos(meta))
+        (who, _), clauses = _phrases(items)
+        return ast.Requirement(who, None, False, clauses, _pos(meta))
 
     def request_not_do(self, meta, items):
-        who, what, *clauses = items
-        return ast.Requirement(who, _target(what), True, tuple(clauses), _pos(meta))
+        (who, what), clauses = _phrases(items)
+        return ast.Requirement(who, _target(what), True, clauses, _pos(meta))
 
     def request_not_free(self, meta, items):
-        who, _, *clauses = items
-        return ast.Requirement(who, None, True, tuple(clauses), _pos(meta))
+        (who, _), clauses = _phrases(items)
+        return ast.Requirement(who, None, True, clauses, _pos(meta))
 
     def exclude(self, meta, items):
-        who, label, *clauses = items
-        return ast.Exclude(who, str(label)[1:-1], tuple(clauses), _pos(meta))
+        (who, label), clauses = _phrases(items)
+        return ast.Exclude(who, str(label)[1:-1], clauses, _pos(meta))
 
     def request_count(self, meta, items):
         return self._count(meta, items, prefer=False)
@@ -226,12 +258,13 @@ class _Builder(Transformer):
         return self._count(meta, items, prefer=True)
 
     def _count(self, meta, items, prefer: bool):
-        amount = items[0]
-        pattern = next(x for x in items if isinstance(x, ast.Pattern))
+        amount = next(x for x in items if isinstance(x, ast.Amount))
+        pattern = _with_clauses(items)
         return ast.Count(prefer, amount, pattern, _consecutive(items), _pos(meta))
 
     def prefer_score(self, meta, items):
-        pattern, (maximize, call) = items
+        maximize, call = next(x for x in items if isinstance(x, tuple))
+        pattern = _with_clauses(items)
         return ast.Score(pattern, maximize, call.mapping, call.args, _pos(meta))
 
     def goal(self, meta, items):
@@ -247,28 +280,22 @@ class _Builder(Transformer):
     # -- patterns ---------------------------------------------------------------------------
 
     def pattern_doing(self, meta, items):
-        who, what, *clauses = items
-        return ast.Pattern(who, _target(what), False, tuple(clauses), _pos(meta))
+        (who, what), clauses = _phrases(items)
+        return ast.Pattern(who, _target(what), False, clauses, _pos(meta))
 
     def pattern_free(self, meta, items):
-        who, _, *clauses = items
-        return ast.Pattern(who, None, False, tuple(clauses), _pos(meta))
+        (who, _), clauses = _phrases(items)
+        return ast.Pattern(who, None, False, clauses, _pos(meta))
 
     def pattern_busy(self, meta, items):
-        who, _, *clauses = items
-        return ast.Pattern(who, None, True, tuple(clauses), _pos(meta))
+        (who, _), clauses = _phrases(items)
+        return ast.Pattern(who, None, True, clauses, _pos(meta))
 
     # -- selectors and clauses --------------------------------------------------------------
 
     def chooser(self, meta, items):
-        return self._selector(meta, items)
-
-    def pool(self, meta, items):
-        return self._selector(meta, items)
-
-    def _selector(self, meta, items):
         kind, n, var = None, None, None
-        if _is(items[0], "ALL_OF") or _is(items[0], "ANY_N_OF") or _is(items[0], "EACH_OF"):
+        if _is_quantifier(items[0]):
             kind, n = _quantifier(items[0])
             items = items[1:]
         if len(items) == 2:
@@ -276,26 +303,17 @@ class _Builder(Transformer):
             items = items[1:]
         return ast.Selector(_atom(items[0]), kind, n, var, _pos(meta))
 
-    def during_c(self, meta, items):
+    def during(self, meta, items):
         return ast.During(_pos(meta), items[0], _is(items[-1], "CONSECUTIVE"))
 
-    def on_c(self, meta, items):
+    def on(self, meta, items):
         return ast.On(_pos(meta), items[0])
 
-    def as_role_c(self, meta, items):
+    def as_role(self, meta, items):
         return ast.AsRole(_pos(meta), items[0])
-
-    def during(self, meta, items):
-        return ast.During(_pos(meta), items[0])
-
-    on = on_c
-    as_role = as_role_c
 
     def for_(self, meta, items):
         return ast.For(_pos(meta), _duration(items[0]))
-
-    def company(self, meta, items):
-        return self._selector(meta, items)
 
     def with_(self, meta, items):
         return ast.With(_pos(meta), items[0])
@@ -324,6 +342,11 @@ class _Builder(Transformer):
             result = ast.SetOp(str(op), result, _atom(right), _pos(meta))
         return result
 
+    def group(self, meta, items):
+        quantifier, expr = items
+        kind, n = _quantifier(quantifier)
+        return ast.Group(kind, n, _atom(expr), _pos(meta))
+
     def date_range(self, meta, items):
         return ast.DateRange(_atom(items[0]), _atom(items[1]), _pos(meta))
 
@@ -334,18 +357,106 @@ class _Builder(Transformer):
 
 
 def _consecutive(items) -> bool:
-    """Whether an amount is measured in runs: `AT_LEAST 2 CONSECUTIVE <pattern>`.
-
-    CONSECUTIVE used to be written after the pattern, where it reads as though it were about
-    the last clause, `ON {…} CONSECUTIVE` as consecutive dates. It is parsed there only to
-    say where it goes now.
-    """
-    if _is(items[-1], "CONSECUTIVE"):
-        token = items[-1]
-        raise ast.SkedgeError(
-            "CONSECUTIVE goes after the amount: AT_LEAST 2 CONSECUTIVE …", token.line, token.column
-        )
+    """Whether an amount is measured in runs: `AT_LEAST 2 CONSECUTIVE <pattern>`."""
     return any(_is(x, "CONSECUTIVE") for x in items)
+
+
+def _phrases(items) -> tuple[list, tuple[ast.Clause, ...]]:
+    """A statement's subject, verb and object, and its clauses from wherever they were written."""
+    core = [x for x in items if not isinstance(x, ast.Clause)]
+    return core, tuple(x for x in items if isinstance(x, ast.Clause))
+
+
+def _with_clauses(items) -> ast.Pattern:
+    """The pattern of a PREFER or a count, with the clauses written around it added in.
+
+    A clause written ahead of the amount, or on the far side of MAXIMIZE, is still about
+    the assignments the pattern matches.
+    """
+    at = next(i for i, x in enumerate(items) if isinstance(x, ast.Pattern))
+    pattern = items[at]
+    before, after = _phrases(items[:at])[1], _phrases(items[at + 1 :])[1]
+    if before or after:
+        pattern = replace(pattern, clauses=before + pattern.clauses + after)
+    return pattern
+
+
+def _check_pools(declaration: ast.Declaration) -> None:
+    """Right of NOT, and in a pattern, a set is matched rather than chosen.
+
+    So nothing there takes ALL_OF or ANY n, nor holds an `(ANY n …)` group, and no DURING
+    there chooses blocks in a row. Who is alongside is the exception: WITH and WITHOUT count
+    company, and say how many. Checked once the definitions are written in, so a group that
+    arrives by a name is caught the same as one written out.
+    """
+    for line in declaration.lines:
+        parts = []
+        if isinstance(line, ast.Requirement) and line.negated:
+            parts = [line.what, *line.clauses]
+        for pattern in ast.patterns(line):
+            parts += [pattern.who, pattern.what, *pattern.clauses]
+        for part in parts:
+            if isinstance(part, ast.During) and part.consecutive:
+                raise _error(
+                    "CONSECUTIVE goes after the amount: AT_LEAST 2 CONSECUTIVE …", part.pos
+                )
+            if isinstance(part, ast.With | ast.Without):
+                continue
+            selector = getattr(part, "selector", part)
+            if isinstance(selector, ast.Selector) and ast.chooses(selector):
+                raise _error(
+                    "a set here is matched, not chosen, so it takes no ALL_OF or ANY n",
+                    selector.pos,
+                )
+
+
+def _define(declaration: ast.Declaration) -> ast.Declaration:
+    """Write every `x: <set>` into the places x is used, and drop the definitions.
+
+    A definition may use one made before or after it, but not itself, and its name is
+    nobody else's: not a variable's and not a label's.
+    """
+    written = [x for x in declaration.lines if isinstance(x, ast.Definition)]
+    if not written:
+        return declaration
+    definitions: dict[str, ast.Definition] = {}
+    taken = _names_taken(declaration)
+    for line in written:
+        if line.name in definitions or line.name in taken:
+            raise _error(f"'{line.name}' is defined twice", line.pos)
+        definitions[line.name] = line
+    expanded: dict[str, ast.SetExpr] = {}
+
+    def expand(name: str, trail: tuple[str, ...]) -> ast.SetExpr:
+        if name in trail:
+            raise _error(f"'{name}' is defined in terms of itself", definitions[name].pos)
+        if name not in expanded:
+            expanded[name] = ast.substitute(
+                definitions[name].expr, lambda var: found(var, (*trail, name))
+            )
+        return expanded[name]
+
+    def found(var: ast.Var, trail: tuple[str, ...]) -> ast.SetExpr | None:
+        return expand(var.name, trail) if var.name in definitions else None
+
+    for name in definitions:
+        expand(name, ())  # a definition nothing uses is still checked for a loop
+    lines = tuple(
+        ast.substitute(line, lambda var: found(var, ()))
+        for line in declaration.lines
+        if not isinstance(line, ast.Definition)
+    )
+    return ast.Declaration(lines)
+
+
+def _names_taken(declaration: ast.Declaration) -> set[str]:
+    """Every variable and label a declaration makes, which no definition may also be."""
+    taken = set()
+    for line in declaration.lines:
+        taken.add(getattr(line, "label", None))
+        for _, selector in ast.selectors(line):
+            taken.add(selector.var)
+    return taken - {None}
 
 
 def _test(item) -> ast.Test:

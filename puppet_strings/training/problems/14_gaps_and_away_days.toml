@@ -10,8 +10,8 @@ GAP first TO second <amount>        second starts after first ends, this far apa
 EXCLUDE <who> DO '<label>' [DURING <blocks>] [ON <dates>]
 
 EACH_OF c IN staff.counselors
-morning:   REQUEST c DO 'counselor hour' FOR 1h DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}
-afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING ANY_1_OF {blocks.playstation + blocks.clinic_3}
+morning:   REQUEST c DO 'counselor hour' FOR 1h DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}
+afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING ANY 1 {blocks.playstation + blocks.clinic_3}
 GAP morning TO afternoon AT_MOST 5h
 
 EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all ON 2026-08-05
@@ -24,19 +24,19 @@ EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all ON 2026-08-05
 id = "gap-order"
 title = "First this, then that"
 prompt = "Charlton does 'fence posts' in one of the morning clinic blocks and 'fence rails' in one of the afternoon clinic blocks (3 or 4), with the rails after the posts."
-answer = "posts: REQUEST staff.charlton DO 'fence posts' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING ANY_1_OF {blocks.clinic_3 + blocks.clinic_4}\nGAP posts TO rails AT_LEAST 0m"
+answer = "posts: REQUEST staff.charlton DO 'fence posts' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP posts TO rails AT_LEAST 0m"
 hints = ["Label each REQUEST with a name and a colon, then GAP posts TO rails AT_LEAST 0m."]
 explain = "AT_LEAST 0m is plain ordering: the second starts after the first ends."
-wrong = ["posts: REQUEST staff.charlton DO 'fence posts' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING ANY_1_OF blocks.all_clinics\nGAP posts TO rails AT_LEAST 0m"]
+wrong = ["posts: REQUEST staff.charlton DO 'fence posts' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING ANY 1 blocks.all_clinics\nGAP posts TO rails AT_LEAST 0m"]
 
 [[problem]]
 id = "gap-setup-teardown"
 title = "Setup, then teardown"
 prompt = "The same counselor does 'campfire setup' during clinic 4 and 'campfire teardown' during the evening program, and the teardown comes after the setup."
-answer = "ANY_1_OF p IN staff.counselors\nfirst: REQUEST p DO 'campfire setup' DURING blocks.clinic_4\nlast:  REQUEST p DO 'campfire teardown' DURING blocks.evening_program\nGAP first TO last AT_LEAST 0m"
+answer = "ANY 1 p IN staff.counselors\nfirst: REQUEST p DO 'campfire setup' DURING blocks.clinic_4\nlast:  REQUEST p DO 'campfire teardown' DURING blocks.evening_program\nGAP first TO last AT_LEAST 0m"
 priority = "MEDIUM"
-alternatives = ["ANY_1_OF p IN staff.counselors\nREQUEST p DO 'campfire setup' DURING blocks.clinic_4\nREQUEST p DO 'campfire teardown' DURING blocks.evening_program"]
-wrong = ["ANY_1_OF p IN staff.counselors\nfirst: REQUEST p DO 'campfire setup' DURING blocks.clinic_4\nlast:  REQUEST staff.dylan DO 'campfire teardown' DURING blocks.evening_program\nGAP first TO last AT_LEAST 0m"]
+alternatives = ["ANY 1 p IN staff.counselors\nREQUEST p DO 'campfire setup' DURING blocks.clinic_4\nREQUEST p DO 'campfire teardown' DURING blocks.evening_program"]
+wrong = ["ANY 1 p IN staff.counselors\nfirst: REQUEST p DO 'campfire setup' DURING blocks.clinic_4\nlast:  REQUEST staff.dylan DO 'campfire teardown' DURING blocks.evening_program\nGAP first TO last AT_LEAST 0m"]
 
 [[problem]]
 id = "away-day-off"

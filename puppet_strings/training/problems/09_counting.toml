@@ -35,7 +35,7 @@ title = "Enough lifeguards"
 prompt = "At least three village heroes do 'lifeguard' during rest hour."
 answer = "REQUEST AT_LEAST 3 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"
 explain = "A positive AT_LEAST asks for things to happen, just like REQUEST … DO does."
-alternatives = ["REQUEST ANY_3_OF staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"]
+alternatives = ["REQUEST ANY 3 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"]
 wrong = ["REQUEST AT_LEAST 2 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"]
 
 [[problem]]
@@ -100,10 +100,10 @@ wrong = ["REQUEST EXACTLY 3 staff.village_heroes DO 'break'"]
 id = "count-three-breaks-for"
 title = "Three short breaks"
 prompt = "Each non-director, non-counselor staff member takes three 30-minute 'break's today, in three different blocks."
-answer = "REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' FOR 30m DURING ANY_3_OF blocks.all"
+answer = "REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' FOR 30m DURING ANY 3 blocks.all"
 priority = "MUST_HAPPEN"
-alternatives = ["REQUEST EACH_OF {staff.all - (staff.directors + staff.counselors)} DO 'break' FOR 30m DURING ANY_3_OF blocks.all"]
-wrong = ["REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' DURING ANY_3_OF blocks.all"]
+alternatives = ["REQUEST EACH_OF {staff.all - (staff.directors + staff.counselors)} DO 'break' FOR 30m DURING ANY 3 blocks.all"]
+wrong = ["REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' DURING ANY 3 blocks.all"]
 
 [[problem]]
 id = "count-at-most-one-archery"
@@ -118,7 +118,7 @@ title = "One free clinic block"
 prompt = "Each counselor is free for at least one of the four clinic blocks today."
 answer = "REQUEST AT_LEAST 1 EACH_OF staff.counselors FREE DURING blocks.all_clinics"
 priority = "HIGH"
-alternatives = ["REQUEST EACH_OF staff.counselors FREE DURING ANY_1_OF blocks.all_clinics"]
+alternatives = ["REQUEST EACH_OF staff.counselors FREE DURING ANY 1 blocks.all_clinics"]
 wrong = ["REQUEST AT_LEAST 2 EACH_OF staff.counselors FREE DURING blocks.all_clinics"]
 
 [[problem]]

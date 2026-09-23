@@ -23,10 +23,10 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             1,
         ),
         (
-            "REQUEST staff.dylan DO 'x' DURING ANY_1_OF blocks.all CONSECUTIVE",
+            "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all CONSECUTIVE",
             Priority.HIGH,
             "CONSECUTIVE after DURING chooses blocks next to each other, so it needs "
-            "ANY_n_OF with n of 2 or more",
+            "ANY n with n of 2 or more",
             1,
             28,
         ),
@@ -34,19 +34,19 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             "REQUEST staff.dylan DO 'x' DURING ALL_OF blocks.all_clinics CONSECUTIVE",
             Priority.HIGH,
             "CONSECUTIVE after DURING chooses blocks next to each other, so it needs "
-            "ANY_n_OF with n of 2 or more",
+            "ANY n with n of 2 or more",
             1,
             28,
         ),
         (
             "REQUEST staff.counselor DO 'x' DURING blocks.clinic_1",
             Priority.HIGH,
-            "needs a quantifier: ALL_OF, ANY_n_OF or EACH_OF",
+            "needs a quantifier: ALL_OF, ANY n or EACH_OF",
             1,
             9,
         ),
         (
-            "REQUEST ANY_1_OF staff.dylan DO 'x' DURING blocks.clinic_1",
+            "REQUEST ANY 1 staff.dylan DO 'x' DURING blocks.clinic_1",
             Priority.HIGH,
             "is one item and takes no quantifier",
             1,
@@ -60,7 +60,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             24,
         ),
         (
-            "REQUEST staff.dylan DO activities.clinics.riflery AS_ROLE ANY_2_OF {roles.first + roles.second} DURING blocks.clinic_1",
+            "REQUEST staff.dylan DO activities.clinics.riflery AS_ROLE ANY 2 {roles.first + roles.second} DURING blocks.clinic_1",
             Priority.HIGH,
             "one activity at a time",
             1,
@@ -156,7 +156,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (
             "REQUEST staff.dylan NOT DO 'x' WITH EACH_OF staff.all",
             Priority.HIGH,
-            "WITH takes ALL_OF or ANY_n_OF, not EACH_OF",
+            "WITH takes ALL_OF or ANY n, not EACH_OF",
             1,
             37,
         ),
@@ -184,7 +184,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             73,
         ),
         (
-            "ANY_1_OF s IN staff.all\nPREFER s DO activities.clinics.all MAXIMIZE mappings.preference(s, activities.clinics.riflery)",
+            "ANY 1 s IN staff.all\nPREFER s DO activities.clinics.all MAXIMIZE mappings.preference(s, activities.clinics.riflery)",
             Priority.HIGH,
             "mapping argument must be one item",
             2,
@@ -236,21 +236,21 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         ),
         (f"{DO} ON 2026-13-01", Priority.HIGH, "invalid date", 1, 54),
         (
-            "REQUEST staff.dylan DO 'x' DURING ANY_1_OF blocks.all ON dates.session.one.week.nine.all",
+            "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON dates.session.one.week.nine.all",
             Priority.HIGH,
             "unknown name 'dates.session.one.week.nine.all'",
             1,
-            58,
+            55,
         ),
         (
-            "ANY_1_OF b IN blocks.all\nREQUEST staff.dylan DO 'x' DURING {blocks.all - b}",
+            "ANY 1 b IN blocks.all\nREQUEST staff.dylan DO 'x' DURING {blocks.all - b}",
             Priority.HIGH,
             "chosen by the solver",
             2,
             49,
         ),
         (
-            "ANY_1_OF p IN staff.all\nREQUEST ANY_2_OF {staff.dylan + p} DO 'x' DURING blocks.lunch",
+            "ANY 1 p IN staff.all\nREQUEST ANY 2 {staff.dylan + p} DO 'x' DURING blocks.lunch",
             Priority.HIGH,
             "taken with ALL_OF or not at all",
             2,
@@ -297,14 +297,14 @@ def test_an_exclusion_validates(dataset):
     [
         (EXCLUDE, Priority.HIGH, "EXCLUDE is a fact about the day, so it is MUST_HAPPEN"),
         (
-            "EXCLUDE ANY_1_OF staff.all DO 'offsite'",
+            "EXCLUDE ANY 1 staff.all DO 'offsite'",
             Priority.MUST_HAPPEN,
-            "nothing in it is ANY_n_OF",
+            "nothing in it is ANY n",
         ),
         (
-            "EXCLUDE staff.dylan DO 'offsite' DURING ANY_2_OF blocks.all",
+            "EXCLUDE staff.dylan DO 'offsite' DURING ANY 2 blocks.all",
             Priority.MUST_HAPPEN,
-            "nothing in it is ANY_n_OF",
+            "nothing in it is ANY n",
         ),
         (
             f"{EXCLUDE}\nREQUEST staff.rob DO 'x' DURING blocks.clinic_1",
@@ -324,7 +324,7 @@ def test_an_exclusion_validates(dataset):
         (
             "EXCLUDE staff.counselor DO 'offsite'",
             Priority.MUST_HAPPEN,
-            "needs a quantifier: ALL_OF, ANY_n_OF or EACH_OF",
+            "needs a quantifier: ALL_OF, ANY n or EACH_OF",
         ),
     ],
 )

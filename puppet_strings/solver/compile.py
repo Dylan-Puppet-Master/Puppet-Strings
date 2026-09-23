@@ -386,7 +386,7 @@ class Compiler:
     def _loose(self, st: Requirement) -> Choice | None:
         """The one chooser a requirement can count rather than choose, if it has one.
 
-        `ANY_n_OF` asks that n of a pool do the one thing named of them, which is the same
+        `ANY n` asks that n of a pool do the one thing named of them, which is the same
         as asking that n of those assignments happen. When everything else in the
         requirement names a single thing, so each member has exactly one assignment to its
         name, counting says it without a variable per member. A quoted task keeps its
@@ -399,11 +399,11 @@ class Compiler:
         wide = [
             c
             for c in (st.who, st.what, st.during, st.role)
-            if isinstance(c, Choice) and len(c.items) > 1
+            if isinstance(c, Choice) and (len(c.items) > 1 or c.units)
         ]
         if len(wide) != 1 or wide[0].kind != ANY or wide[0].var is not None:
             return None
-        if wide[0].consecutive:
+        if wide[0].consecutive or wide[0].units:
             return None  # which n matters, not only how many
         return wide[0]
 
@@ -536,8 +536,25 @@ class Compiler:
         """
         chosen = self._choose_one(choice, active, name)
         for i, part in enumerate(choice.parts):
-            chosen = {**chosen, **self._choose_one(part, active, f"{name}:part{i}")}
+            more = self._choose_one(part, active, f"{name}:part{i}")
+            # a part of its own is chosen under `active`, so an item `active` holds stays so
+            covering = active if part.var is None else None
+            chosen = self._merge(chosen, more, name, covering)
         return chosen
+
+    def _merge(self, chosen: dict, more: dict, name: str, covering=None) -> dict:
+        """Two choices over the same items: an item named by both is in when either has it.
+
+        An item `chosen` holds by `covering`, a literal nothing in `more` is true without,
+        is left as it is, since OR-ing it with anything gives itself back.
+        """
+        merged = dict(chosen)
+        for item, literal in more.items():
+            if item not in merged:
+                merged[item] = literal
+            elif merged[item] is not covering:
+                merged[item] = self._any_of([merged[item], literal], f"{name}:either:{item}")
+        return merged
 
     def _choose_one(self, choice: Choice, active: Literal, name: str) -> dict:
         """One part of a choice, before any it is joined with."""
@@ -549,15 +566,19 @@ class Compiler:
         if choice.kind == ALL:
             return dict.fromkeys(choice.items, active)
         chosen = {item: self.model.NewBoolVar(f"{name}:{item}") for item in choice.items}
-        total = sum(chosen.values())
+        # a group is one of the things chosen from, and brings what it takes when it is
+        picked = [self.model.NewBoolVar(f"{name}:group{i}") for i in range(len(choice.units))]
+        total = sum(chosen.values()) + sum(picked)
         if isinstance(active, bool):
             self.model.Add(total == (choice.n if active else 0))
         else:
             self.model.Add(total == choice.n * active)
+        for i, (unit, pick) in enumerate(zip(choice.units, picked, strict=True)):
+            chosen = self._merge(chosen, self._choose(unit, pick, f"{name}:group{i}"), name)
         return chosen
 
     def _adjacent(self, chosen: dict, n: int, days, active: Literal, name: str) -> None:
-        """`ANY_n_OF <blocks> CONSECUTIVE`: the n chosen blocks are a run of adjacent ones.
+        """`ANY n <blocks> CONSECUTIVE`: the n chosen blocks are a run of adjacent ones.
 
         Blocks are adjacent when they are next to each other in the Blocks sheet, as they
         are for a CONSECUTIVE amount, on any of the dates the requirement is about. Exactly

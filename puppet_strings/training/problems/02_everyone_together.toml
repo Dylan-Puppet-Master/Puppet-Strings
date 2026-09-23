@@ -25,7 +25,7 @@ alternatives = [
   "REQUEST ALL_OF {staff.david + staff.lisa + staff.matthew} DO 'directors meeting' DURING blocks.rest_hour",
 ]
 wrong = [
-  "REQUEST ANY_1_OF staff.directors DO 'directors meeting' DURING blocks.rest_hour",
+  "REQUEST ANY 1 staff.directors DO 'directors meeting' DURING blocks.rest_hour",
   "REQUEST ALL_OF {staff.david + staff.lisa} DO 'directors meeting' DURING blocks.rest_hour",
 ]
 
@@ -87,7 +87,7 @@ title = "Morning shift"
 prompt = "Jana runs the 'camp store' during both clinic 1 and clinic 2."
 answer = "REQUEST staff.jana DO 'camp store' DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}"
 alternatives = ["REQUEST staff.jana DO 'camp store' DURING ALL_OF {blocks.clinic_2 + blocks.clinic_1}"]
-wrong = ["REQUEST staff.jana DO 'camp store' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}"]
+wrong = ["REQUEST staff.jana DO 'camp store' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}"]
 
 [[problem]]
 id = "together-evening"

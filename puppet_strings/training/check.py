@@ -130,7 +130,7 @@ def _canon(value, names: dict[str, str], day: tuple[str, ...] = ()):
 
     Positions and the key of a copy go; a variable or a GAP label keeps only the order it was
     first met in, so two requests binding `s` and `who` the same way are the same. A choice of one
-    item is that item however it was quantified, and `ANY_n_OF` of n items is all of them.
+    item is that item however it was quantified, and `ANY n` of n items is all of them.
     A pattern with no DURING is about every block of `day`, which is what it would say if it
     named them all.
     """
@@ -139,14 +139,15 @@ def _canon(value, names: dict[str, str], day: tuple[str, ...] = ()):
     if isinstance(value, Choice):
         items = tuple(sorted(value.items, key=str))
         kind, n = value.kind, value.n
-        if kind == ANY and n >= len(items) and not value.consecutive:
+        if kind == ANY and n >= len(items) and not value.consecutive and not value.units:
             kind = ALL
-        if len(items) == 1 and not value.parts:
+        if len(items) == 1 and not value.parts and not value.units:
             kind, n = "one", 1
         var = names.setdefault(value.var, f"v{len(names)}") if value.var else None
         parts = _canon(value.parts, names, day)
+        units = _canon(value.units, names, day)
         run = value.consecutive and kind == ANY
-        return ("choice", items, kind, n if kind == ANY else None, var, parts, run)
+        return ("choice", items, kind, n if kind == ANY else None, var, parts, run, units)
     if isinstance(value, ast.Gap):
         amount = (value.amount.bound, value.amount.value, value.amount.duration)
         return ("gap", _label(value.first, names), _label(value.second, names), amount)
@@ -509,6 +510,7 @@ def _mentions(dataset: Dataset, copies) -> dict[str, set]:
                 elif item in dataset.blocks:
                     found["blocks"].add(item)
             walk(value.parts)
+            walk(value.units)
         elif is_dataclass(value):
             if isinstance(value, Pattern) and value.during is None:
                 found["whole_day"] = True

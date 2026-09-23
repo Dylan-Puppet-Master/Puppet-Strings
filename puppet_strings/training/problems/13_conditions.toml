@@ -9,7 +9,7 @@ UNLESS <test>      only when it doesn't
 A test is [amount [CONSECUTIVE]] <pattern>; with no amount, one match will do.
 
 UNLESS staff.lisa FREE DURING blocks.clinic_1
-REQUEST ANY_1_OF staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1
+REQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1
 
 IF
 AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch
@@ -26,10 +26,10 @@ REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch
 id = "if-unless-lisa"
 title = "Unless Lisa's free"
 prompt = "Unless Lisa is free during clinic 1, a permanent hero covers the 'front desk' then."
-answer = "UNLESS staff.lisa FREE DURING blocks.clinic_1\nREQUEST ANY_1_OF staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"
+answer = "UNLESS staff.lisa FREE DURING blocks.clinic_1\nREQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"
 hints = ["UNLESS goes on a line of its own, above the REQUEST."]
-alternatives = ["IF staff.lisa NOT FREE DURING blocks.clinic_1\nREQUEST ANY_1_OF staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"]
-wrong = ["IF staff.lisa FREE DURING blocks.clinic_1\nREQUEST ANY_1_OF staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"]
+alternatives = ["IF staff.lisa NOT FREE DURING blocks.clinic_1\nREQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"]
+wrong = ["IF staff.lisa FREE DURING blocks.clinic_1\nREQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"]
 
 [[problem]]
 id = "if-busy-then-cover"
@@ -66,7 +66,7 @@ wrong = ["IF staff.rob DO activities.clinics.gravity_zip_line DURING blocks.clin
 id = "if-each-after-clinics"
 title = "After two in a row"
 prompt = "For each village leader: if they run two clinics back to back, they get a free block somewhere today."
-answer = "EACH_OF s IN staff.village_leaders\nIF AT_LEAST 2 CONSECUTIVE s DO activities.clinics.all\nREQUEST s FREE DURING ANY_1_OF blocks.all"
+answer = "EACH_OF s IN staff.village_leaders\nIF AT_LEAST 2 CONSECUTIVE s DO activities.clinics.all\nREQUEST s FREE DURING ANY 1 blocks.all"
 priority = "HIGH"
 
 [[problem]]

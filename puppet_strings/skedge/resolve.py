@@ -60,7 +60,11 @@ class Choice:
     into a set means: `ALL_OF {staff.charlton + videographer}` is charlton, always, and
     whoever the solver picked for `videographer`, whoever that turns out to be.
 
-    `consecutive` is `ANY_n_OF <blocks> CONSECUTIVE`: the n chosen are next to each other.
+    `units` are the groups an ANY choice takes as one thing each, alongside its items:
+    `ANY 1 {staff.x + (ALL_OF {staff.y + staff.z})}` is x, or else y and z both. A group
+    chosen brings what it chooses in turn.
+
+    `consecutive` is `ANY n <blocks> CONSECUTIVE`: the n chosen are next to each other.
     """
 
     items: tuple[Item, ...]
@@ -70,6 +74,7 @@ class Choice:
     parts: tuple["Choice", ...] = ()
     pos: ast.Pos = DEFAULT_POS
     consecutive: bool = False
+    units: tuple["Choice", ...] = ()
 
 
 @dataclass(frozen=True)
@@ -459,20 +464,26 @@ def _note(namespace: str, name: str, named: Named) -> str:
 class _Scope:
     """What the variables stand for while one copy of a declaration is resolved.
 
-    `each` holds the item of every EACH_OF selector, by position; `vars` the EACH_OF
-    variables by name; `anys` the ANY_n_OF binding lines.
+    `each` holds the item of every EACH_OF selector, by position, or the group it is on
+    when the set holds one; `vars` the EACH_OF variables by name; `anys` the ANY n
+    binding lines.
     """
 
     names: _Names
     dataset: Dataset
-    each: dict[ast.Pos, Item] = field(default_factory=dict)
+    each: dict[ast.Pos, "Item | _Unit"] = field(default_factory=dict)
     vars: dict[str, tuple[Item, str]] = field(default_factory=dict)
     anys: dict[str, tuple[Choice, str]] = field(default_factory=dict)
 
-    def with_each(self, selector: ast.Selector, item: Item, namespace: str) -> "_Scope":
+    def with_each(self, selector: ast.Selector, item: "Item | _Unit", namespace: str) -> "_Scope":
         each = {**self.each, selector.pos: item}
         variables = dict(self.vars)
         if selector.var:
+            if isinstance(item, _Unit):
+                raise _error(
+                    f"'{selector.var}' names one item at a time, and {item} is a group",
+                    item.group.pos,
+                )
             variables[selector.var] = (item, namespace)
         return replace(self, each=each, vars=variables)
 
@@ -484,6 +495,16 @@ class _Scope:
         return replace(self, anys={**self.anys, selector.var: (choice, namespace)})
 
 
+@dataclass(frozen=True)
+class _Unit:
+    """A group an EACH_OF is on, as one copy: `EACH_OF {staff.x + (ALL_OF s)}` is two."""
+
+    group: ast.Group
+
+    def __str__(self) -> str:
+        return ast.spoken(self.group)
+
+
 def _expand(declaration: ast.Declaration, each: list, scope: _Scope) -> Iterator[Resolved]:
     if not each:
         # a cabin act split out of a season's worth that is not on these days is no copy
@@ -492,10 +513,17 @@ def _expand(declaration: ast.Declaration, each: list, scope: _Scope) -> Iterator
         return
     (namespace, selector), rest = each[0], each[1:]
     namespace = namespace or _namespace_of(selector.expr, scope)
-    items, single = _evaluate(selector.expr, namespace, scope)
-    _no_quantifier_on_one(selector.expr, single, selector.pos)
-    for item in _sorted(items):
-        yield from _expand(declaration, rest, scope.with_each(selector, item, namespace))
+    joined, parts = _split(selector.expr, scope)
+    for var in (x for x in parts if isinstance(x, ast.Var)):
+        raise _error(f"'{var.name}' is chosen by the solver, so EACH_OF cannot split it", var.pos)
+    units: list[Item | _Unit] = [_Unit(g) for g in parts]
+    if joined is not None:
+        items, single = _evaluate(joined, namespace, scope)
+        if not parts:
+            _no_quantifier_on_one(selector.expr, single, selector.pos)
+        units = [*_sorted(items), *units]
+    for unit in units:
+        yield from _expand(declaration, rest, scope.with_each(selector, unit, namespace))
 
 
 class _AnotherDay(Exception):
@@ -536,10 +564,18 @@ def _statement(statement: ast.Statement, scope: _Scope) -> Statement:
     )
     parts = _parts(statement.what, statement.clauses, scope, pool=statement.negated)
     if statement.negated:
-        pool = Choice(who.items, POOL, pos=who.pos)
+        pool = Choice(_everyone(who), POOL, pos=who.pos)
         pattern = Pattern(pool, busy=statement.what is None, **parts, pos=statement.pos)
         return Forbid(who, pattern, statement.pos)
     return Requirement(who, label=statement.label, **parts, pos=statement.pos)
+
+
+def _everyone(choice: Choice) -> tuple[Item, ...]:
+    """Every item a choice could come to, whatever is chosen."""
+    items = set(choice.items)
+    for more in (*choice.parts, *choice.units):
+        items.update(_everyone(more))
+    return _sorted(frozenset(items))
 
 
 def _exclusion(statement: ast.Exclude, scope: _Scope) -> Exclusion:
@@ -561,7 +597,7 @@ def _exclusion(statement: ast.Exclude, scope: _Scope) -> Exclusion:
 def _anyone(statement: ast.Requirement, scope: _Scope) -> Choice:
     """The subject of `REQUEST <activity>`, which names none: anyone the activity allows.
 
-    The request is sugar for `REQUEST ANY_1_OF staff.all DO <activity>`. Asking that one
+    The request is sugar for `REQUEST ANY 1 staff.all DO <activity>`. Asking that one
     person holds a position of an activity asks that it runs at all, and a running activity
     fills every position it has (`solver.structural`), so naming one person here asks for
     all of the people it needs — which is why the activity's positions are the only place
@@ -594,6 +630,8 @@ def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, poo
     when = _choice(on.selector, DATES, scope, pool) if on else target
     blocks = _choice(during.selector, BLOCKS, scope, pool) if during else None
     if during and during.consecutive:
+        if blocks.units:
+            raise _error("CONSECUTIVE chooses blocks one at a time, so no groups", during.pos)
         blocks = replace(blocks, consecutive=True)
     return {
         "what": _choice(what, ACTIVITIES, scope, pool, when.items)
@@ -613,7 +651,7 @@ def _company(selector: ast.Selector, scope: _Scope) -> Company:
     items, single = _evaluate(selector.expr, STAFF, scope)
     if selector.quantifier is None:
         if not single:
-            raise _error("needs a quantifier: ALL_OF or ANY_n_OF", selector.pos)
+            raise _error("needs a quantifier: ALL_OF or ANY n", selector.pos)
         return Company(items, None)
     _no_quantifier_on_one(selector.expr, single, selector.pos)
     return Company(items, selector.n if selector.quantifier == ast.ANY_OF else None)
@@ -678,6 +716,8 @@ def _key(
 
 
 def _argument(arg: ast.Var | ast.Ref, scope: _Scope) -> tuple[Item, str]:
+    if not isinstance(arg, ast.Var | ast.Ref):  # a name defined as a set of several
+        raise _error("mapping argument must be one item", arg.pos)
     if isinstance(arg, ast.Var):
         if arg.name in scope.vars:
             return scope.vars[arg.name]
@@ -809,7 +849,7 @@ class Domains:
         namespace = _namespace_of(selector.expr, None)
         items, single = _evaluate(selector.expr, namespace, _Scope(self.names, self.dataset))
         if not single and selector.quantifier is None:
-            raise _error("a default of more than one name needs ALL_OF or ANY_n_OF", selector.pos)
+            raise _error("a default of more than one name needs ALL_OF or ANY n", selector.pos)
         return namespace, items
 
 
@@ -835,18 +875,20 @@ def _choice(
 ) -> Choice:
     if selector.quantifier == ast.EACH_OF:
         item = scope.each[selector.pos]
+        if isinstance(item, _Unit):
+            return _group(item.group, namespace, scope, pool, when)
         if namespace == ACTIVITIES and not _on_those_days(frozenset({item}), True, when, scope)[0]:
             raise _AnotherDay
         return Choice((item,), POOL if pool else ALL, pos=selector.pos)
     expr = selector.expr
     if isinstance(expr, ast.Call) and selector.quantifier is None:
         # A call standing on its own is its row's one item, or else its default as written,
-        # quantifier and all: a cabin with no buddy is covered by ANY_1_OF the office.
+        # quantifier and all: a cabin with no buddy is covered by ANY 1 {staff.office}.
         found = _lookup(expr, namespace, scope)
         if isinstance(found, ast.Selector):
             default = _choice(found, namespace, _default_scope(scope), pool, when)
             return replace(default, pos=selector.pos)
-    joined, bound = _split_bound(selector.expr, scope)
+    joined, bound = _split(selector.expr, scope)
     if bound:
         return _with_bound(selector, joined, bound, namespace, scope, pool, when)
     if isinstance(expr, ast.Var) and expr.name in scope.anys:
@@ -868,7 +910,7 @@ def _choice(
         return Choice(_sorted(items), POOL, pos=selector.pos)
     if selector.quantifier is None:
         if not single:
-            raise _error("needs a quantifier: ALL_OF, ANY_n_OF or EACH_OF", selector.pos)
+            raise _error("needs a quantifier: ALL_OF, ANY n or EACH_OF", selector.pos)
         return Choice(_sorted(items), ALL, pos=selector.pos)
     _no_quantifier_on_one(expr, single, selector.pos)
     if selector.quantifier == ast.ALL_OF:
@@ -886,18 +928,18 @@ def _no_quantifier_on_one(expr: ast.SetExpr, single: bool, pos: ast.Pos) -> None
         raise _error("is one item and takes no quantifier", pos)
 
 
-def _split_bound(expr: ast.SetExpr, scope: _Scope) -> tuple[ast.SetExpr | None, tuple]:
-    """Separate the names the solver has already chosen from the rest of a `+` union.
+def _split(expr: ast.SetExpr, scope: _Scope) -> tuple[ast.SetExpr | None, tuple]:
+    """Separate the groups and the names the solver chooses from the rest of a `+` union.
 
     Only `+` is taken apart. `-` and `&` ask what a chosen name is *not*, or what it has in
     common with something, neither of which can be answered before the solver has chosen.
     """
-    if isinstance(expr, ast.Var) and expr.name in scope.anys:
+    if isinstance(expr, ast.Group) or (isinstance(expr, ast.Var) and expr.name in scope.anys):
         return None, (expr,)
     if not isinstance(expr, ast.SetOp) or expr.op != "+":
         return expr, ()
-    left, left_bound = _split_bound(expr.left, scope)
-    right, right_bound = _split_bound(expr.right, scope)
+    left, left_bound = _split(expr.left, scope)
+    right, right_bound = _split(expr.right, scope)
     bound = left_bound + right_bound
     if not bound:
         return expr, ()
@@ -917,32 +959,57 @@ def _with_bound(
     pool: bool,
     when: tuple[Item, ...],
 ) -> Choice:
-    """A set holding a bound name: the rest of it, plus whoever the binding chose.
+    """A set holding groups or bound names: the rest of it, plus what each of them brings.
 
-    Taking `n` of such a set would mean choosing out of something that is itself still
-    being chosen, which is a different idea and not one anybody has needed, so only ALL_OF
-    is allowed. Everything named is included, and the bound name brings the one it picked.
+    Taken whole, everything named is included, a bound name brings the one its binding
+    picked and a group what it takes. Taken `ANY n`, each group is one of the things
+    chosen from. A bound name cannot be: it is chosen once for the whole request, so
+    choosing it again here would be choosing out of something still being chosen.
     """
-    if selector.quantifier not in (None, ast.ALL_OF):
+    variables = [x for x in bound if isinstance(x, ast.Var)]
+    if selector.quantifier not in (None, ast.ALL_OF) and variables:
         raise _error(
             "a set holding a name the solver chooses is taken with ALL_OF or not at all",
             selector.pos,
         )
     parts = []
-    for var in bound:
+    for var in variables:
         choice, from_namespace = scope.anys[var.name]
         _expect(namespace, from_namespace, var)
         parts.append(replace(choice, kind=POOL if pool else ANY, pos=var.pos))
-    if joined is None:
-        first, *rest = parts
+    groups = [_group(g, namespace, scope, pool, when) for g in bound if isinstance(g, ast.Group)]
+    if joined is None and not groups:
+        first, *rest = parts  # a bound name on its own, with any others added to it
         return replace(first, parts=tuple(rest), pos=selector.pos)
-    items, _ = _evaluate(joined, namespace, scope)
-    if namespace == DATES:
-        items = frozenset(d for d in items if d in scope.dataset.calendar)
-    if namespace == ACTIVITIES:
-        items, _ = _on_those_days(items, False, when, scope)
+    items: frozenset[Item] = frozenset()
+    if joined is not None:
+        items, _ = _evaluate(joined, namespace, scope)
+        if namespace == DATES:
+            items = frozenset(d for d in items if d in scope.dataset.calendar)
+        if namespace == ACTIVITIES:
+            items, _ = _on_those_days(items, False, when, scope)
+    if selector.quantifier == ast.ANY_OF and not pool:
+        return Choice(_sorted(items), ANY, selector.n, units=tuple(groups), pos=selector.pos)
+    # taken whole, a group taking all of its set is only more of the same set
+    for group in groups:
+        if group.kind == ANY:
+            parts.append(group)
+        else:
+            items |= frozenset(group.items)
+            parts.extend(group.parts)
     kind = POOL if pool else ALL
     return Choice(_sorted(items), kind, parts=tuple(parts), pos=selector.pos)
+
+
+def _group(
+    group: ast.Group, namespace: str, scope: _Scope, pool: bool, when: tuple[Item, ...]
+) -> Choice:
+    """`(ALL_OF s)` or `(ANY n s)`, as the choice it is wherever it stands.
+
+    In a pool only `(ALL_OF s)` can stand, which the parser has seen to.
+    """
+    selector = ast.Selector(group.expr, group.quantifier, group.n, None, group.pos)
+    return _choice(selector, namespace, scope, pool, when)
 
 
 def _on_those_days(
@@ -981,6 +1048,14 @@ def _evaluate(expr: ast.SetExpr, namespace: str, scope: _Scope) -> tuple[frozens
                 expr.pos,
             )
         raise _error(f"unknown variable '{expr.name}'", expr.pos)
+    if isinstance(expr, ast.Group):
+        if expr.quantifier == ast.ANY_OF:
+            raise _error(
+                f"{ast.spoken(expr)} is chosen by the solver, so it can only be added to a set "
+                "with '+', not taken away from one or crossed with one",
+                expr.pos,
+            )
+        return _evaluate(expr.expr, namespace, scope)[0], False
     if isinstance(expr, ast.Call):
         return _call_items(expr, namespace, scope)
     if isinstance(expr, ast.DateLiteral):
@@ -1043,6 +1118,8 @@ def _namespace_of(expr: ast.SetExpr, scope: _Scope | None) -> str:
         raise _error(f"unknown variable '{expr.name}'", expr.pos)
     if isinstance(expr, ast.SetOp):
         return _namespace_of(expr.left, scope)
+    if isinstance(expr, ast.Group):
+        return _namespace_of(expr.expr, scope)
     if isinstance(expr, ast.Call):
         return _gives(expr, scope)[1]
     return DATES

@@ -43,7 +43,7 @@ def test_defaults(dataset):
 def test_quantifiers(dataset):
     (copy,) = resolve(
         dataset,
-        "REQUEST ANY_2_OF staff.counselor DO 'x' DURING ALL_OF blocks.all ON ANY_1_OF dates.session.one.all",
+        "REQUEST ANY 2 staff.counselor DO 'x' DURING ALL_OF blocks.all ON ANY 1 dates.session.one.all",
     )
     (st,) = copy.statements
     assert (st.who.kind, st.who.n, st.who.items) == (ANY, 2, ("dylan", "james", "paul"))
@@ -83,8 +83,8 @@ def test_a_binding_line_is_visible_on_every_line(dataset):
     copies = resolve(
         dataset,
         "EACH_OF c IN staff.counselor\n"
-        "m: REQUEST c DO 'a' DURING ANY_1_OF {blocks.clinic_1 + blocks.clinic_2}\n"
-        "n: REQUEST c DO 'a' DURING ANY_1_OF {blocks.clinic_3 + blocks.clinic_4}\n"
+        "m: REQUEST c DO 'a' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\n"
+        "n: REQUEST c DO 'a' DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\n"
         "GAP m TO n AT_MOST 5h",
     )
     assert [c.key for c in copies] == ["dylan", "james", "paul"]
@@ -97,7 +97,7 @@ def test_a_binding_line_is_visible_on_every_line(dataset):
 def test_an_any_binding_is_one_choice_shared_by_the_declaration(dataset):
     (copy,) = resolve(
         dataset,
-        "ANY_1_OF p IN staff.counselor\n"
+        "ANY 1 p IN staff.counselor\n"
         "first: REQUEST p DO 'setup' DURING blocks.clinic_4\n"
         "last:  REQUEST p DO 'teardown' DURING blocks.evening",
     )
@@ -122,14 +122,14 @@ def test_negation_makes_a_pattern_of_pools(dataset):
 
 def test_with_takes_one_name_or_a_quantified_set(dataset):
     base = "REQUEST staff.rob NOT DO activities.clinics.ropes "
-    (copy,) = resolve(dataset, base + "WITH ANY_2_OF {staff.vic + staff.dylan + staff.randy}")
+    (copy,) = resolve(dataset, base + "WITH ANY 2 {staff.vic + staff.dylan + staff.randy}")
     assert copy.statements[0].pattern.with_ == Company(frozenset({"vic", "dylan", "randy"}), 2)
     (copy,) = resolve(dataset, base + "WITHOUT ALL_OF {staff.vic + staff.dylan}")
     assert copy.statements[0].pattern.without == Company(frozenset({"vic", "dylan"}), None)
-    with pytest.raises(SkedgeError, match="needs a quantifier: ALL_OF or ANY_n_OF"):
+    with pytest.raises(SkedgeError, match="needs a quantifier: ALL_OF or ANY n"):
         resolve(dataset, base + "WITHOUT {staff.vic + staff.dylan}")
     with pytest.raises(SkedgeError, match="is one item and takes no quantifier"):
-        resolve(dataset, base + "WITH ANY_1_OF staff.vic")
+        resolve(dataset, base + "WITH ANY 1 staff.vic")
 
 
 def test_patterns_conditions_and_mappings(dataset):
@@ -137,7 +137,7 @@ def test_patterns_conditions_and_mappings(dataset):
         dataset,
         "EACH_OF s IN staff.director\n"
         "IF AT_LEAST 3 CONSECUTIVE s DO activities.clinics.all\n"
-        "REQUEST s FREE DURING ANY_1_OF blocks.all",
+        "REQUEST s FREE DURING ANY 1 blocks.all",
     )[:1]
     assert copy.condition.test.amount.value == 3 and copy.condition.test.consecutive
     assert copy.condition.test.pattern.who.items == ("david",)
@@ -208,7 +208,7 @@ def test_weeks_of_a_session(dataset):
 def test_roles(dataset):
     (copy,) = resolve(
         dataset,
-        "REQUEST staff.dylan DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY_1_OF blocks.all_clinics",
+        "REQUEST staff.dylan DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY 1 blocks.all_clinics",
     )
     assert copy.statements[0].role.items == ("trainee",)
     (copy,) = resolve(
@@ -242,7 +242,7 @@ def test_a_mapping_gives_its_row_or_else_its_default_as_written(dataset):
     who = {copy.key: copy.statements[0].who for copy in copies}
     assert (who["dylan"].items, who["dylan"].kind) == (("alan",), ALL)
     assert (who["james"].items, who["james"].kind) == (("sarah",), ALL)
-    # Paul has no row, so his is the default: ANY_1_OF everyone but counselors and directors
+    # Paul has no row, so his is the default: ANY 1 everyone but counselors and directors
     assert who["paul"].kind == ANY and who["paul"].n == 1
     everyone = set(dataset.staff_categories["all"])
     assert set(who["paul"].items) == everyone - {"dylan", "james", "paul", "david", "lisa"}

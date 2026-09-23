@@ -11,7 +11,7 @@ not offered in clinic 3 that day. The solver would say only that the request cou
 met, and only once the day had been solved. Both are plain on the sheets, so both are said
 here, while the request is still on the screen that made it.
 
-Like the conflict finder, this reads only what is *settled*. `ANY_1_OF staff.all` names
+Like the conflict finder, this reads only what is *settled*. `ANY 1 staff.all` names
 nobody in particular, so nobody in particular is unqualified: the solver picks somebody who
 is checked off, and that is its job.
 """

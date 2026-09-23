@@ -161,10 +161,10 @@ def test_a_named_mapping_default_is_a_phrase(fixtures_copy):
     assert dialog.default.text() == BUDDY_DEFAULT
     heading = dialog.grid.horizontalHeaderItem(0).text()
     assert heading == "key1: staff.counselor"  # says what the column holds
-    dialog.default.setText("ANY_1_OF staff.office")
+    dialog.default.setText("ANY 1 staff.office")
     dialog.save()
     written = parse_mapping_index(source.read("config", "Mappings"))
-    assert written[1].default == "ANY_1_OF staff.office"
+    assert written[1].default == "ANY 1 staff.office"
     assert source.read("config", "mapping_buddy")[0] == ["key1", "value"]  # not the headings
 
 

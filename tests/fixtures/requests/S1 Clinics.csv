@@ -1,25 +1,25 @@
 id,description,skedge,priority,weight,tags,groups,requester,created
-offering:2026-09-16:archery_1_2:clinic_1,Archery 1 & 2 in clinic_1,REQUEST ANY_1_OF staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:gravity_zip_line:clinic_1,Gravity Zip Line in clinic_1,REQUEST ANY_1_OF staff.all DO activities.clinics.gravity_zip_line DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:lvl_2_on_ground:clinic_1,Lvl. 2 on Ground in clinic_1,REQUEST ANY_1_OF staff.all DO activities.clinics.lvl_2_on_ground DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:canoe_1_2:clinic_1,Canoe 1 & 2 in clinic_1,REQUEST ANY_1_OF staff.all DO activities.clinics.canoe_1_2 DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:craft_fairy:clinic_1,Craft Fairy in clinic_1,REQUEST ANY_1_OF staff.all DO activities.clinics.craft_fairy DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:low_ropes:clinic_1,Low Ropes in clinic_1,REQUEST ANY_1_OF staff.all DO activities.clinics.low_ropes DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1,"Pole Course Explore Level 1 & 2 (DBL) in clinic_1, clinic_2",REQUEST ANY_1_OF staff.all DO activities.clinics.pole_course_explore_level_1_2_dbl DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2} ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:lvl_2_on_ground:clinic_2,Lvl. 2 on Ground in clinic_2,REQUEST ANY_1_OF staff.all DO activities.clinics.lvl_2_on_ground DURING blocks.clinic_2 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:blacksmithing_dbl:clinic_1,"Blacksmithing (DBL) in clinic_1, clinic_2",REQUEST ANY_1_OF staff.all DO activities.clinics.blacksmithing_dbl DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2} ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:candle_making:clinic_2,Candle Making in clinic_2,REQUEST ANY_1_OF staff.all DO activities.clinics.candle_making DURING blocks.clinic_2 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:craft_fairy:clinic_2,Craft Fairy in clinic_2,REQUEST ANY_1_OF staff.all DO activities.clinics.craft_fairy DURING blocks.clinic_2 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:low_ropes:clinic_2,Low Ropes in clinic_2,REQUEST ANY_1_OF staff.all DO activities.clinics.low_ropes DURING blocks.clinic_2 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:riflery:clinic_3,Riflery in clinic_3,REQUEST ANY_1_OF staff.all DO activities.clinics.riflery DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:lvl_2_on_ground:clinic_3,Lvl. 2 on Ground in clinic_3,REQUEST ANY_1_OF staff.all DO activities.clinics.lvl_2_on_ground DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:secret_pool:clinic_3,Secret Pool in clinic_3,REQUEST ANY_1_OF staff.all DO activities.clinics.secret_pool DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:candle_making:clinic_3,Candle Making in clinic_3,REQUEST ANY_1_OF staff.all DO activities.clinics.candle_making DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:lathe_woodworking:clinic_3,Lathe Woodworking in clinic_3,REQUEST ANY_1_OF staff.all DO activities.clinics.lathe_woodworking DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:craft_fairy:clinic_3,Craft Fairy in clinic_3,REQUEST ANY_1_OF staff.all DO activities.clinics.craft_fairy DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:gravity_zip_line:clinic_4,Gravity Zip Line in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.gravity_zip_line DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:lvl_2_on_ground:clinic_4,Lvl. 2 on Ground in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.lvl_2_on_ground DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:secret_pool:clinic_4,Secret Pool in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.secret_pool DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:ceramics_wheel:clinic_4,Ceramics Wheel in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.ceramics_wheel DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:craft_fairy:clinic_4,Craft Fairy in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.craft_fairy DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
-offering:2026-09-16:salsa:clinic_4,Salsa in clinic_4,REQUEST ANY_1_OF staff.all DO activities.clinics.salsa DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:archery_1_2:clinic_1,Archery 1 & 2 in clinic_1,REQUEST ANY 1 staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:gravity_zip_line:clinic_1,Gravity Zip Line in clinic_1,REQUEST ANY 1 staff.all DO activities.clinics.gravity_zip_line DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:lvl_2_on_ground:clinic_1,Lvl. 2 on Ground in clinic_1,REQUEST ANY 1 staff.all DO activities.clinics.lvl_2_on_ground DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:canoe_1_2:clinic_1,Canoe 1 & 2 in clinic_1,REQUEST ANY 1 staff.all DO activities.clinics.canoe_1_2 DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:craft_fairy:clinic_1,Craft Fairy in clinic_1,REQUEST ANY 1 staff.all DO activities.clinics.craft_fairy DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:low_ropes:clinic_1,Low Ropes in clinic_1,REQUEST ANY 1 staff.all DO activities.clinics.low_ropes DURING blocks.clinic_1 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1,"Pole Course Explore Level 1 & 2 (DBL) in clinic_1, clinic_2",REQUEST ANY 1 staff.all DO activities.clinics.pole_course_explore_level_1_2_dbl DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2} ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:lvl_2_on_ground:clinic_2,Lvl. 2 on Ground in clinic_2,REQUEST ANY 1 staff.all DO activities.clinics.lvl_2_on_ground DURING blocks.clinic_2 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:blacksmithing_dbl:clinic_1,"Blacksmithing (DBL) in clinic_1, clinic_2",REQUEST ANY 1 staff.all DO activities.clinics.blacksmithing_dbl DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2} ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:candle_making:clinic_2,Candle Making in clinic_2,REQUEST ANY 1 staff.all DO activities.clinics.candle_making DURING blocks.clinic_2 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:craft_fairy:clinic_2,Craft Fairy in clinic_2,REQUEST ANY 1 staff.all DO activities.clinics.craft_fairy DURING blocks.clinic_2 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:low_ropes:clinic_2,Low Ropes in clinic_2,REQUEST ANY 1 staff.all DO activities.clinics.low_ropes DURING blocks.clinic_2 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:riflery:clinic_3,Riflery in clinic_3,REQUEST ANY 1 staff.all DO activities.clinics.riflery DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:lvl_2_on_ground:clinic_3,Lvl. 2 on Ground in clinic_3,REQUEST ANY 1 staff.all DO activities.clinics.lvl_2_on_ground DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:secret_pool:clinic_3,Secret Pool in clinic_3,REQUEST ANY 1 staff.all DO activities.clinics.secret_pool DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:candle_making:clinic_3,Candle Making in clinic_3,REQUEST ANY 1 staff.all DO activities.clinics.candle_making DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:lathe_woodworking:clinic_3,Lathe Woodworking in clinic_3,REQUEST ANY 1 staff.all DO activities.clinics.lathe_woodworking DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:craft_fairy:clinic_3,Craft Fairy in clinic_3,REQUEST ANY 1 staff.all DO activities.clinics.craft_fairy DURING blocks.clinic_3 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:gravity_zip_line:clinic_4,Gravity Zip Line in clinic_4,REQUEST ANY 1 staff.all DO activities.clinics.gravity_zip_line DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:lvl_2_on_ground:clinic_4,Lvl. 2 on Ground in clinic_4,REQUEST ANY 1 staff.all DO activities.clinics.lvl_2_on_ground DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:secret_pool:clinic_4,Secret Pool in clinic_4,REQUEST ANY 1 staff.all DO activities.clinics.secret_pool DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:ceramics_wheel:clinic_4,Ceramics Wheel in clinic_4,REQUEST ANY 1 staff.all DO activities.clinics.ceramics_wheel DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:craft_fairy:clinic_4,Craft Fairy in clinic_4,REQUEST ANY 1 staff.all DO activities.clinics.craft_fairy DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16
+offering:2026-09-16:salsa:clinic_4,Salsa in clinic_4,REQUEST ANY 1 staff.all DO activities.clinics.salsa DURING blocks.clinic_4 ON 2026-09-16,CLINIC,1,generated,,,2026-09-16

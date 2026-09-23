@@ -49,8 +49,7 @@ def test_every_keyword_the_spec_lists_is_in_the_grammar():
     assert len(listed) > 20
     grammar = GRAMMAR.read_text()
     for keyword in listed:
-        word = "ANY_[1-9][0-9]*_OF" if keyword == "ANY_n_OF" else keyword
-        assert f"/{word}\\b/i" in grammar, f"{keyword} is not a keyword of the grammar"
+        assert f"/{keyword}\\b/i" in grammar, f"{keyword} is not a keyword of the grammar"
 
 
 def test_every_namespace_the_spec_lists_exists(dataset):

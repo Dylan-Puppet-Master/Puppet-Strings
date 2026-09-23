@@ -50,6 +50,7 @@ KEYWORD_WORDS = (
     "IN",
     "ALL_OF",
     "EACH_OF",
+    "ANY",
     "AT_LEAST",
     "AT_MOST",
     "EXACTLY",
@@ -57,14 +58,12 @@ KEYWORD_WORDS = (
     "MAXIMIZE",
     "MINIMIZE",
 )
-ANY_N_OF = r"ANY_[0-9]+_OF"
-KEYWORDS = "|".join((*KEYWORD_WORDS, ANY_N_OF))
+KEYWORDS = "|".join(KEYWORD_WORDS)
 
 
 def is_keyword(word: str) -> bool:
     """Whether a word is a Skedge keyword, in whichever case it is written."""
-    shouted = word.upper()
-    return shouted in KEYWORD_WORDS or re.fullmatch(ANY_N_OF, shouted) is not None
+    return word.upper() in KEYWORD_WORDS
 
 
 class SkedgeHighlighter(QSyntaxHighlighter):

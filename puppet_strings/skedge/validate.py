@@ -82,8 +82,8 @@ def _check_exclusions(declaration: ast.Declaration, hard: bool) -> None:
 
 def _settled(selector: ast.Selector) -> None:
     """Nothing in an EXCLUDE is the solver's to pick: it is either so or it is not."""
-    if selector.quantifier == ast.ANY_OF:
-        raise _error("EXCLUDE says who is away, so nothing in it is ANY_n_OF", selector.pos)
+    if selector.quantifier == ast.ANY_OF or ast.picks(selector.expr):
+        raise _error("EXCLUDE says who is away, so nothing in it is ANY n", selector.pos)
 
 
 def _check_line(line: ast.Line) -> None:
@@ -124,7 +124,7 @@ def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target) -> None:
             if selector.quantifier != ast.ANY_OF or selector.n < 2:
                 raise _error(
                     "CONSECUTIVE after DURING chooses blocks next to each other, so it needs "
-                    "ANY_n_OF with n of 2 or more",
+                    "ANY n with n of 2 or more",
                     clause.pos,
                 )
         if isinstance(clause, ast.AsRole) and not isinstance(what, ast.Selector):
@@ -136,16 +136,19 @@ def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target) -> None:
                 raise _error("FREE has no instance", clause.pos)
             if clause.selector.quantifier == ast.EACH_OF:
                 raise _error(
-                    f"{CLAUSE_NAMES[type(clause)]} takes ALL_OF or ANY_n_OF, not EACH_OF",
+                    f"{CLAUSE_NAMES[type(clause)]} takes ALL_OF or ANY n, not EACH_OF",
                     clause.selector.pos,
                 )
 
 
 def _one_at_a_time(selector: ast.Selector | ast.Task | None) -> None:
-    """The activity and role of a requirement take an item, ANY_1_OF or EACH_OF."""
+    """The activity and role of a requirement take an item, ANY 1 or EACH_OF, and no group."""
     if not isinstance(selector, ast.Selector):
         return
-    if selector.quantifier == ast.ALL_OF or (selector.quantifier == ast.ANY_OF and selector.n > 1):
+    several = selector.quantifier == ast.ALL_OF or (
+        selector.quantifier == ast.ANY_OF and selector.n > 1
+    )
+    if several or any(ast.groups_in(selector.expr)):
         raise _error("one activity at a time", selector.pos)
 
 

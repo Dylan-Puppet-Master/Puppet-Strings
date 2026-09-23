@@ -1,7 +1,7 @@
 """Syntax tree for a Skedge declaration, as produced by the parser."""
 
-from collections.abc import Iterator
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import date
 
 from puppet_strings.skedge.namespaces import ACTIVITIES, BLOCKS, DATES, ROLES, STAFF
@@ -44,7 +44,7 @@ class Ref:
 
 @dataclass(frozen=True)
 class Var:
-    """A bare identifier bound by `EACH_OF x IN …` or `ANY_n_OF x IN …`."""
+    """A bare identifier bound by `EACH_OF x IN …`, `ANY n x IN …` or `x: …`."""
 
     name: str
     pos: Pos
@@ -95,7 +95,22 @@ class Call:
     pos: Pos
 
 
-SetExpr = Ref | Var | DateLiteral | DateOffset | DateRange | SetOp | Call
+@dataclass(frozen=True)
+class Group:
+    """`(ALL_OF s)` or `(ANY n s)` inside a set: one part of it, taken the way it says.
+
+    Added into a set taken whole, it brings its own members, all of them or the n chosen.
+    Inside `ANY n` it is one of the things chosen from: `ANY 1 {staff.x + (ALL_OF s)}` is
+    x, or else everyone in s.
+    """
+
+    quantifier: str
+    n: int | None
+    expr: "SetExpr"
+    pos: Pos
+
+
+SetExpr = Ref | Var | DateLiteral | DateOffset | DateRange | SetOp | Call | Group
 
 
 @dataclass(frozen=True)
@@ -132,7 +147,7 @@ class Clause:
 
 @dataclass(frozen=True)
 class During(Clause):
-    """`DURING <blocks>`, and with `consecutive`, `DURING ANY_n_OF <blocks> CONSECUTIVE`."""
+    """`DURING <blocks>`, and with `consecutive`, `DURING ANY n <blocks> CONSECUTIVE`."""
 
     selector: Selector
     consecutive: bool = False
@@ -161,7 +176,7 @@ class For(Clause):
 
 @dataclass(frozen=True)
 class With(Clause):
-    """`WITH <staff>`: one name, or ALL_OF or ANY_n_OF a set."""
+    """`WITH <staff>`: one name, or ALL_OF or ANY n of a set."""
 
     selector: Selector
 
@@ -252,9 +267,22 @@ Statement = Requirement | Count | Score | Exclude
 
 @dataclass(frozen=True)
 class Binding:
-    """`EACH_OF x IN s` or `ANY_n_OF x IN s` on a line of its own."""
+    """`EACH_OF x IN s` or `ANY n x IN s` on a line of its own, or `x: ANY n s`."""
 
     selector: Selector
+    pos: Pos
+
+
+@dataclass(frozen=True)
+class Definition:
+    """`x: <set>`: a name for a set.
+
+    The parser writes the set in wherever the name is used and drops the line, so nothing
+    after the parser ever sees one.
+    """
+
+    name: str
+    expr: SetExpr
     pos: Pos
 
 
@@ -407,8 +435,64 @@ def nodes(expr: SetExpr) -> Iterator[SetExpr]:
     elif isinstance(expr, Call):
         for arg in expr.args:
             yield from nodes(arg)
+    elif isinstance(expr, Group):
+        yield from nodes(expr.expr)
 
 
 def vars_in(expr: SetExpr) -> Iterator[Var]:
     """The variables an expression mentions."""
     return (node for node in nodes(expr) if isinstance(node, Var))
+
+
+def groups_in(expr: SetExpr) -> Iterator[Group]:
+    """The groups an expression holds, at any depth."""
+    return (node for node in nodes(expr) if isinstance(node, Group))
+
+
+def picks(expr: SetExpr) -> bool:
+    """Whether an expression holds an `(ANY n …)` group, which the solver chooses from."""
+    return any(group.quantifier == ANY_OF for group in groups_in(expr))
+
+
+def chooses(selector: Selector) -> bool:
+    """Whether a selector takes its set some way, ALL_OF or ANY n, rather than matching it."""
+    return selector.quantifier in (ALL_OF, ANY_OF) or picks(selector.expr)
+
+
+def substitute(node, found: Callable[[Var], SetExpr | None]):
+    """A node with every variable `found` knows replaced by what it gives, all the way down."""
+    if isinstance(node, Var):
+        return found(node) or node
+    if isinstance(node, tuple):
+        new = tuple(substitute(x, found) for x in node)
+        return node if all(a is b for a, b in zip(new, node, strict=True)) else new
+    if is_dataclass(node) and not isinstance(node, Pos):
+        changed = {}
+        for f in fields(node):
+            old = getattr(node, f.name)
+            new = substitute(old, found)
+            if new is not old:
+                changed[f.name] = new
+        return replace(node, **changed) if changed else node
+    return node
+
+
+def spoken(expr: SetExpr) -> str:
+    """A set expression written out the way it would be typed."""
+    if isinstance(expr, Ref):
+        return f"{expr.namespace}.{expr.name}"
+    if isinstance(expr, Var):
+        return expr.name
+    if isinstance(expr, DateLiteral):
+        return expr.value.isoformat()
+    if isinstance(expr, DateOffset):
+        sign = "+" if expr.days >= 0 else "-"
+        return f"{spoken(expr.base)} {sign} {abs(expr.days)}d"
+    if isinstance(expr, DateRange):
+        return f"{{{spoken(expr.start)} .. {spoken(expr.end)}}}"
+    if isinstance(expr, SetOp):
+        return f"{{{spoken(expr.left)} {expr.op} {spoken(expr.right)}}}"
+    if isinstance(expr, Call):
+        return f"{spoken(expr.mapping)}({', '.join(spoken(a) for a in expr.args)})"
+    quantifier = f"ANY {expr.n}" if expr.quantifier == ANY_OF else expr.quantifier
+    return f"({quantifier} {spoken(expr.expr)})"

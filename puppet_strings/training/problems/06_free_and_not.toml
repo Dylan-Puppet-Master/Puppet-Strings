@@ -36,7 +36,7 @@ priority = "MUST_HAPPEN"
 hints = ["Free in every block: FREE DURING ALL_OF blocks.all."]
 alternatives = ["REQUEST staff.vic FREE DURING ALL_OF blocks.all ON 2026-08-06", "REQUEST staff.vic FREE DURING EACH_OF blocks.all ON 2026-08-06"]
 explain = "FREE is somebody at camp with nothing to do. Somebody away for the day is an EXCLUDE, which comes later."
-wrong = ["REQUEST staff.vic FREE DURING ANY_1_OF blocks.all ON 2026-08-06"]
+wrong = ["REQUEST staff.vic FREE DURING ANY 1 blocks.all ON 2026-08-06"]
 
 [[problem]]
 id = "free-not-free"
@@ -84,14 +84,14 @@ prompt = "None of the directors runs Felting today."
 answer = "REQUEST ALL_OF staff.directors NOT DO activities.clinics.felting"
 explain = "The subject of NOT still chooses. ALL_OF staff.directors NOT DO … is 'none of them does it'."
 alternatives = ["REQUEST ALL_OF {staff.david + staff.lisa + staff.matthew} NOT DO activities.clinics.felting"]
-wrong = ["REQUEST ANY_1_OF staff.directors NOT DO activities.clinics.felting"]
+wrong = ["REQUEST ANY 1 staff.directors NOT DO activities.clinics.felting"]
 
 [[problem]]
 id = "free-one-of-them-not"
 title = "At least one stays off"
 prompt = "At least one of Rob and Vic stays off the canopy tour today."
-answer = "REQUEST ANY_1_OF {staff.rob + staff.vic} NOT DO activities.clinics.canopy_tour_dbl"
-explain = "ANY_1_OF on the left of NOT is 'one of them doesn't' — the solver picks who."
+answer = "REQUEST ANY 1 {staff.rob + staff.vic} NOT DO activities.clinics.canopy_tour_dbl"
+explain = "ANY 1 on the left of NOT is 'one of them doesn't' — the solver picks who."
 wrong = ["REQUEST ALL_OF {staff.rob + staff.vic} NOT DO activities.clinics.canopy_tour_dbl"]
 
 [[problem]]
@@ -99,13 +99,13 @@ id = "free-two-blocks"
 title = "Free for the afternoon"
 prompt = "Kara is free during both clinic 3 and clinic 4."
 answer = "REQUEST staff.kara FREE DURING ALL_OF {blocks.clinic_3 + blocks.clinic_4}"
-wrong = ["REQUEST staff.kara FREE DURING ANY_1_OF {blocks.clinic_3 + blocks.clinic_4}"]
+wrong = ["REQUEST staff.kara FREE DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}"]
 
 [[problem]]
 id = "free-any-clinic-block"
 title = "One free clinic"
 prompt = "Mogee gets one clinic block free today — any of the four."
-answer = "REQUEST staff.mogee FREE DURING ANY_1_OF blocks.all_clinics"
+answer = "REQUEST staff.mogee FREE DURING ANY 1 blocks.all_clinics"
 wrong = ["REQUEST staff.mogee FREE DURING ALL_OF blocks.all_clinics"]
 
 [[problem]]
