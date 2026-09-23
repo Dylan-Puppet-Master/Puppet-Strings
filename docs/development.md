@@ -40,6 +40,15 @@ puppet-strings export-fixtures /tmp/export
 then copy and trim the tabs you need. Keep the fixture small; every parser test names
 specific rows.
 
+## Refreshing the screenshots
+
+```
+python tools/screenshots.py
+```
+
+retakes every image in `docs/img` in the app's dark palette, offscreen, from a scratch copy
+of the fixtures. Run it after a change to the window, so the docs show the app as it is.
+
 ## Changing a sheet format
 
 1. Change the parser in `puppet_strings/sheets/<sheet>.py`. Each is a pure function from a
