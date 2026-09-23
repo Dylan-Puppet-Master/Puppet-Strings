@@ -336,7 +336,7 @@ Evaluation order is fixed:
 1. Every `EACH_OF` in the declaration splits it into copies, one per member; several give
    every combination. Each copy is an independent request with its own satisfaction,
    reported under `id[item, …]`. `EACH_OF` over an empty set gives no copies, and the
-   request is reported as inactive.
+   request is inactive.
 2. Within a copy, each `ANY n` is one choice, made once.
 3. Every chosen staff member then does the chosen activity in **every** chosen block on
    **every** chosen date.

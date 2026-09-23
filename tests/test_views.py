@@ -229,6 +229,7 @@ def test_colour_wraps_round_when_a_palette_runs_out():
 
 
 def test_report():
+    """Inactive requests are not listed: doing nothing on a date they are not about is right."""
     result = Result(
         feasible=True,
         unsatisfied=(
@@ -242,7 +243,6 @@ def test_report():
         ["status", "request", "priority", "description"],
         ["unsatisfied", "offering:salsa:clinic_4", "CLINIC", "Salsa in clinic_4"],
         ["deferred", "maintenance", "LOW", "archery maintenance"],
-        ["inactive", "old", "HIGH", "last week"],
         ["note", "", "", "tier LOW hit the time limit; its score may not be optimal"],
     ]
     assert report(Result(feasible=False, conflicts=("a", "b")))[1:] == [

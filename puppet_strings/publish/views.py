@@ -298,7 +298,10 @@ def _timed(dataset: Dataset, a: Assignment) -> str:
 
 
 def report(result: Result) -> Table:
-    """Unsatisfied, deferred and inactive requests, conflicts, and the solver's notes.
+    """Unsatisfied and deferred requests, conflicts, and the solver's notes.
+
+    Inactive requests are left out: a request about other dates doing nothing today is
+    what it should be doing, and a row for each of them buried the ones that matter.
 
     One row per request, not per copy. `EACH_OF` splits a request into a copy per date,
     per block or per clinic position, and a clinic nobody can staff fails every one of its
@@ -311,7 +314,6 @@ def report(result: Result) -> Table:
     listed = (
         ("unsatisfied", result.unsatisfied),
         ("deferred", result.deferred),
-        ("inactive", result.inactive),
     )
     for status, outcomes in listed:
         for outcome, keys in _per_request(outcomes):

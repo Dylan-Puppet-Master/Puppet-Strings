@@ -82,9 +82,9 @@ rest of a partly used block `DYOW/WPs` (the wording is `remainder` under `[views
 `config.toml`).
 
 After each solve the report lists every soft request that was not satisfied, every
-deferrable request that was put off, every request that was inactive (its dates all past
-or all future, or an `EACH_OF` over nothing), and, if the hard requests conflict, their
-ids.
+deferrable request that was put off, and, if the hard requests conflict, their ids. A
+request that is inactive (its dates all past or all future, or an `EACH_OF` over nothing)
+is not listed.
 
 It also carries notes about the time limit. Each pass after the first starts from a
 schedule that already works, so a pass that runs out of time keeps that schedule and says
