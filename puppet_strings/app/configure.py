@@ -149,7 +149,7 @@ class ConfigureDialog(QDialog):
     def _training_box(self) -> QGroupBox:
         box = QGroupBox("Skedge training")
         row = QHBoxLayout(box)
-        note = QLabel("Practise writing requests on a sample session. No account needed.")
+        note = QLabel("Practise writing requests on a sample session. No internet connection needed.")
         self.training_button = QPushButton("Open trainer")
         self.training_button.clicked.connect(self.open_trainer)
         row.addWidget(note, stretch=1)
