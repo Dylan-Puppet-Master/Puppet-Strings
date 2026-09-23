@@ -15,6 +15,8 @@ from puppet_strings.model import (
     CARDINAL_WORDS,
     LIFEGUARD_ROLES,
     POSITION_ROLES,
+    SESSION_TARGET,
+    TARGET,
     TRAINEE_ROLES,
     WEEK_PREFIX,
     Dataset,
@@ -243,6 +245,7 @@ class _Names:
 
     def __init__(self, dataset: Dataset) -> None:
         roles = POSITION_ROLES + LIFEGUARD_ROLES + TRAINEE_ROLES + (TRAINEE,)
+        self.dataset = dataset
         self.spaces: dict[str, dict[str, Named]] = {
             STAFF: _members(dataset.staff, dataset.staff_categories),
             ACTIVITIES: activity_names(dataset),
@@ -261,6 +264,14 @@ class _Names:
         try:
             return self.spaces[namespace][ref.name]
         except KeyError:
+            if namespace == DATES and ref.name.split(".")[0] == SESSION_TARGET:
+                raise ast.NoSession(
+                    f"'{namespace}.{ref.name}' names no dates: {self.dataset.target} is in "
+                    f"{self.dataset.this_span.name}, which is not a session. "
+                    "The request is skipped when this date is solved",
+                    ref.pos.line,
+                    ref.pos.column,
+                ) from None
             raise _error(
                 f"unknown name '{namespace}.{ref.name}'{self._suggest(namespace, ref.name)}",
                 ref.pos,
@@ -345,14 +356,25 @@ def date_names(dataset: Dataset) -> dict[str, Named]:
         dates.session_four.week_two.monday   one date
         dates.family_camp.all                a span that is not a numbered session
 
-    Every name here is the same on every day of the season, and every one of them says
-    which span it means. `dates.target` is the only name that follows the date being
-    scheduled; a request about "this session" names the session.
+    Those names are the same on every day of the season. The ones with `target` in them
+    follow the date being scheduled: `dates.target` itself, the session it falls in,
+    `dates.session_target`, and the week of that session it falls in, `week_target`. A date
+    outside the main season has no session, so there the session names do not exist.
     """
-    names = {"target": Named(frozenset({dataset.target}), True)}
+    names = {TARGET: Named(frozenset({dataset.target}), True)}
     _add(names, "season", _span_names(dataset.season_dates))
     for span in dataset.spans:
         _add(names, span.date_name, _one_span(dataset, span))
+    if dataset.session is not None:
+        _add(names, SESSION_TARGET, _target_session(dataset))
+    return names
+
+
+def _target_session(dataset: Dataset) -> dict[str, Named]:
+    """The session the target falls in, as its number names it, and its week holding the target."""
+    session = dataset.this_span
+    names = _one_span(dataset, session)
+    _add(names, f"{WEEK_PREFIX}{TARGET}", _week_names(dataset.week_dates))
     return names
 
 

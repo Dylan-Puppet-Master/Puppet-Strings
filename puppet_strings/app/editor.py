@@ -24,7 +24,7 @@ from puppet_strings.app import palette
 from puppet_strings.model import SCOPES, WRITABLE_PRIORITIES, Dataset, Priority, Request, Scope
 from puppet_strings.names import normalize
 from puppet_strings.requests_db import DEFAULT_SCOPE, describe
-from puppet_strings.skedge.ast import SkedgeError
+from puppet_strings.skedge.ast import NoSession, SkedgeError
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
 
@@ -395,6 +395,10 @@ class RequestEditor(QWidget):
         request = self.current()
         try:
             copies = validate_request(request, self.dataset)
+        except NoSession as e:  # right on a session's dates, so it can still be saved
+            self._report(str(e), ok=None)
+            self.save_button.setEnabled(True)
+            return True
         except SkedgeError as e:
             return self._report(str(e), ok=False)
         keys = {c.key for c in copies if c.key}

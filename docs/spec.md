@@ -267,6 +267,8 @@ same names, and a span's weeks are its days seven at a time from the start.
 | `dates.session_one.all` … `dates.session_twenty.all` | set | a `main season` row, numbered in sheet order |
 | `dates.<name>.all` | set | any other row, by its `name` column normalized |
 | `dates.<span>.week_one.all` … `.week_twenty.all` | set | that week of that span |
+| `dates.session_target.all` | set | the session `dates.target` falls in; absent outside the main season |
+| `dates.session_target.week_target.all` | set | the week of that session `dates.target` falls in |
 
 | Name within any span | Kind | Holds |
 |---|---|---|
@@ -284,8 +286,11 @@ A name exists only if the span reaches it: `dates.session_two.week_two.all` is a
 when session 2 runs to a second week. At most 20 main season rows and 20 weeks per span.
 
 There are no `first_monday` / `last_friday` names and no cross-session `first_mondays`
-sets: a week's weekday is how an occurrence is named. There is no `this` span or `this`
-week either — every date name but `dates.target` says outright which span it means.
+sets: a week's weekday is how an occurrence is named. Only `dates.target`,
+`dates.session_target` and its `week_target` follow the date being scheduled; every other
+date name says outright which span it means. A request naming `dates.session_target` on a
+date in no session is invalid on that date and is left out of its solve, not an error that
+stops it.
 
 `roles.trainee` resolves per staff member from the Skills sheet: checked off or needing a
 scaffold becomes `scaffolded`, needing a shadow or no checkoff becomes `shadow`.

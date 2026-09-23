@@ -1,12 +1,13 @@
 import shutil
 import sqlite3
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
 import pytest
 
 from puppet_strings.config import Config
-from puppet_strings.model import Request
+from puppet_strings.model import Request, Span
 from puppet_strings.requests_db import FIXTURE_FILE, RequestDb
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.source import CsvSource
@@ -56,3 +57,12 @@ def delete_requests(folder: Path, where: str, *args) -> None:
     """Take rows out of a fixture folder's requests file, as another program might."""
     with sqlite3.connect(folder / FIXTURE_FILE) as db:
         db.execute(f"DELETE FROM requests WHERE {where}", args)
+
+
+def family_camp(dataset):
+    """The dataset scheduling a day of a span that is not a session."""
+    camp = Span("Family Camp", "family_camp", date(2026, 10, 4), date(2026, 10, 7), "other")
+    calendar = {**dataset.calendar, **{d: camp.day(d) for d in camp.dates}}
+    return replace(
+        dataset, spans=(*dataset.spans, camp), calendar=calendar, target=date(2026, 10, 5)
+    )

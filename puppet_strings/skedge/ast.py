@@ -25,6 +25,14 @@ class SkedgeError(Exception):
         self.column = column
 
 
+class NoSession(SkedgeError):
+    """A `dates.session_target` name on a date that is in no session.
+
+    The request is fine on the dates that are in one, so it is not wrong, only about
+    nothing today: it is shown as invalid, and the solver leaves it out rather than stop.
+    """
+
+
 @dataclass(frozen=True)
 class Pos:
     """Line and column of a node, 1-based."""

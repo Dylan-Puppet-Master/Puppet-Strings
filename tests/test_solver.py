@@ -4,7 +4,7 @@ from datetime import timedelta
 import pytest
 
 from puppet_strings.config import Config
-from puppet_strings.model import Priority
+from puppet_strings.model import Priority, Request
 from puppet_strings.solver.solve import RequestError, solve
 from tests.build import (
     BLOCKS,
@@ -22,6 +22,7 @@ from tests.build import (
     request,
     staff,
 )
+from tests.conftest import family_camp
 
 CONFIG = Config(time_limit_seconds=10, workers=4)
 
@@ -1665,3 +1666,16 @@ def test_a_position_may_name_a_category():
     result = run(ds)
     assert result.feasible
     assert [a.staff for a in result.assignments if a.activity == act.id] == ["rob"]
+
+
+def test_a_target_session_request_is_skipped_on_a_date_in_no_session(dataset):
+    """It is right on a session's dates, so the day is solved without it rather than not at all."""
+    camp = family_camp(dataset)
+    request = Request(
+        "camp-1",
+        "",
+        "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON dates.session_target.all",
+        Priority.HIGH,
+    )
+    result = solve(replace(camp, requests=(request,)))
+    assert result.feasible and ids(result.inactive) == ["camp-1"]

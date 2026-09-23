@@ -261,9 +261,11 @@ DAY_TYPES = (FIRST_DAY, LAST_DAY, WEEKDAY, WEEKEND)
 DAYS_PER_WEEK = 7
 SESSION_PREFIX = "session_"  # `dates.session_four`
 WEEK_PREFIX = "week_"  # `dates.session_four.week_two`
+TARGET = "target"  # `dates.target`, and `session_target` and `week_target` around it
+SESSION_TARGET = f"{SESSION_PREFIX}{TARGET}"
 # `dates.<name>` a row that is not a numbered session cannot be called, since these are taken
 RESERVED_DATE_NAMES = frozenset(
-    {"season", "target", *(f"{SESSION_PREFIX}{word}" for word in CARDINAL_WORDS)}
+    {"season", TARGET, SESSION_TARGET, *(f"{SESSION_PREFIX}{w}" for w in CARDINAL_WORDS)}
 )
 
 

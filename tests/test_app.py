@@ -25,7 +25,7 @@ from puppet_strings.app.store import RequestStore  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
 from puppet_strings.model import Rest  # noqa: E402
 from puppet_strings.sheets.source import CsvSource, LoadError  # noqa: E402
-from tests.conftest import FIXTURES, delete_requests, saved_requests  # noqa: E402
+from tests.conftest import FIXTURES, delete_requests, family_camp, saved_requests  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -95,6 +95,18 @@ def test_table_and_filters(window):
     window.date_filter.setDate(QDate(2026, 9, 19))
     ids = visible_ids(window)
     assert "dylan-off-ropes" not in ids and "breaks" in ids
+
+
+def test_a_target_session_name_can_be_saved_on_a_date_in_no_session(window):
+    """It names no dates on this one, but is right on a session's, so Save stays on."""
+    editor = window.editor
+    editor.clear()
+    editor.dataset = family_camp(editor.dataset)
+    editor.skedge_edit.setPlainText(
+        "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON dates.session_target.all"
+    )
+    assert editor.validate() and editor.save_button.isEnabled()
+    assert "which is not a session" in editor.status.text()
 
 
 def test_editor_validation_and_save(window):

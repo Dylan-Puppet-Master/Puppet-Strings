@@ -6,7 +6,7 @@ from puppet_strings.config import Config
 from puppet_strings.exclude import apply_exclusions
 from puppet_strings.model import Assignment, Dataset, Priority, Request, minute_to_time
 from puppet_strings.skedge import ast
-from puppet_strings.skedge.ast import SkedgeError
+from puppet_strings.skedge.ast import NoSession, SkedgeError
 from puppet_strings.skedge.resolve import Count, Exclusion, Requirement, Resolved
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.compile import SCALE, Compiled, Compiler
@@ -54,6 +54,8 @@ def solve(
     for request in dataset.requests:
         try:
             resolved = validate_request(request, dataset)
+        except NoSession:
+            continue  # about the session being scheduled, and this date is in none
         except SkedgeError as e:
             raise RequestError(request, e) from e
         copies += [(request, copy) for copy in resolved]

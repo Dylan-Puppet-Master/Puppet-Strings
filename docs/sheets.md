@@ -221,7 +221,7 @@ Skedge: the first is `dates.session_one.all`, the second `dates.session_two.all`
 else is reached by its name, as `dates.family_camp.all`. Inserting a main season row
 renumbers the ones after it, so a request naming `dates.session_four` follows the sheet.
 A row that is not main season cannot be named so that it would read as one of the other
-date names — `Season`, `Target`, `Session Four` — and a load says so.
+date names — `Season`, `Target`, `Session Four`, `Session Target` — and a load says so.
 
 The target date must be one of these spans. It is the first thing checked on every load,
 before any other sheet is read, because no block exists on a day camp is not running and so

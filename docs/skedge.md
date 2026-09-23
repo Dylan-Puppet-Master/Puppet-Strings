@@ -97,10 +97,17 @@ Main season rows are numbered in sheet order and named by number in words — `s
 its `name` column, so a row called Family Camp is `dates.family_camp`. Every step of a date
 name is a span, a week or a date; nothing in the tree is only there to hold the rest.
 
-**Every date name says which span it means.** There is no `this` session or `this` week: a
-request about the session being scheduled names that session. `dates.target` is the only
-name that follows the date on the toolbar, which is why a request reads the same whenever
-you open it.
+**Only the names with `target` in them follow the date on the toolbar.** `dates.target` is
+that date, `dates.session_target` is the session it falls in, and
+`dates.session_target.week_target` is the week of that session it falls in. They carry the
+same names as any other session and week, so `dates.session_target.mondays` is every Monday
+of the session being scheduled. Every other date name says outright which span it means, and
+reads the same whenever you open it.
+
+A date outside the main season, such as a day of Family Camp, is in no session, so on that
+date `dates.session_target` names nothing. A request that uses it is shown as invalid and
+is left out of that day's solve; it can still be saved, and it applies again on the next
+date that is in a session.
 
 Every span carries these:
 

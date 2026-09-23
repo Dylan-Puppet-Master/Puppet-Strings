@@ -22,7 +22,7 @@ from puppet_strings.requests_db import FIXTURE_FILE, RequestDb, open_requests
 from puppet_strings.session import open_source
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.source import CsvSource, LoadError, Source, Table
-from puppet_strings.skedge.ast import SkedgeError
+from puppet_strings.skedge.ast import NoSession, SkedgeError
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.solve import RequestError, solve
@@ -176,6 +176,8 @@ def _validate(dataset: Dataset) -> int:
     for request in dataset.requests:
         try:
             validate_request(request, dataset)
+        except NoSession as e:
+            print(f"{request.id}: {e}")  # skipped by the solve, which still runs
         except SkedgeError as e:
             failures += 1
             print(f"{request.id}: {e}")

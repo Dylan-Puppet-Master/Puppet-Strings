@@ -17,6 +17,7 @@ from puppet_strings.skedge.resolve import (
     name_listing,
 )
 from puppet_strings.skedge.validate import validate_request
+from tests.conftest import family_camp
 
 
 def resolve(dataset, skedge, priority=Priority.HIGH):
@@ -203,6 +204,28 @@ def test_weeks_of_a_session(dataset):
         on(dataset, "dates.session_two.week_two.all")
     with pytest.raises(SkedgeError, match="did you mean 'dates.session_one.week_one.all'"):
         on(dataset, "dates.session_one.week_one.al")
+
+
+def test_the_target_session_and_week_follow_the_target(dataset):
+    """On 2026-09-16 the target is in session one's first week."""
+    assert on(dataset, "dates.session_target.all") == on(dataset, "dates.session_one.all")
+    assert on(dataset, "dates.session_target.mondays") == on(dataset, "dates.session_one.mondays")
+    assert on(dataset, "dates.session_target.week_two.monday", item=True) == (date(2026, 9, 21),)
+    assert on(dataset, "dates.session_target.week_target.all") == dataset.session_dates[:7]
+    assert on(dataset, "dates.session_target.week_target.friday", item=True) == (date(2026, 9, 18),)
+    later = replace(dataset, target=date(2026, 9, 29))
+    assert on(later, "dates.session_target.all") == on(later, "dates.session_two.all")
+    assert on(later, "dates.session_target.week_target.monday", item=True) == (date(2026, 9, 28),)
+
+
+def test_a_date_in_no_session_has_no_target_session(dataset):
+    camp = family_camp(dataset)
+    assert on(camp, "dates.family_camp.all") == tuple(date(2026, 10, d) for d in range(4, 8))
+    with pytest.raises(ast.NoSession, match="2026-10-05 is in Family Camp, which is not a session"):
+        on(camp, "dates.session_target.week_target.all")
+    with pytest.raises(SkedgeError) as caught:  # any other name is wrong in the usual way
+        on(camp, "dates.session_one.week_nine.all")
+    assert not isinstance(caught.value, ast.NoSession)
 
 
 def test_roles(dataset):
