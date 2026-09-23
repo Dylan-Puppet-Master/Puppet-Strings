@@ -155,7 +155,7 @@ def test_the_budget_is_for_the_whole_solve_not_each_pass(monkeypatch):
         return real(self, model, *args, **kwargs)
 
     monkeypatch.setattr(cp_model.CpSolver, "Solve", note_the_limit)
-    result = solve(build(), Config(time_limit_seconds=10, tidy_seconds=2, workers=4))
+    result = solve(build(), Config(time_limit_seconds=10, tidy_seconds=5, workers=4))
     assert result.feasible
     assert len(asked) > 2
     # the first pass gets the budget less what is held back for the placement pass

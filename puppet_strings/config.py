@@ -57,7 +57,7 @@ class Config:
     date_order: str = MONTH_FIRST  # how to read 6/7/2026 on a sheet that writes dates so
     remainder: str = DEFAULT_REMAINDER
     time_limit_seconds: float = 30.0
-    tidy_seconds: float = 2.0
+    tidy_seconds: float = 5.0
     workers: int = 8
     random_seed: int = 0
 
