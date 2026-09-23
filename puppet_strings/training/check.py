@@ -27,6 +27,7 @@ day the solver could find told them apart. Every problem's answer and alternativ
 through this in the test suite, alongside answers that must be told apart.
 """
 
+import os
 import random
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
@@ -59,6 +60,7 @@ FILLER = "other duties"  # what the universe keeps somebody busy with, when not 
 MOST_DOERS = 12  # people offered the named tasks in a universe, beyond what is asked of them
 MOST_ACTIVITIES = 8  # a category of clinics is sampled down to this many
 SECONDS = 1.5  # for one sample; any schedule will do, so a good one is plenty
+WORKERS = 4  # threads for one sample
 
 
 @dataclass(frozen=True)
@@ -359,14 +361,17 @@ def _tell_apart(dataset: Dataset, answer, expected, priority: Priority, rng: ran
     # are checked against the answer's model, and the other way round. Each is built once;
     # a sample only changes what it aims for. The two take turns, so that a difference the
     # fullest day shows in the second is found before the first has run through its aims.
-    # The two samples of one aim are separate models, so they are solved side by side; they
-    # are aimed, and then judged, in the same order as if they took turns.
+    # The two samples of one aim are separate models, so on a computer with the cores for
+    # both they are solved side by side; they are aimed, and then judged, in the same order
+    # as if they took turns. With fewer cores they do take turns: a sample has a fixed time,
+    # and sharing the cores would leave each one weaker, which is a wrong answer passed.
     requiring = {
         False: _build(dataset, expected, answer, universe),
         True: _build(dataset, answer, expected, universe),
     }
     live = [False, True]  # whether the day being sampled is one the answer meets
-    with ThreadPoolExecutor(max_workers=len(live)) as pool:
+    side_by_side = _cores() >= 2 * WORKERS
+    with ThreadPoolExecutor(max_workers=len(live) if side_by_side else 1) as pool:
         for aim in AIMS:
             aimed = [(side, _aim(requiring[side], universe, rng, aim)) for side in live]
             samples = pool.map(lambda job: _sample(requiring[job[0]], job[1]), aimed)
@@ -638,10 +643,18 @@ def _meets(built: _Built, sample: _Sample) -> bool:
     return _solver(random.Random(0)).Solve(model) != cp_model.INFEASIBLE
 
 
+def _cores() -> int:
+    """The cores this process may run on, which a container or a CI runner may limit."""
+    try:
+        return len(os.sched_getaffinity(0))
+    except AttributeError:  # not on every system
+        return os.cpu_count() or 1
+
+
 def _solver(rng: random.Random) -> cp_model.CpSolver:
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = SECONDS
-    solver.parameters.num_workers = 4
+    solver.parameters.num_workers = WORKERS
     solver.parameters.random_seed = rng.randrange(1 << 16)
     return solver
 
