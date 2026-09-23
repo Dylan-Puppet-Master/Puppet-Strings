@@ -6,13 +6,16 @@ teaches = """
 REQUEST activities.clinics.riflery DURING blocks.clinic_2
 REQUEST staff.dylan DO activities.clinics.archery_1_2 DURING blocks.clinic_2
 REQUEST staff.alan DO activities.clinics.climbing_wall AS_ROLE roles.first DURING blocks.clinic_1
-REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act
+REQUEST EACH_OF activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
+REQUEST EACH_OF activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
 
 • An activity knows who may run it (its positions need skills), so it
   needs no DO: REQUEST <activity> DURING <block> asks for it, fully staffed
 • AS_ROLE picks a position: roles.first, roles.second, …
 • roles.trainee is a trainee alongside the positions
 • A cabin act belongs to one day, so activities.cabin_acts.p4 is today's P4
+• An act titled "RH: …" runs at rest hour: it is in cabin_acts.at_rest_hour,
+  and the rest are in cabin_acts.at_cabin_act
 """
 
 [[problem]]
@@ -118,11 +121,24 @@ wrong = ["REQUEST activities.cabin_acts.p2 DURING blocks.cabin_act"]
 [[problem]]
 id = "clinic-all-cabin-acts"
 title = "The whole board"
-prompt = "Every cabin act on today's board runs during the cabin act block, each as its own request."
-answer = "REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act"
+prompt = "Every cabin act on today's board that isn't moved to rest hour runs during the cabin act block, each as its own request."
+answer = "REQUEST EACH_OF activities.cabin_acts.at_cabin_act DURING blocks.cabin_act"
 priority = "HIGH"
-explain = "One line asks for the whole board. Each act is met or missed on its own."
-wrong = ["REQUEST EACH_OF activities.cabin_acts.all DURING blocks.rest_hour"]
+explain = "One line asks for that part of the board. Each act is met or missed on its own."
+wrong = [
+    "REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act",
+    "REQUEST EACH_OF activities.cabin_acts.at_cabin_act DURING blocks.rest_hour",
+]
+
+[[problem]]
+id = "clinic-rest-hour-acts"
+title = "The rest hour acts"
+prompt = "Every cabin act the board moved to rest hour runs then, each as its own request."
+answer = "REQUEST EACH_OF activities.cabin_acts.at_rest_hour DURING blocks.rest_hour"
+priority = "HIGH"
+hints = ["The acts titled \"RH: …\" are activities.cabin_acts.at_rest_hour."]
+explain = "Today that's P2's act. The cabin rests during the cabin act block instead."
+wrong = ["REQUEST EACH_OF activities.cabin_acts.at_rest_hour DURING blocks.cabin_act"]
 
 [[problem]]
 id = "clinic-cabin-o4-rest"
