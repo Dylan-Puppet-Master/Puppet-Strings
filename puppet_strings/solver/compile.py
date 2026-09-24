@@ -58,6 +58,8 @@ DEFER_BONUS = 1  # for acting early on a deferrable request; sits in the last ti
 MINUTES_PER_DAY = 24 * 60
 MINUTES_PER_HOUR = 60
 FIELDS = {"staff": "who", "activity": "what", "date": "on", "block": "during"}
+_MATCH_FIELD = {"staff": "staff", "activity": "activity", "date": "date", "block": "block"}
+EXACT, ABOVE, BELOW = "exact", "above", "below"  # what a literal must say of what it stands for
 
 
 @dataclass(frozen=True)
@@ -1037,10 +1039,10 @@ class Compiler:
             later = [lit for item, lit in chosen.items() if _day(field, item) > self.dataset.target]
             deferred.append(self._any_of(later, f"{name}:later"))
         if choice.bound != ast.AT_LEAST:
-            holds = self._each_holds(st, level, rest, pattern, name)
+            holds = self._each_holds(st, level, rest, pattern, name, ABOVE)
             if choice.consecutive:
-                for i, window in enumerate(self._windows_of(level, holds, pattern, choice.n + 1)):
-                    self._imply([active], _negate(self._all_of(window, f"{name}:long{i}")))
+                for window in self._windows_of(level, holds, pattern, choice.n + 1):
+                    self._imply([active, *window], False)  # not every block of it
             else:
                 terms, constant = _split(list(holds.values()))
                 self._add(sum(terms) + constant <= choice.n, [active])
@@ -1070,19 +1072,105 @@ class Compiler:
             for i, unit in enumerate(self._units(pattern))
         ]
 
-    def _each_holds(self, st: Tally, level: Level, rest, pattern: Pattern, name: str) -> dict:
-        """A literal per thing a count counts: each item, and each group, all of it."""
-        holds = {}
-        for item in self._counted(level, pattern).items:
+    def _each_holds(
+        self, st: Tally, level: Level, rest, pattern: Pattern, name: str, sense: str = EXACT
+    ) -> dict:
+        """A literal per thing a count counts: each item, and each group, all of it.
+
+        `sense` is what the caller needs of the literals: EXACT both ways, ABOVE only that
+        each is true when its item holds (enough for a cap), BELOW only that it is false
+        when it does not (enough to reach a floor). Half of an equivalence is a smaller model
+        that the solver propagates better.
+        """
+        direct = self._holds_by_item(st, level, rest, pattern, name, sense)
+
+        def holds_at(item) -> Literal:
+            if direct is not None:
+                return direct.get(item, False)
             fixed = _fixed(pattern, level.field, item)
-            holds[item] = self._reify_levels(st, rest, fixed, f"{name}:{item}")
+            return self._reify_levels(st, rest, fixed, f"{name}:{item}")
+
+        if direct is not None:
+            holds = dict(direct)  # an item with nothing that could match it holds for no one
+        else:
+            holds = {item: holds_at(item) for item in self._counted(level, pattern).items}
         for i, unit in enumerate(level.choice.units):
-            each = [
-                self._reify_levels(st, rest, _fixed(pattern, level.field, item), f"{name}:{item}")
-                for item in unit.items
-            ]
+            each = [self._literal(holds_at(item), f"{name}:{item}") for item in unit.items]
             holds[("group", i)] = self._all_of(each, f"{name}:group{i}")
         return holds
+
+    def _holds_by_item(
+        self, st: Tally, level: Level, rest, pattern: Pattern, name, sense
+    ) -> dict | None:
+        """Each counted item's literal from one pass over the matches, where there can be one.
+
+        When nothing is counted below this count and the pattern has no set taken ALL, an
+        item holds when one of its own matches does, so the matches of the whole set are
+        found once and grouped by item rather than found again for each. None otherwise.
+        """
+        if rest or (st.measure is not None and st.runs):
+            return None
+        members = set(level.choice.items) | {i for unit in level.choice.units for i in unit.items}
+        attr = FIELDS[level.field]
+        over_days = _over_days(level, pattern)
+        pool = sorted(members, key=str)
+        pooled = replace(pattern, **{attr: Choice(tuple(pool), POOL)})
+        units = self._units(pooled)
+        if len(units) != 1:
+            return None
+        grouped: dict = {}
+        for m in self._matches(units[0], past=True):
+            key = (m.date, m.block) if over_days else getattr(m, _MATCH_FIELD[level.field])
+            grouped.setdefault(key, []).append(m)
+        found = {}
+        for item, matches in grouped.items():
+            label = f"{name}:{item}"
+            if st.measure is not None:
+                terms, constant = self._amount(matches, True)
+                found[item] = self._compare(terms, constant, st.measure, label)
+            elif self._exclusive(matches):
+                found[item] = Exclusive(m.literal for m in matches)
+            else:
+                found[item] = self._one_of([m.literal for m in matches], label, sense)
+        return found
+
+    def _exclusive(self, matches: list[Match]) -> bool:
+        """Whether at most one of these can hold, so that their sum counts the item exactly.
+
+        One person's whole-block assignments in one block on one date never overlap.
+        """
+        if len(matches) < 2:
+            return False
+        first = matches[0]
+        return all(
+            m.staff == first.staff
+            and m.date == first.date
+            and m.block == first.block
+            and isinstance(m.minutes, int)
+            and m.minutes == self.dataset.blocks[m.block].minutes
+            for m in matches
+        )
+
+    def _literal(self, held, name: str) -> Literal:
+        """An item's holds as one literal, where it was left as the sum of exclusive ones."""
+        if isinstance(held, Exclusive):
+            return self._any_of(list(held), name)
+        return held
+
+    def _one_of(self, literals: list, name: str, sense: str) -> Literal:
+        """A literal for any of these being true, both ways or only the way `sense` asks."""
+        if sense == EXACT or any(v is True for v in literals):
+            return self._any_of(literals, name)
+        real = _distinct([v for v in literals if v is not False])
+        if len(real) < 2:
+            return self._any_of(literals, name)
+        var = self.model.NewBoolVar(name)
+        if sense == ABOVE:
+            for v in real:
+                self.model.AddImplication(v, var)
+        else:
+            self.model.AddBoolOr(real).OnlyEnforceIf(var)
+        return var
 
     def _reify_levels(self, st: Tally, levels, pattern: Pattern, name: str) -> Literal:
         """A literal equivalent to a tally holding, over past dates and today."""
@@ -1181,10 +1269,12 @@ class Compiler:
                 if key not in holds or holds[key] is False:
                     run = []
                     continue
-                run.append(holds[key])
+                run.append(key)
                 if len(run) >= length:
                     windows.append(run[-length:])
-        return windows
+        # only the blocks some window reaches need a literal of their own
+        literal = {k: self._literal(holds[k], f"run:{k}") for k in {k for w in windows for k in w}}
+        return [[literal[k] for k in window] for window in windows]
 
     def _day_blocks(self, on: Choice) -> tuple[str, ...]:
         blocks = {b.id for d in on.items for b in self.dataset.blocks_on(d)}
@@ -1205,8 +1295,11 @@ class Compiler:
             self.model.Add(total == sum(misses))
             return total, bound
         level, rest = st.levels[0], st.levels[1:]
-        holds = self._each_holds(st, level, rest, st.pattern, name)
         choice, n = level.choice, level.choice.n
+        sense = {ast.AT_MOST: ABOVE, ast.AT_LEAST: BELOW}.get(choice.bound, EXACT)
+        holds = self._each_holds(
+            st, level, rest, st.pattern, name, EXACT if choice.consecutive else sense
+        )
         if choice.consecutive:
             return self._runs_miss(level, holds, st.pattern, name)
         terms, constant = _split(list(holds.values()))
@@ -1481,10 +1574,18 @@ def _day(field: str, item) -> date:
     return date.min
 
 
+class Exclusive(list):
+    """Literals at most one of which can hold, standing for their sum rather than a literal."""
+
+
 def _split(literals: list) -> tuple[list, int]:
-    """Literals as variable terms and the number of them that are true already."""
-    terms = [x for x in literals if not isinstance(x, bool)]
-    return terms, sum(1 for x in literals if x is True)
+    """Literals as variable terms and the number of them that are true already.
+
+    An Exclusive group is its members, whose sum is exactly whether any of them holds.
+    """
+    flat = [x for held in literals for x in (held if isinstance(held, Exclusive) else [held])]
+    terms = [x for x in flat if not isinstance(x, bool)]
+    return terms, sum(1 for x in flat if x is True)
 
 
 _OPPOSITE = {
