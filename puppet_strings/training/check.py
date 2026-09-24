@@ -461,8 +461,9 @@ def _universe(dataset: Dataset, answer, expected, rng: random.Random) -> _Univer
     tasks = sorted(mine["tasks"] | theirs["tasks"] | {FILLER})
     target = dataset.target
     blocks = _blocks(dataset, mine, theirs)
-    # Clinics run in the blocks the day offers clinics in, and anywhere a request puts them.
-    offered = {b for o in dataset.offerings for b in o.blocks} | mine["blocks"] | theirs["blocks"]
+    # Clinics run in the blocks the day offers clinics in, and anywhere a request puts one by
+    # name. A pool or a count of clinics puts none anywhere: it counts the ones that run.
+    offered = {b for o in dataset.offerings for b in o.blocks} | mine["placed"] | theirs["placed"]
     runs = [b for b in blocks if b in offered]
     on = Choice((target,), ALL)
     copies = []
@@ -514,6 +515,7 @@ def _mentions(dataset: Dataset, copies) -> dict[str, set]:
     """Every person, activity and quoted task anywhere in some copies."""
     found: dict = {"staff": set(), "activities": set(), "tasks": set(), "blocks": set()}
     found["whole_day"] = False
+    found["placed"] = set()  # the blocks a statement puts a clinic in by name
     today = {b.id for b in dataset.blocks_on(dataset.target)}
 
     def walk(value) -> None:
@@ -530,6 +532,8 @@ def _mentions(dataset: Dataset, copies) -> dict[str, set]:
             walk(value.parts)
             walk(value.units)
         elif is_dataclass(value):
+            if isinstance(value, Requirement | Tally):
+                _placed(value, found["placed"], today)
             # a pattern over every block of the day, `DURING ANY CONSECUTIVE blocks.all`, is
             # about the whole day as much as one with no DURING, and names no block in it
             whole = isinstance(value, Pattern) and (
@@ -553,6 +557,14 @@ def _mentions(dataset: Dataset, copies) -> dict[str, set]:
     # somebody resting all day can be given nothing, so they tell nothing apart
     found["staff"] = {s for s in found["staff"] if not today <= dataset.staff[s].resting_blocks}
     return found
+
+
+def _placed(statement, placed: set, today: set) -> None:
+    """The blocks a statement names a clinic in, which it may make run there."""
+    part = statement if isinstance(statement, Requirement) else statement.pattern
+    what = part.what
+    if isinstance(what, Choice) and what.kind == ALL:
+        placed |= set(part.during.items) if part.during else today
 
 
 def _pick(mine: set, theirs: set, most: int, rng: random.Random) -> list:

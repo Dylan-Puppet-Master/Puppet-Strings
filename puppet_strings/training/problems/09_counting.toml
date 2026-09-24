@@ -245,12 +245,18 @@ wrong = ["REQUEST AT_LEAST 2 staff.village_heroes DO 'dining hall duty' DURING E
 
 [[problem]]
 id = "count-clinics-a-session"
-title = "Eight a session"
-prompt = "Over the whole session, Dylan facilitates (roles.first) at most eight clinics."
-answer = "REQUEST staff.dylan DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_MOST 8 blocks.all ON ANY dates.session_6.all"
+title = "Three a session"
+prompt = "Dylan is new to facilitating: over the whole session, he is first (roles.first) on at most three clinics."
+answer = "REQUEST staff.dylan DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_MOST 3 blocks.all ON ANY dates.session_6.all"
 hints = ["Count the blocks he facilitates in.", "Over ANY dates of the session, each block of each day counts."]
-explain = "Clinic 1 on Monday and clinic 1 on Tuesday are two blocks, so a count of blocks over dates pooled with ANY is a number of times across the session."
-wrong = ["REQUEST staff.dylan DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_MOST 8 blocks.all"]
+explain = "Clinic 1 on Monday and clinic 1 on Tuesday are two blocks, so a count of blocks over dates pooled with ANY is a number of times across the session. blocks.all_clinics says the same, since clinics only run in clinic blocks. ON ALL would count only the blocks he is first in on every day of the session, which asks almost nothing."
+alternatives = [
+  "REQUEST staff.dylan DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_MOST 3 blocks.all_clinics ON ANY dates.session_target.all",
+]
+wrong = [
+  "REQUEST staff.dylan DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_MOST 3 blocks.all ON ALL dates.session_6.all",
+  "REQUEST staff.dylan DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_MOST 3 blocks.all",
+]
 
 [[problem]]
 id = "count-once-a-day"
