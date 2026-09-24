@@ -17,17 +17,17 @@ Checklist:
 id = "big-breaks-policy"
 title = "The break policy"
 prompt = "Every staff member who isn't a director or counselor gets three 30-minute 'break's in three different blocks — and never more than ten people on break in the same block."
-answer = "REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' FOR 30m DURING AT_LEAST 3 blocks.all\nREQUEST AT_MOST 10 staff.all DO 'break' DURING EACH blocks.all"
+answer = "REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all\nREQUEST AT_MOST 10 staff.all DO 'break' DURING EACH blocks.all"
 priority = "MUST_HAPPEN"
-wrong = ["REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' FOR 30m DURING AT_LEAST 3 blocks.all"]
+wrong = ["REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all"]
 
 [[problem]]
 id = "big-counselor-hours"
 title = "Counselor hours"
 prompt = "Each counselor gets a one-hour 'counselor hour' in clinic 1 or clinic 2, and another in playstation or clinic 3, no more than five hours apart."
-answer = "EACH c IN staff.counselors\nmorning:   REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.playstation + blocks.clinic_3}\nGAP morning TO afternoon AT_MOST 5h"
+answer = "EACH c IN staff.counselors\nmorning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.playstation + blocks.clinic_3}\nGAP morning TO afternoon AT_MOST 5h"
 priority = "MUST_HAPPEN"
-wrong = ["EACH c IN staff.counselors\nmorning:   REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP morning TO afternoon AT_MOST 5h"]
+wrong = ["EACH c IN staff.counselors\nmorning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP morning TO afternoon AT_MOST 5h"]
 
 [[problem]]
 id = "big-playstation-available"
@@ -44,16 +44,6 @@ prompt = "Staff who aren't directors or counselors shouldn't take a 'break' outs
 answer = "REQUEST EACH {staff.all - staff.directors - staff.counselors} NOT DO 'break' DURING EACH {blocks.all - blocks.meals}"
 priority = "HIGH"
 wrong = ["REQUEST EACH {staff.all - staff.directors - staff.counselors} NOT DO 'break' DURING ANY {blocks.all - blocks.meals}"]
-
-[[problem]]
-id = "big-cabin-acts-and-cover"
-title = "Cabin act day"
-prompt = "Every cabin act on today's board runs in the cabin act block, each on its own, and at least one director stays free then to handle problems."
-answer = "REQUEST EACH activities.cabin_acts.all DURING blocks.cabin_act\nPREFER AT_LEAST 1 staff.directors FREE DURING blocks.cabin_act"
-priority = "HIGH"
-hints = ["The REQUEST lines of a request stand or fall together, and EACH copies all of them. Should a busy director count against every cabin act?"]
-explain = "A PREFER is weighed on its own. As a second REQUEST, a director being busy would miss all of the cabin acts along with it."
-wrong = ["REQUEST EACH activities.cabin_acts.all DURING blocks.cabin_act\nREQUEST AT_LEAST 1 staff.directors FREE DURING blocks.cabin_act"]
 
 [[problem]]
 id = "big-ropes-rotation"
@@ -106,7 +96,7 @@ wrong = ["REQUEST EXACTLY 1 staff.directors DO 'on duty' DURING EACH blocks.all_
 id = "big-video-day"
 title = "Video day"
 prompt = "Some day this week (today to Friday), Alesa and one of Dylan or Cam VL shoot 'video' together for 30 minutes, in any block."
-answer = "EXACTLY 1 v IN {staff.dylan + staff.cam_vl}\nREQUEST ALL {staff.alesa + v} DO 'video' FOR 30m DURING AT_LEAST 1 blocks.all ON AT_LEAST 1 {dates.target .. 2026-08-07}"
+answer = "EXACTLY 1 v IN {staff.dylan + staff.cam_vl}\nREQUEST ALL {staff.alesa + v} DO 'video' FOR EXACTLY 30m DURING AT_LEAST 1 blocks.all ON AT_LEAST 1 {dates.target .. 2026-08-07}"
 wrong = ["EXACTLY 1 v IN {staff.dylan + staff.cam_vl}\nREQUEST ALL {staff.alesa + v} DO 'video' DURING AT_LEAST 1 blocks.all ON AT_LEAST 1 {dates.target .. 2026-08-07}"]
 
 [[problem]]
@@ -183,11 +173,11 @@ wrong = ["EACH c IN staff.village_leaders\nREQUEST c DO ANY activities.clinics.a
 id = "big-farrier-visit"
 title = "The farrier"
 prompt = "Hailey and one other EQ staff member meet the 'farrier' together for an hour in clinic 1 or clinic 2. Later the same day, at least three hours after the farrier leaves, Hailey does a 30-minute 'hoof check'."
-answer = "EXACTLY 1 e IN {staff.eq_staff - staff.hailey}\nvisit: REQUEST ALL {staff.hailey + e} DO 'farrier' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\ncheck: REQUEST staff.hailey DO 'hoof check' FOR 30m DURING AT_LEAST 1 blocks.all\nGAP visit TO check AT_LEAST 3h"
+answer = "EXACTLY 1 e IN {staff.eq_staff - staff.hailey}\nvisit: REQUEST ALL {staff.hailey + e} DO 'farrier' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\ncheck: REQUEST staff.hailey DO 'hoof check' FOR EXACTLY 30m DURING AT_LEAST 1 blocks.all\nGAP visit TO check AT_LEAST 3h"
 priority = "HIGH"
 hints = ["Name the other EQ staff member with a binding line, and add them into a set with Hailey.", "ALL of them with AT_LEAST 1 of the blocks is one block they share.", "Label the two lines, and GAP from the visit to the check."]
 explain = "ALL {staff.hailey + e} is one unit, so the count of blocks is of blocks they share. ANY blocks in its place would give each of them a block of their own."
-wrong = ["EXACTLY 1 e IN {staff.eq_staff - staff.hailey}\nvisit: REQUEST ALL {staff.hailey + e} DO 'farrier' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\ncheck: REQUEST staff.hailey DO 'hoof check' FOR 30m DURING AT_LEAST 1 blocks.all\nGAP visit TO check AT_LEAST 0m"]
+wrong = ["EXACTLY 1 e IN {staff.eq_staff - staff.hailey}\nvisit: REQUEST ALL {staff.hailey + e} DO 'farrier' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\ncheck: REQUEST staff.hailey DO 'hoof check' FOR EXACTLY 30m DURING AT_LEAST 1 blocks.all\nGAP visit TO check AT_LEAST 0m"]
 
 [[problem]]
 id = "big-long-afternoon"

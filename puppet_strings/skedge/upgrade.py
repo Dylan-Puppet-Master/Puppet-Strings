@@ -38,6 +38,10 @@ Version 5, where a count goes on the set it counts:
 Version 6, where an AS_ROLE straight after a WITH or WITHOUT set is theirs:
 
 - One written there before was the subject's, so it moves in front of the WITH.
+
+Version 7, where FOR says how its length is bounded:
+
+- `FOR 30m` was exactly that long, so it is `FOR EXACTLY 30m`.
 """
 
 import re
@@ -86,16 +90,24 @@ def upgrade(text: str, dataset: Dataset) -> str:
         if tree is None:
             break
         text = rewrite(text, tree, dataset)
-    return _roles_stay_the_subjects(text)
+    return _to_seven(text)
 
 
-def _roles_stay_the_subjects(text: str) -> str:
-    """AS_ROLE straight after a WITH or WITHOUT set was the subject's; it moves before them."""
+def _to_seven(text: str) -> str:
+    """The rewrites since version 5, on a tree of today's grammar, which parses them all.
+
+    AS_ROLE straight after a WITH or WITHOUT set was the subject's, so it moves before them;
+    a FOR with no bound was exactly that long.
+    """
     try:
         tree = parse_tree(text)
     except SkedgeError:
         return text
     edits = []
+    for node in tree.find_data("for_"):
+        if len(node.children) == 1:
+            length = node.children[0]
+            edits.append((length.start_pos, length.start_pos, "EXACTLY "))
     for node in tree.iter_subtrees():
         if node.data not in ("with_", "without") or len(node.children) < 2:
             continue

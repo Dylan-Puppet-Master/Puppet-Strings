@@ -1,7 +1,7 @@
 """Assignment variables: one boolean per (staff, activity, role, block) on the target date.
 
 Every variable carries a time interval inside its block. A clinic position fills the block;
-a quoted task has a movable start and a variable length, so `FOR 30m` can take part of a
+a quoted task has a movable start and a variable length, so `FOR EXACTLY 30m` can take part of a
 block. Past dates come from Published Schedules and are looked up as plain values.
 """
 

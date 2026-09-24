@@ -414,8 +414,13 @@ class _Builder(Transformer):
         return ast.AsRole(_pos(meta), items[0])
 
     def for_(self, meta, items):
-        bound = str(items[0]).upper() if len(items) == 2 else None
-        return ast.For(_pos(meta), _duration(items[-1]), bound)
+        if len(items) == 1:
+            length = str(items[0])
+            raise _error(
+                f"FOR says how the length is bounded: FOR EXACTLY {length}, or AT_LEAST or AT_MOST",
+                _token_pos(items[0]),
+            )
+        return ast.For(_pos(meta), _duration(items[-1]), str(items[0]).upper())
 
     def with_(self, meta, items):
         return ast.With(_pos(meta), items[0], _company_role(items))

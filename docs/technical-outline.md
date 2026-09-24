@@ -492,7 +492,7 @@ Each milestone ends with passing `ruff check`, `ruff format --check`, and `pytes
 | 1 | Data layer | `model.py`, `names.py`, every `sheets/*` parser, `load_dataset`. | Each parser has a test against its fixture. RAL digit strings, Skills statuses, `(DBL)` merging, identifier collisions, and unknown Offerings cells are covered. `puppet-strings names --fixtures` prints every namespace. |
 | 2 | Skedge | grammar, parser, scope, resolve, validate. | Every proposal example parses to the expected AST and resolves to the expected alternatives. Every rule in proposal §8 has a failing-input test with line and column asserted. `puppet-strings validate --fixtures` works. |
 | 3 | Solver core | variables, structural constraints, `TASK` (with `FREE`, `ROLE`, positions), `FORBID`, tiers, assumptions, report. | Scenarios: infeasible `MUST_HAPPEN` pair reports both ids; unstaffable offered clinic is reported and the rest is scheduled; trainee added without filling a position; scaffold only with a trainer; lifeguard minimum. `puppet-strings solve --fixtures` prints a schedule. |
-| 4 | Objectives and time | `PREFER`, `AVOID`, metrics, `PER … BEYOND`, `GAP`, `FOR`/`CONTINUOUS`, past constants, deferral. | Scenarios: tradeoff outcomes at weights 0.25, 0.5, 1; `GAP` rejects the 5h15 pair; deferrable task optional then enforced; past assignments count toward `BEYOND`; `FOR 2h` sums across non-adjacent blocks; `CONTINUOUS` does not. |
+| 4 | Objectives and time | `PREFER`, `AVOID`, metrics, `PER … BEYOND`, `GAP`, `FOR`/`CONTINUOUS`, past constants, deferral. | Scenarios: tradeoff outcomes at weights 0.25, 0.5, 1; `GAP` rejects the 5h15 pair; deferrable task optional then enforced; past assignments count toward `BEYOND`; `FOR EXACTLY 2h` sums across non-adjacent blocks; `CONTINUOUS` does not. |
 | 5 | Sheets integration | `SheetsSource`, Requests read/write, Published read/write, views, `--publish`. | View rendering tested on fixtures (display groups merge, `Available`, position order, trainee labels). Manual test against a copy of the real sheets; a written checklist for it is part of the docs. |
 | 6 | Desktop app | request table with filters, editor with live validation, names panel, solve and publish buttons. | Manual checklist. Unit tests for the filter proxy and the highlighter's token rules. |
 | 7 | Docs and README | MkDocs Material site: install, setup (Google Cloud steps), user guide, Skedge reference with every proposal example, this outline, developer guide. README with overview and install steps. | `mkdocs build --strict` passes in CI; site deploys to GitHub Pages on push to `main`. |
@@ -778,6 +778,11 @@ Recorded so the outline matches the code.
   spans walks `2027/Main Season` once rather than four times, and `discover` runs once per
   root and year. Measured over a modelled season, a reload 70 published days in goes from
   143 API calls to 73.
+- **FOR says how it is bounded** (Puppet Master, 2026-09-24). A bare `FOR 30m` meant exactly,
+  the one quantity in the language that went without its bound, and over pooled blocks
+  `FOR 2h` read as "at least" to most people while meaning "exactly". `FOR` now takes
+  `EXACTLY`, `AT_LEAST` or `AT_MOST`; a bare length is refused with the new spelling, and a
+  request saved in syntax 6 gains its `EXACTLY` on its next load (syntax 7).
 - **WITH says in which role** (Puppet Master, 2026-09-24). `WITH staff.alan AS_ROLE
   roles.first` is Alan first on the same instance: an `AS_ROLE` straight after a `WITH`'s or
   `WITHOUT`'s set is theirs, which the grammar takes as part of the clause, and the company

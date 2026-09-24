@@ -144,6 +144,7 @@ _clauses    : clause*
 during      : _DURING chooser CONSECUTIVE?
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
+// A length says how it is bounded; with no bound it is the old spelling, told the new one.
 for_        : _FOR BOUND? DURATION
 // Who is alongside: one name, or several with ALL or a count to say how many, and with an
 // AS_ROLE straight after them, in which role. That AS_ROLE is theirs, not the subject's,
@@ -466,7 +467,7 @@ Clauses of a statement:
 |---|---|
 | `DURING <blocks>`, `ON <dates>` | When. |
 | `AS_ROLE <role>` | In that role. Without it, any position of the activity; a trainee role only when named. |
-| `FOR [AT_LEAST\|AT_MOST\|EXACTLY] <duration>` | How long (§7.1). |
+| `FOR AT_LEAST\|AT_MOST\|EXACTLY <duration>` | How long (§7.1). |
 | `WITH <staff>` | Enough others from the set are on the same instance (§8). |
 | `WITHOUT <staff>` | Not enough are. |
 
@@ -475,13 +476,14 @@ Clauses of a statement:
 `FOR` measures the activity within one unit of the blocks. Blocks taken one at a time — an
 item, `ALL`, `EACH` or a count — make each block a unit, and a quoted-task piece never
 leaves its block, so there `FOR` is the length of each piece:
-`DO 'break' FOR 30m DURING EXACTLY 3 blocks.all` is three breaks of 30 minutes. Blocks
+`DO 'break' FOR EXACTLY 30m DURING EXACTLY 3 blocks.all` is three breaks of 30 minutes. Blocks
 pooled with `ANY` are one unit together, and `FOR` is what they add up to:
 `DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks.all` is two hours in whichever
 blocks. `ANY CONSECUTIVE` makes each run a unit, a run being one staff member's blocks.
 Pooled dates and people are added up the same way.
 
-`FOR 2h` is `FOR EXACTLY 2h`; `AT_LEAST` and `AT_MOST` bound it instead. A quoted task with
+`FOR` always says how the length is bounded, `EXACTLY`, `AT_LEAST` or `AT_MOST`, as a
+count does; a bare `FOR 2h` is an error. A quoted task with
 no `FOR` fills its block. Under a `FOR` over a pool the pieces fill their blocks, all but
 one, which may be cut short: to what remains, or under `AT_LEAST` to any length that
 reaches it.
@@ -502,7 +504,7 @@ date) in which the staff member is free, or busy. A clause left out does not fil
 | `<who>` | its staff member is in the pool |
 | `DO <what>` | its activity is in the pool, or is that quoted task |
 | `DURING`, `ON`, `AS_ROLE` | its block, date, role is in the pool |
-| `FOR <duration>` | its length compares so with the duration |
+| `FOR <bound> <duration>` | its length compares so with the duration |
 | `WITH <staff>` | enough others in the set hold an assignment on the same instance |
 | `WITHOUT <staff>` | not enough do |
 
@@ -757,6 +759,7 @@ parser, the validator and the solver report:
 | `write FREE, not NOT BUSY` | `NOT BUSY`. |
 | `amount must be at least 1` | `AT_LEAST 0`. |
 | `write NOT DO` | `AT_MOST 0`, `EXACTLY 0`. |
+| `FOR says how the length is bounded` | `FOR 30m`, the old spelling; the message gives `FOR EXACTLY 30m`. |
 | `a length goes on FOR` | A duration in front of a set, or after `DO`: `AT_LEAST 2h staff.cam DO …`; the message gives the `FOR`. |
 | `a task is not counted; count the blocks it is done in` | `DO AT_LEAST 3 'break'`. |
 | `a count goes on the set it counts, in place of ANY` | `AT_MOST 2 ANY staff.x`, the old spelling; the message gives the new one. |

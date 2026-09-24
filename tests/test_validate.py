@@ -124,14 +124,14 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             26,
         ),
         (
-            "REQUEST staff.dylan DO activities.clinics.riflery FOR 1h DURING blocks.clinic_1",
+            "REQUEST staff.dylan DO activities.clinics.riflery FOR EXACTLY 1h DURING blocks.clinic_1",
             Priority.HIGH,
             "FOR on an activity, FREE or BUSY measures its time across blocks",
             1,
             51,
         ),
         (
-            "REQUEST staff.dylan NOT DO activities.clinics.riflery FOR 1h",
+            "REQUEST staff.dylan NOT DO activities.clinics.riflery FOR EXACTLY 1h",
             Priority.HIGH,
             "FOR needs a quoted task",
             1,
@@ -367,7 +367,7 @@ def test_an_exclusion_validates(dataset):
             "EXCLUDE stands on its own line and its own request",
         ),
         (
-            "EXCLUDE staff.dylan DO 'offsite' FOR 30m",
+            "EXCLUDE staff.dylan DO 'offsite' FOR EXACTLY 30m",
             Priority.MUST_HAPPEN,
             "EXCLUDE takes DURING and ON, not FOR",
         ),

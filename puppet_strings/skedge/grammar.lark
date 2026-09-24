@@ -65,6 +65,7 @@ _clauses    : clause*
 during      : _DURING chooser CONSECUTIVE?
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
+// A length says how it is bounded; with no bound it is the old spelling, told the new one.
 for_        : _FOR BOUND? DURATION
 // Who is alongside: one name, or several with ALL or a count to say how many, and with an
 // AS_ROLE straight after them, in which role. That AS_ROLE is theirs, not the subject's,

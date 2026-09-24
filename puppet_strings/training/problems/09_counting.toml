@@ -66,20 +66,20 @@ wrong = ["REQUEST AT_LEAST 1 {staff.dylan + staff.alesa} DO 'rake leaves' DURING
 id = "count-short-break"
 title = "A short break"
 prompt = "Rob takes a 30-minute 'break' during clinic 1."
-answer = "REQUEST staff.rob DO 'break' FOR 30m DURING blocks.clinic_1"
-hints = ["FOR 30m goes after the task."]
+answer = "REQUEST staff.rob DO 'break' FOR EXACTLY 30m DURING blocks.clinic_1"
+hints = ["FOR EXACTLY 30m goes after the task."]
 explain = "A task with FOR takes part of its block; the Staff View labels the rest of it."
-alternatives = ["REQUEST staff.rob DO 'break' DURING blocks.clinic_1 FOR 30m"]
+alternatives = ["REQUEST staff.rob DO 'break' DURING blocks.clinic_1 FOR EXACTLY 30m"]
 wrong = ["REQUEST staff.rob DO 'break' DURING blocks.clinic_1"]
 
 [[problem]]
 id = "count-three-short-breaks"
 title = "Three half hours"
 prompt = "Kara takes three 30-minute 'break's today, each in a different block."
-answer = "REQUEST staff.kara DO 'break' FOR 30m DURING AT_LEAST 3 blocks.all"
+answer = "REQUEST staff.kara DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all"
 hints = ["Count the blocks; FOR is the length of each piece."]
 explain = "The blocks are taken one at a time here, counted, so FOR is the length of the piece in each of them."
-wrong = ["REQUEST staff.kara DO 'break' FOR 30m DURING ANY blocks.all"]
+wrong = ["REQUEST staff.kara DO 'break' FOR EXACTLY 30m DURING ANY blocks.all"]
 
 [[problem]]
 id = "count-two-hours-editing"
@@ -108,10 +108,10 @@ wrong = ["REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blo
 id = "count-one-sitting"
 title = "One sitting"
 prompt = "Hails does 45 minutes of 'lesson planning' today in one sitting, in whichever block."
-answer = "REQUEST staff.hails DO 'lesson planning' FOR 45m DURING AT_LEAST 1 blocks.all"
+answer = "REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m DURING AT_LEAST 1 blocks.all"
 hints = ["FOR sets the length of one piece when the blocks are taken one at a time.", "AT_LEAST 1 blocks.all is one block, the solver's pick."]
-explain = "Over ANY blocks, 45 minutes would be a total that could be made of pieces at different times. Counted, each block is its own unit, so FOR 45m is one piece in one block."
-wrong = ["REQUEST staff.hails DO 'lesson planning' FOR 45m DURING ANY blocks.all"]
+explain = "Over ANY blocks, 45 minutes would be a total that could be made of pieces at different times. Counted, each block is its own unit, so FOR EXACTLY 45m is one piece in one block."
+wrong = ["REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m DURING ANY blocks.all"]
 
 [[problem]]
 id = "count-no-two-in-a-row"
@@ -166,9 +166,9 @@ wrong = ["REQUEST AT_LEAST 2 staff.counselors DO 'bunk check' DURING AT_LEAST 1 
 id = "count-three-breaks-for"
 title = "Three short breaks"
 prompt = "Each non-director, non-counselor staff member takes three 30-minute 'break's today, in three different blocks."
-answer = "REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' FOR 30m DURING AT_LEAST 3 blocks.all"
+answer = "REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all"
 priority = "MUST_HAPPEN"
-alternatives = ["REQUEST EACH {staff.all - (staff.directors + staff.counselors)} DO 'break' FOR 30m DURING AT_LEAST 3 blocks.all"]
+alternatives = ["REQUEST EACH {staff.all - (staff.directors + staff.counselors)} DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all"]
 wrong = ["REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' DURING AT_LEAST 3 blocks.all"]
 
 [[problem]]
@@ -216,8 +216,8 @@ wrong = ["REQUEST staff.charlton DO 'fence building' DURING AT_LEAST 2 blocks.al
 id = "count-for-45"
 title = "Forty-five minutes"
 prompt = "Hailey does 'tack cleaning' for 45 minutes during rest hour."
-answer = "REQUEST staff.hailey DO 'tack cleaning' FOR 45m DURING blocks.rest_hour"
-wrong = ["REQUEST staff.hailey DO 'tack cleaning' FOR 30m DURING blocks.rest_hour"]
+answer = "REQUEST staff.hailey DO 'tack cleaning' FOR EXACTLY 45m DURING blocks.rest_hour"
+wrong = ["REQUEST staff.hailey DO 'tack cleaning' FOR EXACTLY 30m DURING blocks.rest_hour"]
 
 [[problem]]
 id = "count-half-hour-decimal"

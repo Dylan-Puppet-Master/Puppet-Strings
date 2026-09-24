@@ -61,8 +61,10 @@ def test_sharing_a_slot_is_not_a_conflict(dataset):
         "DO activities.clinics.riflery", "DO activities.clinics.riflery AS_ROLE roles.second"
     )
     assert found(dataset, req("pin", PIN), req("same", second)) == ()
-    hour = "REQUEST staff.dylan DO 'paperwork' FOR 30m DURING blocks.clinic_1 ON dates.target"
-    calls = "REQUEST staff.dylan DO 'phone calls' FOR 30m DURING blocks.clinic_1 ON dates.target"
+    hour = (
+        "REQUEST staff.dylan DO 'paperwork' FOR EXACTLY 30m DURING blocks.clinic_1 ON dates.target"
+    )
+    calls = "REQUEST staff.dylan DO 'phone calls' FOR EXACTLY 30m DURING blocks.clinic_1 ON dates.target"
     assert found(dataset, req("hour", hour), req("calls", calls)) == ()  # 60 fits in 75
 
 
@@ -84,8 +86,10 @@ def test_being_asked_to_be_free_and_to_be_busy(dataset):
 
 def test_two_things_that_do_not_fit_in_one_block(dataset):
     """Partial tasks share a block, so this is about minutes, not about being busy."""
-    hour = "REQUEST staff.dylan DO 'paperwork' FOR 60m DURING blocks.clinic_1 ON dates.target"
-    half = "REQUEST staff.dylan DO 'phone calls' FOR 30m DURING blocks.clinic_1 ON dates.target"
+    hour = (
+        "REQUEST staff.dylan DO 'paperwork' FOR EXACTLY 60m DURING blocks.clinic_1 ON dates.target"
+    )
+    half = "REQUEST staff.dylan DO 'phone calls' FOR EXACTLY 30m DURING blocks.clinic_1 ON dates.target"
     (conflict,) = found(dataset, req("hour", hour), req("half", half))
     assert "which needs 90 minutes of a 75-minute block" in conflict.reasons[0]
     short = half.replace("30m", "10m")
@@ -106,7 +110,7 @@ def test_a_request_can_contradict_itself(dataset):
         dataset,
         req(
             "muddled",
-            "REQUEST staff.dylan DO 'paperwork' FOR 60m DURING blocks.clinic_1 ON dates.target\n"
+            "REQUEST staff.dylan DO 'paperwork' FOR EXACTLY 60m DURING blocks.clinic_1 ON dates.target\n"
             "REQUEST staff.dylan FREE DURING blocks.clinic_1 ON dates.target",
         ),
     )
@@ -123,7 +127,10 @@ def test_a_choice_the_solver_makes_is_not_a_conflict(dataset):
             "REQUEST AT_LEAST 1 staff.counselor DO activities.clinics.riflery DURING blocks.clinic_1",
         ),
         # somewhere in the day, not in this block
-        req("loose", "REQUEST staff.dylan DO 'paperwork' FOR 60m DURING AT_LEAST 1 blocks.all"),
+        req(
+            "loose",
+            "REQUEST staff.dylan DO 'paperwork' FOR EXACTLY 60m DURING AT_LEAST 1 blocks.all",
+        ),
         # a preference, which never has to hold
         req(
             "wish",

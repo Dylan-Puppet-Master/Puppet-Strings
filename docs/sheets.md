@@ -190,7 +190,7 @@ playstation run every day of every programme; and pack-out runs only on the day 
 ends. If every day has the same shape, write `weekday, weekend` on every block.
 
 Blocks are the real periods of the day, not 30-minute slices. A short task such as a
-break is written with `FOR 30m` and takes part of a block; the Staff View shows the rest
+break is written with `FOR EXACTLY 30m` and takes part of a block; the Staff View shows the rest
 of that block as `DYOW/WPs` ("do your own work or work projects"). See the
 [Skedge reference](skedge.md).
 

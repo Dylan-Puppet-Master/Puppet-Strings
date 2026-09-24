@@ -215,7 +215,7 @@ def test_not_free_is_busy(dataset, old, new):
 
 def test_what_describes_the_activity_moves_after_the_verb(dataset):
     old = "REQUEST staff.rob FOR 30m WITH staff.dylan DO 'break' DURING blocks.clinic_1"
-    new = "REQUEST staff.rob DO 'break' DURING blocks.clinic_1 FOR 30m WITH staff.dylan"
+    new = "REQUEST staff.rob DO 'break' DURING blocks.clinic_1 FOR EXACTLY 30m WITH staff.dylan"
     assert upgrade(old, dataset) == new
 
 
@@ -223,3 +223,12 @@ def test_a_role_after_with_was_the_subjects_and_stays_so(dataset):
     old = "REQUEST staff.rob DO activities.clinics.riflery WITH staff.vic AS_ROLE roles.first DURING blocks.clinic_1"
     new = "REQUEST staff.rob DO activities.clinics.riflery AS_ROLE roles.first WITH staff.vic DURING blocks.clinic_1"
     assert upgrade(old, dataset) == new
+
+
+def test_a_bare_for_was_exactly_that_long(dataset):
+    old = "REQUEST EACH staff.all DO 'break' FOR 30m DURING ANY 3 blocks.all"
+    new = "REQUEST EACH staff.all DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all"
+    assert upgrade(old, dataset) == new
+    assert upgrade("REQUEST staff.rob DO 'x' FOR 1h DURING blocks.clinic_1", dataset) == (
+        "REQUEST staff.rob DO 'x' FOR EXACTLY 1h DURING blocks.clinic_1"
+    )

@@ -285,8 +285,8 @@ def test_trainees_are_additional_and_scaffolds_need_a_trainer():
 
 COUNSELOR_HOURS = (
     "EACH c IN staff.counselor\n"
-    "morning:   REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\n"
-    "afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\n"
+    "morning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\n"
+    "afternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\n"
     "GAP morning TO afternoon AT_MOST 5h"
 )
 
@@ -333,9 +333,9 @@ def test_gap_at_most_rejects_the_far_pair():
 
 
 MEETINGS = (
-    "first: REQUEST staff.dylan DO 'meeting' FOR 1h\n"
+    "first: REQUEST staff.dylan DO 'meeting' FOR EXACTLY 1h\n"
     "DURING AT_LEAST 1 blocks.all_clinics ON AT_LEAST 1 {{{yesterday} .. {target}}}\n"
-    "second: REQUEST staff.dylan DO 'meeting' FOR 1h DURING AT_LEAST 1 blocks.all_clinics\n"
+    "second: REQUEST staff.dylan DO 'meeting' FOR EXACTLY 1h DURING AT_LEAST 1 blocks.all_clinics\n"
     "GAP first TO second AT_LEAST {gap}"
 )
 
@@ -390,7 +390,7 @@ def test_a_bound_name_can_be_added_into_a_set():
     text = (
         "EXACTLY 1 videographer IN {staff.dylan + staff.donny}\n"
         "REQUEST ALL {staff.charlton + videographer}\n"
-        "DO 'Video KM Rope Swing' FOR 30m DURING blocks.clinic_1"
+        "DO 'Video KM Rope Swing' FOR EXACTLY 30m DURING blocks.clinic_1"
     )
     ds = dataset(
         [staff("Charlton"), staff("Dylan"), staff("Donny")],
@@ -409,8 +409,8 @@ def test_a_bound_name_added_into_a_set_is_the_same_person_throughout():
     text = (
         "EXACTLY 1 videographer IN {staff.dylan + staff.donny}\n"
         "morning: REQUEST ALL {staff.charlton + videographer}\n"
-        "  DO 'film' FOR 30m DURING blocks.clinic_1\n"
-        "after: REQUEST videographer DO 'edit' FOR 30m DURING blocks.clinic_3"
+        "  DO 'film' FOR EXACTLY 30m DURING blocks.clinic_1\n"
+        "after: REQUEST videographer DO 'edit' FOR EXACTLY 30m DURING blocks.clinic_3"
     )
     ds = dataset(
         [staff("Charlton"), staff("Dylan"), staff("Donny")],
@@ -427,7 +427,7 @@ def test_a_group_chosen_in_place_is_the_same_as_a_binding_line():
     """`(AT_LEAST 1 …)` added into a set brings one of its members, as a bound name would."""
     text = (
         "REQUEST ALL {staff.charlton + (AT_LEAST 1 {staff.dylan + staff.donny})}\n"
-        "DO 'Video KM Rope Swing' FOR 30m DURING blocks.clinic_1"
+        "DO 'Video KM Rope Swing' FOR EXACTLY 30m DURING blocks.clinic_1"
     )
     ds = dataset(
         [staff("Charlton"), staff("Dylan"), staff("Donny")],
@@ -446,7 +446,7 @@ def test_a_group_inside_any_is_chosen_as_one(dylan_is_away):
     """`AT_LEAST 1 {x + (ALL {y + z})}` is x alone, or else y and z together."""
     text = (
         "REQUEST AT_LEAST 1 {staff.dylan + (ALL {staff.donny + staff.vic})}\n"
-        "DO 'garbage' FOR 30m DURING blocks.clinic_1"
+        "DO 'garbage' FOR EXACTLY 30m DURING blocks.clinic_1"
     )
     requests = [request("garbage", text, Priority.MUST_HAPPEN)]
     if dylan_is_away:
@@ -461,7 +461,7 @@ def test_a_group_inside_any_is_chosen_as_one(dylan_is_away):
 def test_each_of_a_group_is_one_request_for_the_group():
     text = (
         "REQUEST EACH {staff.dylan + (ALL {staff.donny + staff.vic})}\n"
-        "DO 'meeting' FOR 30m DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_3}"
+        "DO 'meeting' FOR EXACTLY 30m DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_3}"
     )
     ds = dataset([staff("Dylan"), staff("Donny"), staff("Vic")], [], requests=[request("m", text)])
     rows = [a for a in run(ds).assignments if a.activity == "meeting"]
@@ -476,7 +476,9 @@ def test_a_task_fills_its_block_unless_for_shortens_it():
         [],
         requests=[
             request("long", "REQUEST staff.dylan DO 'inventory' DURING blocks.clinic_1"),
-            request("short", "REQUEST staff.dylan DO 'break' FOR 30m DURING blocks.clinic_2"),
+            request(
+                "short", "REQUEST staff.dylan DO 'break' FOR EXACTLY 30m DURING blocks.clinic_2"
+            ),
         ],
     )
     rows = {a.activity: a for a in run(ds).assignments}
@@ -485,7 +487,7 @@ def test_a_task_fills_its_block_unless_for_shortens_it():
 
 
 def test_two_partial_tasks_share_a_block():
-    text = "REQUEST staff.dylan DO '{task}' FOR {length} DURING blocks.clinic_1"
+    text = "REQUEST staff.dylan DO '{task}' FOR EXACTLY {length} DURING blocks.clinic_1"
     ds = dataset(
         [staff("Dylan")],
         [],
@@ -500,7 +502,7 @@ def test_two_partial_tasks_share_a_block():
 
 
 def test_a_partial_task_blocks_a_clinic_in_the_same_block():
-    text = "REQUEST staff.dylan DO 'break' FOR 30m DURING blocks.clinic_1"
+    text = "REQUEST staff.dylan DO 'break' FOR EXACTLY 30m DURING blocks.clinic_1"
     ds = dataset(
         [staff("Dylan", archery_1_2=OK)],
         [ARCHERY],
@@ -511,9 +513,7 @@ def test_a_partial_task_blocks_a_clinic_in_the_same_block():
 
 
 def test_three_breaks_in_three_distinct_blocks():
-    text = (
-        "REQUEST EACH {staff.all - staff.director} DO 'break' FOR 30m DURING AT_LEAST 3 blocks.all"
-    )
+    text = "REQUEST EACH {staff.all - staff.director} DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all"
     ds = dataset(
         [staff("Sarah"), staff("David")],
         [],
@@ -530,7 +530,7 @@ def test_three_breaks_in_three_distinct_blocks():
 def test_a_quoted_task_happens_only_where_a_request_asks_for_it():
     three = request(
         "breaks",
-        "REQUEST staff.sarah DO 'break' FOR 30m DURING AT_LEAST 3 blocks.all",
+        "REQUEST staff.sarah DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all",
         Priority.MUST_HAPPEN,
     )
     wish = request(
@@ -568,7 +568,7 @@ def blocks_with_meals(count):
 
 THREE_BREAKS = request(
     "breaks",
-    "REQUEST EACH staff.all DO 'break' FOR 30m DURING AT_LEAST 3 blocks.all",
+    "REQUEST EACH staff.all DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all",
     Priority.MUST_HAPPEN,
 )
 
@@ -1214,7 +1214,7 @@ def test_not_do_without_means_only_together():
 )
 def test_without_counts_how_many_of_the_set_are_there(company, partners, done):
     rule = f"REQUEST staff.dylan NOT DO 'setup' WITHOUT {company} {{staff.sarah + staff.vic + staff.randy}}"
-    setup = "REQUEST staff.{} DO 'setup' FOR 30m DURING blocks.clinic_1"
+    setup = "REQUEST staff.{} DO 'setup' FOR EXACTLY 30m DURING blocks.clinic_1"
     ds = dataset(
         [staff("Dylan"), staff("Sarah"), staff("Vic"), staff("Randy")],
         [],
@@ -1230,8 +1230,8 @@ def test_without_counts_how_many_of_the_set_are_there(company, partners, done):
 
 def test_with_on_a_quoted_task_means_the_same_start():
     together = (
-        "prep:  REQUEST staff.dylan DO 'prep' FOR 30m DURING blocks.clinic_1\n"
-        "setup: REQUEST staff.dylan DO 'setup' FOR 30m DURING blocks.clinic_1 WITH staff.sarah\n"
+        "prep:  REQUEST staff.dylan DO 'prep' FOR EXACTLY 30m DURING blocks.clinic_1\n"
+        "setup: REQUEST staff.dylan DO 'setup' FOR EXACTLY 30m DURING blocks.clinic_1 WITH staff.sarah\n"
         "GAP prep TO setup AT_LEAST 0m"
     )
     ds = dataset(
@@ -1241,7 +1241,7 @@ def test_with_on_a_quoted_task_means_the_same_start():
             request("dylan", together, Priority.MUST_HAPPEN),
             request(
                 "sarah",
-                "REQUEST staff.sarah DO 'setup' FOR 30m DURING blocks.clinic_1",
+                "REQUEST staff.sarah DO 'setup' FOR EXACTLY 30m DURING blocks.clinic_1",
                 Priority.MUST_HAPPEN,
             ),
         ],
@@ -1416,7 +1416,7 @@ def test_a_deferrable_amount_stays_reachable():
 # -- EXCLUDE ---------------------------------------------------------------------------------
 
 OFFSITE = "EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all"
-BREAKS = "REQUEST EACH staff.all DO 'break' FOR 30m DURING AT_LEAST 1 blocks.all"
+BREAKS = "REQUEST EACH staff.all DO 'break' FOR EXACTLY 30m DURING AT_LEAST 1 blocks.all"
 
 
 def with_breaks(*exclusions):

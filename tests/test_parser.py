@@ -197,8 +197,8 @@ def test_parse_duration(text, minutes):
 def test_a_gap_may_be_written_in_days():
     """`48h` and `2d` are the same gap; days are how anybody says two nights apart."""
     text = (
-        "first:  REQUEST staff.rob DO 'setup' FOR 1h DURING blocks.clinic_1\n"
-        "second: REQUEST staff.rob DO 'strike' FOR 1h DURING blocks.clinic_2\n"
+        "first:  REQUEST staff.rob DO 'setup' FOR EXACTLY 1h DURING blocks.clinic_1\n"
+        "second: REQUEST staff.rob DO 'strike' FOR EXACTLY 1h DURING blocks.clinic_2\n"
         "GAP first TO second AT_LEAST {amount}"
     )
     (days,) = parse(text.format(amount="2d")).gaps
@@ -220,8 +220,10 @@ def test_exclude_statement():
 
 def test_a_keyword_may_be_written_in_either_case():
     """Upper case is the convention; lower case is the same request, not an error."""
-    shouted = parse("REQUEST ALL staff.counselor DO 'x' FOR 30m DURING AT_LEAST 1 blocks.all")
-    quiet = parse("request all staff.counselor do 'x' for 30m during at_least 1 blocks.all")
+    shouted = parse(
+        "REQUEST ALL staff.counselor DO 'x' FOR EXACTLY 30m DURING AT_LEAST 1 blocks.all"
+    )
+    quiet = parse("request all staff.counselor do 'x' for exactly 30m during at_least 1 blocks.all")
     assert shouted == quiet
     (binding, line) = parse(
         "each c in staff.counselor\nrequest c busy during blocks.clinic_1"
@@ -271,7 +273,7 @@ def test_consecutive_goes_on_the_blocks():
         ("REQUEST staff.cam NOT FREE DURING blocks.a", "write BUSY, not NOT FREE"),
         ("REQUEST staff.cam NOT BUSY DURING blocks.a", "write FREE, not NOT BUSY"),
         ("IF staff.cam NOT FREE DURING blocks.a\nREQUEST staff.x FREE", "write BUSY"),
-        ("REQUEST staff.cam FOR 30m DO 'x' DURING blocks.a", "FOR describes the activity"),
+        ("REQUEST staff.cam FOR EXACTLY 30m DO 'x' DURING blocks.a", "FOR describes the activity"),
         ("REQUEST WITH staff.x staff.cam FREE DURING blocks.a", "so it goes after FREE"),
     ],
 )
@@ -308,7 +310,13 @@ def test_a_day_offset_is_still_an_offset_and_not_a_duration():
     [
         ("REQUEST staff.rob DO", "expected one of", 1, 21),
         ("REQUEST staff.rob DO 'x' DURING blocks.a ON 2026-13-01", "invalid date", 1, 45),
-        ("REQUEST staff.rob DO 'x' FOR 1.25m DURING blocks.a", "whole number of minutes", 1, 30),
+        (
+            "REQUEST staff.rob DO 'x' FOR EXACTLY 1.25m DURING blocks.a",
+            "whole number of minutes",
+            1,
+            38,
+        ),
+        ("REQUEST staff.rob DO 'x' FOR 30m DURING blocks.a", "FOR EXACTLY 30m", 1, 30),
         ("REQUEST staff.rob NOT DO AT_LEAST 1 activities.clinics.all", "right of NOT a set", 1, 26),
         ("morning: PREFER staff.all DO 'x' DURING AT_MOST 1 blocks.all", "expected one of", 1, 10),
         ("REQUEST AT_MOST 1 staff.all CONSECUTIVE", "expected one of", 1, 29),
@@ -336,7 +344,7 @@ def test_clauses_go_anywhere_in_a_statement():
         "ON AT_LEAST 1 {2026-08-04 .. 2026-08-07}  # a clause before the subject\n"
         "ALL {x + staff.alesa}\n"
         "DO 'video'\n"
-        "FOR 30m\n"
+        "FOR EXACTLY 30m\n"
         "DURING AT_LEAST 1 blocks.all"
     ).lines[0]
     assert [type(c) for c in written.clauses] == [ast.On, ast.For, ast.During]

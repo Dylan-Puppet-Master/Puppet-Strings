@@ -163,7 +163,7 @@ whichever one the solver picks — "Alesa and one of these two":
 
 ```skedge
 REQUEST ALL {staff.alesa + (AT_LEAST 1 {staff.dylan + staff.cam_vl})}
-DO 'Video KM Rope Swing' FOR 30m
+DO 'Video KM Rope Swing' FOR EXACTLY 30m
 DURING AT_LEAST 1 blocks.all
 ```
 
@@ -214,7 +214,7 @@ request is soft: `ALL` earns nothing for half, `EACH` earns half.
 | `DURING <blocks>` | When in the day. Left out: any block of the day. |
 | `ON <dates>` | Which dates. Left out: the day being scheduled. |
 | `AS_ROLE <role>` | In that position or trainee role. Left out: any position. |
-| `FOR <duration>` | How long ([lengths](#lengths-for)). Left out, a task fills its block. |
+| `FOR <bound> <duration>` | How long ([lengths](#lengths-for)): `FOR EXACTLY 30m`, `FOR AT_LEAST 2h`. Left out, a task fills its block. |
 | `WITH <staff>` | That person is working the same clinic or task alongside; of a set, a count or `ALL` says how many of it. |
 | `WITHOUT <staff>` | The opposite of `WITH` the same. |
 
@@ -222,11 +222,11 @@ request is soft: `ALL` earns nothing for half, `EACH` earns half.
 `WITH` and `WITHOUT` describe the activity, so they go after `DO`, `FREE` or `BUSY`:
 
 ```skedge
-REQUEST DURING blocks.clinic_1 staff.rob DO 'break' FOR 30m ON 2026-09-16
+REQUEST DURING blocks.clinic_1 staff.rob DO 'break' FOR EXACTLY 30m ON 2026-09-16
 ```
 
 An ad hoc task such as `'break'` has no positions, skills or camper slots; it occupies
-staff time only. `'break' FOR 30m` is a 30-minute break somewhere inside one block, the
+staff time only. `'break' FOR EXACTLY 30m` is a 30-minute break somewhere inside one block, the
 Staff View labels the rest of the block `DYOW/WPs`, and several short tasks can share a
 block.
 
@@ -330,10 +330,11 @@ the pieces add up to:
 |---|---|
 | Two hours in total, split over any blocks | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks.all` |
 | Two hours in one go: one block, or blocks in a row | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY CONSECUTIVE blocks.all` |
-| One piece of 45 minutes, in one block | `REQUEST staff.cam_vl DO 'video editing' FOR 45m DURING AT_LEAST 1 blocks.all` |
-| Three breaks of 30 minutes | `REQUEST staff.cam_vl DO 'break' FOR 30m DURING EXACTLY 3 blocks.all` |
+| One piece of 45 minutes, in one block | `REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 45m DURING AT_LEAST 1 blocks.all` |
+| Three breaks of 30 minutes | `REQUEST staff.cam_vl DO 'break' FOR EXACTLY 30m DURING EXACTLY 3 blocks.all` |
 
-`FOR 2h` is exactly two hours; `FOR AT_LEAST 2h` and `FOR AT_MOST 2h` bound it. A piece
+`FOR` always says how the length is bounded, as a count does: `FOR EXACTLY 2h`,
+`FOR AT_LEAST 2h` or `FOR AT_MOST 2h`, never a bare `FOR 2h`. A piece
 never leaves its block, so one block shorter than the length cannot hold it. Over a pool
 the pieces fill their blocks, all but one, which is cut to what is left, or under
 `AT_LEAST` to whatever reaches it: two hours over 75-minute blocks is one whole block and
@@ -550,7 +551,7 @@ A name bound this way can also be **added into a set** with `+`, which is how yo
 EXACTLY 1 videographer IN {staff.dylan + staff.cam_vl}
 
 REQUEST ALL {staff.alesa + videographer}
-DO 'Video KM Rope Swing' FOR 30m
+DO 'Video KM Rope Swing' FOR EXACTLY 30m
 DURING AT_LEAST 1 blocks.all
 ON AT_LEAST 1 dates.session_1.all
 ```
@@ -595,8 +596,8 @@ Label two requirements and put a `GAP` between them:
 
 ```skedge
 EACH c IN staff.counselor
-morning:   REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}
-afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.playstation + blocks.clinic_3}
+morning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}
+afternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.playstation + blocks.clinic_3}
 GAP morning TO afternoon AT_MOST 5h
 ```
 
@@ -635,12 +636,12 @@ REQUEST
 ON AT_LEAST 1 {2026-09-14 .. 2026-09-18}
 ALL {staff.dylan + staff.alesa}
 DO 'video'
-FOR 30m
+FOR EXACTLY 30m
 DURING AT_LEAST 1 blocks.all
 ```
 
 ```
-REQUEST ALL {staff.dylan + staff.alesa} DO 'video' FOR 30m DURING AT_LEAST 1 blocks.all ON AT_LEAST 1 {2026-09-14 .. 2026-09-18}
+REQUEST ALL {staff.dylan + staff.alesa} DO 'video' FOR EXACTLY 30m DURING AT_LEAST 1 blocks.all ON AT_LEAST 1 {2026-09-14 .. 2026-09-18}
 ```
 
 Where a clause is written never changes what it means: the counts in it always go who,
@@ -898,8 +899,8 @@ every day.
 
 ```skedge
 EACH c IN staff.counselor
-morning:   REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}
-afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.playstation + blocks.clinic_3}
+morning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}
+afternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.playstation + blocks.clinic_3}
 GAP morning TO afternoon AT_MOST 5h
 ```
 
@@ -911,7 +912,7 @@ Each non-director, non-counselor staff member takes three 30-minute breaks per d
 three different blocks. A break in a clinic block keeps that person off clinics in it.
 
 ```skedge
-REQUEST EACH {staff.all - staff.director - staff.counselor} DO 'break' FOR 30m DURING AT_LEAST 3 blocks.all
+REQUEST EACH {staff.all - staff.director - staff.counselor} DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all
 ```
 
 Priority `MUST_HAPPEN`.

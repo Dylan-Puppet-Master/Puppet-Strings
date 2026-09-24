@@ -10,8 +10,8 @@ GAP first TO second [<amount>]      second starts after first ends, this far apa
 EXCLUDE <who> DO '<label>' [DURING <blocks>] [ON <dates>]
 
 EACH c IN staff.counselors
-morning:   REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}
-afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.playstation + blocks.clinic_3}
+morning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}
+afternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.playstation + blocks.clinic_3}
 GAP morning TO afternoon AT_MOST 5h
 
 EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all ON 2026-08-05
@@ -48,19 +48,19 @@ wrong = [
 id = "gap-hours-apart"
 title = "Hours apart"
 prompt = "Lisa has two 'staff meeting's today, each an hour long: one in clinic 1 or clinic 2, the other in clinic 3 or clinic 4 — at least five hours after the first one ends."
-answer = "first:  REQUEST staff.lisa DO 'staff meeting' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nsecond: REQUEST staff.lisa DO 'staff meeting' FOR 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP first TO second AT_LEAST 5h"
+answer = "first:  REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nsecond: REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP first TO second AT_LEAST 5h"
 hints = ["Label both, then GAP first TO second with the least time between them."]
 explain = "A GAP compares real times: the end of the first to the start of the second. Clinic 2 ends at 11:00 and clinic 3 starts at 15:30, so five hours rules that pair out."
-wrong = ["first:  REQUEST staff.lisa DO 'staff meeting' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nsecond: REQUEST staff.lisa DO 'staff meeting' FOR 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP first TO second AT_LEAST 0m"]
+wrong = ["first:  REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nsecond: REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP first TO second AT_LEAST 0m"]
 
 [[problem]]
 id = "gap-not-too-late"
 title = "Soon after"
 prompt = "Dylan does a 30-minute 'medication round' in clinic 1 or clinic 2, and a second one in rest hour or playstation — no more than three hours after the first ends."
-answer = "morning:   REQUEST staff.dylan DO 'medication round' FOR 30m DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST staff.dylan DO 'medication round' FOR 30m DURING AT_LEAST 1 {blocks.rest_hour + blocks.playstation}\nGAP morning TO afternoon AT_MOST 3h"
+answer = "morning:   REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING AT_LEAST 1 {blocks.rest_hour + blocks.playstation}\nGAP morning TO afternoon AT_MOST 3h"
 hints = ["AT_MOST in a GAP is the most time allowed between them."]
 explain = "A task shorter than its block may sit anywhere in it, so the solver can slide both rounds to keep them close enough."
-wrong = ["morning:   REQUEST staff.dylan DO 'medication round' FOR 30m DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST staff.dylan DO 'medication round' FOR 30m DURING AT_LEAST 1 {blocks.rest_hour + blocks.playstation}\nGAP morning TO afternoon AT_MOST 5h"]
+wrong = ["morning:   REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING AT_LEAST 1 {blocks.rest_hour + blocks.playstation}\nGAP morning TO afternoon AT_MOST 5h"]
 
 [[problem]]
 id = "gap-one-person-both"
