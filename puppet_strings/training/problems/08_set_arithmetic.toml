@@ -11,6 +11,7 @@ teaches = """
 {staff.all - staff.counselors}
 {staff.all - (staff.directors + staff.counselors)}
 {blocks.all - blocks.meals}
+{dates.season.tuesdays & (2026-07-21 .. dates.session_6.last)}   Tuesdays in that run
 """
 
 [[problem]]
@@ -131,12 +132,14 @@ alternatives = ["REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON E
 wrong = ["REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH {2026-08-03 .. 2026-08-07}"]
 
 [[problem]]
-id = "sets-trainers-not-directors"
-title = "Clinic trainers"
-prompt = "One of the clinic trainers who isn't a director gives a 'skills workshop' during rest hour."
-answer = "REQUEST AT_LEAST 1 {staff.clinic_trainers - staff.directors} DO 'skills workshop' DURING blocks.rest_hour"
-hints = ["staff.clinic_trainers is everyone who is a trainer on some skill."]
-wrong = ["REQUEST AT_LEAST 1 staff.clinic_trainers DO 'skills workshop' DURING blocks.rest_hour"]
+id = "sets-tuesdays-in-a-window"
+title = "Tuesdays, for a while"
+prompt = "On every Tuesday from July 21 to the end of this session, Hailey meets the 'farrier visit' during setup. Each Tuesday counts on its own."
+answer = "REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {dates.season.tuesdays & (2026-07-21 .. dates.session_6.last)}"
+hints = ["The dates wanted are in both sets: Tuesdays, and the run from July 21.", "& keeps what is in both: {dates.season.tuesdays & (2026-07-21 .. dates.session_6.last)}."]
+explain = "& is not 'and also': it keeps only the dates in both sets, here three Tuesdays. + would take every Tuesday of the season and every day of the run as well."
+alternatives = ["REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {(2026-07-21 .. dates.session_6.last) & dates.season.tuesdays}"]
+wrong = ["REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {dates.season.tuesdays + (2026-07-21 .. dates.session_6.last)}"]
 
 [[problem]]
 id = "sets-meals-but-breakfast"
