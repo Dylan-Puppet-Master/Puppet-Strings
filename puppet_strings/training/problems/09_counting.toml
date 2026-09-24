@@ -14,6 +14,7 @@ REQUEST staff.rob DO 'break' FOR 30m DURING blocks.clinic_1
 • An amount is AT_LEAST, AT_MOST or EXACTLY, then a count (3) or a length (90m, 2h)
 • In a pattern, ANY <set> means "any of these"; EACH splits it to count per item
 • DURING ANY CONSECUTIVE <blocks> counts back-to-back blocks on one day
+• A length may be split across any blocks; with CONSECUTIVE it must be one unbroken run
 • FOR sets how long a quoted task lasts inside its block
 """
 
@@ -68,6 +69,25 @@ answer = "REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing'"
 hints = ["A length is written 2h or 120m.", "REQUEST AT_LEAST 2h <who> DO <what>"]
 alternatives = ["REQUEST AT_LEAST 120m staff.cam_vl DO 'video editing'"]
 wrong = ["REQUEST AT_LEAST 1h staff.cam_vl DO 'video editing'"]
+
+[[problem]]
+id = "count-two-hours-unbroken"
+title = "Two hours in one go"
+prompt = "Cam VL spends at least two hours on 'video editing' today, all in one go: one block, or blocks back to back."
+answer = "REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing' DURING ANY CONSECUTIVE blocks.all"
+hints = ["Start from the last problem's answer.", "DURING ANY CONSECUTIVE blocks.all measures the length run by run instead of over the whole day."]
+explain = "Without CONSECUTIVE, two hours can be split across blocks hours apart. With it, one run of back-to-back blocks has to reach two hours. No block today is that long, so the run takes at least two."
+alternatives = ["REQUEST staff.cam_vl DO AT_LEAST 2h 'video editing' DURING ANY CONSECUTIVE blocks.all"]
+wrong = ["REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing'"]
+
+[[problem]]
+id = "count-one-sitting"
+title = "One sitting"
+prompt = "Hails does 45 minutes of 'lesson planning' today in one sitting, in whichever block."
+answer = "REQUEST staff.hails DO 'lesson planning' FOR 45m DURING ANY 1 blocks.all"
+hints = ["FOR sets the length of one piece, and a piece stays inside its block.", "DURING ANY 1 blocks.all lets the solver pick the block."]
+explain = "AT_LEAST 45m would be a total, which could be made of short blocks at different times. FOR 45m is one piece in one block."
+wrong = ["REQUEST AT_LEAST 45m staff.hails DO 'lesson planning'"]
 
 [[problem]]
 id = "count-no-two-in-a-row"
