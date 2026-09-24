@@ -292,6 +292,15 @@ class Binding:
 
 
 @dataclass(frozen=True)
+class TaskName:
+    """`x: '<task>'`: a name for a quoted task, written in after DO like a Definition's set."""
+
+    name: str
+    task: Task
+    pos: Pos
+
+
+@dataclass(frozen=True)
 class Definition:
     """`x: <set>`: a name for a set.
 

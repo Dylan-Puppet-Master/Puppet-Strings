@@ -88,12 +88,15 @@ now rather than only that something was unexpected.
 // it only ever takes a whole word: `format` is a name, not `FOR` and then `mat`.
 
 start       : _NL* line (_NL+ line)* _NL*
-?line       : binding | define | if_ | unless | labeled | request | prefer | gap | exclude
+?line       : binding | define | define_task | if_ | unless | labeled | request | prefer | gap
+            | exclude
 
 binding     : (EACH | amount | any_n) NAME _IN set_
 // A name for a set, written once and meaning the same wherever it is used. With EXACTLY n
 // or EACH in front it is a binding line spelled the other way round.
 define      : NAME ":" (ALL | EACH | amount | any_n)? set_
+// A name for a quoted task, to write after DO wherever the task is meant.
+define_task : NAME ":" STRING
 if_         : _IF _NL* condition
 unless      : _UNLESS _NL* condition
 labeled     : NAME ":" request
@@ -428,6 +431,10 @@ chooses nothing on its own: a group inside it chooses afresh wherever it is used
 is nobody else's: a definition may not share it with a variable, a label or another
 definition, and may not be defined in terms of itself.
 
+A definition may also name a quoted task: `duty: 'on duty'`. The name then stands for the
+task after `DO`, in any line of the declaration, and nowhere else: not in a set, and with no
+quantifier, since it is one task.
+
 With a quantifier after the colon, a definition is a binding line spelled the other way
 round: `videographer: EXACTLY 1 {staff.dylan + staff.donny}` is
 `EXACTLY 1 videographer IN {staff.dylan + staff.donny}`, and `c: EACH staff.counselor` is
@@ -610,7 +617,7 @@ A declaration is lines of these kinds, in any order.
 |---|---|---|
 | Statement | `[label:] REQUEST …` or `PREFER …` | §9. Only a positive `REQUEST … DO` may be labeled. |
 | Binding | `EACH x IN s`, `EXACTLY n x IN s`, `x: EXACTLY n s`, `x: EACH s` | §6.3. |
-| Definition | `x: s` | A name for a set (§6.3). |
+| Definition | `x: s`, `x: '<task>'` | A name for a set, or for a quoted task (§6.3). |
 | Condition | `IF <test>` | The statements apply only when this holds. |
 | Negative condition | `UNLESS <test>` | The statements apply only when this does not hold. |
 | Gap | `GAP a TO b [<amount>]` | Relates the assignments of the `REQUEST` labeled `a` to those of the one labeled `b`. |
@@ -779,6 +786,8 @@ parser, the validator and the solver report:
 | `ANY pools names, not groups or chosen names` | `ANY {staff.x + (ALL …)}`, or `ANY` of a set holding a bound name. |
 | `is defined twice` | Two definitions of one name, or a definition sharing its name with a variable or label. |
 | `is defined in terms of itself` | `a: {staff.x + b}` and `b: {staff.y + a}`. |
+| `names a task, which goes after DO, not in a set` | A task's name used in a set, or after `WITH`. |
+| `names one task, so no quantifier` | `DO ANY duty`, where `duty` names a task. |
 | `names one item at a time, and` | `EACH x IN` a set holding a group. |
 | `CONSECUTIVE counts blocks one at a time, so no groups` | A group in `DURING … CONSECUTIVE …`. |
 | `CONSECUTIVE goes before the blocks` | `DURING AT_LEAST 2 blocks.all CONSECUTIVE`, the old spelling; the message gives the new one. |

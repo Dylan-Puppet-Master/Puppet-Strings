@@ -253,6 +253,11 @@ class _Builder(Transformer):
             _quantifier(quantifier[0])  # ALL_OF is refused here as anywhere
         return ast.Definition(str(name), _atom(expr), _pos(meta))
 
+    def define_task(self, meta, items):
+        """`x: '<task>'` names a quoted task."""
+        name, text = items
+        return ast.TaskName(str(name), ast.Task(str(text)[1:-1]), _pos(meta))
+
     def any_n(self, meta, items):
         token = items[-1]
         if token.type == "ANY_N_OF":
@@ -675,6 +680,7 @@ def _define(declaration: ast.Declaration) -> ast.Declaration:
     A definition may use one made before or after it, but not itself, and its name is
     nobody else's: not a variable's and not a label's.
     """
+    declaration = _name_tasks(declaration)
     written = [x for x in declaration.lines if isinstance(x, ast.Definition)]
     if not written:
         return declaration
@@ -705,6 +711,58 @@ def _define(declaration: ast.Declaration) -> ast.Declaration:
         for line in declaration.lines
         if not isinstance(line, ast.Definition)
     )
+    return ast.Declaration(lines)
+
+
+def _name_tasks(declaration: ast.Declaration) -> ast.Declaration:
+    """Write every `x: '<task>'` in after the DO it names the task of, and drop the line.
+
+    The name is nobody else's, as a definition's is, and it stands only where a task can:
+    as what somebody does.
+    """
+    named = [x for x in declaration.lines if isinstance(x, ast.TaskName)]
+    if not named:
+        return declaration
+    tasks: dict[str, ast.TaskName] = {}
+    taken = _names_taken(declaration) | {
+        x.name for x in declaration.lines if isinstance(x, ast.Definition)
+    }
+    for line in named:
+        if line.name in tasks or line.name in taken:
+            raise _error(f"'{line.name}' is defined twice", line.pos)
+        tasks[line.name] = line
+
+    def written_in(node):
+        if isinstance(node, ast.Requirement | ast.Pattern):
+            what = node.what
+            if (
+                isinstance(what, ast.Selector)
+                and isinstance(what.expr, ast.Var)
+                and what.expr.name in tasks
+            ):
+                if what.quantifier is not None:
+                    raise _error(f"'{what.expr.name}' names one task, so no quantifier", what.pos)
+                node = replace(node, what=tasks[what.expr.name].task)
+        if isinstance(node, tuple):
+            return tuple(written_in(x) for x in node)
+        if is_dataclass(node) and not isinstance(node, ast.Pos | ast.Task):
+            changed = {}
+            for f in fields(node):
+                old = getattr(node, f.name)
+                new = written_in(old)
+                if new is not old:
+                    changed[f.name] = new
+            return replace(node, **changed) if changed else node
+        return node
+
+    lines = tuple(written_in(x) for x in declaration.lines if not isinstance(x, ast.TaskName))
+    for line in lines:
+        for expr in ast.set_exprs(line):
+            for var in ast.vars_in(expr):
+                if var.name in tasks:
+                    raise _error(
+                        f"'{var.name}' names a task, which goes after DO, not in a set", var.pos
+                    )
     return ast.Declaration(lines)
 
 

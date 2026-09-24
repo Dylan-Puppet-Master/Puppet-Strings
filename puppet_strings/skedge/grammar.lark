@@ -9,12 +9,15 @@
 // it only ever takes a whole word: `format` is a name, not `FOR` and then `mat`.
 
 start       : _NL* line (_NL+ line)* _NL*
-?line       : binding | define | if_ | unless | labeled | request | prefer | gap | exclude
+?line       : binding | define | define_task | if_ | unless | labeled | request | prefer | gap
+            | exclude
 
 binding     : (EACH | amount | any_n) NAME _IN set_
 // A name for a set, written once and meaning the same wherever it is used. With EXACTLY n
 // or EACH in front it is a binding line spelled the other way round.
 define      : NAME ":" (ALL | EACH | amount | any_n)? set_
+// A name for a quoted task, to write after DO wherever the task is meant.
+define_task : NAME ":" STRING
 if_         : _IF _NL* condition
 unless      : _UNLESS _NL* condition
 labeled     : NAME ":" request

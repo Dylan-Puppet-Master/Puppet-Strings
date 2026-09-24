@@ -476,3 +476,32 @@ def test_a_gap_with_no_amount_is_only_the_order():
     (zero,) = parse(text + "GAP a TO b AT_LEAST 0m").gaps
     assert (bare.amount.bound, bare.amount.value, bare.amount.duration) == (ast.AT_LEAST, 0, True)
     assert bare.amount.value == zero.amount.value
+
+
+def test_a_task_may_be_named_and_used_after_do():
+    lines = parse(
+        "duty: 'on duty'\n"
+        "REQUEST staff.rob DO duty DURING blocks.a\n"
+        "IF staff.vic DO duty DURING blocks.b\n"
+        "REQUEST staff.vic NOT DO duty"
+    ).lines
+    assert all(
+        (x.what if isinstance(x, ast.Requirement) else x.test.pattern.what) == ast.Task("on duty")
+        for x in lines
+    )
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        (
+            "duty: 'on duty'\nREQUEST ALL {staff.rob + duty} FREE",
+            "names a task, which goes after DO",
+        ),
+        ("duty: 'on duty'\nREQUEST staff.rob DO ANY duty", "names one task, so no quantifier"),
+        ("duty: 'on duty'\nduty: staff.rob\nREQUEST duty FREE", "is defined twice"),
+    ],
+)
+def test_a_task_name_stands_only_where_a_task_can(text, message):
+    with pytest.raises(ast.SkedgeError, match=message):
+        parse(text)

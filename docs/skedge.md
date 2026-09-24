@@ -587,6 +587,15 @@ definition may use another. It is only shorthand: nothing is chosen by naming a 
 group inside one chooses afresh wherever the name is used. A name can't be both a set and
 a variable or a label.
 
+A quoted task can be named the same way, and the name then goes after `DO`, so a long task
+name is written once and the lines using it cannot drift apart:
+
+```skedge
+duty: 'front desk duty'
+REQUEST AT_LEAST 1 staff.office DO duty DURING blocks.clinic_1
+REQUEST AT_LEAST 1 staff.office DO duty DURING blocks.clinic_3
+```
+
 With a quantifier after the colon, it is a binding line written the other way round:
 `videographer: EXACTLY 1 {staff.dylan + staff.cam_vl}` is the same as
 `EXACTLY 1 videographer IN {staff.dylan + staff.cam_vl}`, and `c: EACH staff.counselor`

@@ -130,3 +130,13 @@ answer = "EXACTLY 1 b IN {blocks.clinic_1 + blocks.clinic_2}\nREQUEST AT_LEAST 2
 hints = ["A count of people comes before a count of blocks, so each would get a block of their own.", "Name the block once: EXACTLY 1 b IN {…}, then DURING b."]
 explain = "Counts go one inside the other: who first, then the blocks. To share one block between the people counted, the block is named once, outside them."
 wrong = ["REQUEST AT_LEAST 2 staff.eq_staff DO 'hoof trimming' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}"]
+
+[[problem]]
+id = "names-a-task"
+title = "One name for the job"
+prompt = "Name the task 'director on duty' once, as duty, and use it twice: one director does it during clinic 1, and Lisa does it during clinic 3."
+answer = "duty: 'director on duty'\nREQUEST AT_LEAST 1 staff.directors DO duty DURING blocks.clinic_1\nREQUEST staff.lisa DO duty DURING blocks.clinic_3"
+hints = ["A quoted task can be named like a set: duty: 'director on duty'.", "The name goes after DO."]
+explain = "A named task is written once, so the lines using it can't drift apart with a typo."
+alternatives = ["REQUEST AT_LEAST 1 staff.directors DO 'director on duty' DURING blocks.clinic_1\nREQUEST staff.lisa DO 'director on duty' DURING blocks.clinic_3"]
+wrong = ["duty: 'director on duty'\nREQUEST AT_LEAST 1 staff.directors DO duty DURING blocks.clinic_1\nREQUEST staff.lisa DO duty DURING blocks.clinic_4"]
