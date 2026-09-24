@@ -54,13 +54,13 @@ def test_amount_statements():
     assert count.amount == ast.Amount(ast.AT_MOST, 2, False, ast.Pos(1, 9))
     assert count.pattern.who.quantifier == ast.ANY and count.pattern.what == ast.Task("break")
     (hours,) = parse(
-        "PREFER AT_LEAST 2h CONSECUTIVE staff.cam_vl DO activities.clinics.candle_making "
-        "AS_ROLE roles.trainee ON {2026-09-14 .. 2026-09-18}"
+        "PREFER AT_LEAST 2h staff.cam_vl DO activities.clinics.candle_making "
+        "AS_ROLE roles.trainee ON {2026-09-14 .. 2026-09-18} DURING ANY CONSECUTIVE blocks.all"
     ).lines
     assert hours.prefer and hours.consecutive
     assert hours.amount == ast.Amount(ast.AT_LEAST, 120, True, ast.Pos(1, 8))
     role = ast.clause(hours.pattern.clauses, ast.AsRole).selector.expr
-    assert role == ast.Ref("roles", "trainee", ast.Pos(1, 89))
+    assert role == ast.Ref("roles", "trainee", ast.Pos(1, 77))
     assert isinstance(ast.clause(hours.pattern.clauses, ast.On).selector.expr, ast.DateRange)
 
 
@@ -102,7 +102,7 @@ def test_mapping_cells_parse_on_their_own():
 def test_bindings_conditions_labels_and_gaps():
     lines = parse(
         "ANY 2 p IN staff.counselor\n"
-        "UNLESS AT_LEAST 3 CONSECUTIVE p DO ANY activities.clinics.all\n"
+        "UNLESS p DO AT_LEAST 3 ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all\n"
         "first: REQUEST p DO 'campfire setup' DURING blocks.clinic_4\n"
         "last:  REQUEST p DO 'campfire teardown' DURING blocks.evening\n"
         "GAP first TO last AT_LEAST 0m\n"
@@ -116,7 +116,7 @@ def test_bindings_conditions_labels_and_gaps():
         "p",
     )
     assert unless.unless and unless.test.consecutive and unless.test.amount.value == 3
-    assert unless.test.pattern.who.expr == ast.Var("p", ast.Pos(2, 31))
+    assert unless.test.after_do and unless.test.pattern.who.expr == ast.Var("p", ast.Pos(2, 8))
     assert (first.label, last.label) == ("first", "last") and first.pos == ast.Pos(3, 8)
     assert gap == ast.Gap(
         "first", "last", ast.Amount(ast.AT_LEAST, 0, True, ast.Pos(5, 19)), ast.Pos(5, 1)
@@ -127,7 +127,7 @@ def test_bindings_conditions_labels_and_gaps():
 def test_conditions_join_with_and_and_or_over_several_lines():
     (if_, _) = parse(
         "IF\n"
-        "AT_LEAST 2 CONSECUTIVE staff.counselor DO 'break' DURING EACH_OF blocks.all\n"
+        "AT_LEAST 2 ANY staff.counselor DO 'break' DURING ANY CONSECUTIVE blocks.all\n"
         "AND\n"
         "staff.dylan FREE DURING blocks.lunch\n"
         "REQUEST staff.rob DO 'x' DURING blocks.lunch"
@@ -222,37 +222,75 @@ def test_a_keyword_may_be_written_in_either_case():
         "each_of c in staff.counselor\nrequest c not free during blocks.clinic_1"
     ).lines
     assert binding.selector.quantifier == ast.EACH_OF and line.negated
-    (count,) = parse("prefer at_most 2 consecutive staff.all do 'break'").lines
+    (count,) = parse(
+        "prefer at_most 2 any staff.all do 'break' during any consecutive blocks.all"
+    ).lines
     assert count.amount.bound == ast.AT_MOST and count.consecutive
 
 
-def test_consecutive_follows_what_it_constrains():
-    """After an amount, the amount is measured in runs; after ANY n blocks, they adjoin."""
-    (count,) = parse("REQUEST AT_LEAST 2 CONSECUTIVE staff.dylan DO 'x'").lines
-    assert count.consecutive
-    (run,) = parse("REQUEST staff.dylan DO 'x' DURING ANY 2 blocks.all CONSECUTIVE").lines
+def test_consecutive_goes_on_the_blocks():
+    """In a count the amount is measured in runs; after ANY n blocks, they adjoin."""
+    (count,) = parse(
+        "REQUEST AT_LEAST 2 staff.dylan DO 'x' DURING ANY CONSECUTIVE blocks.all"
+    ).lines
+    assert count.consecutive and ast.clause(count.pattern.clauses, ast.During).consecutive
+    (run,) = parse("REQUEST staff.dylan DO 'x' DURING ANY 2 CONSECUTIVE blocks.all").lines
     during = ast.clause(run.clauses, ast.During)
-    assert during.consecutive and during.selector.n == 2
+    assert during.consecutive and during.selector.n == 2 and not during.selector.consecutive
     (plain,) = parse("REQUEST staff.dylan DO 'x' DURING ANY 2 blocks.all").lines
     assert not ast.clause(plain.clauses, ast.During).consecutive
 
 
-def test_consecutive_after_the_pattern_says_where_it_goes_now():
-    for text in (
-        "REQUEST AT_LEAST 2 staff.dylan DO 'x' DURING ANY blocks.all CONSECUTIVE",
-        "IF AT_LEAST 2 s DO 'x' DURING ANY blocks.all CONSECUTIVE\nREQUEST s FREE DURING blocks.lunch",
-    ):
-        with pytest.raises(ast.SkedgeError) as e:
-            parse(text)
-        assert e.value.message.startswith("CONSECUTIVE goes after the amount")
+def test_an_amount_may_follow_do():
+    """`s DO AT_LEAST 3 …` counts the same as `AT_LEAST 3 s DO …`, and says it after DO."""
+    after = "IF s DO AT_LEAST 3 ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"
+    before = "IF AT_LEAST 3 s DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"
+    tail = "\nREQUEST s FREE DURING ANY 1 blocks.all"
+    (if_after, _), (if_before, _) = parse(after + tail).lines, parse(before + tail).lines
+    assert if_after.test.after_do and not if_before.test.after_do
+    assert if_after.test.amount.value == if_before.test.amount.value == 3
+    assert if_after.test.consecutive and if_before.test.consecutive
+    (count,) = parse("PREFER EACH_OF staff.all DO AT_MOST 8 ANY activities.clinics.all").lines
+    assert count.prefer and count.after_do and count.amount.value == 8
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        ("REQUEST AT_LEAST 2 CONSECUTIVE staff.dylan DO 'x'", "CONSECUTIVE goes on the blocks"),
+        (
+            "IF AT_LEAST 2 CONSECUTIVE s DO 'x'\nREQUEST s FREE DURING blocks.lunch",
+            "CONSECUTIVE goes on the blocks",
+        ),
+        (
+            "REQUEST staff.dylan DO 'x' DURING ANY 2 blocks.all CONSECUTIVE",
+            "CONSECUTIVE goes before the blocks: DURING ANY 2 CONSECUTIVE blocks.all",
+        ),
+        ("REQUEST staff.dylan DO 'x' DURING ALL_OF CONSECUTIVE blocks.all", "after ANY or ANY n"),
+        ("REQUEST staff.dylan DO 'x' ON ANY 2 CONSECUTIVE dates.season.all", "is about blocks"),
+        (
+            "IF staff.dylan DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all\nREQUEST staff.dylan FREE",
+            "needs AT_LEAST",
+        ),
+        (
+            "REQUEST AT_LEAST 2 staff.dylan DO 'x' DURING ANY 2 CONSECUTIVE blocks.all",
+            "with no number",
+        ),
+        ("REQUEST ANY staff.all DO AT_MOST 2 'break'", "an amount after DO counts one person's"),
+    ],
+)
+def test_consecutive_and_amounts_in_the_old_places_say_the_new_ones(text, message):
+    with pytest.raises(ast.SkedgeError) as e:
+        parse(text)
+    assert message in e.value.message
 
 
 def test_consecutive_right_of_not_says_to_count_the_run():
     """Right of NOT nothing is chosen, so the message points at the amount that limits runs."""
     with pytest.raises(ast.SkedgeError) as e:
-        parse("REQUEST EACH_OF staff.all NOT DO 'break' DURING ANY 2 blocks.all CONSECUTIVE")
+        parse("REQUEST EACH_OF staff.all NOT DO 'break' DURING ANY 2 CONSECUTIVE blocks.all")
     assert e.value.message.startswith("right of NOT there are no blocks to choose")
-    assert "AT_MOST 1 CONSECUTIVE" in e.value.message
+    assert "DURING ANY CONSECUTIVE" in e.value.message
 
 
 def test_a_name_that_starts_with_a_keyword_is_still_a_name():
@@ -378,7 +416,10 @@ def test_a_definition_with_a_quantifier_is_a_binding():
         ("a: staff.x\na: staff.y\nREQUEST a DO 'x' DURING blocks.a", "'a' is defined twice"),
         ("c: staff.x\nREQUEST EACH_OF c IN staff.all DO 'x' DURING blocks.a", "defined twice"),
         ("a: {b + staff.x}\nb: {a}\nREQUEST a DO 'x' DURING blocks.a", "in terms of itself"),
-        ("IF ANY 1 staff.all FREE\nREQUEST staff.x FREE DURING blocks.a", "one assignment at a time"),
+        (
+            "IF ANY 1 staff.all FREE\nREQUEST staff.x FREE DURING blocks.a",
+            "one assignment at a time",
+        ),
         ("REQUEST staff.x NOT DO 'x' DURING ANY 2 blocks.all", "right of NOT a set"),
     ],
 )

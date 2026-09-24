@@ -8,11 +8,11 @@ ANY n <set>      n of them — the solver picks which
 REQUEST ANY 1 staff.directors DO 'office' DURING blocks.clinic_1
 REQUEST staff.rob DO 'break' DURING ANY 1 blocks.meals
 REQUEST ANY 2 staff.mfgs DO 'mowing' DURING ANY 1 blocks.all_clinics
-REQUEST staff.rob DO 'range repair' DURING ANY 2 blocks.all_clinics CONSECUTIVE
+REQUEST staff.rob DO 'range repair' DURING ANY 2 CONSECUTIVE blocks.all_clinics
 
 • The solver chooses once, then everyone chosen does it in every block chosen
 • A single name (staff.rob) never takes a quantifier
-• CONSECUTIVE after ANY n blocks: the chosen blocks are next to each other
+• ANY n CONSECUTIVE <blocks>: the chosen blocks are next to each other
 """
 
 [[problem]]
@@ -176,7 +176,7 @@ wrong = ["REQUEST staff.samaya DO 'allergy table' DURING ALL_OF blocks.meals"]
 id = "any-two-in-a-row"
 title = "Two in a row"
 prompt = "Rob does 'range repair' for two clinic blocks in a row."
-answer = "REQUEST staff.rob DO 'range repair' DURING ANY 2 blocks.all_clinics CONSECUTIVE"
-hints = ["Two of the clinic blocks is ANY 2 blocks.all_clinics. CONSECUTIVE right after it keeps them together."]
+answer = "REQUEST staff.rob DO 'range repair' DURING ANY 2 CONSECUTIVE blocks.all_clinics"
+hints = ["Two of the clinic blocks is ANY 2 blocks.all_clinics. CONSECUTIVE between ANY 2 and the blocks keeps them together."]
 explain = "Blocks are next to each other when they are next to each other on the Blocks sheet, so clinic 2 and clinic 3 are not."
 wrong = ["REQUEST staff.rob DO 'range repair' DURING ANY 2 blocks.all_clinics"]

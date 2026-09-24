@@ -128,6 +128,8 @@ class Selector:
 
     `quantifier` is ALL_OF, ANY_OF (with `n`), ANY (no `n`: matched, not chosen) or EACH_OF,
     or None for one thing written on its own. `var` is the `x` of `EACH_OF x IN s`.
+    `consecutive` is `ANY [n] CONSECUTIVE`, which only a DURING takes: the parser moves it
+    onto the During and refuses it anywhere else.
     """
 
     expr: SetExpr
@@ -135,6 +137,7 @@ class Selector:
     n: int | None
     var: str | None
     pos: Pos
+    consecutive: bool = False
 
 
 @dataclass(frozen=True)
@@ -156,7 +159,7 @@ class Clause:
 
 @dataclass(frozen=True)
 class During(Clause):
-    """`DURING <blocks>`, and with `consecutive`, `DURING ANY n <blocks> CONSECUTIVE`."""
+    """`DURING <blocks>`, and with `consecutive`, `DURING ANY [n] CONSECUTIVE <blocks>`."""
 
     selector: Selector
     consecutive: bool = False
@@ -236,7 +239,11 @@ class Requirement:
 
 @dataclass(frozen=True)
 class Count:
-    """`REQUEST|PREFER <amount> [CONSECUTIVE] <pattern>`."""
+    """`REQUEST|PREFER <amount> <pattern>`, or with `after_do`, `<who> DO <amount> <what> …`.
+
+    `consecutive` is the pattern's `DURING ANY CONSECUTIVE <blocks>`: the amount is
+    measured over back-to-back blocks on one day.
+    """
 
     prefer: bool
     amount: Amount
@@ -244,6 +251,7 @@ class Count:
     consecutive: bool
     pos: Pos
     label: str | None = None
+    after_do: bool = False
 
 
 @dataclass(frozen=True)
@@ -297,12 +305,13 @@ class Definition:
 
 @dataclass(frozen=True)
 class Predicate:
-    """`[<amount> [CONSECUTIVE]] <pattern>`: one thing a condition asks about."""
+    """`[<amount>] <pattern>`, or `<who> DO <amount> <what> …`: one thing a condition asks about."""
 
     amount: Amount | None
     pattern: Pattern
     consecutive: bool
     pos: Pos
+    after_do: bool = False
 
 
 @dataclass(frozen=True)

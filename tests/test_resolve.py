@@ -138,7 +138,7 @@ def test_patterns_conditions_and_mappings(dataset):
     (copy,) = resolve(
         dataset,
         "EACH_OF s IN staff.director\n"
-        "IF AT_LEAST 3 CONSECUTIVE s DO ANY activities.clinics.all\n"
+        "IF AT_LEAST 3 s DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all\n"
         "REQUEST s FREE DURING ANY 1 blocks.all",
     )[:1]
     assert copy.condition.test.amount.value == 3 and copy.condition.test.consecutive

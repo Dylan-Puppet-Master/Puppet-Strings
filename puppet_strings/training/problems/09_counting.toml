@@ -3,16 +3,17 @@ name = "Counting"
 blurb = "AT_LEAST, AT_MOST and EXACTLY: how many, how long, how many in a row."
 day = "2026-08-04"
 teaches = """
-REQUEST <amount> [CONSECUTIVE] <pattern>
+REQUEST <amount> <pattern>
+REQUEST <who> DO <amount> <what> ...      when <who> is one person, or EACH_OF
 
 REQUEST AT_MOST 2 ANY staff.counselors DO 'break' DURING EACH_OF blocks.all
 REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing'
-REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all
+REQUEST AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all
 REQUEST staff.rob DO 'break' FOR 30m DURING blocks.clinic_1
 
 • An amount is AT_LEAST, AT_MOST or EXACTLY, then a count (3) or a length (90m, 2h)
 • In a pattern, ANY <set> means "any of these"; EACH_OF splits it to count per item
-• CONSECUTIVE after the amount counts back-to-back blocks on one day
+• DURING ANY CONSECUTIVE <blocks> counts back-to-back blocks on one day
 • FOR sets how long a quoted task lasts inside its block
 """
 
@@ -72,10 +73,10 @@ wrong = ["REQUEST AT_LEAST 1h staff.cam_vl DO 'video editing'"]
 id = "count-no-two-in-a-row"
 title = "Never two in a row"
 prompt = "Nobody runs two clinics back to back. Count it per person."
-answer = "REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all"
+answer = "REQUEST AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"
 priority = "MUST_HAPPEN"
-hints = ["EACH_OF staff.all counts person by person.", "CONSECUTIVE after the amount counts back-to-back blocks."]
-wrong = ["REQUEST AT_MOST 2 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all"]
+hints = ["EACH_OF staff.all counts person by person.", "DURING ANY CONSECUTIVE blocks.all counts back-to-back blocks."]
+wrong = ["REQUEST AT_MOST 2 EACH_OF staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"]
 
 [[problem]]
 id = "count-each-at-most-two-clinics"
@@ -141,8 +142,8 @@ wrong = ["REQUEST AT_MOST 1 ANY staff.directors DO 'office' DURING ANY blocks.al
 id = "count-two-busy-blocks-in-a-row"
 title = "Two in a row"
 prompt = "Charlton works on 'fence building' for two back-to-back blocks today."
-answer = "REQUEST AT_LEAST 2 CONSECUTIVE staff.charlton DO 'fence building'"
-alternatives = ["REQUEST AT_LEAST 2 CONSECUTIVE staff.charlton DO 'fence building' DURING ANY blocks.all"]
+answer = "REQUEST AT_LEAST 2 staff.charlton DO 'fence building' DURING ANY CONSECUTIVE blocks.all"
+alternatives = ["REQUEST AT_LEAST 2 staff.charlton DO 'fence building' DURING ANY CONSECUTIVE blocks.all"]
 wrong = ["REQUEST AT_LEAST 2 staff.charlton DO 'fence building'"]
 
 [[problem]]

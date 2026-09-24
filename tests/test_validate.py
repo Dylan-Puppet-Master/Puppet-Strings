@@ -23,7 +23,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             1,
         ),
         (
-            "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all CONSECUTIVE",
+            "REQUEST staff.dylan DO 'x' DURING ANY 1 CONSECUTIVE blocks.all",
             Priority.HIGH,
             "CONSECUTIVE after DURING chooses blocks next to each other, so it needs "
             "ANY n with n of 2 or more",
@@ -31,12 +31,18 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             28,
         ),
         (
-            "REQUEST staff.dylan DO 'x' DURING ALL_OF blocks.all_clinics CONSECUTIVE",
+            "REQUEST staff.dylan DO 'x' DURING ANY CONSECUTIVE blocks.all_clinics",
             Priority.HIGH,
-            "CONSECUTIVE after DURING chooses blocks next to each other, so it needs "
-            "ANY n with n of 2 or more",
+            "ANY with no number matches rather than chooses",
             1,
-            28,
+            35,
+        ),
+        (
+            "REQUEST staff.counselor DO AT_MOST 2 'break' DURING EACH_OF blocks.all",
+            Priority.HIGH,
+            "an amount after DO counts one person's assignments",
+            1,
+            9,
         ),
         (
             "REQUEST staff.counselor DO 'x' DURING blocks.clinic_1",

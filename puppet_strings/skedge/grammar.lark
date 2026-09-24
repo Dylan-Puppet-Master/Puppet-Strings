@@ -29,7 +29,9 @@ request     : _REQUEST _clauses chooser _clauses _DO _clauses do_target _clauses
             | _REQUEST _clauses chooser _clauses _NOT _DO _clauses do_target _clauses         -> request_not_do
             | _REQUEST _clauses chooser _clauses _NOT FREE _clauses                          -> request_not_free
             | _REQUEST _clauses amount CONSECUTIVE? pattern                                -> request_count
+            | _REQUEST counted                                                             -> request_counted
 prefer      : _PREFER _clauses amount CONSECUTIVE? pattern                                 -> prefer_count
+            | _PREFER counted                                                              -> prefer_counted
             | _PREFER pattern goal _clauses                                                -> prefer_score
             | _PREFER _clauses goal pattern                                                -> prefer_score
 
@@ -42,23 +44,26 @@ exclude     : _EXCLUDE _clauses chooser _clauses _DO _clauses STRING _clauses
 ?condition  : term ((AND | OR) _NL* term)*        -> junction
 ?term       : test | "(" _NL* condition ")"
 test        : (amount CONSECUTIVE?)? pattern
+            | counted
 
 // A pattern matches rather than chooses, so the parser takes a quantifier anywhere and the
 // builder refuses the ones that choose, with a message saying why.
 pattern     : _clauses chooser _clauses _DO _clauses do_target _clauses              -> pattern_doing
             | _clauses chooser _clauses FREE _clauses                              -> pattern_free
             | _clauses chooser _clauses _NOT FREE _clauses                         -> pattern_busy
+// An amount after DO counts one person's assignments: `s DO AT_LEAST 3 ANY activities.clinics.all`.
+counted     : _clauses chooser _clauses _DO _clauses amount do_target _clauses
 goal        : (MAXIMIZE | MINIMIZE) call
 call        : REF "(" arg ("," arg)* ")"
 ?arg        : NAME | REF
 
-// CONSECUTIVE goes after the amount it measures in runs.
+// CONSECUTIVE right after an amount is the old spelling, parsed only to say the new one.
 amount      : BOUND (INT | DURATION)
 
 ?do_target  : chooser | STRING
 _clauses    : clause*
 ?clause     : during | on | as_role | for_ | with_ | without
-// CONSECUTIVE after ANY n blocks: the chosen blocks are next to each other.
+// CONSECUTIVE after the blocks is the old spelling, parsed only to say the new one.
 during      : _DURING chooser CONSECUTIVE?
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
@@ -68,7 +73,9 @@ with_       : _WITH chooser
 without     : _WITHOUT chooser
 
 // ANY with no number matches rather than chooses: right of NOT, and in a pattern.
-chooser     : (ALL_OF | any_n | ANY)? set_
+// CONSECUTIVE is about blocks, after DURING: `ANY 2 CONSECUTIVE blocks.all` chooses two next
+// to each other, and `ANY CONSECUTIVE blocks.all` in a count measures it in runs.
+chooser     : (ALL_OF | any_n | ANY)? CONSECUTIVE? set_
             | EACH_OF set_
             | EACH_OF NAME _IN set_
 any_n       : ANY INT

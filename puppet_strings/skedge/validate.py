@@ -121,6 +121,8 @@ def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target) -> None:
         seen.add(type(clause))
         if isinstance(clause, ast.During) and clause.consecutive:
             selector = clause.selector
+            if selector.quantifier == ast.ANY:
+                continue  # a count measured in runs, which the parser has seen to
             if selector.quantifier != ast.ANY_OF or selector.n < 2:
                 raise _error(
                     "CONSECUTIVE after DURING chooses blocks next to each other, so it needs "

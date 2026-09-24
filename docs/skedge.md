@@ -220,28 +220,29 @@ block.
 
 ### Blocks in a row
 
-`CONSECUTIVE` right after `ANY n` blocks chooses blocks that are next to each other:
+`CONSECUTIVE` between `ANY n` and the blocks chooses blocks that are next to each other:
 
 ```skedge
-REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 2 blocks.all CONSECUTIVE
+REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 2 CONSECUTIVE blocks.all
 ```
 
 Lucy and Tom take out the garbage together, in two blocks one after the other. Blocks are
 next to each other when they are next to each other in the Blocks sheet, so
-`ANY 2 blocks.all_clinics CONSECUTIVE` may be clinic 1 and 2, but not clinic 2 and 3
+`ANY 2 CONSECUTIVE blocks.all_clinics` may be clinic 1 and 2, but not clinic 2 and 3
 with lunch between them. It needs `ANY n` with n of 2 or more: anything else has nothing
 to choose. For the same reason it cannot follow `NOT DO`, where blocks are ruled out rather
 than chosen. To keep something from running back to back, count the run instead:
 
 ```skedge
-REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO 'break'
+REQUEST AT_MOST 1 EACH_OF staff.all DO 'break' DURING ANY CONSECUTIVE blocks.all
 ```
 
 Nobody has a break in two blocks in a row.
 
-`CONSECUTIVE` always comes right after what it is about. After `ANY n` blocks it is the
-blocks chosen; after an amount ([patterns](#patterns-who-do-what)) it is the amount,
-measured over runs.
+`CONSECUTIVE` is always about blocks, since blocks are what can be in a row, so it only
+ever goes in a `DURING`, just before the blocks. With a number, `ANY 2 CONSECUTIVE`, it
+chooses them; with none, `ANY CONSECUTIVE`, it measures a count in runs
+([patterns](#patterns-who-do-what)).
 
 ### Asking for an activity without naming anybody
 
@@ -351,9 +352,24 @@ request or prefer:
 | `REQUEST AT_LEAST 2h staff.james DO 'dance practice' ON ANY {2026-09-16 .. 2026-09-17}` | James's dance practice adds up to two hours. |
 
 An amount is `AT_LEAST`, `AT_MOST` or `EXACTLY`, then a number of assignments or a length
-of time. Add `CONSECUTIVE` right after it and it is measured over back-to-back blocks on one
-day: `AT_LEAST 2h CONSECUTIVE …` is one unbroken two-hour stretch, `AT_MOST 3 CONSECUTIVE …`
-is never more than three in a row.
+of time. Write the blocks as `DURING ANY CONSECUTIVE <blocks>` and it is measured over
+back-to-back blocks on one day: `AT_LEAST 2h … DURING ANY CONSECUTIVE blocks.all` is one
+unbroken two-hour stretch, `AT_MOST 3 … DURING ANY CONSECUTIVE blocks.all` is never more
+than three in a row.
+
+When the subject is one person — a name, a variable, or `EACH_OF`, which makes a copy per
+person — the amount can go after `DO` instead, where it reads as what that person does:
+
+```skedge
+EACH_OF s IN staff.all
+IF s DO AT_LEAST 3 ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all
+REQUEST s FREE DURING ANY 1 blocks.all
+```
+
+That is the same test as `IF AT_LEAST 3 s DO ANY activities.clinics.all …`. With a set of
+people the amount is a total across all of them, so it goes in front, where it reads as
+one: `REQUEST AT_MOST 2 ANY staff.all DO 'break'`. After `DO` it would read as each
+person's, and is an error.
 
 `REQUEST` and `PREFER` take the same amount and pattern. `REQUEST` is met or not, and can
 be `MUST_HAPPEN`. `PREFER` is never hard and is scored by how far off it is.
@@ -722,7 +738,7 @@ Cam VL is trained on candle making for two clinics in a row, some day this week.
 additional to the clinic's positions.
 
 ```skedge
-REQUEST staff.cam_vl DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY 2 blocks.all_clinics CONSECUTIVE ON ANY 1 {2026-09-14 .. 2026-09-18}
+REQUEST staff.cam_vl DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY 2 CONSECUTIVE blocks.all_clinics ON ANY 1 {2026-09-14 .. 2026-09-18}
 ```
 
 Priority `HIGH`.
@@ -773,7 +789,7 @@ Priority `MEDIUM`, weight `0.25`.
 ### Never more than three clinics in a row
 
 ```skedge
-REQUEST AT_MOST 3 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all
+REQUEST EACH_OF staff.all DO AT_MOST 3 ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all
 ```
 
 Priority `MUST_HAPPEN`.
@@ -873,7 +889,7 @@ Priority `MUST_HAPPEN`.
 
 ```skedge
 EACH_OF s IN staff.all
-IF AT_LEAST 3 CONSECUTIVE s DO ANY activities.clinics.all
+IF s DO AT_LEAST 3 ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all
 REQUEST s FREE DURING ANY 1 blocks.all
 ```
 

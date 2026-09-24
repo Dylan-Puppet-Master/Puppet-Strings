@@ -1,6 +1,6 @@
 """Text to syntax tree, using the Lark grammar in grammar.lark."""
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -250,9 +250,13 @@ class _Builder(Transformer):
         return ast.Condition(False, junction, _pos(meta))
 
     def test(self, meta, items):
+        if isinstance(items[0], _Counted):
+            amount, pattern = items[0]
+            return ast.Predicate(amount, pattern, _runs(pattern), _pos(meta), after_do=True)
+        _old_consecutive(items)
         amount = items[0] if isinstance(items[0], ast.Amount) else None
         pattern = next(x for x in items if isinstance(x, ast.Pattern))
-        return ast.Predicate(amount, pattern, _consecutive(items), _pos(meta))
+        return ast.Predicate(amount, pattern, _runs(pattern), _pos(meta))
 
     def labeled(self, meta, items):
         name, statement = items
@@ -296,9 +300,24 @@ class _Builder(Transformer):
         return self._count(meta, items, prefer=True)
 
     def _count(self, meta, items, prefer: bool):
+        _old_consecutive(items)
         amount = next(x for x in items if isinstance(x, ast.Amount))
         pattern = _with_clauses(items)
-        return ast.Count(prefer, amount, pattern, _consecutive(items), _pos(meta))
+        return ast.Count(prefer, amount, pattern, _runs(pattern), _pos(meta))
+
+    def request_counted(self, meta, items):
+        amount, pattern = items[0]
+        return ast.Count(False, amount, pattern, _runs(pattern), _pos(meta), after_do=True)
+
+    def prefer_counted(self, meta, items):
+        amount, pattern = items[0]
+        return ast.Count(True, amount, pattern, _runs(pattern), _pos(meta), after_do=True)
+
+    def counted(self, meta, items):
+        """`<who> DO <amount> <what> …`, as the amount and the pattern it counts."""
+        amount = next(x for x in items if isinstance(x, ast.Amount))
+        (who, what), clauses = _phrases([x for x in items if x is not amount])
+        return _Counted(amount, ast.Pattern(who, _target(what), False, clauses, _pos(meta)))
 
     def prefer_score(self, meta, items):
         maximize, call = next(x for x in items if isinstance(x, tuple))
@@ -336,13 +355,29 @@ class _Builder(Transformer):
         if _is_quantifier(items[0]):
             kind, n = _quantifier(items[0])
             items = items[1:]
+        consecutive = _is(items[0], "CONSECUTIVE")
+        if consecutive:
+            if kind not in (ast.ANY, ast.ANY_OF):
+                raise _error(
+                    "CONSECUTIVE comes after ANY or ANY n: DURING ANY 2 CONSECUTIVE blocks.all",
+                    _token_pos(items[0]),
+                )
+            items = items[1:]
         if len(items) == 2:
             var = str(items[0])
             items = items[1:]
-        return ast.Selector(_atom(items[0]), kind, n, var, _pos(meta))
+        return ast.Selector(_atom(items[0]), kind, n, var, _pos(meta), consecutive)
 
     def during(self, meta, items):
-        return ast.During(_pos(meta), items[0], _is(items[-1], "CONSECUTIVE"))
+        selector = items[0]
+        if _is(items[-1], "CONSECUTIVE"):
+            n = f" {selector.n}" if selector.quantifier == ast.ANY_OF else ""
+            raise _error(
+                f"CONSECUTIVE goes before the blocks: DURING ANY{n} CONSECUTIVE "
+                f"{ast.spoken(selector.expr)}",
+                _token_pos(items[-1]),
+            )
+        return ast.During(_pos(meta), replace(selector, consecutive=False), selector.consecutive)
 
     def on(self, meta, items):
         return ast.On(_pos(meta), items[0])
@@ -394,9 +429,31 @@ class _Builder(Transformer):
         return ast.DateOffset(_atom(items[0]), days if offset[0] == "+" else -days, _pos(meta))
 
 
-def _consecutive(items) -> bool:
-    """Whether an amount is measured in runs: `AT_LEAST 2 CONSECUTIVE <pattern>`."""
-    return any(_is(x, "CONSECUTIVE") for x in items)
+@dataclass(frozen=True)
+class _Counted:
+    """`<who> DO <amount> <what> …`, as the `counted` rule hands it on."""
+
+    amount: ast.Amount
+    pattern: ast.Pattern
+
+    def __iter__(self):
+        return iter((self.amount, self.pattern))
+
+
+def _runs(pattern: ast.Pattern) -> bool:
+    """Whether an amount is measured in runs: its pattern's `DURING ANY CONSECUTIVE …`."""
+    return any(isinstance(c, ast.During) and c.consecutive for c in pattern.clauses)
+
+
+def _old_consecutive(items) -> None:
+    """`AT_LEAST 3 CONSECUTIVE <pattern>`, the old spelling, told the new one."""
+    for item in items:
+        if _is(item, "CONSECUTIVE"):
+            raise _error(
+                "CONSECUTIVE goes on the blocks, which are what is in a row: "
+                "… DURING ANY CONSECUTIVE blocks.all",
+                _token_pos(item),
+            )
 
 
 def _phrases(items) -> tuple[list, tuple[ast.Clause, ...]]:
@@ -423,50 +480,100 @@ def _check_pools(declaration: ast.Declaration) -> None:
     """Right of NOT, and in a pattern, a set is matched rather than chosen.
 
     So a set there takes ANY, which says so, rather than ANY n, and holds no `(ANY n …)`
-    group; and no DURING there chooses blocks in a row. Right of NOT a set may also take
-    ALL_OF: what must not happen is all of them together. A pattern matches one assignment
-    at a time, which cannot be all of anything, so it may not. Who is alongside is the
-    exception: WITH and WITHOUT count company, and say how many. Checked once the
-    definitions are written in, so a group that arrives by a name is caught the same as one
-    written out.
+    group. Right of NOT a set may also take ALL_OF: what must not happen is all of them
+    together. A pattern matches one assignment at a time, which cannot be all of anything,
+    so it may not. Who is alongside is the exception: WITH and WITHOUT count company, and
+    say how many. Checked once the definitions are written in, so a group that arrives by a
+    name is caught the same as one written out.
+
+    CONSECUTIVE is about blocks. A requirement's DURING chooses blocks in a row with it; in
+    a pattern it measures an amount in runs, so it needs one; right of NOT there is neither.
     """
     for line in declaration.lines:
-        negated = []
+        _consecutive_only_in_during(line)
         if isinstance(line, ast.Requirement) and line.negated:
-            negated = [line.what, *line.clauses]
-        for part in negated:
-            if isinstance(part, ast.During) and part.consecutive:
+            _check_negated(line)
+        for pattern, counted, after_do in _patterns_counted(line):
+            _check_pattern(pattern, counted, after_do)
+
+
+def _check_negated(line: ast.Requirement) -> None:
+    for part in (line.what, *line.clauses):
+        if isinstance(part, ast.During) and part.consecutive:
+            raise _error(
+                "right of NOT there are no blocks to choose, so no CONSECUTIVE; to limit a "
+                "run, count it: <who> DO AT_MOST 1 … DURING ANY CONSECUTIVE <blocks>",
+                part.pos,
+            )
+        selector = getattr(part, "selector", part)
+        if isinstance(part, ast.With | ast.Without) or not isinstance(selector, ast.Selector):
+            continue
+        if selector.quantifier == ast.ANY_OF or ast.picks(selector.expr):
+            raise _error(
+                "right of NOT a set takes ANY, for any of these, or ALL_OF, for all of "
+                "them together, not ANY n",
+                selector.pos,
+            )
+
+
+def _check_pattern(pattern: ast.Pattern, counted: bool, after_do: bool) -> None:
+    if after_do and pattern.who.quantifier == ast.ANY:
+        raise _error(AFTER_DO, pattern.who.pos)
+    for part in (pattern.who, pattern.what, *pattern.clauses):
+        if isinstance(part, ast.During) and part.consecutive:
+            if not counted:
                 raise _error(
-                    "right of NOT there are no blocks to choose, so no CONSECUTIVE; to limit "
-                    "a run, count it: AT_MOST 1 CONSECUTIVE <who> DO …",
+                    "CONSECUTIVE in a pattern measures an amount in runs, so it needs "
+                    "AT_LEAST, AT_MOST or EXACTLY",
                     part.pos,
                 )
-            selector = getattr(part, "selector", part)
-            if isinstance(part, ast.With | ast.Without) or not isinstance(selector, ast.Selector):
-                continue
-            if selector.quantifier == ast.ANY_OF or ast.picks(selector.expr):
+            if part.selector.quantifier != ast.ANY:
                 raise _error(
-                    "right of NOT a set takes ANY, for any of these, or ALL_OF, for all of "
-                    "them together, not ANY n",
-                    selector.pos,
+                    "a count measured in runs is DURING ANY CONSECUTIVE <blocks>, with no number",
+                    part.selector.pos,
                 )
-        parts = []
-        for pattern in ast.patterns(line):
-            parts += [pattern.who, pattern.what, *pattern.clauses]
-        for part in parts:
-            if isinstance(part, ast.During) and part.consecutive:
-                raise _error(
-                    "CONSECUTIVE goes after the amount: AT_LEAST 2 CONSECUTIVE …", part.pos
-                )
-            if isinstance(part, ast.With | ast.Without):
-                continue
-            selector = getattr(part, "selector", part)
-            if isinstance(selector, ast.Selector) and ast.chooses(selector):
-                raise _error(
-                    "a pattern matches one assignment at a time, so a set in it takes ANY or "
-                    "EACH_OF, not ALL_OF or ANY n",
-                    selector.pos,
-                )
+        if isinstance(part, ast.With | ast.Without):
+            continue
+        selector = getattr(part, "selector", part)
+        if isinstance(selector, ast.Selector) and ast.chooses(selector):
+            raise _error(
+                "a pattern matches one assignment at a time, so a set in it takes ANY or "
+                "EACH_OF, not ALL_OF or ANY n",
+                selector.pos,
+            )
+
+
+AFTER_DO = (
+    "an amount after DO counts one person's assignments, so the subject is one person or "
+    "EACH_OF; to count a set of people together, put the amount in front: "
+    "AT_MOST 2 ANY staff.all DO …"
+)
+
+
+def _patterns_counted(line: ast.Line):
+    """Each pattern a line holds, whether an amount counts it, and whether it is after DO."""
+    if isinstance(line, ast.Count):
+        yield line.pattern, True, line.after_do
+    elif isinstance(line, ast.Score):
+        yield line.pattern, False, False
+    elif isinstance(line, ast.Condition):
+        for predicate in ast.predicates(line.test):
+            yield predicate.pattern, predicate.amount is not None, predicate.after_do
+
+
+def _consecutive_only_in_during(node) -> None:
+    """A DURING has taken its CONSECUTIVE off its selector; one left anywhere is misplaced."""
+    if isinstance(node, ast.Selector) and node.consecutive:
+        raise _error(
+            "CONSECUTIVE is about blocks, so it goes after DURING: DURING ANY 2 CONSECUTIVE …",
+            node.pos,
+        )
+    if isinstance(node, tuple):
+        for item in node:
+            _consecutive_only_in_during(item)
+    elif is_dataclass(node) and not isinstance(node, ast.Pos):
+        for f in fields(node):
+            _consecutive_only_in_during(getattr(node, f.name))
 
 
 def _define(declaration: ast.Declaration) -> ast.Declaration:

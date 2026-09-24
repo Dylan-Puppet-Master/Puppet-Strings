@@ -38,7 +38,7 @@ from puppet_strings.skedge.namespaces import (
     STAFF,
 )
 from puppet_strings.skedge.namespaces import ALL as ALL_NAME  # `all`, not the quantifier
-from puppet_strings.skedge.parser import parse_default, parse_domain
+from puppet_strings.skedge.parser import AFTER_DO, parse_default, parse_domain
 
 Item = str | date
 
@@ -584,7 +584,7 @@ def _statement(statement: ast.Statement, scope: _Scope) -> Statement:
     if isinstance(statement, ast.Exclude):
         return _exclusion(statement, scope)
     if isinstance(statement, ast.Count):
-        pattern = _pattern(statement.pattern, scope)
+        pattern = _pattern(statement.pattern, scope, statement.after_do)
         return Count(
             statement.prefer, statement.amount, pattern, statement.consecutive, statement.pos
         )
@@ -642,10 +642,27 @@ def _anyone(statement: ast.Requirement, scope: _Scope) -> Choice:
     return Choice(_sorted(everyone), ANY, 1, pos=statement.pos)
 
 
-def _pattern(pattern: ast.Pattern, scope: _Scope) -> Pattern:
+def _pattern(pattern: ast.Pattern, scope: _Scope, after_do: bool = False) -> Pattern:
+    if after_do and not _one_person(pattern.who, scope):
+        raise _error(AFTER_DO, pattern.who.pos)
     who = _choice(pattern.who, STAFF, scope, pool=True)
     parts = _parts(pattern.what, pattern.clauses, scope, pool=True)
     return Pattern(who, busy=pattern.busy, **parts, pos=pattern.pos)
+
+
+def _one_person(who: ast.Selector, scope: _Scope) -> bool:
+    """Whether a subject is one person in each copy, which an amount after DO needs.
+
+    `EACH_OF` is, since each copy has one of them; so is a name for one person, a call to a
+    mapping, which gives one or its own default, and a name `ANY 1 x IN …` binds.
+    """
+    if who.quantifier == ast.EACH_OF or isinstance(who.expr, ast.Call):
+        return True
+    if who.quantifier is not None:
+        return False
+    if isinstance(who.expr, ast.Var) and who.expr.name in scope.anys:
+        return scope.anys[who.expr.name][0].n == 1
+    return _evaluate(who.expr, STAFF, scope)[1]
 
 
 def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, pool: bool) -> dict:
@@ -697,7 +714,8 @@ def _condition(condition: ast.Condition, scope: _Scope) -> Condition:
 def _test(test: ast.Test, scope: _Scope) -> Predicate | Junction:
     if isinstance(test, ast.Junction):
         return Junction(test.all, tuple(_test(part, scope) for part in test.parts))
-    return Predicate(test.amount, _pattern(test.pattern, scope), test.consecutive)
+    pattern = _pattern(test.pattern, scope, test.after_do)
+    return Predicate(test.amount, pattern, test.consecutive)
 
 
 def _score(statement: ast.Score, scope: _Scope) -> Score:

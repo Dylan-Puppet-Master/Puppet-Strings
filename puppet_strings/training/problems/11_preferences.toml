@@ -3,7 +3,7 @@ name = "Preferences"
 blurb = "PREFER: soft constraints scored by how close they come, and scoring by a mapping."
 day = "2026-08-04"
 teaches = """
-PREFER <amount> [CONSECUTIVE] <pattern>          fewer misses is better
+PREFER <amount> <pattern>                        fewer misses is better
 PREFER <pattern> MAXIMIZE mappings.x(args)       more points is better
 PREFER <pattern> MINIMIZE mappings.x(args)       fewer points is better
 
@@ -90,9 +90,9 @@ wrong = ["PREFER AT_LEAST 2h ANY staff.counselors FREE DURING ANY blocks.all_cli
 id = "prefer-not-three-in-a-row"
 title = "Short runs"
 prompt = "Nobody should ideally do more than one clinic in a row. Measure it person by person."
-answer = "PREFER AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all"
+answer = "PREFER AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"
 priority = "MEDIUM"
-wrong = ["REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all"]
+wrong = ["REQUEST AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"]
 
 [[problem]]
 id = "prefer-maximize-one-person"

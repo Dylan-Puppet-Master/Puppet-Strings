@@ -778,6 +778,20 @@ Recorded so the outline matches the code.
   spans walks `2027/Main Season` once rather than four times, and `discover` runs once per
   root and year. Measured over a modelled season, a reload 70 published days in goes from
   143 API calls to 73.
+- **Every set says how it is taken, and CONSECUTIVE is on the blocks** (Puppet Master,
+  2026-09-23). A set right of `NOT` or in a pattern is matched rather than chosen, and was
+  the one kind of set written with no word in front of it; it now takes `ANY`, with no
+  number, and a bare set there is an error. Right of `NOT`, `ALL_OF` means "not all of these
+  together", since `NOT` turns round the positive request to its right: `_forbid_together`
+  forbids, per person, the conjunction over every combination of the `ALL_OF` items, past
+  dates counting as facts. `ANY n` stays an error there, "not in two of them" being a count.
+  `CONSECUTIVE` moved again, onto the blocks, which are what is in a row: `DURING ANY 2
+  CONSECUTIVE blocks.all` chooses, and a count measured in runs says `DURING ANY
+  CONSECUTIVE blocks.all`, where `AT_LEAST 3 CONSECUTIVE s DO …` read as three consecutive
+  people. An amount may also follow `DO` when the subject is one person per copy, `s DO
+  AT_LEAST 3 …`. Saved requests are rewritten on their next load by `skedge.upgrade`,
+  which works on the parse tree, where the old spellings still parse; the requests file
+  records the syntax version it is written in, so this happens once.
 - **CONSECUTIVE comes right after what it is about** (Puppet Master, 2026-09-22). "Two
   blocks" and "two blocks in a row" differ by one word, and were written two different
   ways: a requirement, and a counted pattern. `DURING ANY n <blocks> CONSECUTIVE` now

@@ -507,6 +507,7 @@ def _mentions(dataset: Dataset, copies) -> dict[str, set]:
     """Every person, activity and quoted task anywhere in some copies."""
     found: dict = {"staff": set(), "activities": set(), "tasks": set(), "blocks": set()}
     found["whole_day"] = False
+    today = {b.id for b in dataset.blocks_on(dataset.target)}
 
     def walk(value) -> None:
         if isinstance(value, ast.Task):
@@ -522,10 +523,15 @@ def _mentions(dataset: Dataset, copies) -> dict[str, set]:
             walk(value.parts)
             walk(value.units)
         elif is_dataclass(value):
-            if isinstance(value, Pattern) and value.during is None:
-                found["whole_day"] = True
+            # a pattern over every block of the day, `DURING ANY CONSECUTIVE blocks.all`, is
+            # about the whole day as much as one with no DURING, and names no block in it
+            whole = isinstance(value, Pattern) and (
+                value.during is None or today <= set(value.during.items)
+            )
+            found["whole_day"] |= whole
             for f in fields(value):
-                walk(getattr(value, f.name))
+                if not (whole and f.name == "during"):
+                    walk(getattr(value, f.name))
         elif isinstance(value, frozenset | set | tuple | list):
             for v in value:
                 if isinstance(v, str) and v in dataset.staff:
@@ -537,7 +543,6 @@ def _mentions(dataset: Dataset, copies) -> dict[str, set]:
                 walk(v)
 
     walk(copies)
-    today = {b.id for b in dataset.blocks_on(dataset.target)}
     # somebody resting all day can be given nothing, so they tell nothing apart
     found["staff"] = {s for s in found["staff"] if not today <= dataset.staff[s].resting_blocks}
     return found

@@ -11,6 +11,10 @@ a request that is already up to date changes nothing.
 - A set that is matched rather than chosen — right of NOT, and in a pattern — takes ANY:
   `NOT DO activities.clinics.all` is `NOT DO ANY activities.clinics.all`. Whether a name
   is one thing or a set is a question for the dataset, so a rewrite is given one.
+- CONSECUTIVE is on the blocks. `DURING ANY 2 blocks.all CONSECUTIVE` is
+  `DURING ANY 2 CONSECUTIVE blocks.all`, and a count measured in runs,
+  `AT_MOST 3 CONSECUTIVE <pattern>`, says so in its DURING, `DURING ANY CONSECUTIVE …`, or
+  gains one over the whole day, which is what it measured before.
 """
 
 from lark import Token, Tree
@@ -22,7 +26,7 @@ from puppet_strings.skedge.resolve import name_spaces
 
 CLAUSES = ("during", "on", "as_role")  # the clauses whose sets are matched; WITH counts
 NEGATED = ("request_not_do", "request_not_free")
-PATTERNS = ("pattern_doing", "pattern_free", "pattern_busy")
+PATTERNS = ("pattern_doing", "pattern_free", "pattern_busy", "counted")
 AROUND_A_PATTERN = ("request_count", "prefer_count", "prefer_score")  # clauses written outside it
 
 
@@ -38,14 +42,65 @@ def upgrade(text: str, dataset: Dataset) -> str:
         for line in tree.find_data("define")
         if len(line.children) == 2  # with a quantifier it is a binding line
     }
-    edits = []
+    edits: list[tuple[int, int, str]] = []
+    runs: set[int] = set()  # the choosers a moved CONSECUTIVE has already given their ANY
+    for node in tree.iter_subtrees():
+        _move_consecutive(node, edits, runs)
     for node in tree.iter_subtrees():
         for chooser in _matched(node):
-            if len(chooser.children) == 1 and not _one(chooser.children[0], names, definitions):
-                edits.append((chooser.meta.start_pos, "ANY "))
-    for at, words in sorted(edits, reverse=True):
-        text = text[:at] + words + text[at:]
+            if id(chooser) in runs or len(chooser.children) != 1:
+                continue
+            if not _one(chooser.children[0], names, definitions):
+                edits.append((chooser.meta.start_pos, chooser.meta.start_pos, "ANY "))
+    for start, end, words in sorted(edits, reverse=True):
+        text = text[:start] + words + text[end:]
     return text
+
+
+def _move_consecutive(node: Tree, edits: list, runs: set) -> None:
+    """CONSECUTIVE from after an amount, or after a DURING's blocks, to before the blocks."""
+    token = next((c for c in node.children if _is(c, "CONSECUTIVE")), None)
+    if token is None:
+        return
+    if node.data == "during":
+        chooser = node.children[0]
+        edits.append((chooser.meta.end_pos, token.end_pos, ""))
+        quantifier = chooser.children[0]
+        if isinstance(quantifier, Tree) and quantifier.data == "any_n":
+            edits.append((quantifier.meta.end_pos, quantifier.meta.end_pos, " CONSECUTIVE"))
+        elif isinstance(quantifier, Token) and quantifier.type in ("ANY", "ALL_OF"):
+            edits.append((quantifier.end_pos, quantifier.end_pos, " CONSECUTIVE"))
+        else:  # moved, not dropped, so a request that was wrong still says so
+            edits.append((chooser.meta.start_pos, chooser.meta.start_pos, "CONSECUTIVE "))
+        return
+    if node.data not in ("request_count", "prefer_count", "test"):
+        return
+    amount = next(c for c in node.children if isinstance(c, Tree) and c.data == "amount")
+    edits.append((amount.meta.end_pos, token.end_pos, ""))
+    pattern = next(c for c in node.children if isinstance(c, Tree) and c.data in PATTERNS)
+    during = next(
+        (
+            c
+            for c in (*node.children, *pattern.children)
+            if isinstance(c, Tree) and c.data == "during"
+        ),
+        None,
+    )
+    if during is None:
+        end = pattern.meta.end_pos
+        edits.append((end, end, " DURING ANY CONSECUTIVE blocks.all"))
+        return
+    chooser = during.children[0]
+    runs.add(id(chooser))
+    first = chooser.children[0]
+    if _is(first, "ANY"):
+        edits.append((first.end_pos, first.end_pos, " CONSECUTIVE"))
+    elif len(chooser.children) == 1:
+        edits.append((chooser.meta.start_pos, chooser.meta.start_pos, "ANY CONSECUTIVE "))
+
+
+def _is(item, kind: str) -> bool:
+    return isinstance(item, Token) and item.type == kind
 
 
 def _matched(node: Tree):

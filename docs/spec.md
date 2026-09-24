@@ -105,7 +105,9 @@ request     : _REQUEST _clauses chooser _clauses _DO _clauses do_target _clauses
             | _REQUEST _clauses chooser _clauses _NOT _DO _clauses do_target _clauses         -> request_not_do
             | _REQUEST _clauses chooser _clauses _NOT FREE _clauses                          -> request_not_free
             | _REQUEST _clauses amount CONSECUTIVE? pattern                                -> request_count
+            | _REQUEST counted                                                             -> request_counted
 prefer      : _PREFER _clauses amount CONSECUTIVE? pattern                                 -> prefer_count
+            | _PREFER counted                                                              -> prefer_counted
             | _PREFER pattern goal _clauses                                                -> prefer_score
             | _PREFER _clauses goal pattern                                                -> prefer_score
 
@@ -118,23 +120,26 @@ exclude     : _EXCLUDE _clauses chooser _clauses _DO _clauses STRING _clauses
 ?condition  : term ((AND | OR) _NL* term)*        -> junction
 ?term       : test | "(" _NL* condition ")"
 test        : (amount CONSECUTIVE?)? pattern
+            | counted
 
 // A pattern matches rather than chooses, so the parser takes a quantifier anywhere and the
 // builder refuses the ones that choose, with a message saying why.
 pattern     : _clauses chooser _clauses _DO _clauses do_target _clauses              -> pattern_doing
             | _clauses chooser _clauses FREE _clauses                              -> pattern_free
             | _clauses chooser _clauses _NOT FREE _clauses                         -> pattern_busy
+// An amount after DO counts one person's assignments: `s DO AT_LEAST 3 ANY activities.clinics.all`.
+counted     : _clauses chooser _clauses _DO _clauses amount do_target _clauses
 goal        : (MAXIMIZE | MINIMIZE) call
 call        : REF "(" arg ("," arg)* ")"
 ?arg        : NAME | REF
 
-// CONSECUTIVE goes after the amount it measures in runs.
+// CONSECUTIVE right after an amount is the old spelling, parsed only to say the new one.
 amount      : BOUND (INT | DURATION)
 
 ?do_target  : chooser | STRING
 _clauses    : clause*
 ?clause     : during | on | as_role | for_ | with_ | without
-// CONSECUTIVE after ANY n blocks: the chosen blocks are next to each other.
+// CONSECUTIVE after the blocks is the old spelling, parsed only to say the new one.
 during      : _DURING chooser CONSECUTIVE?
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
@@ -144,7 +149,9 @@ with_       : _WITH chooser
 without     : _WITHOUT chooser
 
 // ANY with no number matches rather than chooses: right of NOT, and in a pattern.
-chooser     : (ALL_OF | any_n | ANY)? set_
+// CONSECUTIVE is about blocks, after DURING: `ANY 2 CONSECUTIVE blocks.all` chooses two next
+// to each other, and `ANY CONSECUTIVE blocks.all` in a count measures it in runs.
+chooser     : (ALL_OF | any_n | ANY)? CONSECUTIVE? set_
             | EACH_OF set_
             | EACH_OF NAME _IN set_
 any_n       : ANY INT
@@ -357,7 +364,7 @@ thing happens in at least one of them, and says nothing against both.
 The activity and `AS_ROLE` of a requirement take an item, `ANY 1` or `EACH_OF`, since a
 person does one thing at a time. `ANY n` over fewer than `n` members cannot hold.
 
-`DURING ANY n <blocks> CONSECUTIVE` chooses `n` blocks that are next to each other in
+`DURING ANY n CONSECUTIVE <blocks>` chooses `n` blocks that are next to each other in
 the Blocks sheet, on a date the requirement is about, which is what adjacent means for an
 amount too (§8.1). The choice is still one choice, made once, so everyone chosen does it in
 the same run of blocks. It takes `ANY n` with `n` of 2 or more, and cannot hold when no
@@ -474,18 +481,24 @@ An amount turns a pattern into a condition.
 
 `n` is at least 1. `AT_MOST 0` and `EXACTLY 0` are errors: write `NOT DO`.
 
-With `CONSECUTIVE` after the amount, the amount is measured over **runs**. A run is one
-staff member's matches in adjacent blocks on one date, blocks being adjacent when they are
-next to each other in the Blocks sheet. `AT_LEAST` holds when some run reaches the amount,
-`AT_MOST` when no run exceeds it, `EXACTLY` when both do.
+With `DURING ANY CONSECUTIVE <blocks>` in its pattern, the amount is measured over
+**runs**. A run is one staff member's matches in adjacent blocks on one date, blocks being
+adjacent when they are next to each other in the Blocks sheet. `AT_LEAST` holds when some
+run reaches the amount, `AT_MOST` when no run exceeds it, `EXACTLY` when both do.
+`CONSECUTIVE` in a pattern with no amount, or after `ANY n` there, is an error.
+
+The amount may instead follow `DO`: `<who> DO <amount> <what> …` counts exactly what
+`<amount> <who> DO <what> …` does. There the subject must be one person in each copy — an
+item, a variable `EACH_OF` or `ANY 1` binds, a mapping call, or `EACH_OF` — since after
+`DO` the amount reads as that person's. A count over a set of people goes in front.
 
 ## 9. Statements
 
 | Statement | Met |
 |---|---|
 | `REQUEST <requirement>` | when the requirement holds |
-| `REQUEST <amount> [CONSECUTIVE] <pattern>` | when the condition holds |
-| `PREFER <amount> [CONSECUTIVE] <pattern>` | by degree: the closer the matches are to the amount, the better |
+| `REQUEST <amount> <pattern>` | when the condition holds |
+| `PREFER <amount> <pattern>` | by degree: the closer the matches are to the amount, the better |
 | `PREFER <pattern> MAXIMIZE mappings.x(args)` | by degree: each match earns the mapping's value |
 | `PREFER <pattern> MINIMIZE mappings.x(args)` | by degree: each match costs the mapping's value |
 | `EXCLUDE <who> DO '<label>' [DURING] [ON]` | not met or unmet: applied (§9.2) |
@@ -558,7 +571,7 @@ A declaration is lines of these kinds, in any order.
 | Negative condition | `UNLESS <test>` | The statements apply only when this does not hold. |
 | Gap | `GAP a TO b <amount>` | Relates the assignments of the `REQUEST` labeled `a` to those of the one labeled `b`. |
 
-A test is `[<amount> [CONSECUTIVE]] <pattern>`, which with no amount holds when there is a
+A test is `[<amount>] <pattern>`, or `<who> DO <amount> <what> …`, which with no amount holds when there is a
 match, or several tests joined by `AND` (all hold) or by `OR` (at least one does).
 Parentheses group, and mixing `AND` with `OR` requires them.
 
@@ -685,10 +698,9 @@ The solver schedules `dates.target`.
 ## 15. Errors
 
 Every error names the line and column. The parser reports what it expected, which covers
-`PREFER` with a requirement, a label on a `PREFER`, `CONSECUTIVE` without an amount or
-anywhere but after one or after `DURING`'s blocks, and `MAXIMIZE` without a mapping call.
-`CONSECUTIVE` after a pattern's `DURING`, where it used to go, is told `CONSECUTIVE goes
-after the amount`. The parser, the validator and the solver report:
+`PREFER` with a requirement, a label on a `PREFER`, and `MAXIMIZE` without a mapping call.
+`CONSECUTIVE` where it used to go, after an amount or after a `DURING`'s blocks, is still
+parsed, only to say where it goes now. The parser, the validator and the solver report:
 
 | Message | Condition |
 |---|---|
@@ -703,8 +715,15 @@ after the amount`. The parser, the validator and the solver report:
 | `is defined twice` | Two definitions of one name, or a definition sharing its name with a variable or label. |
 | `is defined in terms of itself` | `a: {staff.x + b}` and `b: {staff.y + a}`. |
 | `names one item at a time, and` | `EACH_OF x IN` a set holding a group. |
-| `CONSECUTIVE chooses blocks one at a time, so no groups` | A group in `DURING ANY n … CONSECUTIVE`. |
-| `right of NOT there are no blocks to choose, so no CONSECUTIVE` | `NOT DO … DURING … CONSECUTIVE`; the message gives the amount that limits a run instead. |
+| `CONSECUTIVE chooses blocks one at a time, so no groups` | A group in `DURING ANY n CONSECUTIVE …`. |
+| `CONSECUTIVE goes on the blocks` | `AT_LEAST 3 CONSECUTIVE <pattern>`, the old spelling; the message gives the new one. |
+| `CONSECUTIVE goes before the blocks` | `DURING ANY 2 blocks.all CONSECUTIVE`, the old spelling; the message gives the new one. |
+| `CONSECUTIVE comes after ANY or ANY n` | `DURING ALL_OF CONSECUTIVE …` or `CONSECUTIVE` with no quantifier. |
+| `CONSECUTIVE is about blocks, so it goes after DURING` | `CONSECUTIVE` in any clause but `DURING`, or on a subject or activity. |
+| `CONSECUTIVE in a pattern measures an amount in runs` | `DURING ANY CONSECUTIVE …` in a pattern with no amount. |
+| `a count measured in runs is DURING ANY CONSECUTIVE <blocks>` | `DURING ANY 2 CONSECUTIVE …` in a counted pattern. |
+| `an amount after DO counts one person's assignments` | `<who> DO <amount> …` with `ANY` or a set of several people as `<who>`. |
+| `right of NOT there are no blocks to choose, so no CONSECUTIVE` | `NOT DO … DURING ANY CONSECUTIVE …`; the message gives the amount that limits a run instead. |
 | `needs a quantifier: ALL_OF, ANY n or EACH_OF` | A set with no quantifier in a requirement. |
 | `is one item and takes no quantifier` | `ANY 1 staff.rob`; `ANY staff.rob` in a pattern; `ALL_OF blocks.clinic_1` right of `NOT`. |
 | `needs a quantifier: ALL_OF or ANY n` | `WITH` or `WITHOUT` a set of several, with no quantifier. |
