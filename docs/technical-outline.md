@@ -778,6 +778,12 @@ Recorded so the outline matches the code.
   spans walks `2027/Main Season` once rather than four times, and `discover` runs once per
   root and year. Measured over a modelled season, a reload 70 published days in goes from
   143 API calls to 73.
+- **WITH says in which role** (Puppet Master, 2026-09-24). `WITH staff.alan AS_ROLE
+  roles.first` is Alan first on the same instance: an `AS_ROLE` straight after a `WITH`'s or
+  `WITHOUT`'s set is theirs, which the grammar takes as part of the clause, and the company
+  check counts partners only in those roles (`Variables.members`). Before, such an `AS_ROLE`
+  was the subject's, so a request saved in syntax 5 has it moved in front of the `WITH` on
+  its next load (syntax 6).
 - **A count goes on the set it counts** (Puppet Master, 2026-09-23). An activity has no
   quantity of its own; the blocks, the dates and the people come in numbers. So a count is
   written directly in front of the set it counts — `DURING EXACTLY 3 blocks.all`,

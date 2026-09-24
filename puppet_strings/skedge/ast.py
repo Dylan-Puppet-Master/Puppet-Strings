@@ -191,16 +191,18 @@ class For(Clause):
 
 @dataclass(frozen=True)
 class With(Clause):
-    """`WITH <staff>`: one name, or ALL or a count of a set."""
+    """`WITH <staff> [AS_ROLE <role>]`: one name, or ALL or a count of a set, in that role."""
 
     selector: Selector
+    role: Selector | None = None
 
 
 @dataclass(frozen=True)
 class Without(Clause):
-    """`WITHOUT <staff>`: not WITH the same."""
+    """`WITHOUT <staff> [AS_ROLE <role>]`: not WITH the same."""
 
     selector: Selector
+    role: Selector | None = None
 
 
 @dataclass(frozen=True)
@@ -422,6 +424,8 @@ def selectors(line: Line) -> Iterator[tuple[str | None, Selector]]:
         for c in part.clauses:
             if type(c) in NAMESPACES:
                 yield NAMESPACES[type(c)], c.selector
+            elif isinstance(c, With | Without) and c.role is not None:
+                yield ROLES, c.role
 
 
 def set_exprs(line: Line) -> Iterator[SetExpr]:

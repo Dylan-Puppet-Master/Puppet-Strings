@@ -443,3 +443,18 @@ def test_new_errors(text, message):
 def test_the_old_spellings_of_all_and_each_say_the_new_ones(text, message):
     with pytest.raises(ast.SkedgeError, match=message):
         parse(text)
+
+
+def test_a_role_straight_after_with_is_the_companys():
+    (st,) = parse(
+        "REQUEST staff.caroline DO activities.clinics.climbing_wall AS_ROLE roles.trainee "
+        "WITH staff.alan AS_ROLE roles.first"
+    ).lines
+    assert ast.clause(st.clauses, ast.AsRole).selector.expr.name == "trainee"
+    with_ = ast.clause(st.clauses, ast.With)
+    assert with_.selector.expr.name == "alan" and with_.role.expr.name == "first"
+    (before,) = parse(
+        "REQUEST staff.caroline DO activities.clinics.climbing_wall WITH staff.alan "
+        "DURING blocks.a AS_ROLE roles.trainee"
+    ).lines
+    assert ast.clause(before.clauses, ast.With).role is None  # not straight after: the subject's

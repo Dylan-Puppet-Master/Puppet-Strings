@@ -1756,3 +1756,36 @@ def test_an_invalid_request_is_still_refused_with_copies_resolved_beforehand():
     known = Resolutions(ds, {"bad": (bad, ())})  # what the window keeps for an invalid one
     with pytest.raises(RequestError, match="write AT_LEAST 2"):
         solve(ds, CONFIG, known=known)
+
+
+def test_with_in_a_role_counts_the_partner_only_in_that_role():
+    """Dylan works the zip line only if Sarah is first on it, not merely on it."""
+    both = dict(gravity_zip_line_1st=OK, gravity_zip_line_2nd=OK)
+    members = [staff("Dylan", **both), staff("Sarah", **both), staff("Vic", **both)]
+    sarah_second = PIN.format(who="sarah", what="gravity_zip_line", role="second", block="clinic_1")
+    wish = "REQUEST staff.dylan DO activities.clinics.gravity_zip_line DURING blocks.clinic_1"
+
+    def unmet(rule):
+        ds = dataset(
+            members,
+            [ZIP],
+            requests=[
+                request("rule", rule, Priority.MUST_HAPPEN),
+                request("sarah", sarah_second, Priority.MUST_HAPPEN),
+                request("dylan", wish),
+            ],
+        )
+        result = run(ds)
+        assert result.feasible
+        return ids(result.unsatisfied)
+
+    rule = "REQUEST staff.dylan NOT DO activities.clinics.gravity_zip_line WITHOUT staff.sarah"
+    assert unmet(rule) == []  # Sarah is on it, second
+    assert unmet(rule + " AS_ROLE roles.first") == ["dylan"]  # but not first
+    pair = (
+        "REQUEST staff.dylan DO activities.clinics.gravity_zip_line AS_ROLE roles.second "
+        "WITH staff.sarah AS_ROLE roles.first DURING blocks.clinic_1"
+    )
+    ds = dataset(members, [ZIP], requests=[request("pair", pair, Priority.MUST_HAPPEN)])
+    rows = {(a.staff, a.role) for a in run(ds).assignments if a.activity == "gravity_zip_line"}
+    assert rows == {("dylan", "second"), ("sarah", "first")}

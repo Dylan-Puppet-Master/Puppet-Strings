@@ -84,11 +84,15 @@ class Choice:
 
 @dataclass(frozen=True)
 class Company:
-    """Who a WITH or WITHOUT counts: `n` of these staff by `bound`, or (`n` None) all of them."""
+    """Who a WITH or WITHOUT counts: `n` of these staff by `bound`, or (`n` None) all of them.
+
+    `roles` are the roles they count in, from an AS_ROLE written after them; None is any.
+    """
 
     staff: frozenset[str]
     n: int | None
     bound: str = ast.AT_LEAST
+    roles: frozenset[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -846,12 +850,24 @@ def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, poo
         "role": roles,
         "minutes": for_.minutes if for_ else None,
         "length_bound": (for_.bound or ast.EXACTLY) if for_ else ast.EXACTLY,
-        "with_": _company(with_.selector, scope) if with_ else None,
-        "without": _company(without.selector, scope) if without else None,
+        "with_": _company(with_, scope) if with_ else None,
+        "without": _company(without, scope) if without else None,
     }
 
 
-def _company(selector: ast.Selector, scope: _Scope) -> Company:
+def _company(clause: ast.With | ast.Without, scope: _Scope) -> Company:
+    """Who is alongside, and in which roles."""
+    company = _companions(clause.selector, scope)
+    if clause.role is None:
+        return company
+    role = clause.role
+    if role.quantifier in (ast.ALL, ast.COUNT):
+        raise _error("one role at a time: AS_ROLE takes a role, ANY or EACH", role.pos)
+    roles = _choice(role, ROLES, scope, pool=True)
+    return replace(company, roles=frozenset(roles.items))
+
+
+def _companions(selector: ast.Selector, scope: _Scope) -> Company:
     """One name alongside, or several with a quantifier to say how many of them."""
     items, single = _evaluate(selector.expr, STAFF, scope)
     if selector.quantifier is None:

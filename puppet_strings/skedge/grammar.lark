@@ -65,9 +65,11 @@ during      : _DURING chooser CONSECUTIVE?
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
 for_        : _FOR BOUND? DURATION
-// Who is alongside: one name, or several with ALL or a count to say how many.
-with_       : _WITH chooser
-without     : _WITHOUT chooser
+// Who is alongside: one name, or several with ALL or a count to say how many, and with an
+// AS_ROLE straight after them, in which role. That AS_ROLE is theirs, not the subject's,
+// which is why the parser takes it here rather than as a clause of its own.
+with_       : _WITH chooser as_role?
+without     : _WITHOUT chooser as_role?
 
 // ANY with no number is any of these: the set is one pool. A number is a count, in front
 // of the set it counts. CONSECUTIVE is about blocks, after DURING: `AT_LEAST 2 CONSECUTIVE

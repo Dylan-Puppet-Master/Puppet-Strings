@@ -144,9 +144,11 @@ during      : _DURING chooser CONSECUTIVE?
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
 for_        : _FOR BOUND? DURATION
-// Who is alongside: one name, or several with ALL or a count to say how many.
-with_       : _WITH chooser
-without     : _WITHOUT chooser
+// Who is alongside: one name, or several with ALL or a count to say how many, and with an
+// AS_ROLE straight after them, in which role. That AS_ROLE is theirs, not the subject's,
+// which is why the parser takes it here rather than as a clause of its own.
+with_       : _WITH chooser as_role?
+without     : _WITHOUT chooser as_role?
 
 // ANY with no number is any of these: the set is one pool. A number is a count, in front
 // of the set it counts. CONSECUTIVE is about blocks, after DURING: `AT_LEAST 2 CONSECUTIVE
@@ -515,6 +517,11 @@ matches one assignment at a time.
 `ALL` or a count to say how many is enough: `WITH staff.vic` is Vic, `WITH AT_LEAST 2
 staff.mfgs` at least two MFGs, `WITH ALL staff.mfgs` every MFG. A set of several with no
 quantifier is an error, and so are `EACH` and `ANY`. This holds on both sides of `NOT`.
+
+An `AS_ROLE` written straight after the set of a `WITH` or `WITHOUT` is theirs: it says which
+role the others hold on the instance, a role, `ANY` of several or `EACH`, and counts them
+only in it. `WITH staff.alan AS_ROLE roles.first` is Alan, first on the same instance. The
+subject's own `AS_ROLE` goes anywhere else after the verb, so that it is not read as theirs.
 
 `WITH` and `WITHOUT` are exact opposites: `WITHOUT AT_LEAST 1 staff.mfgs` is no MFG,
 `WITHOUT ALL staff.mfgs` is not every MFG. "Others" excludes the assignment's own staff

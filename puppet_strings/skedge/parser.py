@@ -416,10 +416,10 @@ class _Builder(Transformer):
         return ast.For(_pos(meta), _duration(items[-1]), bound)
 
     def with_(self, meta, items):
-        return ast.With(_pos(meta), items[0])
+        return ast.With(_pos(meta), items[0], _company_role(items))
 
     def without(self, meta, items):
-        return ast.Without(_pos(meta), items[0])
+        return ast.Without(_pos(meta), items[0], _company_role(items))
 
     # -- set expressions --------------------------------------------------------------------
 
@@ -458,6 +458,11 @@ class _Builder(Transformer):
         offset = str(items[1]).replace(" ", "").replace("\t", "")
         days = int(offset[1:-1])
         return ast.DateOffset(_atom(items[0]), days if offset[0] == "+" else -days, _pos(meta))
+
+
+def _company_role(items) -> ast.Selector | None:
+    """The AS_ROLE written straight after a WITH's or WITHOUT's set, which is theirs."""
+    return items[1].selector if len(items) > 1 else None
 
 
 def _binding_quantifier(item) -> tuple[str, int | None, str | None]:

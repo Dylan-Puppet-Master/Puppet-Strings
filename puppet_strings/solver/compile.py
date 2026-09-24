@@ -492,7 +492,8 @@ class Compiler:
 
     def _company(self, s: str, what, d: date, b: str, company: Company, name: str) -> Literal:
         """Whether enough others from the set, or all of them, share the instance `s` is on."""
-        together = [self._together(s, p, what, d, b) for p in sorted(company.staff - {s})]
+        roles = self._roles(Choice(tuple(company.roles), POOL)) if company.roles else None
+        together = [self._together(s, p, what, d, b, roles) for p in sorted(company.staff - {s})]
         terms = [t for t in together if not isinstance(t, bool)]
         constant = sum(t is True for t in together)
         if company.n is not None and company.bound != ast.AT_LEAST:
@@ -507,21 +508,27 @@ class Compiler:
             return self._any_of(together, name)
         return self._at_least(terms, constant, n, name)
 
-    def _together(self, s: str, p: str, what, d: date, b: str) -> Literal:
-        """Whether `p` holds an assignment on the same instance as `s`, in any role.
+    def _together(self, s: str, p: str, what, d: date, b: str, roles=None) -> Literal:
+        """Whether `p` holds an assignment on the same instance as `s`, in `roles` or any.
 
         For a quoted task the same instance also means the same start time.
         """
         activity = what.text if isinstance(what, ast.Task) else what
         if d < self.dataset.target:
             mine = list(self.variables.was_member(s, activity, d, b))
-            theirs = list(self.variables.was_member(p, activity, d, b))
+            theirs = [
+                a
+                for a in self.variables.was_member(p, activity, d, b)
+                if roles is None or a.role in roles
+            ]
             if not isinstance(what, ast.Task):
                 return bool(theirs)
             return any(a.start == a2.start for a in mine for a2 in theirs)
         if not isinstance(what, ast.Task):
+            in_roles = "+".join(sorted(roles)) if roles else "any"
             return self._any_of(
-                self.variables.members(p, activity, b), f"member:{p}:{activity}:{b}"
+                self.variables.members(p, activity, b, roles),
+                f"member:{p}:{activity}:{b}:{in_roles}",
             )
         var = self.variables.lookup(p, activity, None, b)
         if var is False:

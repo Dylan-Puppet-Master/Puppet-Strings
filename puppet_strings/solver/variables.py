@@ -162,15 +162,30 @@ class Variables:
             v for holders in instance.holders.values() for s, v in holders.items() if s == staff_id
         ]
 
-    def members(self, staff_id: str, activity_id: str, block: str) -> list[cp_model.IntVar]:
-        """The variables for a staff member being on an instance in any role, trainee included."""
+    def members(
+        self, staff_id: str, activity_id: str, block: str, roles: frozenset[str] | None = None
+    ) -> list[cp_model.IntVar]:
+        """The variables for a staff member being on an instance, in `roles` or (None) any.
+
+        A trainee is on it too, in the trainee role they are.
+        """
         if activity_id not in self.dataset.activities:
             var = self.lookup(staff_id, activity_id, None, block)
             return [] if var is False else [var]
-        found = self.holders(staff_id, activity_id, block)
         instance = self.instances.get((activity_id, block))
-        if instance is not None and staff_id in instance.trainees:
-            found.append(instance.trainees[staff_id][1])
+        if instance is None:
+            return []
+        found = [
+            v
+            for role, holders in instance.holders.items()
+            if roles is None or role in roles
+            for s, v in holders.items()
+            if s == staff_id
+        ]
+        if staff_id in instance.trainees:
+            role, var = instance.trainees[staff_id]
+            if roles is None or role in roles:
+                found.append(var)
         return found
 
     # -- published dates, as facts ---------------------------------------------------------

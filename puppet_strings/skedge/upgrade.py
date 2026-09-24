@@ -34,6 +34,10 @@ Version 5, where a count goes on the set it counts:
   now, and is left for somebody to rewrite.
 - `NOT FREE` is `BUSY`. Right of NOT a pool was every one of its items, so it becomes ALL,
   and ALL was all of them together, which is at least one: `AT_LEAST 1`.
+
+Version 6, where an AS_ROLE straight after a WITH or WITHOUT set is theirs:
+
+- One written there before was the subject's, so it moves in front of the WITH.
 """
 
 import re
@@ -43,6 +47,8 @@ from pathlib import Path
 from lark import Lark, Token, Tree, UnexpectedInput
 
 from puppet_strings.model import Dataset
+from puppet_strings.skedge.ast import SkedgeError
+from puppet_strings.skedge.parser import parse_tree
 from puppet_strings.skedge.resolve import name_spaces
 
 CLAUSES = ("during", "on", "as_role")  # the clauses whose sets are matched; WITH counts
@@ -69,13 +75,38 @@ def _tree(text: str) -> Tree | None:
 
 
 def upgrade(text: str, dataset: Dataset) -> str:
-    """The request as it is written now. Text the old grammar does not parse is left as it is."""
+    """The request as it is written now, from any version before. Unreadable text is kept.
+
+    A request up to version 4 is read with that grammar and rewritten to version 5; one in
+    version 5 is read with today's, which parses it, only to give a role written after WITH
+    to whoever it belonged to then.
+    """
     for rewrite in (_to_four, _clauses_after_the_verb, _counts_on_their_sets):
         tree = _tree(text)
         if tree is None:
-            return text
+            break
         text = rewrite(text, tree, dataset)
-    return text
+    return _roles_stay_the_subjects(text)
+
+
+def _roles_stay_the_subjects(text: str) -> str:
+    """AS_ROLE straight after a WITH or WITHOUT set was the subject's; it moves before them."""
+    try:
+        tree = parse_tree(text)
+    except SkedgeError:
+        return text
+    edits = []
+    for node in tree.iter_subtrees():
+        if node.data not in ("with_", "without") or len(node.children) < 2:
+            continue
+        role = node.children[1]
+        start, stop = role.meta.start_pos, role.meta.end_pos
+        while start > 0 and text[start - 1] in " \t":
+            start -= 1
+        edits.append((start, stop, ""))
+        at = node.meta.start_pos
+        edits.append((at, at, text[role.meta.start_pos : role.meta.end_pos] + " "))
+    return _edited(text, edits)
 
 
 def _to_four(text: str, tree: Tree, dataset: Dataset) -> str:

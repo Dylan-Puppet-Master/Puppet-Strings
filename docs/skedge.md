@@ -430,6 +430,11 @@ exactly one of them, so three such breaks are three times as bad as one.
 | `REQUEST EACH staff.junior NOT DO ANY activities.clinics.waterfront WITHOUT AT_LEAST 1 staff.senior` | No junior at the waterfront unless a senior is there. |
 | `REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT ALL {staff.vic + staff.charlton}` | Rob is on ropes only with both Vic and Charlton. |
 | `REQUEST staff.jack NOT DO ANY activities.clinics.all WITH staff.lucy` | Jack and Lucy never share a clinic. |
+| `REQUEST staff.caroline DO activities.clinics.climbing_wall AS_ROLE roles.trainee WITH staff.alan AS_ROLE roles.first` | Caroline trains on the climbing wall, with Alan first on that same instance. |
+
+An `AS_ROLE` straight after the people of a `WITH` or `WITHOUT` is their role, not the
+subject's: above, `roles.first` is Alan's. The subject's own `AS_ROLE` goes before the
+`WITH`, or anywhere else after `DO`.
 
 One name stands alone. A set of several needs a count (`AT_LEAST 1`, `EXACTLY 2`, …) or
 `ALL` (every one of them), even to the right of `NOT`: `WITHOUT staff.senior` would not

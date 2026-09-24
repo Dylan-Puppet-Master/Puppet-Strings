@@ -117,6 +117,8 @@ def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target, matched: b
         if isinstance(clause, ast.With | ast.Without):
             if what is None:
                 raise _error("FREE and BUSY have no instance", clause.pos)
+            if clause.role is not None and not isinstance(what, ast.Selector):
+                raise _error("AS_ROLE needs an activity", clause.role.pos)
             if clause.selector.quantifier in (ast.EACH, ast.ANY):
                 name, q = CLAUSE_NAMES[type(clause)], clause.selector.quantifier
                 raise _error(
