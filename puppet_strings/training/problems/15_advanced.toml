@@ -135,10 +135,11 @@ wrong = [
 [[problem]]
 id = "big-trainee-with-trainer"
 title = "Trainee with a trainer"
-prompt = "Caroline trains on the Climbing Wall during clinic 1, and Alan is first on the wall then."
-answer = "REQUEST staff.caroline DO activities.clinics.climbing_wall AS_ROLE roles.trainee DURING blocks.clinic_1\nREQUEST staff.alan DO activities.clinics.climbing_wall AS_ROLE roles.first DURING blocks.clinic_1"
-explain = "The two REQUEST lines stand or fall together: the request is met only when Caroline and Alan are both on the wall."
-wrong = ["REQUEST staff.caroline DO activities.clinics.climbing_wall AS_ROLE roles.trainee DURING blocks.clinic_1\nREQUEST staff.alan DO activities.clinics.climbing_wall AS_ROLE roles.second DURING blocks.clinic_1"]
+prompt = "Caroline trains on the Climbing Wall in whichever clinic block it runs, with Alan first on that same run of it."
+answer = "REQUEST staff.caroline DO activities.clinics.climbing_wall AS_ROLE roles.trainee WITH staff.alan AS_ROLE roles.first DURING ANY blocks.all_clinics"
+hints = ["An AS_ROLE straight after WITH's people is theirs: WITH staff.alan AS_ROLE roles.first.", "Caroline's own AS_ROLE goes before the WITH."]
+explain = "Two REQUEST lines, one for each of them, could land in different blocks. WITH ties Alan's role to the very instance Caroline trains on. Leave Caroline's own AS_ROLE out and she could hold any position on it rather than train."
+wrong = ["REQUEST staff.caroline DO activities.clinics.climbing_wall WITH staff.alan AS_ROLE roles.first DURING ANY blocks.all_clinics"]
 
 [[problem]]
 id = "big-the-original"
@@ -148,3 +149,61 @@ answer = "IF\nAT_LEAST 2 staff.counselors DO 'break' DURING EACH blocks.all\nAND
 hints = ["EACH blocks.all makes a copy per block, each asking whether two counselors are on break in it."]
 explain = "Without EACH, DURING ANY blocks.all would ask whether two counselors had a break at all today, whether or not at the same time."
 wrong = ["IF\nAT_LEAST 2 staff.counselors DO 'break' DURING ANY blocks.all\nAND\nstaff.dylan FREE DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"]
+
+[[problem]]
+id = "big-prefer-maintenance-range"
+title = "Between two and three hours"
+prompt = "We'd like each MFG to spend between two and three hours on 'maintenance' today, in any blocks — less or more both cost a little. One request per MFG."
+answer = "EACH m IN staff.mfgs\nPREFER m DO 'maintenance' FOR AT_LEAST 2h DURING ANY blocks.all\nPREFER m DO 'maintenance' FOR AT_MOST 3h DURING ANY blocks.all"
+priority = "MEDIUM"
+hints = ["A range is two PREFER lines, one for each end.", "Over ANY blocks, FOR is the total."]
+explain = "Each PREFER is weighed on its own, so the day is marked down for falling short of two hours and for going past three."
+wrong = ["EACH m IN staff.mfgs\nPREFER m DO 'maintenance' FOR EXACTLY 2h DURING ANY blocks.all"]
+
+[[problem]]
+id = "big-prefer-counselor-load"
+title = "Counselors' clinic load"
+prompt = "For each counselor today: never more than three clinic blocks, never three in a row, and we'd like them to run at least two different clinics."
+answer = "EACH c IN staff.counselors\nREQUEST c DO ANY activities.clinics.all DURING AT_MOST 3 blocks.all\nREQUEST c DO ANY activities.clinics.all DURING AT_MOST 2 CONSECUTIVE blocks.all\nPREFER c DO AT_LEAST 2 activities.clinics.all"
+priority = "HIGH"
+hints = ["A binding line, then one line for each thing asked.", "Different clinics is a count of the clinics: DO AT_LEAST 2 activities.clinics.all."]
+explain = "The two REQUEST lines stand or fall together; the PREFER is weighed on its own. Counting blocks instead would let the same clinic twice count as two."
+wrong = ["EACH c IN staff.counselors\nREQUEST c DO ANY activities.clinics.all DURING AT_MOST 3 blocks.all\nREQUEST c DO ANY activities.clinics.all DURING AT_MOST 2 CONSECUTIVE blocks.all\nPREFER c DO ANY activities.clinics.all DURING AT_LEAST 2 blocks.all"]
+
+[[problem]]
+id = "big-prefer-session-facilitating"
+title = "Everyone facilitates, nobody too much"
+prompt = "Over the session, each village leader is first on at most three clinics, and we'd like each of them to be first on at least one."
+answer = "EACH c IN staff.village_leaders\nREQUEST c DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_MOST 3 blocks.all ON ANY dates.session_6.all\nPREFER c DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_LEAST 1 blocks.all ON ANY dates.session_6.all"
+priority = "HIGH"
+hints = ["Over ANY dates of the session, a count of blocks counts every block of every day."]
+wrong = ["EACH c IN staff.village_leaders\nREQUEST c DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_MOST 3 blocks.all ON EACH dates.session_6.all\nPREFER c DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_LEAST 1 blocks.all ON EACH dates.session_6.all"]
+
+[[problem]]
+id = "big-farrier-visit"
+title = "The farrier"
+prompt = "Hailey and one other EQ staff member meet the 'farrier' together for an hour in clinic 1 or clinic 2. Later the same day, at least three hours after the farrier leaves, Hailey does a 30-minute 'hoof check'."
+answer = "EXACTLY 1 e IN {staff.eq_staff - staff.hailey}\nvisit: REQUEST ALL {staff.hailey + e} DO 'farrier' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\ncheck: REQUEST staff.hailey DO 'hoof check' FOR 30m DURING AT_LEAST 1 blocks.all\nGAP visit TO check AT_LEAST 3h"
+priority = "HIGH"
+hints = ["Name the other EQ staff member with a binding line, and add them into a set with Hailey.", "ALL of them with AT_LEAST 1 of the blocks is one block they share.", "Label the two lines, and GAP from the visit to the check."]
+explain = "ALL {staff.hailey + e} is one unit, so the count of blocks is of blocks they share. ANY blocks in its place would give each of them a block of their own."
+wrong = ["EXACTLY 1 e IN {staff.eq_staff - staff.hailey}\nvisit: REQUEST ALL {staff.hailey + e} DO 'farrier' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\ncheck: REQUEST staff.hailey DO 'hoof check' FOR 30m DURING AT_LEAST 1 blocks.all\nGAP visit TO check AT_LEAST 0m"]
+
+[[problem]]
+id = "big-long-afternoon"
+title = "After a long afternoon"
+prompt = "For each director: if they're busy through both afternoon clinic blocks, they're free at dinner, and we'd like them to get at least an hour of 'paperwork' across rest hour and playstation as well. One request per director."
+answer = "EACH d IN staff.directors\nIF d BUSY DURING ALL {blocks.clinic_3 + blocks.clinic_4}\nREQUEST d FREE DURING blocks.dinner\nPREFER d DO 'paperwork' FOR AT_LEAST 1h DURING ANY {blocks.rest_hour + blocks.playstation}"
+priority = "MEDIUM"
+hints = ["Busy through both is BUSY DURING ALL {…} in the condition.", "A condition governs the PREFER as well as the REQUEST."]
+wrong = ["EACH d IN staff.directors\nIF d BUSY DURING ANY {blocks.clinic_3 + blocks.clinic_4}\nREQUEST d FREE DURING blocks.dinner\nPREFER d DO 'paperwork' FOR AT_LEAST 1h DURING ANY {blocks.rest_hour + blocks.playstation}"]
+
+[[problem]]
+id = "big-trainees-supervised"
+title = "Nobody trains alone"
+prompt = "No village leader is a trainee on any clinic unless a clinic trainer is first on that same run of it — and we'd like each village leader to train at least once this week (today to Friday). One request per leader."
+answer = "EACH v IN staff.village_leaders\nREQUEST v NOT DO ANY activities.clinics.all AS_ROLE roles.trainee WITHOUT AT_LEAST 1 staff.clinic_trainers AS_ROLE roles.first\nPREFER v DO ANY activities.clinics.all AS_ROLE roles.trainee DURING AT_LEAST 1 blocks.all ON ANY {dates.target .. 2026-08-07}"
+priority = "HIGH"
+hints = ["X only if Y: X NOT DO it WITHOUT Y. The trainers' role goes straight after them.", "A week of dates is one pool: ON ANY {…}."]
+explain = "The AS_ROLE after the leader's DO is theirs (trainee); the one after WITHOUT's people is the trainers' (first). AT_LEAST 1 of the trainers is enough; ALL of them would be every trainer first on it at once, which never happens."
+wrong = ["EACH v IN staff.village_leaders\nREQUEST v NOT DO ANY activities.clinics.all AS_ROLE roles.trainee WITHOUT ALL staff.clinic_trainers AS_ROLE roles.first\nPREFER v DO ANY activities.clinics.all AS_ROLE roles.trainee DURING AT_LEAST 1 blocks.all ON ANY {dates.target .. 2026-08-07}"]

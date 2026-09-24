@@ -7,6 +7,7 @@ teaches = """
 ... WITH AT_LEAST 1 staff.mfgs   at least one MFG is (AT_LEAST 2: at least two)
 ... WITH ALL staff.mfgs        every MFG is
 ... WITHOUT <staff>             the opposite of WITH <staff>
+... WITH staff.vic AS_ROLE roles.first   Vic is on it, first
 
 One name stands alone; a set of several says how many of it with ALL or a count.
 
@@ -131,3 +132,12 @@ prompt = "Hailey and Alyce do 'horse shoeing' together during clinic 2 — write
 answer = "REQUEST staff.hailey DO 'horse shoeing' DURING blocks.clinic_2 WITH staff.alyce"
 alternatives = ["REQUEST ALL {staff.hailey + staff.alyce} DO 'horse shoeing' DURING blocks.clinic_2"]
 wrong = ["REQUEST staff.hailey DO 'horse shoeing' DURING blocks.clinic_2 WITH staff.alexis"]
+
+[[problem]]
+id = "with-in-a-role"
+title = "Only with Vic first"
+prompt = "Rob is on the Gravity Zip Line only when Vic is first on it — Vic merely being on it isn't enough."
+answer = "REQUEST staff.rob NOT DO activities.clinics.gravity_zip_line WITHOUT staff.vic AS_ROLE roles.first"
+hints = ["X only if Y is there too: X NOT DO it WITHOUT Y.", "An AS_ROLE straight after the people of WITHOUT is their role: WITHOUT staff.vic AS_ROLE roles.first."]
+explain = "An AS_ROLE straight after WITH's or WITHOUT's people is theirs, not Rob's. Rob's own role, if he had one, would go before the WITHOUT."
+wrong = ["REQUEST staff.rob NOT DO activities.clinics.gravity_zip_line WITHOUT staff.vic"]

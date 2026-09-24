@@ -39,6 +39,32 @@ alternatives = ["EXACTLY 1 p IN staff.counselors\nREQUEST p DO 'campfire setup' 
 wrong = ["EXACTLY 1 p IN staff.counselors\nfirst: REQUEST p DO 'campfire setup' DURING blocks.clinic_4\nlast:  REQUEST staff.dylan DO 'campfire teardown' DURING blocks.evening_program\nGAP first TO last AT_LEAST 0m"]
 
 [[problem]]
+id = "gap-hours-apart"
+title = "Hours apart"
+prompt = "Lisa has two 'staff meeting's today, each an hour long: one in clinic 1 or clinic 2, the other in clinic 3 or clinic 4 — at least five hours after the first one ends."
+answer = "first:  REQUEST staff.lisa DO 'staff meeting' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nsecond: REQUEST staff.lisa DO 'staff meeting' FOR 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP first TO second AT_LEAST 5h"
+hints = ["Label both, then GAP first TO second with the least time between them."]
+explain = "A GAP compares real times: the end of the first to the start of the second. Clinic 2 ends at 11:00 and clinic 3 starts at 15:30, so five hours rules that pair out."
+wrong = ["first:  REQUEST staff.lisa DO 'staff meeting' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nsecond: REQUEST staff.lisa DO 'staff meeting' FOR 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP first TO second AT_LEAST 0m"]
+
+[[problem]]
+id = "gap-not-too-late"
+title = "Soon after"
+prompt = "Dylan does a 30-minute 'medication round' in clinic 1 or clinic 2, and a second one in rest hour or playstation — no more than three hours after the first ends."
+answer = "morning:   REQUEST staff.dylan DO 'medication round' FOR 30m DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST staff.dylan DO 'medication round' FOR 30m DURING AT_LEAST 1 {blocks.rest_hour + blocks.playstation}\nGAP morning TO afternoon AT_MOST 3h"
+hints = ["AT_MOST in a GAP is the most time allowed between them."]
+explain = "A task shorter than its block may sit anywhere in it, so the solver can slide both rounds to keep them close enough."
+wrong = ["morning:   REQUEST staff.dylan DO 'medication round' FOR 30m DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST staff.dylan DO 'medication round' FOR 30m DURING AT_LEAST 1 {blocks.rest_hour + blocks.playstation}\nGAP morning TO afternoon AT_MOST 5h"]
+
+[[problem]]
+id = "gap-one-person-both"
+title = "One mower, two jobs"
+prompt = "The same MFG does 'mowing' in a morning clinic block and 'trimming' in an afternoon clinic block, with at least an hour between them."
+answer = "EXACTLY 1 m IN staff.mfgs\nmow:  REQUEST m DO 'mowing' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\ntrim: REQUEST m DO 'trimming' DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP mow TO trim AT_LEAST 1h"
+hints = ["The same person in two lines is a binding: EXACTLY 1 m IN staff.mfgs.", "Then label the two lines and put a GAP between them."]
+wrong = ["mow:  REQUEST AT_LEAST 1 staff.mfgs DO 'mowing' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\ntrim: REQUEST AT_LEAST 1 staff.mfgs DO 'trimming' DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP mow TO trim AT_LEAST 1h"]
+
+[[problem]]
 id = "away-day-off"
 title = "Offsite"
 prompt = "Dylan is away at a training course all day Wednesday; the schedule should say 'offsite' where he'd have been."
@@ -70,23 +96,6 @@ alternatives = ["EXCLUDE ALL {staff.david + staff.lisa + staff.matthew} DO 'boar
 wrong = ["EXCLUDE ALL staff.directors DO 'board meeting' DURING ALL {blocks.breakfast + blocks.clinic_1 + blocks.clinic_2} ON 2026-08-06"]
 
 [[problem]]
-id = "away-label"
-title = "The right words"
-prompt = "Tyson is out at 'supply run' during the cabin act block today."
-answer = "EXCLUDE staff.tyson DO 'supply run' DURING blocks.cabin_act"
-priority = "MUST_HAPPEN"
-wrong = ["EXCLUDE staff.tyson DO 'errand' DURING blocks.cabin_act"]
-
-[[problem]]
-id = "away-each"
-title = "Two away"
-prompt = "Kara and Khushi are both at 'orientation' during rest hour on Friday."
-answer = "EXCLUDE ALL {staff.kara + staff.khushi} DO 'orientation' DURING blocks.rest_hour ON 2026-08-07"
-priority = "MUST_HAPPEN"
-alternatives = ["EXCLUDE EACH {staff.kara + staff.khushi} DO 'orientation' DURING blocks.rest_hour ON 2026-08-07"]
-wrong = ["EXCLUDE staff.kara DO 'orientation' DURING blocks.rest_hour ON 2026-08-07"]
-
-[[problem]]
 id = "away-two-days"
 title = "Two days out"
 prompt = "Rob is away on 'vacation' Thursday and Friday."
@@ -94,12 +103,3 @@ answer = "EXCLUDE staff.rob DO 'vacation' ON ALL {2026-08-06 .. 2026-08-07}"
 priority = "MUST_HAPPEN"
 alternatives = ["EXCLUDE staff.rob DO 'vacation' ON ALL {2026-08-06 + 2026-08-07}", "EXCLUDE staff.rob DO 'vacation' DURING ALL blocks.all ON ALL {2026-08-06 .. 2026-08-07}"]
 wrong = ["EXCLUDE staff.rob DO 'vacation' ON 2026-08-06"]
-
-[[problem]]
-id = "away-evening"
-title = "Night off"
-prompt = "Leah is off for the evening — 'night off' in both evening blocks today."
-answer = "EXCLUDE staff.leah DO 'night off' DURING ALL blocks.evening"
-priority = "MUST_HAPPEN"
-alternatives = ["EXCLUDE staff.leah DO 'night off' DURING ALL {blocks.embers + blocks.evening_program}"]
-wrong = ["EXCLUDE staff.leah DO 'night off' DURING blocks.evening_program"]
