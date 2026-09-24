@@ -70,8 +70,8 @@ These come from the sheets and never need a request:
 ## The report
 
 **Nothing happens that no request asked for.** A clinic runs only where a `REQUEST … DO`
-names it, and a trainee or a quoted task exists only where such a request, or a `REQUEST
-AT_LEAST` or `EXACTLY` pattern, selected it. This is built into the model rather than
+names it, and a trainee or a quoted task exists only where such a request, or a `REQUEST`
+choosing with `ANY n`, selected it. This is built into the model rather than
 tidied up afterwards, so it holds however long the solve takes. It is what keeps a
 `PREFER` from inflating the amount of work: a preference moves the breaks people already
 have and cannot buy anyone another.

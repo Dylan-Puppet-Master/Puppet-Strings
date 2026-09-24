@@ -188,6 +188,24 @@ def test_an_import_into_a_computer_with_no_requests_keeps_nothing(book, tmp_path
     assert fresh.import_file(book.path) == (31, None)
 
 
+def test_an_import_is_rewritten_from_the_version_it_was_written_in(book, tmp_path, dataset):
+    """A role after WITH is theirs from syntax 6, so a file from 7 keeps it where it is."""
+    handed = tmp_path / "handed.sqlite"
+    book.export(handed)
+    role = "REQUEST staff.dylan DO activities.clinics.riflery WITH staff.rob AS_ROLE roles.first"
+    pick = "REQUEST staff.dylan DO 'x' DURING AT_LEAST 1 blocks.all"
+    with sqlite3.connect(handed) as db:
+        db.execute("UPDATE requests SET skedge = ? WHERE id = 'breaks'", (role,))
+        db.execute("UPDATE requests SET skedge = ? WHERE id = 'dylan-off-ropes'", (pick,))
+        db.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('syntax', '7')")
+    fresh = RequestDb(tmp_path / "fresh.sqlite")
+    fresh.import_file(handed)
+    assert fresh.upgrade(dataset)
+    by_id = {r.id: r.skedge for r in fresh.every()}
+    assert by_id["breaks"] == role
+    assert by_id["dylan-off-ropes"] == "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all"
+
+
 @pytest.mark.parametrize("problem", ["not a database", "no meta", "older format", "bad row"])
 def test_an_import_that_would_not_load_changes_nothing(book, tmp_path, problem):
     file = tmp_path / "file.sqlite"

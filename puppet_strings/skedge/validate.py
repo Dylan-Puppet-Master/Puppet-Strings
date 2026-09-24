@@ -84,8 +84,10 @@ def _check_exclusions(declaration: ast.Declaration, hard: bool) -> None:
 
 def _settled(selector: ast.Selector) -> None:
     """Nothing in an EXCLUDE is the solver's to pick: it is either so or it is not."""
-    if selector.quantifier == ast.ANY or ast.counts(selector):
-        raise _error("EXCLUDE says who is away, so nothing in it is counted or ANY", selector.pos)
+    if selector.quantifier == ast.ANY or ast.counts(selector) or ast.chooses(selector):
+        raise _error(
+            "EXCLUDE says who is away, so nothing in it is chosen, counted or ANY", selector.pos
+        )
 
 
 def _check_line(line: ast.Line) -> None:
@@ -119,8 +121,9 @@ def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target, matched: b
                 raise _error("FREE and BUSY have no instance", clause.pos)
             if clause.role is not None and not isinstance(what, ast.Selector):
                 raise _error("AS_ROLE needs an activity", clause.role.pos)
-            if clause.selector.quantifier in (ast.EACH, ast.ANY):
+            if clause.selector.quantifier in (ast.EACH, ast.ANY, ast.ANY_OF):
                 name, q = CLAUSE_NAMES[type(clause)], clause.selector.quantifier
+                q = f"ANY {clause.selector.n}" if q == ast.ANY_OF else q
                 raise _error(
                     f"{name} counts who is alongside, so it takes ALL or a count, not {q}",
                     clause.selector.pos,
@@ -135,7 +138,7 @@ def _one_at_a_time(what: ast.Selector | ast.Task | None, during: ast.During | No
     """
     if not isinstance(what, ast.Selector):
         return
-    spread = during is None or during.selector.quantifier in (ast.ANY, ast.COUNT)
+    spread = during is None or during.selector.quantifier in (ast.ANY, ast.COUNT, ast.ANY_OF)
     if (what.quantifier == ast.ALL and not spread) or any(ast.groups_in(what.expr)):
         raise _error("one activity at a time", what.pos)
 

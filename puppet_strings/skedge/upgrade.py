@@ -42,6 +42,14 @@ Version 6, where an AS_ROLE straight after a WITH or WITHOUT set is theirs:
 Version 7, where FOR says how its length is bounded:
 
 - `FOR 30m` was exactly that long, so it is `FOR EXACTLY 30m`.
+
+Version 8, where ANY n chooses and a count measures:
+
+- `AT_LEAST n` on a set a REQUEST chooses from is `ANY n`, as is a binding line's or a
+  group's `EXACTLY n` or `AT_LEAST n`. A binding line version 5 wrote for a shared choice
+  goes back inline, since ANY n is chosen once for the statement.
+- A choice after a choice of several was each one's own, which has no spelling now, and an
+  EXACTLY in a requirement forbade the rest as well; both are left for somebody to rewrite.
 """
 
 import re
@@ -62,6 +70,8 @@ AROUND_A_PATTERN = ("request_count", "prefer_count", "prefer_score")  # clauses 
 POSITIVE = ("request_do", "request_activity", "request_free")
 STATEMENTS = (*POSITIVE, "request_not_do", "request_not_free")
 AFTER_THE_VERB = ("as_role", "for_", "with_", "without")
+CHOOSING = ("request_do", "request_activity", "request_free", "request_busy")
+_CHOSEN = re.compile(r"chosen_[0-9]+")
 
 
 @cache
@@ -78,23 +88,29 @@ def _tree(text: str) -> Tree | None:
         return None
 
 
-def upgrade(text: str, dataset: Dataset) -> str:
-    """The request as it is written now, from any version before. Unreadable text is kept.
+def upgrade(text: str, dataset: Dataset, since: int = 0) -> str:
+    """The request as it is written now, from version `since`. Unreadable text is kept.
 
-    A request up to version 4 is read with that grammar and rewritten to version 5; one in
-    version 5 is read with today's, which parses it, only to give a role written after WITH
-    to whoever it belonged to then.
+    A request up to version 4 is read with that grammar and rewritten to version 5; one
+    since is read with today's, which parses them all. Only the rewrites after `since` are
+    made: a role after WITH means something else in version 6 than in 5, so a rewrite is
+    not safe to make twice.
     """
-    for rewrite in (_to_four, _clauses_after_the_verb, _counts_on_their_sets):
-        tree = _tree(text)
-        if tree is None:
-            break
-        text = rewrite(text, tree, dataset)
-    return _to_seven(text)
+    if since < 5:
+        for rewrite in (_to_four, _clauses_after_the_verb, _counts_on_their_sets):
+            tree = _tree(text)
+            if tree is None:
+                break
+            text = rewrite(text, tree, dataset)
+    if since < 7:
+        text = _to_seven(text, since)
+    if since < 8:
+        text = _chosen_inline(_to_eight(text))
+    return text
 
 
-def _to_seven(text: str) -> str:
-    """The rewrites since version 5, on a tree of today's grammar, which parses them all.
+def _to_seven(text: str, since: int) -> str:
+    """The rewrites to versions 6 and 7, on a tree of today's grammar.
 
     AS_ROLE straight after a WITH or WITHOUT set was the subject's, so it moves before them;
     a FOR with no bound was exactly that long.
@@ -109,7 +125,7 @@ def _to_seven(text: str) -> str:
             length = node.children[0]
             edits.append((length.start_pos, length.start_pos, "EXACTLY "))
     for node in tree.iter_subtrees():
-        if node.data not in ("with_", "without") or len(node.children) < 2:
+        if since >= 6 or node.data not in ("with_", "without") or len(node.children) < 2:
             continue
         role = node.children[1]
         start, stop = role.meta.start_pos, role.meta.end_pos
@@ -118,6 +134,101 @@ def _to_seven(text: str) -> str:
         edits.append((start, stop, ""))
         at = node.meta.start_pos
         edits.append((at, at, text[role.meta.start_pos : role.meta.end_pos] + " "))
+    return _edited(text, edits)
+
+
+def _to_eight(text: str) -> str:
+    """A choice in a requirement, a binding or a group takes ANY n; a count measures.
+
+    AT_LEAST n on a set a REQUEST chose from picks n, and so does a binding's or a group's
+    EXACTLY n or AT_LEAST n. A statement whose later choice was each earlier one's own, after
+    a choice of several, has no spelling now: ANY n is chosen once for the statement. It is
+    left for somebody to rewrite, as is an EXACTLY in a requirement, which also forbade the
+    rest. Tests, PREFERs, AT_MOST, FOR and WITH measure, and keep their counts.
+    """
+    try:
+        tree = parse_tree(text)
+    except SkedgeError:
+        return text
+    edits: list[tuple[int, int, str]] = []
+    for node in tree.iter_subtrees_topdown():
+        if node.data in ("binding", "define", "group"):
+            for amount in _direct(node, "amount"):
+                edits.extend(_picked(amount, ("AT_LEAST", "EXACTLY")))
+        elif node.data in CHOOSING:
+            _picks(node, edits)
+        elif node.data in ("request_not_do", "request_not_free", "request_not_busy"):
+            edits.extend(_picked(_amount(_direct(node, "chooser")[0]), ("AT_LEAST",)))
+    return _edited(text, edits)
+
+
+def _amount(chooser: Tree) -> Tree | None:
+    """The count a chooser starts with, unless it is the old spelling before another word."""
+    first = chooser.children[0]
+    after = chooser.children[1] if len(chooser.children) > 1 else None
+    if not (isinstance(first, Tree) and first.data == "amount"):
+        return None
+    if any(_is(after, word) for word in ("ALL", "ANY", "EACH")):
+        return None
+    return first
+
+
+def _picked(amount: Tree | None, bounds: tuple[str, ...]) -> list[tuple[int, int, str]]:
+    """`AT_LEAST n` as `ANY n`, when it has one of these bounds and a number, not a length."""
+    if amount is None:
+        return []
+    bound, n = amount.children
+    if str(bound).upper() not in bounds or n.type != "INT":
+        return []
+    return [(amount.meta.start_pos, amount.meta.end_pos, f"ANY {n}")]
+
+
+def _picks(node: Tree, edits: list) -> None:
+    """The choices of a requirement as ANY n, unless one follows a choice of several."""
+    mine = []
+    several = False
+    for _, chooser in _choosers(node):
+        amount = _amount(chooser)
+        picked = _picked(amount, ("AT_LEAST",))
+        if amount is not None and several:
+            return  # each of the several chose their own, which ANY n cannot say
+        if picked:
+            mine.extend(picked)
+            several = int(str(amount.children[1])) > 1
+    edits.extend(mine)
+
+
+def _chosen_inline(text: str) -> str:
+    """A binding line version 5 wrote for a shared choice, back in the one place it is used."""
+    try:
+        tree = parse_tree(text)
+    except SkedgeError:
+        return text
+    edits: list[tuple[int, int, str]] = []
+    for line in tree.find_data("binding"):
+        any_n, name = line.children[0], str(line.children[1])
+        if not (isinstance(any_n, Tree) and any_n.data == "any_n") or not _CHOSEN.fullmatch(name):
+            continue
+        uses = [
+            chooser
+            for chooser in tree.find_data("chooser")
+            if _is(chooser.children[-1], "NAME") and str(chooser.children[-1]) == name
+        ]
+        if len(uses) != 1 or len(re.findall(rf"\b{name}\b", text)) != 2:
+            continue
+        n = str(any_n.children[-1])
+        (use,) = uses
+        if len(use.children) != (1 if n == "1" else 2) or not (
+            len(use.children) == 1 or _is(use.children[0], "ALL")
+        ):
+            continue
+        written = text[line.children[1].end_pos : line.meta.end_pos].strip()
+        written = re.sub(r"^IN\b", "", written, flags=re.IGNORECASE).strip()
+        edits.append((use.meta.start_pos, use.meta.end_pos, f"ANY {n} {written}"))
+        stop = line.meta.end_pos
+        while stop < len(text) and text[stop] in "\r\n":
+            stop += 1
+        edits.append((line.meta.start_pos, stop, ""))
     return _edited(text, edits)
 
 

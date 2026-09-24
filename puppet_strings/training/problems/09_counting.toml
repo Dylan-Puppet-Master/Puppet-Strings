@@ -1,21 +1,24 @@
 [level]
-name = "Counting and lengths"
-blurb = "AT_LEAST, AT_MOST and EXACTLY on the sets they count, and FOR for how long."
+name = "Picking, capping and lengths"
+blurb = "ANY n to pick, AT_MOST to cap, and FOR for how long."
 day = "2026-08-04"
 teaches = """
-<count> <set>                  AT_LEAST 3, AT_MOST 2, EXACTLY 1 — in front of what it counts
-FOR [AT_LEAST|AT_MOST] <time>  how long
+ANY n <set>                    the solver picks n — what a REQUEST asks for
+AT_MOST n <set>                a cap: no more than n
+AT_LEAST n, EXACTLY n          measure, in an IF, a PREFER, FOR and WITH
+FOR AT_LEAST|AT_MOST|EXACTLY <time>   how long
 
 REQUEST AT_MOST 2 staff.counselors DO 'break' DURING EACH blocks.all
-REQUEST EACH staff.village_heroes DO 'break' DURING EXACTLY 3 blocks.all
+REQUEST EACH staff.village_heroes DO 'break' DURING ANY 3 blocks.all
 REQUEST EACH staff.all DO ANY activities.clinics.all DURING AT_MOST 1 CONSECUTIVE blocks.all
 REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks.all
 
-• A count counts the members of its own set the rest holds for — nobody else
-• AT_MOST and EXACTLY rule the rest out; AT_LEAST never does
-• Two counts go one inside the other: who, then what, then dates, then blocks
-• A block is a block on a date: over ANY dates, a count of blocks is of every block of every day
-• A count of activities counts different ones; three breaks is a count of blocks
+• ANY n picks and never forbids; AT_MOST forbids the rest
+• A REQUEST picks with ANY n: it refuses AT_LEAST n, and EXACTLY n
+• "Exactly n" is a pick and a cap: ANY n in one statement, AT_MOST n in another
+• A pick is made once for the statement; EACH makes copies that pick for themselves
+• A block is a block on a date: over ANY dates, blocks are counted on every day
+• A pick of activities is of different ones; three breaks is a pick of blocks
 • FOR in blocks taken one at a time is each piece; over ANY blocks it is the total
 • ANY CONSECUTIVE: the total of one run of back-to-back blocks
 """
@@ -37,30 +40,36 @@ wrong = [
 id = "count-lifeguards"
 title = "Enough lifeguards"
 prompt = "At least three village heroes do 'lifeguard' during rest hour."
-answer = "REQUEST AT_LEAST 3 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"
-explain = "AT_LEAST asks for things to happen, and picks who; it never keeps a fourth away."
-wrong = ["REQUEST AT_LEAST 2 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"]
+answer = "REQUEST ANY 3 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"
+explain = "ANY 3 picks three to do it; it never keeps a fourth away."
+wrong = ["REQUEST ANY 2 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"]
 
 [[problem]]
 id = "count-exactly-one-on-call"
 title = "Exactly one on call"
-prompt = "Exactly one director is 'on call' during each evening block."
-answer = "REQUEST EXACTLY 1 staff.directors DO 'on call' DURING EACH blocks.evening"
+prompt = "Exactly one director is 'on call' during embers: one of them, and no second."
+answer = "REQUEST ANY 1 staff.directors DO 'on call' DURING blocks.embers\nREQUEST AT_MOST 1 staff.directors DO 'on call' DURING blocks.embers"
 priority = "MUST_HAPPEN"
+hints = ["Exactly is two things: one picked, and no more than one.", "Write two statements in one request: ANY 1 to pick, AT_MOST 1 to cap."]
+explain = "ANY 1 picks one and forbids nothing, so a second director could still be put on call. AT_MOST 1 is the cap that keeps the rest off. A REQUEST refuses EXACTLY 1, so that the forbidding is written where it can be seen."
+alternatives = ["REQUEST AT_MOST 1 staff.directors DO 'on call' DURING blocks.embers\nREQUEST ANY 1 staff.directors DO 'on call' DURING blocks.embers"]
 wrong = [
-  "REQUEST AT_LEAST 1 staff.directors DO 'on call' DURING EACH blocks.evening",
-  "REQUEST EXACTLY 1 staff.directors DO 'on call' DURING ANY blocks.evening",
+  "REQUEST ANY 1 staff.directors DO 'on call' DURING blocks.embers",
+  "REQUEST AT_MOST 1 staff.directors DO 'on call' DURING blocks.embers",
 ]
 
 [[problem]]
 id = "count-exactly-one-rakes"
 title = "One of the two"
 prompt = "Exactly one of Dylan and Alesa rakes leaves ('rake leaves') today, whenever. The other one doesn't."
-answer = "REQUEST EXACTLY 1 {staff.dylan + staff.alesa} DO 'rake leaves' DURING ANY blocks.all"
-hints = ["Count the two of them: EXACTLY 1 {…}."]
-explain = "A count counts its own set and nobody else: anyone else may still rake, if something asks them to. AT_LEAST 1 would let both of them."
-alternatives = ["REQUEST EXACTLY 1 {staff.dylan + staff.alesa} DO 'rake leaves'"]
-wrong = ["REQUEST AT_LEAST 1 {staff.dylan + staff.alesa} DO 'rake leaves' DURING ANY blocks.all"]
+answer = "REQUEST ANY 1 {staff.dylan + staff.alesa} DO 'rake leaves' DURING ANY blocks.all\nREQUEST AT_MOST 1 {staff.dylan + staff.alesa} DO 'rake leaves' DURING ANY blocks.all"
+hints = ["Pick one of the two, and cap the two of them at one."]
+explain = "The cap counts its own set and nobody else: anyone else may still rake, if something asks them to. ANY 1 alone would let both of them. Naming the pick and forbidding the other says the same: ANY 1 r IN {…}, then REQUEST ALL {(staff.dylan + staff.alesa) - r} NOT DO 'rake leaves'."
+alternatives = [
+  "REQUEST ANY 1 {staff.dylan + staff.alesa} DO 'rake leaves'\nREQUEST AT_MOST 1 {staff.dylan + staff.alesa} DO 'rake leaves'",
+  "ANY 1 r IN {staff.dylan + staff.alesa}\nREQUEST r DO 'rake leaves' DURING ANY blocks.all\nREQUEST ALL {(staff.dylan + staff.alesa) - r} NOT DO 'rake leaves'",
+]
+wrong = ["REQUEST ANY 1 {staff.dylan + staff.alesa} DO 'rake leaves' DURING ANY blocks.all"]
 
 [[problem]]
 id = "count-short-break"
@@ -76,9 +85,9 @@ wrong = ["REQUEST staff.rob DO 'break' DURING blocks.clinic_1"]
 id = "count-three-short-breaks"
 title = "Three half hours"
 prompt = "Kara takes three 30-minute 'break's today, each in a different block."
-answer = "REQUEST staff.kara DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all"
-hints = ["Count the blocks; FOR is the length of each piece."]
-explain = "The blocks are taken one at a time here, counted, so FOR is the length of the piece in each of them."
+answer = "REQUEST staff.kara DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks.all"
+hints = ["Pick the blocks; FOR is the length of each piece."]
+explain = "The blocks are taken one at a time here, picked, so FOR is the length of the piece in each of them."
 wrong = ["REQUEST staff.kara DO 'break' FOR EXACTLY 30m DURING ANY blocks.all"]
 
 [[problem]]
@@ -108,9 +117,9 @@ wrong = ["REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blo
 id = "count-one-sitting"
 title = "One sitting"
 prompt = "Hails does 45 minutes of 'lesson planning' today in one sitting, in whichever block."
-answer = "REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m DURING AT_LEAST 1 blocks.all"
-hints = ["FOR sets the length of one piece when the blocks are taken one at a time.", "AT_LEAST 1 blocks.all is one block, the solver's pick."]
-explain = "Over ANY blocks, 45 minutes would be a total that could be made of pieces at different times. Counted, each block is its own unit, so FOR EXACTLY 45m is one piece in one block."
+answer = "REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m DURING ANY 1 blocks.all"
+hints = ["FOR sets the length of one piece when the blocks are taken one at a time.", "ANY 1 blocks.all is one block, the solver's pick."]
+explain = "Over ANY blocks, 45 minutes would be a total that could be made of pieces at different times. Picked, each block is its own unit, so FOR EXACTLY 45m is one piece in one block."
 wrong = ["REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m DURING ANY blocks.all"]
 
 [[problem]]
@@ -120,7 +129,7 @@ prompt = "Nobody runs two clinics back to back. Count it per person."
 answer = "REQUEST EACH staff.all DO ANY activities.clinics.all DURING AT_MOST 1 CONSECUTIVE blocks.all"
 priority = "MUST_HAPPEN"
 hints = ["EACH staff.all counts person by person.", "What is counted is blocks in a row: DURING AT_MOST 1 CONSECUTIVE blocks.all.", "Which clinic doesn't matter: ANY activities.clinics.all."]
-explain = "ANY on the clinics says which blocks count — ones with any clinic in them. AT_LEAST 1 there would be a second count, of clinics, asking something else."
+explain = "ANY on the clinics says which blocks count — ones with any clinic in them. The cap is on the blocks."
 wrong = ["REQUEST EACH staff.all DO ANY activities.clinics.all DURING AT_MOST 2 CONSECUTIVE blocks.all"]
 
 [[problem]]
@@ -139,37 +148,37 @@ wrong = [
 id = "count-different-clinics"
 title = "Two different clinics"
 prompt = "Tyson runs at least two different clinics today — running the same one twice doesn't count."
-answer = "REQUEST staff.tyson DO AT_LEAST 2 activities.clinics.all"
-hints = ["Count the clinics themselves: DO AT_LEAST 2 activities.clinics.all."]
-explain = "A count of activities counts different ones. Counting blocks instead would let the same clinic twice pass."
-wrong = ["REQUEST staff.tyson DO ANY activities.clinics.all DURING AT_LEAST 2 blocks.all"]
+answer = "REQUEST staff.tyson DO ANY 2 activities.clinics.all"
+hints = ["Pick the clinics themselves: DO ANY 2 activities.clinics.all."]
+explain = "A pick of activities is of different ones. Picking blocks instead would let the same clinic twice pass."
+wrong = ["REQUEST staff.tyson DO ANY activities.clinics.all DURING ANY 2 blocks.all"]
 
 [[problem]]
 id = "count-break-each"
-title = "Three breaks"
-prompt = "Every village hero gets exactly three 'break' blocks today, each hero counted on their own."
-answer = "REQUEST EACH staff.village_heroes DO 'break' DURING EXACTLY 3 blocks.all"
+title = "Three breaks each"
+prompt = "Every village hero gets a 'break' in three blocks today, each hero counted on their own."
+answer = "REQUEST EACH staff.village_heroes DO 'break' DURING ANY 3 blocks.all"
 priority = "HIGH"
-hints = ["A break is not counted; the blocks it is in are."]
-wrong = ["REQUEST EACH staff.village_heroes DO 'break' DURING AT_LEAST 3 blocks.all"]
+hints = ["A break is not counted; the blocks it is in are picked.", "EACH makes a copy per hero, and each copy picks its own three."]
+wrong = ["REQUEST ANY 3 staff.village_heroes DO 'break' DURING ANY blocks.all"]
 
 [[problem]]
 id = "count-two-counselors-two-blocks"
-title = "Count inside a count"
-prompt = "At least two counselors each do 'bunk check' in two of the clinic blocks."
-answer = "REQUEST AT_LEAST 2 staff.counselors DO 'bunk check' DURING AT_LEAST 2 blocks.all_clinics"
-hints = ["One count for the people, one for the blocks."]
-explain = "Counts go one inside the other: who first, then the blocks. So each of the counselors has two blocks of their own."
-wrong = ["REQUEST AT_LEAST 2 staff.counselors DO 'bunk check' DURING AT_LEAST 1 blocks.all_clinics"]
+title = "One pick for the statement"
+prompt = "Two counselors do 'bunk check' together, in the same two clinic blocks."
+answer = "REQUEST ANY 2 staff.counselors DO 'bunk check' DURING ANY 2 blocks.all_clinics"
+hints = ["One pick for the people, one for the blocks."]
+explain = "Each pick is made once for the statement, so the two counselors share the two blocks the solver picks. EACH staff.counselors in front would give every counselor two blocks of their own."
+wrong = ["REQUEST ANY 2 staff.counselors DO 'bunk check' DURING ANY 1 blocks.all_clinics"]
 
 [[problem]]
 id = "count-three-breaks-for"
 title = "Three short breaks"
 prompt = "Each non-director, non-counselor staff member takes three 30-minute 'break's today, in three different blocks."
-answer = "REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all"
+answer = "REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks.all"
 priority = "MUST_HAPPEN"
-alternatives = ["REQUEST EACH {staff.all - (staff.directors + staff.counselors)} DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all"]
-wrong = ["REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' DURING AT_LEAST 3 blocks.all"]
+alternatives = ["REQUEST EACH {staff.all - (staff.directors + staff.counselors)} DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks.all"]
+wrong = ["REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' DURING ANY 3 blocks.all"]
 
 [[problem]]
 id = "count-at-most-one-archery"
@@ -182,10 +191,10 @@ wrong = ["REQUEST staff.tyson DO activities.clinics.archery_1_2 DURING AT_MOST 2
 id = "count-at-least-one-free-clinic"
 title = "One free clinic block"
 prompt = "Each counselor is free for at least one of the four clinic blocks today."
-answer = "REQUEST EACH staff.counselors FREE DURING AT_LEAST 1 blocks.all_clinics"
+answer = "REQUEST EACH staff.counselors FREE DURING ANY 1 blocks.all_clinics"
 priority = "HIGH"
 alternatives = ["REQUEST EACH staff.counselors FREE DURING ANY blocks.all_clinics"]
-wrong = ["REQUEST EACH staff.counselors FREE DURING AT_LEAST 2 blocks.all_clinics"]
+wrong = ["REQUEST EACH staff.counselors FREE DURING ANY 2 blocks.all_clinics"]
 
 [[problem]]
 id = "count-hour-of-kitchen"
@@ -209,8 +218,8 @@ wrong = ["REQUEST AT_MOST 1 staff.directors DO 'office' DURING ANY blocks.all_cl
 id = "count-two-busy-blocks-in-a-row"
 title = "Two in a row"
 prompt = "Charlton works on 'fence building' for two back-to-back blocks today."
-answer = "REQUEST staff.charlton DO 'fence building' DURING AT_LEAST 2 CONSECUTIVE blocks.all"
-wrong = ["REQUEST staff.charlton DO 'fence building' DURING AT_LEAST 2 blocks.all"]
+answer = "REQUEST staff.charlton DO 'fence building' DURING ANY 2 CONSECUTIVE blocks.all"
+wrong = ["REQUEST staff.charlton DO 'fence building' DURING ANY 2 blocks.all"]
 
 [[problem]]
 id = "count-for-45"
@@ -235,13 +244,6 @@ answer = "REQUEST EACH staff.directors BUSY DURING AT_MOST 4 blocks.all"
 priority = "HIGH"
 wrong = ["REQUEST AT_MOST 4 staff.directors BUSY DURING ANY blocks.all"]
 
-[[problem]]
-id = "count-exactly-two-lifeguards-each-meal"
-title = "Two at every meal"
-prompt = "Exactly two village heroes do 'dining hall duty' at each meal."
-answer = "REQUEST EXACTLY 2 staff.village_heroes DO 'dining hall duty' DURING EACH blocks.meals"
-priority = "MUST_HAPPEN"
-wrong = ["REQUEST AT_LEAST 2 staff.village_heroes DO 'dining hall duty' DURING EACH blocks.meals"]
 
 [[problem]]
 id = "count-clinics-a-session"
@@ -261,21 +263,26 @@ wrong = [
 [[problem]]
 id = "count-once-a-day"
 title = "Once a day"
-prompt = "Every day from today to Friday, Tori does 'feed the goats' in exactly one block — any block, and each day counts on its own."
-answer = "REQUEST staff.tori DO 'feed the goats' DURING EXACTLY 1 blocks.all ON EACH {2026-08-04 .. 2026-08-07}"
+prompt = "Every day from today to Friday, Tori does 'feed the goats' in one block — any block, and each day counts on its own."
+answer = "REQUEST staff.tori DO 'feed the goats' DURING ANY 1 blocks.all ON EACH {2026-08-04 .. 2026-08-07}"
 priority = "HIGH"
-hints = ["A request per day: ON EACH.", "In each, a count of the blocks."]
-explain = "ON EACH makes a request per day, so the block can differ from day to day. ON ALL would make the days one unit: the same block every day. ON ANY would count blocks over all the days together: once in the whole week."
+hints = ["A request per day: ON EACH.", "In each, a pick of one block."]
+explain = "ON EACH makes a request per day, so the block can differ from day to day. ON ALL would make the days one unit: one block, picked once, the same every day. ON ANY would pick over all the days together: once in the whole week."
+alternatives = ["REQUEST staff.tori DO 'feed the goats' DURING ANY blocks.all ON EACH {2026-08-04 .. 2026-08-07}"]
 wrong = [
-  "REQUEST staff.tori DO 'feed the goats' DURING EXACTLY 1 blocks.all ON ANY {2026-08-04 .. 2026-08-07}",
-  "REQUEST staff.tori DO 'feed the goats' DURING EXACTLY 1 blocks.all ON ALL {2026-08-04 .. 2026-08-07}",
+  "REQUEST staff.tori DO 'feed the goats' DURING ANY 1 blocks.all ON ANY {2026-08-04 .. 2026-08-07}",
+  "REQUEST staff.tori DO 'feed the goats' DURING ANY 1 blocks.all ON ALL {2026-08-04 .. 2026-08-07}",
 ]
 
 [[problem]]
 id = "count-once-a-week"
 title = "Once, some day"
-prompt = "Between today and Friday, Tori does 'hay delivery' exactly once — one block on one day."
-answer = "REQUEST staff.tori DO 'hay delivery' DURING EXACTLY 1 blocks.all ON ANY {2026-08-04 .. 2026-08-07}"
-hints = ["Pool the days with ANY, and count the blocks across all of them."]
-explain = "Over dates pooled with ANY, a count of blocks is of every block of every day, so EXACTLY 1 is once in the four days."
-wrong = ["REQUEST staff.tori DO 'hay delivery' DURING EXACTLY 1 blocks.all ON EACH {2026-08-04 .. 2026-08-07}"]
+prompt = "Between today and Friday, Tori does 'hay delivery' once, and no more — one block on one day."
+answer = "REQUEST staff.tori DO 'hay delivery' DURING ANY 1 blocks.all ON ANY {2026-08-04 .. 2026-08-07}\nREQUEST staff.tori DO 'hay delivery' DURING AT_MOST 1 blocks.all ON ANY {2026-08-04 .. 2026-08-07}"
+hints = ["Pool the days with ANY, and pick one block across all of them.", "No more is a cap: AT_MOST 1, over the same days."]
+explain = "Over dates pooled with ANY, the blocks are every block of every day, so ANY 1 is once in the four days and AT_MOST 1 keeps it to once."
+wrong = [
+  "REQUEST staff.tori DO 'hay delivery' DURING ANY 1 blocks.all ON ANY {2026-08-04 .. 2026-08-07}",
+  "REQUEST staff.tori DO 'hay delivery' DURING ANY 1 blocks.all ON EACH {2026-08-04 .. 2026-08-07}",
+]
+

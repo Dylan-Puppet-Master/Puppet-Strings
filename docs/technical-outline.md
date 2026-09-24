@@ -264,7 +264,7 @@ HEROs; a metric is now a numeric mapping.)
 | `value` | `numeric` | `{staff.all - staff.counselor}` |
 | `scale_min` | `1` | |
 | `scale_max` | `5` | |
-| `default` | `3` | `AT_LEAST 1 {staff.all - staff.counselor - staff.director}` |
+| `default` | `3` | `ANY 1 {staff.all - staff.counselor - staff.director}` |
 
 `keys` and `value` are Skedge sets (or a bare namespace), so what a call may take and
 give is checked like any other name. `mapping_enjoyment`:
@@ -778,6 +778,24 @@ Recorded so the outline matches the code.
   spans walks `2027/Main Season` once rather than four times, and `discover` runs once per
   root and year. Measured over a modelled season, a reload 70 published days in goes from
   143 API calls to 73.
+- **ANY n chooses, and a count measures** (Puppet Master, 2026-09-24). `ANY 1` and
+  `AT_LEAST 1` had come to mean the same thing in a requirement and different things
+  elsewhere, and `EXACTLY` meant "pick n and forbid the rest" in a requirement but "exactly
+  n" in a test. Now `ANY n` picks: once for the statement, shared by everything in it,
+  forbidding nothing. It is what a `REQUEST`, a binding line, a group and a mapping's
+  default choose with, and `ANY` with no number stays a pool. `AT_LEAST`, `AT_MOST` and
+  `EXACTLY` measure, in tests, `PREFER`s, `FOR` and `WITH`; a `REQUEST` takes `AT_MOST` as a
+  cap and refuses the other two, `EXACTLY` because the forbidding it did is written with
+  `NOT DO`: a bound name may now be taken from a whole set, `{s - x}` (`Choice.minus`,
+  `Compiler._less`). A pick in a requirement compiles as before; one beside a cap is named
+  (`_pick_…`) and shared the way a binding line is, and a pick of blocks over pooled dates is
+  counted as occurrences, as a count of them was. There is no `PREFER` for "as many as
+  possible": that is `EACH` at a soft priority. Saved requests are rewritten on their next
+  load (syntax 8), and only by the passes after the version the file records, since the role
+  pass of syntax 6 is not safe to make twice; an imported file keeps its own version. A
+  version 5 binding line written for a shared choice goes back inline. A choice after a
+  choice of several, which was each one's own, and an `EXACTLY` in a requirement are left
+  for somebody to rewrite.
 - **FOR says how it is bounded** (Puppet Master, 2026-09-24). A bare `FOR 30m` meant exactly,
   the one quantity in the language that went without its bound, and over pooled blocks
   `FOR 2h` read as "at least" to most people while meaning "exactly". `FOR` now takes

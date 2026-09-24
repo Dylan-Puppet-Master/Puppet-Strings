@@ -13,8 +13,9 @@ start       : _NL* line (_NL+ line)* _NL*
             | exclude
 
 binding     : (EACH | amount | any_n) NAME _IN set_
-// A name for a set, written once and meaning the same wherever it is used. With EXACTLY n
-// or EACH in front it is a binding line spelled the other way round.
+// A name for a set, written once and meaning the same wherever it is used. With ANY n or
+// EACH in front it is a binding line spelled the other way round. A count in front is
+// parsed only to say that a binding picks with ANY n.
 define      : NAME ":" (ALL | EACH | amount | any_n)? set_
 // A name for a quoted task, to write after DO wherever the task is meant.
 define_task : NAME ":" STRING
@@ -76,11 +77,11 @@ for_        : _FOR BOUND? DURATION
 with_       : _WITH chooser as_role?
 without     : _WITHOUT chooser as_role?
 
-// ANY with no number is any of these: the set is one pool. A number is a count, in front
-// of the set it counts. CONSECUTIVE is about blocks, after DURING: `AT_LEAST 2 CONSECUTIVE
-// blocks.all` counts blocks in a row, and `ANY CONSECUTIVE blocks.all` pools each run for
-// a FOR to measure. A count before another quantifier, and ANY n, are old spellings,
-// parsed only to say the new ones.
+// ANY with no number is any of these: the set is one pool. ANY n chooses n of it, once for
+// the statement. A count measures, in front of the set it counts. CONSECUTIVE is about
+// blocks, after DURING: `ANY 2 CONSECUTIVE blocks.all` picks blocks in a row, and
+// `ANY CONSECUTIVE blocks.all` pools each run for a FOR to measure. A count before another
+// quantifier, and ANY_n_OF, are old spellings, parsed only to say the new ones.
 chooser     : (ALL | ANY | amount)? CONSECUTIVE? set_
             | amount (ALL | ANY | EACH) CONSECUTIVE? set_
             | any_n CONSECUTIVE? set_
@@ -149,7 +150,8 @@ COMMENT     : /#[^\n]*/
 
 // A statement may be written over as many lines as it reads well on. A new line starts a new
 // statement only where one can start: at REQUEST, PREFER, EXCLUDE, IF, UNLESS or GAP, at a
-// binding (`EACH x IN`, `EXACTLY n x IN`), or at a name and a colon. Anywhere else the
+// binding (`EACH x IN`, `ANY n x IN`), or at a name and a colon. Anywhere else the
+
 // newline before it is nothing, so the line carries on the statement above it. The
 // lookahead spells out how `binding`, `define` and `labeled` begin, so it changes with them.
 _CONTINUES  : /(\r?\n[ \t]*)+(?![ \t\r\n]|(?i:REQUEST|PREFER|EXCLUDE|IF|UNLESS|GAP)\b|(?i:EACH(?:_OF)?|(?:ANY|AT_LEAST|AT_MOST|EXACTLY)[ \t]+\d+|ANY_\d+_OF)[ \t]+[a-z_][a-z0-9_]*[ \t]+(?i:IN)\b|[a-z_][a-z0-9_]*[ \t]*:|$)/

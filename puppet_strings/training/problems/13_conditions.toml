@@ -9,7 +9,7 @@ UNLESS <test>      only when it doesn't
 A test says what happens, and is true or false of the day; with no count, it holds when it happens at all.
 
 UNLESS staff.lisa FREE DURING blocks.clinic_1
-REQUEST AT_LEAST 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1
+REQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1
 
 IF
 AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch
@@ -18,6 +18,7 @@ staff.dylan FREE DURING blocks.lunch
 REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch
 
 • s BUSY DURING ANY {a + b} is busy in a or b; ALL {a + b} is busy in both
+• A test measures, so it counts with AT_LEAST, AT_MOST or EXACTLY, never ANY n
 • Mixing AND with OR needs parentheses: IF (a AND b) OR c
 • One IF or UNLESS per request
 """
@@ -26,10 +27,10 @@ REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch
 id = "if-unless-lisa"
 title = "Unless Lisa's free"
 prompt = "Unless Lisa is free during clinic 1, a permanent hero covers the 'front desk' then."
-answer = "UNLESS staff.lisa FREE DURING blocks.clinic_1\nREQUEST AT_LEAST 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"
+answer = "UNLESS staff.lisa FREE DURING blocks.clinic_1\nREQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"
 hints = ["UNLESS goes on a line of its own, above the REQUEST."]
-alternatives = ["IF staff.lisa BUSY DURING blocks.clinic_1\nREQUEST AT_LEAST 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"]
-wrong = ["IF staff.lisa FREE DURING blocks.clinic_1\nREQUEST AT_LEAST 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"]
+alternatives = ["IF staff.lisa BUSY DURING blocks.clinic_1\nREQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"]
+wrong = ["IF staff.lisa FREE DURING blocks.clinic_1\nREQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1"]
 
 [[problem]]
 id = "if-busy-then-cover"
@@ -66,7 +67,7 @@ wrong = ["IF staff.rob DO activities.clinics.gravity_zip_line DURING blocks.clin
 id = "if-each-after-clinics"
 title = "After two in a row"
 prompt = "For each village leader: if they run two clinics back to back, they get a free block somewhere today."
-answer = "EACH s IN staff.village_leaders\nIF s DO ANY activities.clinics.all DURING AT_LEAST 2 CONSECUTIVE blocks.all\nREQUEST s FREE DURING AT_LEAST 1 blocks.all"
+answer = "EACH s IN staff.village_leaders\nIF s DO ANY activities.clinics.all DURING AT_LEAST 2 CONSECUTIVE blocks.all\nREQUEST s FREE DURING ANY 1 blocks.all"
 priority = "HIGH"
 
 [[problem]]

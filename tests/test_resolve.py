@@ -44,7 +44,7 @@ def test_defaults(dataset):
 def test_quantifiers(dataset):
     (copy,) = resolve(
         dataset,
-        "EXACTLY 1 chosen_1 IN dates.session_1.all\nREQUEST AT_LEAST 2 staff.counselor DO 'x' DURING ALL blocks.all ON chosen_1",
+        "REQUEST ANY 2 staff.counselor DO 'x' DURING ALL blocks.all ON ANY 1 dates.session_1.all",
     )
     (st,) = copy.statements
     assert (st.who.kind, st.who.n, st.who.items) == (ANY, 2, ("dylan", "james", "paul"))
@@ -84,8 +84,8 @@ def test_a_binding_line_is_visible_on_every_line(dataset):
     copies = resolve(
         dataset,
         "EACH c IN staff.counselor\n"
-        "m: REQUEST c DO 'a' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\n"
-        "n: REQUEST c DO 'a' DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\n"
+        "m: REQUEST c DO 'a' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\n"
+        "n: REQUEST c DO 'a' DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\n"
         "GAP m TO n AT_MOST 5h",
     )
     assert [c.key for c in copies] == ["dylan", "james", "paul"]
@@ -98,7 +98,7 @@ def test_a_binding_line_is_visible_on_every_line(dataset):
 def test_an_any_binding_is_one_choice_shared_by_the_declaration(dataset):
     (copy,) = resolve(
         dataset,
-        "EXACTLY 1 p IN staff.counselor\n"
+        "ANY 1 p IN staff.counselor\n"
         "first: REQUEST p DO 'setup' DURING blocks.clinic_4\n"
         "last:  REQUEST p DO 'teardown' DURING blocks.evening",
     )
@@ -139,7 +139,7 @@ def test_patterns_conditions_and_mappings(dataset):
         dataset,
         "EACH s IN staff.director\n"
         "IF s DO ANY activities.clinics.all DURING AT_LEAST 3 CONSECUTIVE blocks.all\n"
-        "REQUEST s FREE DURING AT_LEAST 1 blocks.all",
+        "REQUEST s FREE DURING ANY 1 blocks.all",
     )[:1]
     (level,) = copy.condition.test.tally.levels
     assert level.field == "block" and level.choice.n == 3 and level.choice.consecutive
@@ -235,7 +235,7 @@ def test_a_date_in_no_session_has_no_target_session(dataset):
 def test_roles(dataset):
     (copy,) = resolve(
         dataset,
-        "REQUEST staff.dylan DO activities.clinics.candle_making AS_ROLE roles.trainee DURING AT_LEAST 1 blocks.all_clinics",
+        "REQUEST staff.dylan DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY 1 blocks.all_clinics",
     )
     assert copy.statements[0].role.items == ("trainee",)
     (copy,) = resolve(

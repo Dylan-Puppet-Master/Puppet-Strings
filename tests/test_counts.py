@@ -33,7 +33,7 @@ def ids(outcomes):
     return [o.id for o in outcomes]
 
 
-def test_exactly_one_of_a_set_leaves_the_other_out():
+def test_any_one_and_not_do_the_rest_leaves_the_other_out():
     """Alesa rakes in clinic 1, so she is the one, and Dylan rakes in no block at all."""
     ds = dataset(
         [staff("Dylan"), staff("Alesa"), staff("Tori"), staff("Brian")],
@@ -41,15 +41,17 @@ def test_exactly_one_of_a_set_leaves_the_other_out():
         requests=[
             request(
                 "one",
-                "REQUEST EXACTLY 1 {staff.dylan + staff.alesa} DO 'rake leaves' "
-                "DURING ANY blocks.all",
+                "ANY 1 r IN {staff.dylan + staff.alesa}\n"
+                "REQUEST r DO 'rake leaves' DURING ANY blocks.all\n"
+                "REQUEST ALL {(staff.dylan + staff.alesa) - r} NOT DO 'rake leaves'",
                 MUST,
             ),
             request("alesa", "REQUEST staff.alesa DO 'rake leaves' DURING blocks.clinic_1", MUST),
             request(
                 "other",
-                "REQUEST EXACTLY 1 {staff.tori + staff.brian} DO 'rake leaves' "
-                "DURING ANY blocks.all",
+                "ANY 1 r IN {staff.tori + staff.brian}\n"
+                "REQUEST r DO 'rake leaves' DURING ANY blocks.all\n"
+                "REQUEST ALL {(staff.tori + staff.brian) - r} NOT DO 'rake leaves'",
                 MUST,
             ),
             request("dylan", "REQUEST staff.dylan DO 'rake leaves' DURING blocks.clinic_2"),
@@ -62,21 +64,19 @@ def test_exactly_one_of_a_set_leaves_the_other_out():
     assert len(raking) == 1  # the other set's own one, whichever it is
 
 
-def test_a_count_of_blocks_is_each_persons_own():
+def test_a_choice_under_each_is_each_persons_own():
     ds = dataset(
         [staff("Dylan"), staff("Sarah")],
         [],
         requests=[
-            request(
-                "breaks", "REQUEST EACH staff.all DO 'break' DURING EXACTLY 3 blocks.all", MUST
-            ),
-            request("more", "REQUEST staff.dylan DO 'break' DURING ALL blocks.all_clinics"),
+            request("breaks", "REQUEST EACH staff.all DO 'break' DURING ANY 3 blocks.all", MUST),
+            request("dylan", "REQUEST staff.dylan FREE DURING blocks.clinic_1", MUST),
+            request("sarah", "REQUEST staff.sarah FREE DURING blocks.clinic_2", MUST),
         ],
     )
     result = run(ds)
-    assert len(blocks(result, "break", "dylan")) == 3
-    assert len(blocks(result, "break", "sarah")) == 3
-    assert ids(result.unsatisfied) == ["more"]  # four clinic blocks would be one too many
+    assert len(blocks(result, "break", "dylan")) >= 3
+    assert len(blocks(result, "break", "sarah")) >= 3
 
 
 def test_a_count_of_people_holds_in_each_block():
@@ -104,7 +104,7 @@ def test_all_makes_a_group_one_unit_and_each_splits_it():
         [staff("Dylan"), staff("Alesa")],
         [],
         requests=[
-            request("video", f"REQUEST ALL {both} DO 'video' DURING EXACTLY 1 blocks.all", MUST),
+            request("video", f"REQUEST ALL {both} DO 'video' DURING ANY 1 blocks.all", MUST),
         ],
     )
     result = run(together)
@@ -114,17 +114,16 @@ def test_all_makes_a_group_one_unit_and_each_splits_it():
         [staff("Dylan"), staff("Alesa")],
         [],
         requests=[
-            request("video", f"REQUEST EACH {both} DO 'video' DURING EXACTLY 1 blocks.all", MUST),
+            request("video", f"REQUEST EACH {both} DO 'video' DURING ANY 1 blocks.all", MUST),
             request("dylan", "REQUEST staff.dylan FREE DURING ALL blocks.all_clinics", MUST),
             request("alesa", "REQUEST staff.alesa FREE DURING blocks.lunch", MUST),
         ],
     )
     result = run(apart)
-    assert len(blocks(result, "video", "dylan")) == 1
-    assert len(blocks(result, "video", "alesa")) == 1
+    assert blocks(result, "video", "dylan") and blocks(result, "video", "alesa")
 
 
-def test_a_count_inside_a_count_is_each_ones_own():
+def test_a_choice_after_a_choice_is_shared():
     members = [staff(n) for n in ("Dylan", "Sarah", "Vic")]
     ds = dataset(
         members,
@@ -132,15 +131,16 @@ def test_a_count_inside_a_count_is_each_ones_own():
         requests=[
             request(
                 "two",
-                "REQUEST AT_LEAST 2 staff.all DO 'x' DURING AT_LEAST 2 blocks.all_clinics",
+                "REQUEST ANY 2 staff.all DO 'x' DURING ANY 2 blocks.all_clinics",
                 MUST,
             ),
             request("none", "REQUEST ALL staff.all NOT DO 'x'"),
         ],
     )
     result = run(ds)
-    doing = {s for s in ("dylan", "sarah", "vic") if len(blocks(result, "x", s)) >= 2}
-    assert len(doing) == 2
+    doing = [blocks(result, "x", s) for s in ("dylan", "sarah", "vic")]
+    doing = [b for b in doing if b]
+    assert len(doing) == 2 and doing[0] == doing[1] and len(doing[0]) == 2
 
 
 def test_a_count_of_activities_counts_different_ones():
@@ -155,7 +155,7 @@ def test_a_count_of_activities_counts_different_ones():
         requests=[
             request(
                 "variety",
-                "REQUEST staff.rob DO AT_LEAST 2 activities.clinics.all DURING ANY blocks.all",
+                "REQUEST staff.rob DO ANY 2 activities.clinics.all DURING ANY blocks.all",
                 MUST,
             ),
             request("free", "REQUEST staff.rob FREE DURING EACH blocks.all", Priority.LOW),
@@ -196,7 +196,7 @@ def test_a_length_in_one_go_is_a_run_of_adjacent_blocks():
 
 
 def test_a_length_in_one_piece_is_one_block():
-    text = "REQUEST staff.cam DO 'video editing' FOR AT_LEAST 30m DURING AT_LEAST 1 blocks.all"
+    text = "REQUEST staff.cam DO 'video editing' FOR AT_LEAST 30m DURING ANY 1 blocks.all"
     ds = dataset(
         [staff("Cam")],
         [],
@@ -211,7 +211,7 @@ def test_a_length_in_one_piece_is_one_block():
 
 def test_busy_in_every_block_or_in_one():
     every = "REQUEST staff.hails BUSY DURING ALL {blocks.clinic_4 + blocks.playstation}"
-    one = "REQUEST staff.hails BUSY DURING AT_LEAST 1 {blocks.clinic_4 + blocks.playstation}"
+    one = "REQUEST staff.hails BUSY DURING ANY 1 {blocks.clinic_4 + blocks.playstation}"
     work = "REQUEST staff.hails DO 'x' DURING EACH {blocks.clinic_4 + blocks.playstation}"
     free = "REQUEST staff.hails FREE DURING EACH blocks.all"
     for text, expected in ((every, 2), (one, 1)):
@@ -313,10 +313,10 @@ def test_a_run_of_blocks_over_pooled_dates_stays_within_a_date():
     assert blocks(run(ds), "x", "dylan") == {"clinic_1"}  # yesterday's last block is no neighbour
 
 
-def test_exactly_in_a_group_chooses_one_and_keeps_the_other_out():
+def test_a_group_picks_one_and_not_do_keeps_the_other_out():
     text = (
-        "REQUEST ALL {staff.alesa + EXACTLY 1 {staff.dylan + staff.cam}} DO 'video' "
-        "DURING AT_LEAST 1 blocks.all_clinics"
+        "REQUEST ALL {staff.alesa + ANY 1 {staff.dylan + staff.cam}} DO 'video' "
+        "DURING ANY 1 blocks.all_clinics"
     )
     members = [staff("Alesa"), staff("Dylan"), staff("Cam")]
     ds = dataset(
@@ -328,11 +328,16 @@ def test_exactly_in_a_group_chooses_one_and_keeps_the_other_out():
             request("cam", "REQUEST staff.cam DO 'video' DURING blocks.clinic_2", Priority.LOW),
         ],
     )
-    result = run(ds)
-    filming = {a.staff for a in rows(result, "video")}
+    filming = {a.staff for a in rows(run(ds), "video")}
+    assert {"alesa", "dylan", "cam"} <= filming  # the one not picked is free to film too
+    only = replace_text(
+        ds,
+        "ANY 1 v IN {staff.dylan + staff.cam}\n"
+        "REQUEST ALL {staff.alesa + v} DO 'video' DURING ANY 1 blocks.all_clinics\n"
+        "REQUEST ALL {(staff.dylan + staff.cam) - v} NOT DO 'video'",
+    )
+    filming = {a.staff for a in rows(run(only), "video")}
     assert "alesa" in filming and len(filming & {"dylan", "cam"}) == 1
-    loose = replace_text(ds, text.replace("EXACTLY 1", "AT_LEAST 1"))
-    assert {"dylan", "cam"} <= {a.staff for a in rows(run(loose), "video")}
 
 
 def replace_text(ds, text):

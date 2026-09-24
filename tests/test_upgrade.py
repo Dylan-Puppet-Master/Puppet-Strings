@@ -44,7 +44,7 @@ def test_matched_sets_take_any(dataset, old, new):
         ),
         (
             "d: EACH_OF dates.season.sundays\nREQUEST ANY 1 {staff.rob + (ALL_OF staff.director)} DO 'x' ON d",
-            "d: EACH dates.season.sundays\nREQUEST AT_LEAST 1 {staff.rob + (ALL staff.director)} DO 'x' ON d",
+            "d: EACH dates.season.sundays\nREQUEST ANY 1 {staff.rob + (ALL staff.director)} DO 'x' ON d",
         ),
     ],
 )
@@ -61,7 +61,7 @@ def test_text_that_does_not_parse_is_left_alone(dataset):
     [
         (
             "REQUEST ALL {staff.lucy + staff.tom} DO 'x' DURING ANY 2 blocks.all CONSECUTIVE",
-            "REQUEST ALL {staff.lucy + staff.tom} DO 'x' DURING AT_LEAST 2 CONSECUTIVE blocks.all",
+            "REQUEST ALL {staff.lucy + staff.tom} DO 'x' DURING ANY 2 CONSECUTIVE blocks.all",
         ),
         (  # no DURING was the whole day, and still is
             "REQUEST AT_MOST 3 CONSECUTIVE EACH staff.all DO activities.clinics.all",
@@ -72,7 +72,7 @@ def test_text_that_does_not_parse_is_left_alone(dataset):
             "EACH s IN staff.all\nIF AT_LEAST 3 CONSECUTIVE s DO activities.clinics.all\n"
             "REQUEST s FREE DURING ANY 1 blocks.all",
             "EACH s IN staff.all\nIF s DO ANY activities.clinics.all "
-            "DURING AT_LEAST 3 CONSECUTIVE blocks.all\nREQUEST s FREE DURING AT_LEAST 1 blocks.all",
+            "DURING AT_LEAST 3 CONSECUTIVE blocks.all\nREQUEST s FREE DURING ANY 1 blocks.all",
         ),
         (  # a DURING it had already is where the run is measured
             "PREFER AT_LEAST 2h CONSECUTIVE staff.dylan DO 'x' DURING blocks.all_clinics",
@@ -126,8 +126,7 @@ def test_consecutive_moves_onto_the_blocks(dataset, old, new):
         ),
         (  # over pooled dates, a count of blocks is of each block on each date
             "REQUEST AT_LEAST 2 staff.dylan DO 'x' ON ANY {2026-09-16 .. 2026-09-17}",
-            "REQUEST staff.dylan DO 'x' ON ANY {2026-09-16 .. 2026-09-17} "
-            "DURING AT_LEAST 2 blocks.all",
+            "REQUEST staff.dylan DO 'x' ON ANY {2026-09-16 .. 2026-09-17} DURING ANY 2 blocks.all",
         ),
         (
             "PREFER AT_MOST 8 EACH staff.all DO ANY activities.clinics.all "
@@ -150,23 +149,21 @@ def test_a_count_moves_onto_the_set_it_counts(dataset, old, new):
     [
         (
             "REQUEST ANY 3 staff.counselor DO 'lifeguard' DURING blocks.rest_hour",
-            "REQUEST AT_LEAST 3 staff.counselor DO 'lifeguard' DURING blocks.rest_hour",
+            "REQUEST ANY 3 staff.counselor DO 'lifeguard' DURING blocks.rest_hour",
         ),
         (
             "ANY 1 v IN {staff.dylan + staff.rob}\nx: ANY 2 staff.counselor\n"
             "REQUEST ALL {staff.alesa + v} DO 'video' DURING ANY 1 blocks.all",
-            "EXACTLY 1 v IN {staff.dylan + staff.rob}\nx: EXACTLY 2 staff.counselor\n"
-            "REQUEST ALL {staff.alesa + v} DO 'video' DURING AT_LEAST 1 blocks.all",
+            "ANY 1 v IN {staff.dylan + staff.rob}\nx: ANY 2 staff.counselor\n"
+            "REQUEST ALL {staff.alesa + v} DO 'video' DURING ANY 1 blocks.all",
         ),
-        (  # the block was one choice for both people, so it is named once
+        (  # the block was one choice for both people, and still is
             "REQUEST ANY 2 staff.counselor DO 'x' DURING ANY 1 blocks.all",
-            "EXACTLY 1 chosen_1 IN blocks.all\n"
-            "REQUEST AT_LEAST 2 staff.counselor DO 'x' DURING chosen_1",
+            "REQUEST ANY 2 staff.counselor DO 'x' DURING ANY 1 blocks.all",
         ),
         (  # one date chosen, so the block after it is that date's own
             "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON ANY 1 dates.session_1.all",
-            "REQUEST staff.dylan DO 'x' DURING AT_LEAST 1 blocks.all "
-            "ON AT_LEAST 1 dates.session_1.all",
+            "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON ANY 1 dates.session_1.all",
         ),
         (  # a run shared by two people has no binding: left whole, not half rewritten
             "REQUEST ANY 2 staff.counselor DO 'x' DURING ANY 3 blocks.all CONSECUTIVE",
@@ -179,12 +176,12 @@ def test_a_count_moves_onto_the_set_it_counts(dataset, old, new):
         (
             "REQUEST ALL {staff.charlton + (ANY 1 {staff.dylan + staff.rob})} DO 'x' "
             "DURING blocks.lunch",
-            "REQUEST ALL {staff.charlton + (AT_LEAST 1 {staff.dylan + staff.rob})} DO 'x' "
+            "REQUEST ALL {staff.charlton + (ANY 1 {staff.dylan + staff.rob})} DO 'x' "
             "DURING blocks.lunch",
         ),
     ],
 )
-def test_any_n_is_a_count_or_a_binding(dataset, old, new):
+def test_any_n_still_chooses(dataset, old, new):
     assert upgrade(old, dataset) == new
 
 
@@ -197,7 +194,7 @@ def test_any_n_is_a_count_or_a_binding(dataset, old, new):
         ),
         (  # and ALL was all of them together, so at least one is busy
             "REQUEST staff.hails NOT FREE DURING ALL blocks.evening",
-            "REQUEST staff.hails BUSY DURING AT_LEAST 1 blocks.evening",
+            "REQUEST staff.hails BUSY DURING ANY 1 blocks.evening",
         ),
         (  # no DURING was every block
             "REQUEST staff.hails NOT FREE",
@@ -227,8 +224,57 @@ def test_a_role_after_with_was_the_subjects_and_stays_so(dataset):
 
 def test_a_bare_for_was_exactly_that_long(dataset):
     old = "REQUEST EACH staff.all DO 'break' FOR 30m DURING ANY 3 blocks.all"
-    new = "REQUEST EACH staff.all DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all"
+    new = "REQUEST EACH staff.all DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks.all"
     assert upgrade(old, dataset) == new
     assert upgrade("REQUEST staff.rob DO 'x' FOR 1h DURING blocks.clinic_1", dataset) == (
         "REQUEST staff.rob DO 'x' FOR EXACTLY 1h DURING blocks.clinic_1"
     )
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        (  # a requirement's count chose, and ANY n is how a choice is written now
+            "REQUEST AT_LEAST 1 staff.counselor DO 'x' DURING AT_LEAST 2 blocks.all",
+            "REQUEST ANY 1 staff.counselor DO 'x' DURING ANY 2 blocks.all",
+        ),
+        (  # left of NOT the subject chooses
+            "REQUEST AT_LEAST 1 staff.counselor NOT DO 'x'",
+            "REQUEST ANY 1 staff.counselor NOT DO 'x'",
+        ),
+        (  # a binding line and a group pick
+            "EXACTLY 1 v IN staff.counselor\n"
+            "REQUEST ALL {v + AT_LEAST 1 {staff.dylan + staff.rob}} DO 'x'",
+            "ANY 1 v IN staff.counselor\nREQUEST ALL {v + ANY 1 {staff.dylan + staff.rob}} DO 'x'",
+        ),
+        (  # the binding version 5 wrote for a shared choice goes back where it was
+            "EXACTLY 1 chosen_1 IN blocks.all\n"
+            "REQUEST AT_LEAST 2 staff.counselor DO 'x' DURING chosen_1",
+            "REQUEST ANY 2 staff.counselor DO 'x' DURING ANY 1 blocks.all",
+        ),
+        (  # a test, a PREFER, a cap, FOR and WITH measure, and keep their counts
+            "IF AT_LEAST 2 staff.counselor FREE DURING blocks.clinic_1\n"
+            "REQUEST AT_MOST 2 staff.counselor DO 'x' FOR AT_LEAST 30m WITH AT_LEAST 1 staff.all",
+            "IF AT_LEAST 2 staff.counselor FREE DURING blocks.clinic_1\n"
+            "REQUEST AT_MOST 2 staff.counselor DO 'x' FOR AT_LEAST 30m WITH AT_LEAST 1 staff.all",
+        ),
+        (  # each of the two chose their own block, which ANY n cannot say: left for a person
+            "REQUEST AT_LEAST 2 staff.counselor DO 'x' DURING AT_LEAST 1 blocks.all",
+            "REQUEST AT_LEAST 2 staff.counselor DO 'x' DURING AT_LEAST 1 blocks.all",
+        ),
+        (  # EXACTLY forbade the rest as well
+            "REQUEST EXACTLY 2 staff.counselor DO 'x'",
+            "REQUEST EXACTLY 2 staff.counselor DO 'x'",
+        ),
+    ],
+)
+def test_a_choice_takes_any_n_and_a_count_measures(dataset, old, new):
+    assert upgrade(old, dataset, 7) == new
+    assert upgrade(new, dataset, 8) == new
+
+
+def test_only_the_rewrites_after_a_files_version_are_made(dataset):
+    """A role after WITH is theirs from version 6, so a file from then keeps it there."""
+    text = "REQUEST staff.rob DO activities.clinics.riflery WITH staff.vic AS_ROLE roles.first"
+    assert upgrade(text, dataset, 6) == text
+    assert upgrade(text, dataset, 5) != text

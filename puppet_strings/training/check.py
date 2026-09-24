@@ -134,7 +134,7 @@ def _canon(value, names: dict[str, str], day: tuple[str, ...] = ()):
 
     Positions and the key of a copy go; a variable or a GAP label keeps only the order it was
     first met in, so two requests binding `s` and `who` the same way are the same. A choice of one
-    item is that item however it was quantified, and AT_LEAST n of n items is all of them.
+    item is that item however it was quantified, and ANY n of n items is all of them.
     A pattern with no DURING is about every block of `day`, which is what it would say if it
     named them all.
     """
@@ -151,9 +151,10 @@ def _canon(value, names: dict[str, str], day: tuple[str, ...] = ()):
         var = names.setdefault(value.var, f"v{len(names)}") if value.var else None
         parts = _canon(value.parts, names, day)
         units = _canon(value.units, names, day)
+        minus = _canon(value.minus, names, day)
         run = value.consecutive and kind in (ANY, COUNT, POOL)
         counted = n if kind in (ANY, COUNT) else None
-        return ("choice", items, kind, counted, bound, var, parts, run, units)
+        return ("choice", items, kind, counted, bound, var, parts, run, units, minus)
     if isinstance(value, ast.Gap):
         amount = (value.amount.bound, value.amount.value, value.amount.duration)
         return ("gap", _label(value.first, names), _label(value.second, names), amount)

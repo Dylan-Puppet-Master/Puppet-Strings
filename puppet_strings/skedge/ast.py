@@ -9,6 +9,7 @@ from puppet_strings.skedge.namespaces import ACTIVITIES, BLOCKS, DATES, ROLES, S
 ALL = "ALL"
 ANY = "ANY"  # any of these: the set is one pool
 EACH = "EACH"
+ANY_OF = "ANY_OF"  # ANY n: n of the set, the solver's choice, made once
 COUNT = "COUNT"  # AT_LEAST, AT_MOST or EXACTLY n: how many of the set the rest holds for
 
 AT_LEAST = "AT_LEAST"
@@ -127,7 +128,8 @@ SetExpr = Ref | Var | DateLiteral | DateOffset | DateRange | SetOp | Call | Grou
 class Selector:
     """A set with the quantifier written in front of it.
 
-    `quantifier` is ALL, ANY (a pool), EACH or COUNT (with `bound` and `n`), or None for
+    `quantifier` is ALL, ANY (a pool), ANY_OF (ANY n, a choice), EACH or COUNT (with
+    `bound` and `n`), or None for
     one thing written on its own. `var` is the `x` of `EACH x IN s`. `consecutive` is
     `ANY CONSECUTIVE` or `<count> CONSECUTIVE`, which only a DURING takes: the parser moves
     it onto the During and refuses it anywhere else.
@@ -479,13 +481,18 @@ def groups_in(expr: SetExpr) -> Iterator[Group]:
 
 
 def picks(expr: SetExpr) -> bool:
-    """Whether an expression holds an `(AT_LEAST n …)` group, which the solver chooses from."""
-    return any(group.quantifier == COUNT for group in groups_in(expr))
+    """Whether an expression holds an `ANY n` group, which the solver chooses from."""
+    return any(group.quantifier == ANY_OF for group in groups_in(expr))
 
 
 def counts(selector: Selector) -> bool:
-    """Whether a selector counts its set, or holds a group that does."""
-    return selector.quantifier == COUNT or picks(selector.expr)
+    """Whether a selector counts its set."""
+    return selector.quantifier == COUNT
+
+
+def chooses(selector: Selector) -> bool:
+    """Whether a selector chooses from its set, ANY n, or holds a group that does."""
+    return selector.quantifier == ANY_OF or picks(selector.expr)
 
 
 def worded(bound: str | None, n: int | None) -> str:
@@ -528,5 +535,10 @@ def spoken(expr: SetExpr) -> str:
         return f"{{{spoken(expr.left)} {expr.op} {spoken(expr.right)}}}"
     if isinstance(expr, Call):
         return f"{spoken(expr.mapping)}({', '.join(spoken(a) for a in expr.args)})"
-    quantifier = worded(expr.bound, expr.n) if expr.quantifier == COUNT else expr.quantifier
+    if expr.quantifier == ANY_OF:
+        quantifier = f"ANY {expr.n}"
+    elif expr.quantifier == COUNT:
+        quantifier = worded(expr.bound, expr.n)
+    else:
+        quantifier = expr.quantifier
     return f"({quantifier} {spoken(expr.expr)})"

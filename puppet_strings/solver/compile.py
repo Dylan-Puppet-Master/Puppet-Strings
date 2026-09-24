@@ -428,7 +428,7 @@ class Compiler:
     def _loose(self, st: Requirement) -> Choice | None:
         """The one chooser a requirement can count rather than choose, if it has one.
 
-        AT_LEAST n asks that n of a set do the one thing named of them, which is the same
+        ANY n asks that n of a set do the one thing named of them, which is the same
         as asking that n of those assignments happen. When everything else in the
         requirement names a single thing, so each member has exactly one assignment to its
         name, counting says it without a variable per member. A quoted task keeps its
@@ -445,6 +445,8 @@ class Compiler:
         ]
         if len(wide) != 1 or wide[0].kind not in (ANY, POOL) or wide[0].var is not None:
             return None
+        if wide[0].minus:
+            return None  # who is in waits on another choice
         if wide[0].consecutive or wide[0].units:
             return None  # which n matters, not only how many
         return wide[0]
@@ -624,6 +626,17 @@ class Compiler:
             # a part of its own is chosen under `active`, so an item `active` holds stays so
             covering = active if part.var is None else None
             chosen = self._merge(chosen, more, name, covering)
+        return self._less(chosen, choice, name)
+
+    def _less(self, chosen: dict, choice: Choice, name: str) -> dict:
+        """A set less the names a binding chose: each member is in when it was not chosen."""
+        for i, minus in enumerate(choice.minus):
+            taken = self._choose_one(minus, True, f"{name}:minus{i}")
+            for item, literal in taken.items():
+                if item in chosen:
+                    chosen[item] = self._all_of(
+                        [chosen[item], _negate(literal)], f"{name}:less:{item}"
+                    )
         return chosen
 
     def _merge(self, chosen: dict, more: dict, name: str, covering=None) -> dict:
@@ -662,7 +675,7 @@ class Compiler:
         return chosen
 
     def _adjacent(self, chosen: dict, n: int, days, active: Literal, name: str) -> None:
-        """`AT_LEAST n CONSECUTIVE <blocks>`: the n chosen blocks are a run of adjacent ones.
+        """`ANY n CONSECUTIVE <blocks>`: the n chosen blocks are a run of adjacent ones.
 
         Blocks are adjacent when they are next to each other in the Blocks sheet, as they
         are for a CONSECUTIVE amount, on any of the dates the requirement is about. Exactly
@@ -693,7 +706,7 @@ class Compiler:
         if choice is None:
             return {}
         if choice.var is None and not choice.parts:
-            return dict.fromkeys(choice.items, True)
+            return self._less(dict.fromkeys(choice.items, True), choice, "pool")
         if choice.var is None:
             return {**dict.fromkeys(choice.items, True), **self._choose(choice, True, "")}
         return self._choose(choice, True, "")

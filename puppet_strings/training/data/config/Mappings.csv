@@ -1,4 +1,4 @@
 mapping,keys,value,scale_min,scale_max,default
 preference,"staff, activities",numeric,1,5,3
-buddy,staff.counselors,{staff.all - staff.counselors},,,AT_LEAST 1 {staff.all - staff.counselors - staff.directors}
+buddy,staff.counselors,{staff.all - staff.counselors},,,ANY 1 {staff.all - staff.counselors - staff.directors}
 performance,"staff, activities",numeric,1,5,4

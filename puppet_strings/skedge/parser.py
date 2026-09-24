@@ -164,7 +164,7 @@ def _atom(item) -> ast.SetExpr:
 
 @dataclass(frozen=True)
 class _Any:
-    """`ANY n`, the old spelling of a count, as the `any_n` rule hands it on."""
+    """`ANY n`, a choice of n, as the `any_n` rule hands it on."""
 
     n: int
     pos: ast.Pos
@@ -177,7 +177,7 @@ def _quantifier(item) -> tuple[str, int | None, str | None]:
     anything is compared with it: `each` and `EACH` are the same quantifier.
     """
     if isinstance(item, _Any):
-        raise _error(f"write AT_LEAST {item.n}, not ANY {item.n}", item.pos)
+        return ast.ANY_OF, item.n, None
     if isinstance(item, ast.Amount):
         _counted(item)
         return ast.COUNT, item.value, item.bound
@@ -262,7 +262,9 @@ class _Builder(Transformer):
         token = items[-1]
         if token.type == "ANY_N_OF":
             n = str(token)[len("ANY_") : -len("_OF")]
-            raise _error(f"write AT_LEAST {n}, not {token}", _token_pos(token))
+            raise _error(f"write ANY {n}, not {token}", _token_pos(token))
+        if int(token) < 1:
+            raise _error("ANY needs a number of 1 or more", _token_pos(token))
         return _Any(int(token), _pos(meta))
 
     def if_(self, meta, items):
@@ -390,10 +392,10 @@ class _Builder(Transformer):
             items = items[1:]
         consecutive = _is(items[0], "CONSECUTIVE")
         if consecutive:
-            if kind not in (ast.ANY, ast.COUNT):
+            if kind not in (ast.ANY, ast.ANY_OF, ast.COUNT):
                 raise _error(
-                    "CONSECUTIVE comes after ANY or a count: "
-                    "DURING AT_LEAST 2 CONSECUTIVE blocks.all",
+                    "CONSECUTIVE comes after ANY, ANY n or a count: "
+                    "DURING ANY 2 CONSECUTIVE blocks.all",
                     _token_pos(items[0]),
                 )
             items = items[1:]
@@ -457,10 +459,9 @@ class _Builder(Transformer):
     def group(self, meta, items):
         quantifier, expr = items
         kind, n, bound = _quantifier(quantifier)
-        if bound == ast.AT_MOST:
+        if kind == ast.COUNT:
             raise _error(
-                "a group takes ALL, AT_LEAST n or EXACTLY n, not AT_MOST: it is who is in",
-                _pos(meta),
+                f"a group is who is in, so it picks with ANY {n}, not {bound} {n}", _pos(meta)
             )
         return ast.Group(kind, n, _atom(expr), _pos(meta), bound)
 
@@ -479,13 +480,11 @@ def _company_role(items) -> ast.Selector | None:
 
 
 def _binding_quantifier(item) -> tuple[str, int | None, str | None]:
-    """A binding names exactly which: EACH, or EXACTLY n chosen once."""
-    if isinstance(item, _Any):
-        raise _error(f"write EXACTLY {item.n}, not ANY {item.n}", item.pos)
+    """A binding names particular people: EACH, or ANY n chosen once."""
     kind, n, bound = _quantifier(item)
-    if kind == ast.COUNT and bound != ast.EXACTLY:
+    if kind == ast.COUNT:
         raise _error(
-            f"a binding names exactly which, so it takes EXACTLY {n}, not {bound} {n}",
+            f"a binding names particular people, so it picks with ANY {n}, not {bound} {n}",
             item.pos,
         )
     return kind, n, bound
@@ -621,11 +620,11 @@ def _check_negated(line: ast.Requirement) -> None:
         selector = getattr(part, "selector", part)
         if isinstance(part, ast.With | ast.Without) or not isinstance(selector, ast.Selector):
             continue
-        if ast.counts(selector):
+        if ast.counts(selector) or ast.chooses(selector):
             raise _error(
                 "right of NOT a set takes ANY, for any of these, or ALL, for all of them "
-                "together, not a count; say how many of what does happen instead: DURING "
-                "AT_MOST 1 <blocks>",
+                "together, not ANY n or a count; say how many of what does happen instead: "
+                "DURING AT_MOST 1 <blocks>",
                 selector.pos,
             )
 
@@ -638,11 +637,11 @@ def _check_score(pattern: ast.Pattern) -> None:
             continue
         selector = getattr(part, "selector", part)
         if isinstance(selector, ast.Selector) and (
-            selector.quantifier == ast.ALL or ast.counts(selector)
+            selector.quantifier == ast.ALL or ast.counts(selector) or ast.chooses(selector)
         ):
             raise _error(
                 "a pattern matches one assignment at a time, so a set in it takes ANY or "
-                "EACH, not ALL or a count",
+                "EACH, not ALL, ANY n or a count",
                 selector.pos,
             )
 
@@ -654,8 +653,8 @@ def _check_runs(phrase) -> None:
         return
     if ast.clause(phrase.clauses, ast.For) is None:
         raise _error(
-            "ANY CONSECUTIVE pools each run of blocks for a FOR to measure; to count blocks "
-            "in a row, count them: DURING AT_LEAST 2 CONSECUTIVE <blocks>",
+            "ANY CONSECUTIVE pools each run of blocks for a FOR to measure; to pick blocks "
+            "in a row, pick them: DURING ANY 2 CONSECUTIVE <blocks>",
             during.selector.pos,
         )
 
@@ -664,7 +663,7 @@ def _consecutive_only_in_during(node) -> None:
     """A DURING has taken its CONSECUTIVE off its selector; one left anywhere is misplaced."""
     if isinstance(node, ast.Selector) and node.consecutive:
         raise _error(
-            "CONSECUTIVE is about blocks, so it goes after DURING: DURING AT_LEAST 2 CONSECUTIVE …",
+            "CONSECUTIVE is about blocks, so it goes after DURING: DURING ANY 2 CONSECUTIVE …",
             node.pos,
         )
     if isinstance(node, tuple):

@@ -10,8 +10,8 @@ GAP first TO second [<amount>]      second starts after first ends, this far apa
 EXCLUDE <who> DO '<label>' [DURING <blocks>] [ON <dates>]
 
 EACH c IN staff.counselors
-morning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}
-afternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.playstation + blocks.clinic_3}
+morning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}
+afternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING ANY 1 {blocks.playstation + blocks.clinic_3}
 GAP morning TO afternoon AT_MOST 5h
 
 EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all ON 2026-08-05
@@ -24,51 +24,51 @@ EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all ON 2026-08-05
 id = "gap-order"
 title = "First this, then that"
 prompt = "Charlton does 'fence posts' in one of the morning clinic blocks and 'fence rails' in one of the afternoon clinic blocks (3 or 4), with the rails after the posts."
-answer = "posts: REQUEST staff.charlton DO 'fence posts' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP posts TO rails"
-alternatives = ["posts: REQUEST staff.charlton DO 'fence posts' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP posts TO rails AT_LEAST 0m"]
+answer = "posts: REQUEST staff.charlton DO 'fence posts' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP posts TO rails"
+alternatives = ["posts: REQUEST staff.charlton DO 'fence posts' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP posts TO rails AT_LEAST 0m"]
 hints = ["Label each REQUEST with a name and a colon, then GAP posts TO rails."]
 explain = "A GAP with no amount is plain ordering: the second starts after the first ends."
-wrong = ["posts: REQUEST staff.charlton DO 'fence posts' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING AT_LEAST 1 blocks.all_clinics\nGAP posts TO rails AT_LEAST 0m"]
+wrong = ["posts: REQUEST staff.charlton DO 'fence posts' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\nrails: REQUEST staff.charlton DO 'fence rails' DURING ANY 1 blocks.all_clinics\nGAP posts TO rails AT_LEAST 0m"]
 
 [[problem]]
 id = "gap-setup-teardown"
 title = "Setup, then teardown"
 prompt = "The same counselor does 'campfire setup' during clinic 4, and 'campfire teardown' any time after the setup."
-answer = "EXACTLY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST c DO 'campfire teardown' DURING ANY blocks.all\nGAP setup TO teardown"
+answer = "ANY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST c DO 'campfire teardown' DURING ANY blocks.all\nGAP setup TO teardown"
 priority = "MEDIUM"
-hints = ["The same person in two lines is a binding: EXACTLY 1 c IN staff.counselors.", "Any time after: the teardown's blocks are ANY blocks.all, and GAP setup TO teardown keeps it after."]
+hints = ["The same person in two lines is a binding: ANY 1 c IN staff.counselors.", "Any time after: the teardown's blocks are ANY blocks.all, and GAP setup TO teardown keeps it after."]
 explain = "A GAP with no amount is only the order: the teardown starts after the setup ends, however long after."
-alternatives = ["EXACTLY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST c DO 'campfire teardown' DURING ANY blocks.all\nGAP setup TO teardown AT_LEAST 0m"]
+alternatives = ["ANY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST c DO 'campfire teardown' DURING ANY blocks.all\nGAP setup TO teardown AT_LEAST 0m"]
 wrong = [
-  "EXACTLY 1 c IN staff.counselors\nREQUEST c DO 'campfire setup' DURING blocks.clinic_4\nREQUEST c DO 'campfire teardown' DURING ANY blocks.all",
-  "EXACTLY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST staff.dylan DO 'campfire teardown' DURING ANY blocks.all\nGAP setup TO teardown",
+  "ANY 1 c IN staff.counselors\nREQUEST c DO 'campfire setup' DURING blocks.clinic_4\nREQUEST c DO 'campfire teardown' DURING ANY blocks.all",
+  "ANY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST staff.dylan DO 'campfire teardown' DURING ANY blocks.all\nGAP setup TO teardown",
 ]
 
 [[problem]]
 id = "gap-hours-apart"
 title = "Hours apart"
 prompt = "Lisa has two 'staff meeting's today, each an hour long: one in clinic 1 or clinic 2, the other in clinic 3 or clinic 4 — at least five hours after the first one ends."
-answer = "first:  REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nsecond: REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP first TO second AT_LEAST 5h"
+answer = "first:  REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\nsecond: REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP first TO second AT_LEAST 5h"
 hints = ["Label both, then GAP first TO second with the least time between them."]
 explain = "A GAP compares real times: the end of the first to the start of the second. Clinic 2 ends at 11:00 and clinic 3 starts at 15:30, so five hours rules that pair out."
-wrong = ["first:  REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nsecond: REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP first TO second AT_LEAST 0m"]
+wrong = ["first:  REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\nsecond: REQUEST staff.lisa DO 'staff meeting' FOR EXACTLY 1h DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP first TO second AT_LEAST 0m"]
 
 [[problem]]
 id = "gap-not-too-late"
 title = "Soon after"
 prompt = "Dylan does a 30-minute 'medication round' in clinic 1 or clinic 2, and a second one in rest hour or playstation — no more than three hours after the first ends."
-answer = "morning:   REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING AT_LEAST 1 {blocks.rest_hour + blocks.playstation}\nGAP morning TO afternoon AT_MOST 3h"
+answer = "morning:   REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING ANY 1 {blocks.rest_hour + blocks.playstation}\nGAP morning TO afternoon AT_MOST 3h"
 hints = ["AT_MOST in a GAP is the most time allowed between them."]
 explain = "A task shorter than its block may sit anywhere in it, so the solver can slide both rounds to keep them close enough."
-wrong = ["morning:   REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING AT_LEAST 1 {blocks.rest_hour + blocks.playstation}\nGAP morning TO afternoon AT_MOST 5h"]
+wrong = ["morning:   REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\nafternoon: REQUEST staff.dylan DO 'medication round' FOR EXACTLY 30m DURING ANY 1 {blocks.rest_hour + blocks.playstation}\nGAP morning TO afternoon AT_MOST 5h"]
 
 [[problem]]
 id = "gap-one-person-both"
 title = "One mower, two jobs"
 prompt = "The same MFG does 'mowing' in a morning clinic block and 'trimming' in an afternoon clinic block, with at least an hour between them."
-answer = "EXACTLY 1 m IN staff.mfgs\nmow:  REQUEST m DO 'mowing' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\ntrim: REQUEST m DO 'trimming' DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP mow TO trim AT_LEAST 1h"
-hints = ["The same person in two lines is a binding: EXACTLY 1 m IN staff.mfgs.", "Then label the two lines and put a GAP between them."]
-wrong = ["mow:  REQUEST AT_LEAST 1 staff.mfgs DO 'mowing' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\ntrim: REQUEST AT_LEAST 1 staff.mfgs DO 'trimming' DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP mow TO trim AT_LEAST 1h"]
+answer = "ANY 1 m IN staff.mfgs\nmow:  REQUEST m DO 'mowing' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\ntrim: REQUEST m DO 'trimming' DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP mow TO trim AT_LEAST 1h"
+hints = ["The same person in two lines is a binding: ANY 1 m IN staff.mfgs.", "Then label the two lines and put a GAP between them."]
+wrong = ["mow:  REQUEST ANY 1 staff.mfgs DO 'mowing' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\ntrim: REQUEST ANY 1 staff.mfgs DO 'trimming' DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\nGAP mow TO trim AT_LEAST 1h"]
 
 [[problem]]
 id = "away-day-off"

@@ -102,7 +102,7 @@ def test_mapping_cells_parse_on_their_own():
 
 def test_bindings_conditions_labels_and_gaps():
     lines = parse(
-        "EXACTLY 2 p IN staff.counselor\n"
+        "ANY 2 p IN staff.counselor\n"
         "UNLESS p DO ANY activities.clinics.all DURING AT_LEAST 3 CONSECUTIVE blocks.all\n"
         "first: REQUEST p DO 'campfire setup' DURING blocks.clinic_4\n"
         "last:  REQUEST p DO 'campfire teardown' DURING blocks.evening\n"
@@ -112,12 +112,7 @@ def test_bindings_conditions_labels_and_gaps():
     binding, unless, first, last, gap, if_ = lines
     assert isinstance(binding, ast.Binding)
     selector = binding.selector
-    assert (selector.quantifier, selector.bound, selector.n, selector.var) == (
-        ast.COUNT,
-        ast.EXACTLY,
-        2,
-        "p",
-    )
+    assert (selector.quantifier, selector.n, selector.var) == (ast.ANY_OF, 2, "p")
     during = ast.clause(unless.test.pattern.clauses, ast.During)
     assert unless.unless and during.consecutive and during.selector.n == 3
     assert unless.test.pattern.who.expr == ast.Var("p", ast.Pos(2, 8))
@@ -159,12 +154,12 @@ def test_mixing_and_with_or_needs_parentheses():
 
 def test_set_expressions():
     (st,) = parse(
-        "REQUEST staff.dylan DO 'x' DURING blocks.a ON AT_LEAST 1 {(dates.target - 6d) .. dates.target}"
+        "REQUEST staff.dylan DO 'x' DURING blocks.a ON ANY 1 {(dates.target - 6d) .. dates.target}"
     ).lines
     on = ast.clause(st.clauses, ast.On).selector.expr
     assert isinstance(on, ast.DateRange)
     assert on.start == ast.DateOffset(
-        ast.Ref("dates", "target", ast.Pos(1, 60)), -6, ast.Pos(1, 60)
+        ast.Ref("dates", "target", ast.Pos(1, 55)), -6, ast.Pos(1, 55)
     )
     assert on.end.name == "target"
     (st,) = parse(
@@ -242,10 +237,10 @@ def test_consecutive_goes_on_the_blocks():
         "REQUEST staff.dylan DO 'x' DURING ANY CONSECUTIVE blocks.all FOR AT_LEAST 2h"
     ).lines
     assert ast.clause(measured.clauses, ast.During).consecutive
-    (run,) = parse("REQUEST staff.dylan DO 'x' DURING AT_LEAST 2 CONSECUTIVE blocks.all").lines
+    (run,) = parse("REQUEST staff.dylan DO 'x' DURING ANY 2 CONSECUTIVE blocks.all").lines
     during = ast.clause(run.clauses, ast.During)
     assert during.consecutive and during.selector.n == 2 and not during.selector.consecutive
-    (plain,) = parse("REQUEST staff.dylan DO 'x' DURING AT_LEAST 2 blocks.all").lines
+    (plain,) = parse("REQUEST staff.dylan DO 'x' DURING ANY 2 blocks.all").lines
     assert not ast.clause(plain.clauses, ast.During).consecutive
 
 
@@ -257,14 +252,16 @@ def test_consecutive_goes_on_the_blocks():
             "REQUEST staff.dylan DO 'x' DURING AT_LEAST 2 blocks.all CONSECUTIVE",
             "CONSECUTIVE goes before the blocks: DURING AT_LEAST 2 CONSECUTIVE blocks.all",
         ),
-        ("REQUEST staff.dylan DO 'x' DURING ALL CONSECUTIVE blocks.all", "after ANY or a count"),
+        (
+            "REQUEST staff.dylan DO 'x' DURING ALL CONSECUTIVE blocks.all",
+            "after ANY, ANY n or a count",
+        ),
         ("REQUEST staff.dylan DO 'x' ON AT_LEAST 2 CONSECUTIVE dates.season.all", "about blocks"),
         (
             "IF staff.dylan DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all\n"
             "REQUEST staff.dylan FREE",
             "for a FOR to measure",
         ),
-        ("REQUEST staff.dylan DO 'x' DURING ANY 2 blocks.all", "write AT_LEAST 2, not ANY 2"),
         ("REQUEST AT_MOST 2 ANY staff.all DO 'break'", "in place of ANY: AT_MOST 2 staff.all"),
         ("REQUEST AT_MOST 2 EACH staff.all DO 'break'", "EACH splits the request"),
         ("REQUEST AT_LEAST 2h staff.cam DO 'x'", "a length goes on FOR: FOR AT_LEAST 2h"),
@@ -341,11 +338,11 @@ def test_clauses_go_anywhere_in_a_statement():
     """Only the subject, DO and the object keep their order; clauses go around them."""
     written = parse(
         "REQUEST\n"
-        "ON AT_LEAST 1 {2026-08-04 .. 2026-08-07}  # a clause before the subject\n"
+        "ON ANY 1 {2026-08-04 .. 2026-08-07}  # a clause before the subject\n"
         "ALL {x + staff.alesa}\n"
         "DO 'video'\n"
         "FOR EXACTLY 30m\n"
-        "DURING AT_LEAST 1 blocks.all"
+        "DURING ANY 1 blocks.all"
     ).lines[0]
     assert [type(c) for c in written.clauses] == [ast.On, ast.For, ast.During]
     assert written.who.quantifier == ast.ALL and written.what == ast.Task("video")
@@ -366,7 +363,7 @@ def test_a_line_that_cannot_start_a_statement_continues_the_one_above():
         "EACH c IN staff.counselor\n"
         "REQUEST\n"
         "  staff.rob DO 'x'\n"
-        "  DURING AT_LEAST 1 {blocks.a +\n"
+        "  DURING ANY 1 {blocks.a +\n"
         "  blocks.b}\n"
         "elves: {staff.emily + staff.tori}\n"
         "REQUEST elves DO 'y' DURING blocks.a"
@@ -376,13 +373,12 @@ def test_a_line_that_cannot_start_a_statement_continues_the_one_above():
 
 def test_a_group_is_a_quantified_part_of_a_set():
     (st,) = parse(
-        "REQUEST ALL {staff.charlton + (AT_LEAST 1 {staff.dylan + staff.donny})} DO 'x' "
-        "DURING blocks.a"
+        "REQUEST ALL {staff.charlton + (ANY 1 {staff.dylan + staff.donny})} DO 'x' DURING blocks.a"
     ).lines
     group = st.who.expr.right
-    assert isinstance(group, ast.Group) and (group.quantifier, group.n) == (ast.COUNT, 1)
+    assert isinstance(group, ast.Group) and (group.quantifier, group.n) == (ast.ANY_OF, 1)
     (st,) = parse(
-        "REQUEST AT_LEAST 1 {staff.x + (ALL {staff.y + staff.z})} DO 'x' DURING blocks.a"
+        "REQUEST ANY 1 {staff.x + (ALL {staff.y + staff.z})} DO 'x' DURING blocks.a"
     ).lines
     assert st.who.expr.right.quantifier == ast.ALL
 
@@ -403,11 +399,11 @@ def test_a_definition_is_written_in_where_it_is_used():
 
 def test_a_definition_with_a_quantifier_is_a_binding():
     (binding, _) = parse(
-        "videographer: EXACTLY 1 {staff.dylan + staff.donny}\n"
+        "videographer: ANY 1 {staff.dylan + staff.donny}\n"
         "REQUEST ALL {staff.charlton + videographer} DO 'x' DURING blocks.a"
     ).lines
     selector = binding.selector
-    assert (selector.quantifier, selector.n, selector.var) == (ast.COUNT, 1, "videographer")
+    assert (selector.quantifier, selector.n, selector.var) == (ast.ANY_OF, 1, "videographer")
     (each, _) = parse("c: EACH staff.counselor\nREQUEST c DO 'x' DURING blocks.a").lines
     assert isinstance(each, ast.Binding) and each.selector.quantifier == ast.EACH
 
@@ -415,14 +411,15 @@ def test_a_definition_with_a_quantifier_is_a_binding():
 @pytest.mark.parametrize(
     ("text", "message"),
     [
-        ("REQUEST ANY_1_OF staff.all DO 'x' DURING blocks.a", "write AT_LEAST 1, not ANY_1_OF"),
+        ("REQUEST ANY_1_OF staff.all DO 'x' DURING blocks.a", "write ANY 1, not ANY_1_OF"),
         ("REQUEST AT_LEAST 0 staff.all DO 'x' DURING blocks.a", "amount must be at least 1"),
         ("REQUEST EXACTLY 0 staff.all DO 'x' DURING blocks.a", "write NOT DO"),
-        ("ANY 1 x IN staff.all\nREQUEST x FREE", "write EXACTLY 1, not ANY 1"),
-        ("AT_LEAST 1 x IN staff.all\nREQUEST x FREE", "takes EXACTLY 1, not AT_LEAST 1"),
+        ("REQUEST ANY 0 staff.all DO 'x' DURING blocks.a", "ANY needs a number of 1 or more"),
+        ("AT_LEAST 1 x IN staff.all\nREQUEST x FREE", "picks with ANY 1, not AT_LEAST 1"),
+        ("EXACTLY 1 x IN staff.all\nREQUEST x FREE", "picks with ANY 1, not EXACTLY 1"),
         (
-            "REQUEST ALL {staff.x + (AT_MOST 1 staff.all)} FREE",
-            "a group takes ALL, AT_LEAST n or EXACTLY n",
+            "REQUEST ALL {staff.x + (AT_LEAST 1 staff.all)} FREE",
+            "a group is who is in, so it picks with ANY 1",
         ),
         ("a: staff.x\na: staff.y\nREQUEST a DO 'x' DURING blocks.a", "'a' is defined twice"),
         ("c: staff.x\nREQUEST EACH c IN staff.all DO 'x' DURING blocks.a", "defined twice"),
@@ -511,10 +508,10 @@ def test_a_task_name_stands_only_where_a_task_can(text, message):
 
 
 def test_a_group_needs_no_parentheses():
-    bare = parse("REQUEST ALL {staff.a + EXACTLY 1 {staff.b + staff.c}} FREE").lines[0]
-    wrapped = parse("REQUEST ALL {staff.a + (EXACTLY 1 {staff.b + staff.c})} FREE").lines[0]
+    bare = parse("REQUEST ALL {staff.a + ANY 1 {staff.b + staff.c}} FREE").lines[0]
+    wrapped = parse("REQUEST ALL {staff.a + (ANY 1 {staff.b + staff.c})} FREE").lines[0]
     group = bare.who.expr.right
-    assert isinstance(group, ast.Group) and (group.bound, group.n) == (ast.EXACTLY, 1)
+    assert isinstance(group, ast.Group) and (group.quantifier, group.n) == (ast.ANY_OF, 1)
     assert ast.spoken(group.expr) == ast.spoken(wrapped.who.expr.right.expr)
     with pytest.raises(ast.SkedgeError, match="not AT_MOST"):
         parse("REQUEST ALL {staff.a + AT_MOST 1 {staff.b + staff.c}} FREE")

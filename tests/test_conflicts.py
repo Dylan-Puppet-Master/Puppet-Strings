@@ -124,12 +124,12 @@ def test_a_choice_the_solver_makes_is_not_a_conflict(dataset):
         # someone, not anyone in particular
         req(
             "any",
-            "REQUEST AT_LEAST 1 staff.counselor DO activities.clinics.riflery DURING blocks.clinic_1",
+            "REQUEST ANY 1 staff.counselor DO activities.clinics.riflery DURING blocks.clinic_1",
         ),
         # somewhere in the day, not in this block
         req(
             "loose",
-            "REQUEST staff.dylan DO 'paperwork' FOR EXACTLY 60m DURING AT_LEAST 1 blocks.all",
+            "REQUEST staff.dylan DO 'paperwork' FOR EXACTLY 60m DURING ANY 1 blocks.all",
         ),
         # a preference, which never has to hold
         req(

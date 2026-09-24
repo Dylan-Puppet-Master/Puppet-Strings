@@ -211,7 +211,7 @@ def test_mappings(dataset):
     buddy = dataset.mappings["buddy"]
     assert not buddy.numeric and buddy.value == "{staff.all - staff.counselor}"
     assert buddy.rows == {("dylan",): "alan", ("james",): "sarah"}
-    assert buddy.default == "AT_LEAST 1 {staff.all - staff.counselor - staff.director}"
+    assert buddy.default == "ANY 1 {staff.all - staff.counselor - staff.director}"
 
 
 def test_mapping_default_column(source):
@@ -269,7 +269,7 @@ def test_a_mapping_is_declared_with_sets_it_can_read(row, message):
         (
             "Mappings",
             [MAPPINGS_HEADER, ["buddy", "staff.counselor", "staff.all", "", "", "staff.all"]],
-            "a default of more than one name needs ALL or a count",
+            "a default of more than one name needs ALL or ANY n",
         ),
         (
             "Mappings",
@@ -281,7 +281,7 @@ def test_a_mapping_is_declared_with_sets_it_can_read(row, message):
                     "{staff.support - staff.director}",
                     "",
                     "",
-                    "AT_LEAST 1 staff.director",
+                    "ANY 1 staff.director",
                 ],
             ],
             "reaches 'david', which is not in {staff.support - staff.director}",

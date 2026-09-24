@@ -15,7 +15,7 @@ reported, and both of them are what keeps this quiet enough to be worth reading:
     impossible, so only what must happen is read here.
 *   The statements are *forced* — they leave the solver no choice. `REQUEST staff.rob DO
     activities.clinics.ropes DURING blocks.clinic_1` claims Rob's clinic 1; `REQUEST
-    AT_LEAST 1 staff.all DO …` and `DURING AT_LEAST 2 blocks.all` claim nothing in particular,
+    ANY 1 staff.all DO …` and `DURING ANY 2 blocks.all` claim nothing in particular,
     because the solver picks, and picking around each other is its job.
 
 Two MUST_HAPPEN requests meeting in one slot are not a conflict by themselves: two asking
@@ -158,7 +158,7 @@ def forced(choice: Choice) -> bool:
     The errors pane asks the same question of the same statements, so it is one answer
     here rather than two that could come to differ.
     """
-    return choice.kind == ALL and bool(choice.items)
+    return choice.kind == ALL and bool(choice.items) and not choice.minus
 
 
 def one_target(what) -> str | None:

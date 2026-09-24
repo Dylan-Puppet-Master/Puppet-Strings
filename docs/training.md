@@ -7,7 +7,7 @@ puppet-strings train
 opens **Skedge Training**, a practice window for new Puppet Masters. In the app, **Open
 trainer** in the **Configure** pane starts it too, before anybody has signed in. It holds a couple of
 hundred plain-English requests, in levels that each introduce one idea — a single task, sets
-of people, `ANY` and `AT_LEAST`, splitting with `EACH`, dates, `FREE`, `BUSY` and `NOT`,
+of people, `ANY` and `ANY n`, splitting with `EACH`, dates, `FREE`, `BUSY` and `NOT`,
 clinics and cabin acts, set arithmetic, counting and lengths, `WITH`, `PREFER`, bindings
 and mappings, `IF` / `UNLESS` with
 `AND` / `OR`, `GAP` and `EXCLUDE` — and ends with requests that combine several of them.

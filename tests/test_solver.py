@@ -285,8 +285,8 @@ def test_trainees_are_additional_and_scaffolds_need_a_trainer():
 
 COUNSELOR_HOURS = (
     "EACH c IN staff.counselor\n"
-    "morning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\n"
-    "afternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\n"
+    "morning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\n"
+    "afternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\n"
     "GAP morning TO afternoon AT_MOST 5h"
 )
 
@@ -334,8 +334,8 @@ def test_gap_at_most_rejects_the_far_pair():
 
 MEETINGS = (
     "first: REQUEST staff.dylan DO 'meeting' FOR EXACTLY 1h\n"
-    "DURING AT_LEAST 1 blocks.all_clinics ON AT_LEAST 1 {{{yesterday} .. {target}}}\n"
-    "second: REQUEST staff.dylan DO 'meeting' FOR EXACTLY 1h DURING AT_LEAST 1 blocks.all_clinics\n"
+    "DURING ANY 1 blocks.all_clinics ON ANY 1 {{{yesterday} .. {target}}}\n"
+    "second: REQUEST staff.dylan DO 'meeting' FOR EXACTLY 1h DURING ANY 1 blocks.all_clinics\n"
     "GAP first TO second AT_LEAST {gap}"
 )
 
@@ -374,7 +374,7 @@ def test_the_same_gap_is_met_when_the_published_meeting_is_far_enough_back():
 
 def test_the_same_person_sets_up_and_tears_down():
     text = (
-        "EXACTLY 1 p IN staff.all\n"
+        "ANY 1 p IN staff.all\n"
         "first: REQUEST p DO 'setup' DURING blocks.clinic_1\n"
         "last:  REQUEST p DO 'teardown' DURING blocks.clinic_4\n"
         "GAP first TO last AT_LEAST 0m"
@@ -388,7 +388,7 @@ def test_the_same_person_sets_up_and_tears_down():
 def test_a_bound_name_can_be_added_into_a_set():
     """ "Charlton needs to do something with either Dylan or Donny" is one request."""
     text = (
-        "EXACTLY 1 videographer IN {staff.dylan + staff.donny}\n"
+        "ANY 1 videographer IN {staff.dylan + staff.donny}\n"
         "REQUEST ALL {staff.charlton + videographer}\n"
         "DO 'Video KM Rope Swing' FOR EXACTLY 30m DURING blocks.clinic_1"
     )
@@ -407,7 +407,7 @@ def test_a_bound_name_can_be_added_into_a_set():
 def test_a_bound_name_added_into_a_set_is_the_same_person_throughout():
     """The binding is one choice for the whole request, wherever the name turns up."""
     text = (
-        "EXACTLY 1 videographer IN {staff.dylan + staff.donny}\n"
+        "ANY 1 videographer IN {staff.dylan + staff.donny}\n"
         "morning: REQUEST ALL {staff.charlton + videographer}\n"
         "  DO 'film' FOR EXACTLY 30m DURING blocks.clinic_1\n"
         "after: REQUEST videographer DO 'edit' FOR EXACTLY 30m DURING blocks.clinic_3"
@@ -424,9 +424,9 @@ def test_a_bound_name_added_into_a_set_is_the_same_person_throughout():
 
 
 def test_a_group_chosen_in_place_is_the_same_as_a_binding_line():
-    """`(AT_LEAST 1 …)` added into a set brings one of its members, as a bound name would."""
+    """`(ANY 1 …)` added into a set brings one of its members, as a bound name would."""
     text = (
-        "REQUEST ALL {staff.charlton + (AT_LEAST 1 {staff.dylan + staff.donny})}\n"
+        "REQUEST ALL {staff.charlton + (ANY 1 {staff.dylan + staff.donny})}\n"
         "DO 'Video KM Rope Swing' FOR EXACTLY 30m DURING blocks.clinic_1"
     )
     ds = dataset(
@@ -443,9 +443,9 @@ def test_a_group_chosen_in_place_is_the_same_as_a_binding_line():
 
 @pytest.mark.parametrize("dylan_is_away", [False, True])
 def test_a_group_inside_any_is_chosen_as_one(dylan_is_away):
-    """`AT_LEAST 1 {x + (ALL {y + z})}` is x alone, or else y and z together."""
+    """`ANY 1 {x + (ALL {y + z})}` is x alone, or else y and z together."""
     text = (
-        "REQUEST AT_LEAST 1 {staff.dylan + (ALL {staff.donny + staff.vic})}\n"
+        "REQUEST ANY 1 {staff.dylan + (ALL {staff.donny + staff.vic})}\n"
         "DO 'garbage' FOR EXACTLY 30m DURING blocks.clinic_1"
     )
     requests = [request("garbage", text, Priority.MUST_HAPPEN)]
@@ -461,7 +461,7 @@ def test_a_group_inside_any_is_chosen_as_one(dylan_is_away):
 def test_each_of_a_group_is_one_request_for_the_group():
     text = (
         "REQUEST EACH {staff.dylan + (ALL {staff.donny + staff.vic})}\n"
-        "DO 'meeting' FOR EXACTLY 30m DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_3}"
+        "DO 'meeting' FOR EXACTLY 30m DURING ANY 1 {blocks.clinic_1 + blocks.clinic_3}"
     )
     ds = dataset([staff("Dylan"), staff("Donny"), staff("Vic")], [], requests=[request("m", text)])
     rows = [a for a in run(ds).assignments if a.activity == "meeting"]
@@ -513,7 +513,7 @@ def test_a_partial_task_blocks_a_clinic_in_the_same_block():
 
 
 def test_three_breaks_in_three_distinct_blocks():
-    text = "REQUEST EACH {staff.all - staff.director} DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all"
+    text = "REQUEST EACH {staff.all - staff.director} DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks.all"
     ds = dataset(
         [staff("Sarah"), staff("David")],
         [],
@@ -530,7 +530,7 @@ def test_three_breaks_in_three_distinct_blocks():
 def test_a_quoted_task_happens_only_where_a_request_asks_for_it():
     three = request(
         "breaks",
-        "REQUEST staff.sarah DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all",
+        "REQUEST staff.sarah DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks.all",
         Priority.MUST_HAPPEN,
     )
     wish = request(
@@ -568,7 +568,7 @@ def blocks_with_meals(count):
 
 THREE_BREAKS = request(
     "breaks",
-    "REQUEST EACH staff.all DO 'break' FOR EXACTLY 30m DURING AT_LEAST 3 blocks.all",
+    "REQUEST EACH staff.all DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks.all",
     Priority.MUST_HAPPEN,
 )
 
@@ -832,7 +832,7 @@ def test_a_count_request_is_met_or_not():
     )
     both = request(
         "both",
-        "REQUEST staff.dylan DO AT_LEAST 1 activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_3}",
+        "REQUEST staff.dylan DO ANY activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_3}",
     )
     ds = dataset(members, [ARCHERY, CANDLE], offerings=offerings, requests=[cap, both])
     result = run(ds)
@@ -840,7 +840,7 @@ def test_a_count_request_is_met_or_not():
     assert ids(result.unsatisfied) == ["both"]
     exact = request(
         "two",
-        "REQUEST staff.dylan DO ANY activities.clinics.all DURING EXACTLY 2 blocks.all",
+        "REQUEST staff.dylan DO ANY activities.clinics.all DURING ANY 2 blocks.all",
         Priority.MUST_HAPPEN,
     )
     result = run(dataset(members, [ARCHERY, CANDLE], offerings=offerings, requests=[exact]))
@@ -856,7 +856,7 @@ def test_a_counted_pattern_measures_clinics_without_starting_one():
     offerings = [("Archery 1 & 2", ["clinic_1"]), ("Candle Making", ["clinic_3"])]
     exact = request(
         "two",
-        "REQUEST staff.dylan DO ANY activities.clinics.all DURING EXACTLY 2 blocks.all",
+        "REQUEST staff.dylan DO ANY activities.clinics.all DURING ANY 2 blocks.all",
         Priority.MUST_HAPPEN,
     )
     result = run(dataset(members, [ARCHERY, CANDLE], offerings=offerings, requests=[exact]))
@@ -914,7 +914,9 @@ def test_consecutive_needs_adjacent_blocks():
 
 def test_a_count_of_blocks_consecutive_chooses_blocks_next_to_each_other():
     """Clinic 2 and 3 are the two James is free to give, but lunch sits between them."""
-    text = "REQUEST ALL {{staff.james + staff.lucy}} DO 'training' DURING AT_LEAST 2 {}blocks.all_clinics"
+    text = (
+        "REQUEST ALL {{staff.james + staff.lucy}} DO 'training' DURING ANY 2 {}blocks.all_clinics"
+    )
     keep_free = request(
         "free",
         "REQUEST staff.james FREE DURING EACH {blocks.clinic_1 + blocks.clinic_4}",
@@ -941,7 +943,7 @@ def test_a_count_of_blocks_consecutive_chooses_blocks_next_to_each_other():
             request(
                 "t",
                 "REQUEST staff.james DO 'training' "
-                "DURING AT_LEAST 2 CONSECUTIVE {blocks.clinic_2 + blocks.clinic_3}",
+                "DURING ANY 2 CONSECUTIVE {blocks.clinic_2 + blocks.clinic_3}",
             )
         ],
     )
@@ -960,7 +962,7 @@ def test_at_most_consecutive_breaks_up_a_run():
         requests=[
             request(
                 "dylan",
-                "REQUEST staff.dylan DO AT_LEAST 1 activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_2}",
+                "REQUEST staff.dylan DO ANY activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_2}",
                 Priority.MEDIUM,
             ),
             request(
@@ -987,7 +989,7 @@ def test_prefer_at_most_consecutive_weighs_a_run():
         requests=[
             request(
                 "dylan",
-                "REQUEST staff.dylan DO AT_LEAST 1 activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_2}",
+                "REQUEST staff.dylan DO ANY activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_2}",
                 Priority.MEDIUM,
             ),
             request(
@@ -1052,7 +1054,7 @@ def test_at_most_consecutive_caps_a_run_of_three_adjacent_blocks():
     # nothing but the cap keeps Dylan off all three
     greedy = request(
         "dylan",
-        "REQUEST staff.dylan DO ANY activities.clinics.all DURING AT_LEAST 3 blocks.all",
+        "REQUEST staff.dylan DO ANY activities.clinics.all DURING ANY 3 blocks.all",
         Priority.MEDIUM,
     )
     ds = dataset(members, clinics, offerings=offerings, requests=[cap, greedy], blocks=blocks)
@@ -1286,7 +1288,7 @@ def test_if_reads_a_published_fact():
 def test_unless_applies_only_when_the_pattern_has_no_match():
     text = (
         "UNLESS ANY staff.director FREE DURING blocks.clinic_1\n"
-        "REQUEST AT_LEAST 1 staff.office DO 'front desk' DURING blocks.clinic_1"
+        "REQUEST ANY 1 staff.office DO 'front desk' DURING blocks.clinic_1"
     )
     members = [staff("David", archery_1_2=OK), staff("Lisa")]
     categories = {"director": ["David"], "office": ["Lisa"]}
@@ -1359,7 +1361,7 @@ def test_and_or_join_conditions():
 
 # -- the time horizon ------------------------------------------------------------------------
 
-MAINTENANCE = "REQUEST staff.dylan DO 'archery maintenance' DURING AT_LEAST 1 blocks.all ON AT_LEAST 1 {2026-09-16 .. 2026-09-17}"
+MAINTENANCE = "REQUEST staff.dylan DO 'archery maintenance' DURING ANY 1 blocks.all ON ANY 1 {2026-09-16 .. 2026-09-17}"
 KEEP_FREE = request(
     "free", "REQUEST EACH staff.all FREE DURING EACH blocks.all", Priority.HIGH, 0.5
 )
@@ -1395,7 +1397,7 @@ def test_a_later_date_holds_nothing_for_someone_resting_through_it():
 
 
 def test_a_deferrable_amount_stays_reachable():
-    text = "REQUEST staff.dylan DO 'inventory' DURING AT_LEAST 2 blocks.all ON ANY {2026-09-16 .. 2026-09-17}"
+    text = "REQUEST staff.dylan DO 'inventory' DURING ANY 2 blocks.all ON ANY {2026-09-16 .. 2026-09-17}"
     tomorrow = TARGET + timedelta(days=1)
     ds = dataset(
         [staff("Dylan")], [], requests=[request("stock", text, Priority.MUST_HAPPEN), KEEP_FREE]
@@ -1416,7 +1418,7 @@ def test_a_deferrable_amount_stays_reachable():
 # -- EXCLUDE ---------------------------------------------------------------------------------
 
 OFFSITE = "EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all"
-BREAKS = "REQUEST EACH staff.all DO 'break' FOR EXACTLY 30m DURING AT_LEAST 1 blocks.all"
+BREAKS = "REQUEST EACH staff.all DO 'break' FOR EXACTLY 30m DURING ANY 1 blocks.all"
 
 
 def with_breaks(*exclusions):
@@ -1510,9 +1512,9 @@ def test_all_of_dates_are_enforced_every_day():
 
 
 def test_invalid_request_raises():
-    bad = "REQUEST staff.dylan DO 'x' DURING ANY 2 blocks.all"
+    bad = "REQUEST staff.dylan DO 'x' DURING AT_LEAST 2 blocks.all"
     ds = dataset([staff("Dylan")], [], requests=[request("bad", bad)])
-    with pytest.raises(RequestError, match="request 'bad'.*write AT_LEAST 2, not ANY 2"):
+    with pytest.raises(RequestError, match="request 'bad'.*to pick 2, write ANY 2"):
         run(ds)
 
 
@@ -1618,7 +1620,7 @@ def test_each_of_still_expands_the_whole_block():
             request(
                 "each-one",
                 "EACH s IN staff.all\n"
-                "REQUEST s DO activities.clinics.candle_making DURING AT_LEAST 1 blocks.all_clinics\n"
+                "REQUEST s DO activities.clinics.candle_making DURING ANY 1 blocks.all_clinics\n"
                 "PREFER s DO activities.clinics.candle_making DURING AT_MOST 1 blocks.all",
                 Priority.MEDIUM,
             )
@@ -1680,7 +1682,7 @@ def test_a_target_session_request_is_skipped_on_a_date_in_no_session(dataset):
     request = Request(
         "camp-1",
         "",
-        "REQUEST staff.dylan DO 'x' DURING AT_LEAST 1 blocks.all ON dates.session_target.all",
+        "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON dates.session_target.all",
         Priority.HIGH,
     )
     result = solve(replace(camp, requests=(request,)))
@@ -1751,10 +1753,10 @@ def test_a_request_edited_since_or_a_day_changed_since_is_resolved_again(monkeyp
 
 
 def test_an_invalid_request_is_still_refused_with_copies_resolved_beforehand():
-    bad = request("bad", "REQUEST staff.dylan DO 'x' DURING ANY 2 blocks.all")
+    bad = request("bad", "REQUEST staff.dylan DO 'x' DURING AT_LEAST 2 blocks.all")
     ds = dataset([staff("Dylan")], [], requests=[bad])
     known = Resolutions(ds, {"bad": (bad, ())})  # what the window keeps for an invalid one
-    with pytest.raises(RequestError, match="write AT_LEAST 2"):
+    with pytest.raises(RequestError, match="to pick 2, write ANY 2"):
         solve(ds, CONFIG, known=known)
 
 

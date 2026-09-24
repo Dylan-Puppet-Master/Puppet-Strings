@@ -110,7 +110,7 @@ class MappingDialog(QDialog):
             box.setPlaceholderText("no default: every key needs a row")
             box.setToolTip(
                 f"What a key with no row gives, from {row.get('value', '')}: a name, or "
-                "a phrase such as AT_LEAST 1 {staff.office}"
+                "a phrase such as ANY 1 {staff.office}"
             )
             return box
         low, high = (_number(row.get(name)) for name in ("scale_min", "scale_max"))

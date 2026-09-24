@@ -4,18 +4,19 @@ blurb = "Binding lines name a choice so several statements share it; mappings lo
 day = "2026-08-04"
 teaches = """
 EACH x IN <set>      on its own line: one copy of the request per item, called x
-EXACTLY 1 x IN <set> on its own line: one choice, the same everywhere x appears
+ANY 1 x IN <set>     on its own line: one choice, the same everywhere x appears
 
-EXACTLY 1 p IN staff.counselors
+ANY 1 p IN staff.counselors
 REQUEST p DO 'campfire setup' DURING blocks.clinic_4
 REQUEST p DO 'campfire teardown' DURING blocks.evening_program
 
 EACH c IN staff.counselors
 REQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.dinner
 
-• ALL {staff.alesa + v} adds a chosen name into a set (only + works)
-• A count of people goes outside a count of blocks, so each gets their own;
-  to share one block, name it once: EXACTLY 1 b IN <blocks>
+• ALL {staff.alesa + v} adds a chosen name into a set
+• ALL {staff.mfgs - m} is everyone the choice left out: forbid them with NOT DO
+• A pick inside one statement is already shared by it; a binding line shares
+  a pick between statements
 • mappings.buddy(c) is whatever the Mappings tab gives for c
 """
 
@@ -23,11 +24,11 @@ REQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.dinner
 id = "names-same-person"
 title = "The same person, twice"
 prompt = "One counselor — the same one — does 'campfire setup' during clinic 4 and 'campfire teardown' during the evening program."
-answer = "EXACTLY 1 p IN staff.counselors\nREQUEST p DO 'campfire setup' DURING blocks.clinic_4\nREQUEST p DO 'campfire teardown' DURING blocks.evening_program"
-hints = ["A line EXACTLY 1 p IN staff.counselors makes one choice and calls it p.", "Then use p as the subject of both REQUEST lines."]
-explain = "Two separate counts could pick two different counselors. A named choice is made once."
+answer = "ANY 1 p IN staff.counselors\nREQUEST p DO 'campfire setup' DURING blocks.clinic_4\nREQUEST p DO 'campfire teardown' DURING blocks.evening_program"
+hints = ["A line ANY 1 p IN staff.counselors makes one choice and calls it p.", "Then use p as the subject of both REQUEST lines."]
+explain = "Two separate picks could be two different counselors. A named choice is made once."
 wrong = [
-  "REQUEST AT_LEAST 1 staff.counselors DO 'campfire setup' DURING blocks.clinic_4\nREQUEST AT_LEAST 1 staff.counselors DO 'campfire teardown' DURING blocks.evening_program",
+  "REQUEST ANY 1 staff.counselors DO 'campfire setup' DURING blocks.clinic_4\nREQUEST ANY 1 staff.counselors DO 'campfire teardown' DURING blocks.evening_program",
 ]
 
 [[problem]]
@@ -62,9 +63,21 @@ wrong = ["REQUEST mappings.buddy(staff.robyn) DO 'cabin cover' DURING blocks.emb
 id = "names-videographer"
 title = "Alesa and one of two"
 prompt = "Alesa, plus either Dylan or Cam VL, do a 'video shoot' together in one block today."
-answer = "EXACTLY 1 v IN {staff.dylan + staff.cam_vl}\nREQUEST ALL {staff.alesa + v} DO 'video shoot' DURING AT_LEAST 1 blocks.all"
-hints = ["Name the choice: EXACTLY 1 v IN {staff.dylan + staff.cam_vl}.", "Then add it into a set: ALL {staff.alesa + v}."]
-wrong = ["REQUEST ALL {staff.alesa + staff.dylan} DO 'video shoot' DURING AT_LEAST 1 blocks.all"]
+answer = "ANY 1 v IN {staff.dylan + staff.cam_vl}\nREQUEST ALL {staff.alesa + v} DO 'video shoot' DURING ANY 1 blocks.all"
+hints = ["Name the choice: ANY 1 v IN {staff.dylan + staff.cam_vl}.", "Then add it into a set: ALL {staff.alesa + v}."]
+explain = "Written in place, ALL {staff.alesa + ANY 1 {staff.dylan + staff.cam_vl}} says the same. The one not picked is not ruled out."
+alternatives = ["REQUEST ALL {staff.alesa + ANY 1 {staff.dylan + staff.cam_vl}} DO 'video shoot' DURING ANY 1 blocks.all"]
+wrong = ["REQUEST ALL {staff.alesa + staff.dylan} DO 'video shoot' DURING ANY 1 blocks.all"]
+
+[[problem]]
+id = "names-the-rest-stay-off"
+title = "One, and nobody else"
+prompt = "One of the MFGs — the solver's pick — does 'trail check' during clinic 2, and the other MFGs don't do it at all today."
+answer = "ANY 1 m IN staff.mfgs\nREQUEST m DO 'trail check' DURING blocks.clinic_2\nREQUEST ALL {staff.mfgs - m} NOT DO 'trail check'"
+hints = ["Name the pick with a binding line.", "Everyone it left out is {staff.mfgs - m}; keep them off with NOT DO."]
+explain = "ANY 1 picks and never forbids, so on its own the other MFGs could still check trails. Taking the pick out of the set leaves the rest, whoever the pick turns out to be. A cap says the same: REQUEST AT_MOST 1 staff.mfgs DO 'trail check'."
+alternatives = ["REQUEST ANY 1 staff.mfgs DO 'trail check' DURING blocks.clinic_2\nREQUEST AT_MOST 1 staff.mfgs DO 'trail check'"]
+wrong = ["ANY 1 m IN staff.mfgs\nREQUEST m DO 'trail check' DURING blocks.clinic_2"]
 
 [[problem]]
 id = "names-free-after-clinic"
@@ -78,8 +91,8 @@ wrong = ["EACH s IN staff.counselors\nREQUEST s FREE DURING blocks.clinic_2"]
 id = "names-pair-of-mfgs"
 title = "A pair, twice"
 prompt = "The same two MFGs do 'woodchopping' during clinic 1 and 'woodstacking' during clinic 2."
-answer = "EXACTLY 2 m IN staff.mfgs\nREQUEST ALL m DO 'woodchopping' DURING blocks.clinic_1\nREQUEST ALL m DO 'woodstacking' DURING blocks.clinic_2"
-wrong = ["REQUEST AT_LEAST 2 staff.mfgs DO 'woodchopping' DURING blocks.clinic_1\nREQUEST AT_LEAST 2 staff.mfgs DO 'woodstacking' DURING blocks.clinic_2"]
+answer = "ANY 2 m IN staff.mfgs\nREQUEST ALL m DO 'woodchopping' DURING blocks.clinic_1\nREQUEST ALL m DO 'woodstacking' DURING blocks.clinic_2"
+wrong = ["REQUEST ANY 2 staff.mfgs DO 'woodchopping' DURING blocks.clinic_1\nREQUEST ANY 2 staff.mfgs DO 'woodstacking' DURING blocks.clinic_2"]
 
 [[problem]]
 id = "names-buddy-free"
@@ -117,26 +130,28 @@ wrong = ["EACH v IN staff.village_leaders\nREQUEST v DO 'cabin check' DURING blo
 id = "names-one-hero-all-meals"
 title = "One hero, every meal"
 prompt = "One village hero — the same one all day — does 'allergy table' at every meal."
-answer = "REQUEST AT_LEAST 1 staff.village_heroes DO 'allergy table' DURING ALL blocks.meals"
-explain = "AT_LEAST 1 counts heroes who do it at every meal, so the one picked does all three — no binding line needed."
-alternatives = ["EXACTLY 1 h IN staff.village_heroes\nREQUEST h DO 'allergy table' DURING ALL blocks.meals"]
-wrong = ["REQUEST AT_LEAST 1 staff.village_heroes DO 'allergy table' DURING EACH blocks.meals"]
+answer = "REQUEST ANY 1 staff.village_heroes DO 'allergy table' DURING ALL blocks.meals"
+explain = "ANY 1 picks one hero for the whole statement, so the one picked does all three — no binding line needed."
+alternatives = ["ANY 1 h IN staff.village_heroes\nREQUEST h DO 'allergy table' DURING ALL blocks.meals"]
+wrong = ["REQUEST ANY 1 staff.village_heroes DO 'allergy table' DURING EACH blocks.meals"]
 
 [[problem]]
 id = "names-two-in-one-block"
 title = "A pair, one block"
 prompt = "Two of the EQ staff do 'hoof trimming' together, in one of the morning clinic blocks (clinic 1 or clinic 2)."
-answer = "EXACTLY 1 b IN {blocks.clinic_1 + blocks.clinic_2}\nREQUEST AT_LEAST 2 staff.eq_staff DO 'hoof trimming' DURING b"
-hints = ["A count of people comes before a count of blocks, so each would get a block of their own.", "Name the block once: EXACTLY 1 b IN {…}, then DURING b."]
-explain = "Counts go one inside the other: who first, then the blocks. To share one block between the people counted, the block is named once, outside them."
-wrong = ["REQUEST AT_LEAST 2 staff.eq_staff DO 'hoof trimming' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}"]
+answer = "REQUEST ANY 2 staff.eq_staff DO 'hoof trimming' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}"
+hints = ["A pick is made once for the statement, and everything in it shares it."]
+explain = "The block is picked once, so the two EQ staff share it. A binding line says the same, ANY 1 b IN {…} and DURING b, and is what to reach for when the block is used in more than one statement. ANY with no number would let each of them trim in either block."
+alternatives = ["ANY 1 b IN {blocks.clinic_1 + blocks.clinic_2}\nREQUEST ANY 2 staff.eq_staff DO 'hoof trimming' DURING b"]
+wrong = ["REQUEST ANY 2 staff.eq_staff DO 'hoof trimming' DURING ANY {blocks.clinic_1 + blocks.clinic_2}"]
+
 
 [[problem]]
 id = "names-a-task"
 title = "One name for the job"
 prompt = "Name the task 'director on duty' once, as duty, and use it twice: one director does it during clinic 1, and Lisa does it during clinic 3."
-answer = "duty: 'director on duty'\nREQUEST AT_LEAST 1 staff.directors DO duty DURING blocks.clinic_1\nREQUEST staff.lisa DO duty DURING blocks.clinic_3"
+answer = "duty: 'director on duty'\nREQUEST ANY 1 staff.directors DO duty DURING blocks.clinic_1\nREQUEST staff.lisa DO duty DURING blocks.clinic_3"
 hints = ["A quoted task can be named like a set: duty: 'director on duty'.", "The name goes after DO."]
 explain = "A named task is written once, so the lines using it can't drift apart with a typo."
-alternatives = ["REQUEST AT_LEAST 1 staff.directors DO 'director on duty' DURING blocks.clinic_1\nREQUEST staff.lisa DO 'director on duty' DURING blocks.clinic_3"]
-wrong = ["duty: 'director on duty'\nREQUEST AT_LEAST 1 staff.directors DO duty DURING blocks.clinic_1\nREQUEST staff.lisa DO duty DURING blocks.clinic_4"]
+alternatives = ["REQUEST ANY 1 staff.directors DO 'director on duty' DURING blocks.clinic_1\nREQUEST staff.lisa DO 'director on duty' DURING blocks.clinic_3"]
+wrong = ["duty: 'director on duty'\nREQUEST ANY 1 staff.directors DO duty DURING blocks.clinic_1\nREQUEST staff.lisa DO duty DURING blocks.clinic_4"]

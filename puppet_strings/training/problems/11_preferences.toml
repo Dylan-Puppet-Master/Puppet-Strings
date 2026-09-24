@@ -13,7 +13,10 @@ PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all
 
 • REQUEST is met or not. PREFER is scored by how close it comes.
 • So a PREFER needs a count or a FOR to come close to; one thing is AT_LEAST 1 of it
+• A PREFER measures, so it counts: ANY n, a pick, is refused there
 • With two counts, a PREFER is scored on the outermost
+• "As many as possible" is no PREFER: it is REQUEST EACH … at a soft priority
+
 • A PREFER is never MUST_HAPPEN
 • EACH x IN <set> names the item, so a mapping can look it up
 """
@@ -67,7 +70,7 @@ prompt = "We'd like at least three counselors free at playstation. Two is better
 answer = "PREFER AT_LEAST 3 staff.counselors FREE DURING blocks.playstation"
 priority = "HIGH"
 explain = "Each counselor short of three costs a little. A REQUEST would score two free the same as none."
-wrong = ["REQUEST AT_LEAST 3 staff.counselors FREE DURING blocks.playstation"]
+wrong = ["REQUEST ANY 3 staff.counselors FREE DURING blocks.playstation"]
 
 [[problem]]
 id = "prefer-at-most-one-break-at-once"
@@ -157,3 +160,16 @@ priority = "LOW"
 hints = ["Count the counselors; inside that, count each one's blocks."]
 explain = "A PREFER is scored on its outermost count, here the counselors: each one short of five costs the same, however close they came. EACH staff.counselors in its place would score every counselor on their own breaks."
 wrong = ["PREFER EACH staff.counselors DO 'break' DURING AT_LEAST 2 blocks.all"]
+
+[[problem]]
+id = "prefer-as-many-as-possible"
+title = "At least two, more if possible"
+prompt = "A MUST_HAPPEN request already picks two village heroes to 'lifeguard' during rest hour: REQUEST ANY 2 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour. Write the other half: beyond those two, as many more village heroes as possible lifeguard then too."
+answer = "REQUEST EACH staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"
+priority = "LOW"
+hints = ["There is no PREFER for 'as many as possible'.", "Make each hero a request of their own, at a soft priority: each one who joins is one more request met."]
+explain = "EACH splits it into a request per hero, so every hero who lifeguards is one more met, and the solver adds as many as the rest of the day allows. It is a request of its own because it matters less than the two who must be there: one request has one priority."
+wrong = [
+  "REQUEST ALL staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour",
+  "REQUEST ANY 3 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour",
+]

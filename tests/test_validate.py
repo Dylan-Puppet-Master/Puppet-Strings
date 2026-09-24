@@ -26,7 +26,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (
             "REQUEST staff.counselor DO 'x' DURING blocks.clinic_1",
             Priority.HIGH,
-            "needs a quantifier: ALL, ANY, EACH or a count",
+            "needs a quantifier: ALL, ANY, ANY n, EACH or a count",
             1,
             9,
         ),
@@ -175,7 +175,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             81,
         ),
         (
-            "EXACTLY 1 s IN staff.all\nPREFER s DO ANY activities.clinics.all MAXIMIZE mappings.preference(s, activities.clinics.riflery)",
+            "ANY 1 s IN staff.all\nPREFER s DO ANY activities.clinics.all MAXIMIZE mappings.preference(s, activities.clinics.riflery)",
             Priority.HIGH,
             "mapping argument must be one item",
             2,
@@ -217,7 +217,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             4,
         ),
         (
-            "a: REQUEST staff.dylan DO 'x' DURING EXACTLY 2 blocks.all\nb: REQUEST staff.dylan DO 'y' DURING blocks.clinic_2\nGAP a TO b AT_LEAST 0m",
+            "a: REQUEST staff.dylan DO 'x' DURING AT_MOST 2 blocks.all\nb: REQUEST staff.dylan DO 'y' DURING blocks.clinic_2\nGAP a TO b AT_LEAST 0m",
             Priority.HIGH,
             "a GAP is measured from what a REQUEST makes",
             1,
@@ -235,21 +235,21 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (f"{DO} ON {{dates.session_1.all - 1d}}", Priority.HIGH, "needs a single date here", 1, 55),
         (f"{DO} ON 2026-13-01", Priority.HIGH, "invalid date", 1, 54),
         (
-            "REQUEST staff.dylan DO 'x' DURING AT_LEAST 1 blocks.all ON dates.session_1.week_9.all",
+            "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON dates.session_1.week_9.all",
             Priority.HIGH,
             "unknown name 'dates.session_1.week_9.all'",
             1,
-            60,
+            55,
         ),
         (
-            "EXACTLY 1 b IN blocks.all\nREQUEST staff.dylan DO 'x' DURING {blocks.all - b}",
+            "ANY 1 b IN blocks.all\nREQUEST staff.dylan DO 'x' DURING ALL {blocks.all & b}",
             Priority.HIGH,
             "chosen by the solver",
             2,
-            49,
+            53,
         ),
         (
-            "EXACTLY 1 p IN staff.all\nREQUEST AT_LEAST 2 {staff.dylan + p} DO 'x' DURING blocks.lunch",
+            "ANY 1 p IN staff.all\nREQUEST ANY 2 {staff.dylan + p} DO 'x' DURING blocks.lunch",
             Priority.HIGH,
             "taken with ALL or not at all",
             2,
@@ -272,7 +272,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (
             "REQUEST EXACTLY 2 staff.all NOT DO 'x'",
             Priority.HIGH,
-            "left of NOT the subject is chosen, so a count there takes AT_LEAST",
+            "left of NOT the subject is chosen, so it takes ANY 2, not EXACTLY 2",
             1,
             9,
         ),
@@ -305,11 +305,11 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             37,
         ),
         (
-            "REQUEST staff.dylan DO 'x' DURING EXACTLY 1 {blocks.clinic_1 + (AT_LEAST 1 {blocks.clinic_2 + blocks.clinic_3})}",
+            "PREFER staff.dylan DO 'x' DURING AT_MOST 1 {blocks.clinic_1 + (ANY 1 {blocks.clinic_2 + blocks.clinic_3})}",
             Priority.HIGH,
             "a group in a count is taken whole",
             1,
-            64,
+            63,
         ),
     ],
 )
@@ -354,12 +354,12 @@ def test_an_exclusion_validates(dataset):
         (
             "EXCLUDE AT_LEAST 1 staff.all DO 'offsite'",
             Priority.MUST_HAPPEN,
-            "nothing in it is counted or ANY",
+            "nothing in it is chosen, counted or ANY",
         ),
         (
             "EXCLUDE staff.dylan DO 'offsite' DURING ANY blocks.all",
             Priority.MUST_HAPPEN,
-            "nothing in it is counted or ANY",
+            "nothing in it is chosen, counted or ANY",
         ),
         (
             f"{EXCLUDE}\nREQUEST staff.rob DO 'x' DURING blocks.clinic_1",
@@ -379,7 +379,7 @@ def test_an_exclusion_validates(dataset):
         (
             "EXCLUDE staff.counselor DO 'offsite'",
             Priority.MUST_HAPPEN,
-            "needs a quantifier: ALL, ANY, EACH or a count",
+            "needs a quantifier: ALL, ANY, ANY n, EACH or a count",
         ),
     ],
 )

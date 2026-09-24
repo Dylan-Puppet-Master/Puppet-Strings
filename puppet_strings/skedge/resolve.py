@@ -80,6 +80,7 @@ class Choice:
     consecutive: bool = False
     units: tuple["Choice", ...] = ()
     bound: str | None = None
+    minus: tuple["Choice", ...] = ()
 
 
 @dataclass(frozen=True)
@@ -281,7 +282,7 @@ def resolve(declaration: ast.Declaration, dataset: Dataset) -> tuple[Resolved, .
     """Resolve names and expand EACH. Raises SkedgeError on unknown or misused names."""
     scope = _Scope(_names(dataset), dataset)
     for binding in declaration.bindings:
-        if binding.selector.quantifier == ast.COUNT:
+        if binding.selector.quantifier == ast.ANY_OF:
             scope = scope.with_any(binding.selector)
     each = [
         (namespace, selector)
@@ -622,28 +623,26 @@ class _AnotherDay(Exception):
 
 def _copy(declaration: ast.Declaration, scope: _Scope) -> Resolved:
     conditions = declaration.conditions
+    statements, picked = [], {}
+    for line in declaration.statements:
+        statement, more = _statement(line, scope)
+        statements.append(statement)
+        picked.update(more)
     return Resolved(
         key=", ".join(str(item) for item in scope.each.values()),
-        bindings={name: choice for name, (choice, _) in scope.anys.items()},
-        statements=tuple(x for s in declaration.statements for x in _statements(s, scope)),
+        bindings={**{name: choice for name, (choice, _) in scope.anys.items()}, **picked},
+        statements=tuple(statements),
         condition=_condition(conditions[0], scope) if conditions else None,
         gaps=declaration.gaps,
     )
 
 
-def _statements(statement: ast.Statement, scope: _Scope) -> tuple[Statement, ...]:
-    """A statement resolved, with the caps an EXACTLY group in it brings alongside."""
-    resolved = _statement(statement, scope)
-    if not isinstance(resolved, Requirement | Tally):
-        return (resolved,)
-    return (resolved, *_none_beyond(resolved))
-
-
-def _statement(statement: ast.Statement, scope: _Scope) -> Statement:
+def _statement(statement: ast.Statement, scope: _Scope) -> tuple[Statement, dict]:
+    """A statement resolved, and any choice in it that is made once for it, by name."""
     if isinstance(statement, ast.Exclude):
-        return _exclusion(statement, scope)
+        return _exclusion(statement, scope), {}
     if isinstance(statement, ast.Score):
-        return _score(statement, scope)
+        return _score(statement, scope), {}
     if isinstance(statement, ast.Preference):
         p = statement.pattern
         return _phrase(p.who, p.what, p.busy, p.clauses, scope, statement.pos, prefer=True)
@@ -654,7 +653,7 @@ def _statement(statement: ast.Statement, scope: _Scope) -> Statement:
         parts = _parts(statement.what, statement.clauses, scope, pool=True)
         pool = Choice(_everyone(who), POOL, pos=who.pos)
         pattern = Pattern(pool, busy=False, **parts, pos=statement.pos)
-        return Forbid(who, pattern, statement.pos)
+        return Forbid(who, pattern, statement.pos), {}
     return _phrase(
         statement.who,
         statement.what,
@@ -679,13 +678,13 @@ def _phrase(
     prefer: bool = False,
     label: str | None = None,
     test: bool = False,
-) -> Requirement | Tally:
-    """A statement that says what happens: a requirement where it can be one, else a tally.
+) -> tuple[Requirement | Tally, dict]:
+    """A statement that says what happens, and the choices made once for it, by name.
 
-    A requirement takes each set whole, pools it, or chooses from it, which is all a
-    statement with no count but one AT_LEAST, and no FOR measured over a pool, asks for.
-    Anything else is counted: a PREFER is weighed by how close it comes, and a condition's
-    test is true or false of the day, so both are always tallies.
+    A REQUEST chooses, with ANY n, and caps, with AT_MOST; a PREFER and a condition's test
+    measure, with AT_LEAST, AT_MOST and EXACTLY. A REQUEST with no cap and no FOR measured
+    over a pool is a requirement, every choice in it made once; anything else is a tally,
+    where a REQUEST's choices are made once as well, as a binding line's would be.
     """
     who = (
         _anyone(what, scope, pos)
@@ -707,81 +706,73 @@ def _phrase(
         measure = ast.Amount(for_.bound or ast.EXACTLY, for_.minutes, True, for_.pos)
         parts = {**parts, "minutes": None}
     chosen = {"who": who, **parts}
+    asking = not (prefer or test)
+    if asking:
+        _no_measures(chosen)
+    else:
+        _no_choices(chosen, "a PREFER" if prefer else "a test")
+    over_days = on.kind == POOL and len(on.items) > 1
+    if asking and over_days and during is not None and during.kind == ANY and not during.var:
+        # a pick of blocks over pooled dates is of blocks on dates, as a count of them is
+        chosen["during"] = replace(during, kind=COUNT, bound=ast.AT_LEAST)
     levels = tuple(
         Level(field, chosen[key])
         for field, key in FIELDS
         if isinstance(chosen[key], Choice) and chosen[key].kind == COUNT
     )
-    over_days = on.kind == POOL and len(on.items) > 1
     for level in levels:
         _countable(level, over_days)
-    per_occurrence = over_days and any(level.field == "block" for level in levels)
-    simple = _chosen_once(levels) and not per_occurrence
-    if not (prefer or test) and measure is None and simple:
-        for _, key in FIELDS:
-            if isinstance(chosen[key], Choice) and chosen[key].kind == COUNT:
-                chosen[key] = replace(chosen[key], kind=ANY, bound=None)
+    if asking and measure is None and not levels:
         if chosen["during"] is None:
             chosen["during"] = Choice(_whole_day(chosen["on"], scope), POOL, pos=pos)
-        return Requirement(label=label, busy=busy, pos=pos, **chosen)
+        return Requirement(label=label, busy=busy, pos=pos, **chosen), {}
     if label is not None:
         raise _error(
-            "a GAP is measured from what a REQUEST makes, so a labeled one takes no count "
-            "but one AT_LEAST, and no FOR measured over ANY",
+            "a GAP is measured from what a REQUEST makes, so a labeled one takes no cap and "
+            "no FOR measured over ANY",
             pos,
         )
+    picked = {}
+    if asking:
+        for key in ("who", "what", "on", "during", "role"):
+            choice = chosen[key]
+            if isinstance(choice, Choice) and choice.kind == ANY and choice.var is None:
+                name = f"_pick_{key}_{choice.pos.line}_{choice.pos.column}"
+                chosen[key] = picked[name] = replace(choice, var=name)
     runs = during is not None and during.consecutive and during.kind == POOL
     pattern = Pattern(busy=busy, pos=pos, **chosen)
-    return Tally(prefer, levels, pattern, measure, runs, pos)
+    return Tally(prefer, levels, pattern, measure, runs, pos), picked
 
 
-def _none_beyond(statement: Requirement | Tally) -> tuple[Tally, ...]:
-    """The cap each EXACTLY group in a statement brings: no more of its set than it chose.
-
-    `{staff.alesa + EXACTLY 1 {staff.dylan + staff.cam_vl}}` chooses one of the two as a
-    group chosen AT_LEAST would, and the other does not do it: at most 1 of the two, in a
-    statement of its own that is otherwise the same.
-    """
-    part = statement if isinstance(statement, Requirement) else statement.pattern
-    levels = statement.levels if isinstance(statement, Tally) else ()
-    prefer = isinstance(statement, Tally) and statement.prefer
-    measure = statement.measure if isinstance(statement, Tally) else None
-    caps = []
-    for name, key in FIELDS:
-        choice = getattr(part, key)
-        if not isinstance(choice, Choice):
+def _no_measures(chosen: dict) -> None:
+    """A REQUEST chooses and caps; AT_LEAST and EXACTLY measure, for a test or a PREFER."""
+    for key in ("who", "what", "on", "during"):
+        choice = chosen[key]
+        if not isinstance(choice, Choice) or choice.kind != COUNT:
             continue
-        groups = [choice] if choice.bound == ast.EXACTLY and choice.kind == ANY else []
-        groups += [g for g in choice.parts if g.bound == ast.EXACTLY]
-        for group in groups:
-            cap = Choice(group.items, COUNT, group.n, pos=group.pos, bound=ast.AT_MOST)
-            others = tuple(level for level in levels if level.field != name)
-            fields = {k: getattr(part, k) for k in ("on", "during", "role", "with_", "without")}
-            fields.update(
-                who=part.who,
-                what=part.what,
-                minutes=part.minutes,
-                length_bound=part.length_bound,
+        n = choice.n
+        if choice.bound == ast.AT_LEAST:
+            raise _error(
+                f"to pick {n}, write ANY {n}; AT_LEAST measures, in a test or a PREFER",
+                choice.pos,
             )
-            fields[key] = cap
-            pattern = Pattern(busy=part.busy, pos=part.pos, **fields)
-            order = [f for f, _ in FIELDS]
-            ranked = tuple(sorted((*others, Level(name, cap)), key=lambda x: order.index(x.field)))
-            runs = isinstance(statement, Tally) and statement.runs
-            caps.append(Tally(prefer, ranked, pattern, measure, runs, part.pos))
-    return tuple(caps)
+        if choice.bound == ast.EXACTLY:
+            raise _error(
+                f"EXACTLY forbids the rest; pick with ANY {n}, and forbid the rest with NOT DO",
+                choice.pos,
+            )
 
 
-def _chosen_once(levels: tuple[Level, ...]) -> bool:
-    """Whether a statement's counts can be one choice each, as a requirement makes them.
-
-    AT_LEAST n picks n items and asks the rest of each. A requirement picks each set once,
-    for everything else in it together, which is the same thing as long as every count but
-    the innermost picks one: then there is one outer item for the inner pick to be about.
-    """
-    if any(level.choice.bound != ast.AT_LEAST for level in levels):
-        return False
-    return all(level.choice.n == 1 and not level.choice.units for level in levels[:-1])
+def _no_choices(chosen: dict, what: str) -> None:
+    """A PREFER and a test measure what the day holds; there is nothing in them to pick."""
+    for key in ("who", "what", "on", "during"):
+        choice = chosen[key]
+        if isinstance(choice, Choice) and choice.kind == ANY and choice.var is None:
+            raise _error(
+                f"{what} measures, so it counts with AT_LEAST, AT_MOST or EXACTLY, not "
+                f"ANY {choice.n}",
+                choice.pos,
+            )
 
 
 def _countable(level: Level, over_days: bool) -> None:
@@ -800,16 +791,14 @@ def _countable(level: Level, over_days: bool) -> None:
 
 
 def _chosen(choice: Choice) -> Choice:
-    """Left of NOT, a count or a pool of people chooses who the NOT is about."""
+    """Left of NOT the subject is who the NOT is about: named, taken ALL, or chosen."""
     if choice.kind == POOL:
         raise _error(_CHOSEN, choice.pos)
-    if choice.bound != ast.AT_LEAST:
-        raise _error(
-            "left of NOT the subject is chosen, so a count there takes AT_LEAST: "
-            f"AT_LEAST {choice.n} …",
-            choice.pos,
-        )
-    return replace(choice, kind=ANY, bound=None)
+    raise _error(
+        f"left of NOT the subject is chosen, so it takes ANY {choice.n}, not "
+        f"{choice.bound} {choice.n}",
+        choice.pos,
+    )
 
 
 def _whole_day(on: Choice, scope: _Scope) -> tuple[Item, ...]:
@@ -883,7 +872,11 @@ def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, poo
             raise _error("CONSECUTIVE counts blocks one at a time, so no groups", during.pos)
         blocks = replace(blocks, consecutive=True)
     roles = _choice(role.selector, ROLES, scope, pool) if role else None
-    several = roles is not None and (roles.kind == COUNT or len(roles.items) > 1)
+    several = roles is not None and (
+        roles.kind == COUNT
+        or (roles.kind == ALL and len(roles.items) > 1)
+        or (roles.kind == ANY and roles.n > 1)
+    )
     if several and not pool and roles.kind != POOL:
         raise _error("one role at a time: AS_ROLE takes a role, ANY or EACH", role.pos)
     return {
@@ -933,12 +926,7 @@ def _test(test: ast.Test, scope: _Scope) -> Predicate | Junction:
     if isinstance(test, ast.Junction):
         return Junction(test.all, tuple(_test(part, scope) for part in test.parts))
     p = test.pattern
-    tally = _phrase(p.who, p.what, p.busy, p.clauses, scope, test.pos, test=True)
-    if _none_beyond(tally):
-        raise _error(
-            "EXACTLY in a group says who does not, which a test does not ask; use AT_LEAST",
-            test.pos,
-        )
+    tally, _ = _phrase(p.who, p.what, p.busy, p.clauses, scope, test.pos, test=True)
     return Predicate(tally)
 
 
@@ -1117,9 +1105,12 @@ class Domains:
         many; and a set of several names with no quantifier to say how they are taken.
         """
         selector = _default(text)
-        if selector.quantifier in (ast.EACH, ast.ANY):
+        if selector.quantifier in (ast.EACH, ast.ANY, ast.COUNT):
+            written = selector.quantifier
+            if written == ast.COUNT:
+                written = ast.worded(selector.bound, selector.n)
             raise _error(
-                f"a default is one choice, so it takes ALL or a count, not {selector.quantifier}",
+                f"a default is one choice, so it takes ALL or ANY n, not {written}",
                 selector.pos,
             )
         if _needs_request(selector.expr):
@@ -1127,7 +1118,7 @@ class Domains:
         namespace = _namespace_of(selector.expr, None)
         items, single = _evaluate(selector.expr, namespace, _Scope(self.names, self.dataset))
         if not single and selector.quantifier is None:
-            raise _error("a default of more than one name needs ALL or a count", selector.pos)
+            raise _error("a default of more than one name needs ALL or ANY n", selector.pos)
         return namespace, items
 
 
@@ -1172,6 +1163,14 @@ def _choice(
         if isinstance(found, ast.Selector):
             default = _choice(found, namespace, _default_scope(scope), pool, when)
             return replace(default, pos=selector.pos)
+    if _less_a_chosen_name(expr, scope):
+        # `{staff.all - s}`: everyone but whoever the binding chose, whoever that turns out
+        # to be, so each member's place in the set waits on the choice
+        base = _choice(replace(selector, expr=expr.left), namespace, scope, pool, when)
+        choice, bound_namespace = scope.anys[expr.right.name]
+        _expect(namespace, bound_namespace, expr.right)
+        minus = replace(choice, kind=ANY, pos=expr.right.pos)
+        return replace(base, minus=(*base.minus, minus), pos=selector.pos)
     joined, bound = _split(selector.expr, scope)
     if bound:
         return _with_bound(selector, joined, bound, namespace, scope, pool, when)
@@ -1198,7 +1197,7 @@ def _choice(
         return Choice(_sorted(items), kind, pos=selector.pos)
     if selector.quantifier is None:
         if not single:
-            raise _error("needs a quantifier: ALL, ANY, EACH or a count", selector.pos)
+            raise _error("needs a quantifier: ALL, ANY, ANY n, EACH or a count", selector.pos)
         return Choice(_sorted(items), ALL, pos=selector.pos)
     if selector.quantifier == ast.COUNT and single and not isinstance(expr, ast.Call):
         if selector.n == 1:  # one of one: the item itself, weighed by a PREFER
@@ -1214,12 +1213,12 @@ def _choice(
         return Choice(_sorted(items), ALL, pos=selector.pos)
     if selector.quantifier == ast.ANY:
         return Choice(_sorted(items), POOL, pos=selector.pos)
+    if selector.quantifier == ast.ANY_OF:
+        return Choice(_sorted(items), ANY, selector.n, pos=selector.pos)
     return Choice(_sorted(items), COUNT, selector.n, pos=selector.pos, bound=selector.bound)
 
 
-_CHOSEN = (
-    "left of NOT the subject is who the NOT is about, so it takes ALL, EACH or AT_LEAST n, not ANY"
-)
+_CHOSEN = "left of NOT the subject is who the NOT is about, so it takes ALL, EACH or ANY n, not ANY"
 
 
 def _matched(selector: ast.Selector, one: bool) -> None:
@@ -1245,6 +1244,16 @@ def _no_quantifier_on_one(expr: ast.SetExpr, single: bool, pos: ast.Pos) -> None
     """
     if single and not isinstance(expr, ast.Call):
         raise _error("is one item and takes no quantifier", pos)
+
+
+def _less_a_chosen_name(expr: ast.SetExpr, scope: _Scope) -> bool:
+    """Whether a set is another less a name a binding line chooses: `{staff.all - s}`."""
+    return (
+        isinstance(expr, ast.SetOp)
+        and expr.op == "-"
+        and isinstance(expr.right, ast.Var)
+        and expr.right.name in scope.anys
+    )
 
 
 def _split(expr: ast.SetExpr, scope: _Scope) -> tuple[ast.SetExpr | None, tuple]:
@@ -1313,6 +1322,8 @@ def _with_bound(
             items = frozenset(d for d in items if d in scope.dataset.calendar)
         if namespace == ACTIVITIES:
             items, _ = _on_those_days(items, False, when, scope)
+    if selector.quantifier == ast.ANY_OF and not pool:
+        return Choice(_sorted(items), ANY, selector.n, units=tuple(groups), pos=selector.pos)
     if selector.quantifier == ast.COUNT and not pool:
         return Choice(
             _sorted(items),
@@ -1336,20 +1347,15 @@ def _with_bound(
 def _group(
     group: ast.Group, namespace: str, scope: _Scope, pool: bool, when: tuple[Item, ...]
 ) -> Choice:
-    """`(ALL s)` or `(AT_LEAST n s)`, as the choice it is wherever it stands.
+    """`(ALL s)` or `(ANY n s)`, as the choice it is wherever it stands.
 
-    `(AT_LEAST n s)` chooses n of s, which brings them. In a pool only `(ALL s)` can
+    `(ANY n s)` chooses n of s, which brings them. In a pool only `(ALL s)` can
     stand, which the parser has seen to, and it is only more of the pool.
     """
     selector = ast.Selector(group.expr, group.quantifier, group.n, None, group.pos)
     selector = replace(selector, bound=group.bound)
     choice = _choice(selector, namespace, scope, pool, when)
-    if pool:
-        return replace(choice, kind=POOL)
-    if choice.kind != COUNT:
-        return choice
-    # chosen once; an EXACTLY group keeps its bound, for the cap it brings alongside
-    return replace(choice, kind=ANY, bound=ast.EXACTLY if group.bound == ast.EXACTLY else None)
+    return replace(choice, kind=POOL) if pool else choice
 
 
 def _on_those_days(
@@ -1384,12 +1390,12 @@ def _evaluate(expr: ast.SetExpr, namespace: str, scope: _Scope) -> tuple[frozens
         if expr.name in scope.anys:
             raise _error(
                 f"'{expr.name}' is chosen by the solver, so it can only be added to a set "
-                "with '+', not taken away from one or crossed with one",
+                "with '+', or taken from a whole one with '-', not crossed with one",
                 expr.pos,
             )
         raise _error(f"unknown variable '{expr.name}'", expr.pos)
     if isinstance(expr, ast.Group):
-        if expr.quantifier == ast.COUNT:
+        if expr.quantifier == ast.ANY_OF:
             raise _error(
                 f"{ast.spoken(expr)} is chosen by the solver, so it can only be added to a set "
                 "with '+', not taken away from one or crossed with one",
@@ -1425,7 +1431,7 @@ def _call_items(call: ast.Call, namespace: str, scope: _Scope) -> tuple[frozense
     found = _lookup(call, namespace, scope)
     if not isinstance(found, ast.Selector):
         return frozenset({found}), True
-    if found.quantifier == ast.COUNT:
+    if found.quantifier == ast.ANY_OF:
         raise _error(
             f"mappings.{call.mapping.name} has no row for this, and its default is a choice "
             "the solver makes, which cannot stand where a set is wanted; write the call on "

@@ -53,7 +53,7 @@ SUFFIX = ".sqlite"
 SCHEMA_VERSION = "2"
 # How Skedge is written now. A file whose requests were written before is rewritten on its
 # next load, which is when there is a dataset to tell a name for one thing from a set.
-SYNTAX_VERSION = 7
+SYNTAX_VERSION = 8
 DEFAULT_SCOPE = SESSION  # what a request written in the app is read over, unless it says
 OLD_IMPORT_TAG = "generated"  # what IMPORT_TAG was called before, renamed on open
 DATE_NAME = re.compile(r"\bdates\.[a-z0-9_.]*")
@@ -191,11 +191,13 @@ class RequestDb(LocalDb):
         if not self.exists:
             return False
         with self._open() as db:
-            done = db.execute("SELECT value FROM meta WHERE key = 'syntax'").fetchone()
-            if done and int(done[0]) >= SYNTAX_VERSION:
+            done = _syntax(db)
+            if done >= SYNTAX_VERSION:
                 return False
             rows = db.execute('SELECT "id", "skedge" FROM requests').fetchall()
-            changed = [(new, id) for id, old in rows if (new := rewritten(old, dataset)) != old]
+            changed = [
+                (new, id) for id, old in rows if (new := rewritten(old, dataset, done)) != old
+            ]
             db.executemany('UPDATE requests SET "skedge" = ? WHERE "id" = ?', changed)
             _mark_syntax(db)
         return bool(changed)
@@ -272,7 +274,7 @@ class RequestDb(LocalDb):
         holds a row the app would refuse to load, is refused whole. The requests it replaces
         are kept beside this file, `….before-import.sqlite`, until the next import.
         """
-        rows = _checked(Path(source).expanduser())
+        rows, syntax = _checked(Path(source).expanduser())
         kept = None
         if self.exists:
             kept = self.path.with_name(f"{self.path.stem}.before-import{SUFFIX}")
@@ -282,7 +284,10 @@ class RequestDb(LocalDb):
             db.executemany(_PUT, rows)
             _retag_imports(db)
             _rename_dates(db)
-            db.execute("DELETE FROM meta WHERE key = 'syntax'")  # rewritten on the next load
+            # rewritten on the next load, from the version the file was written in
+            db.execute(
+                "INSERT OR REPLACE INTO meta (key, value) VALUES ('syntax', ?)", (str(syntax),)
+            )
         return len(rows), kept
 
 
@@ -433,8 +438,14 @@ def _request(
     )
 
 
-def _checked(source: Path) -> list[tuple]:
-    """The rows of a requests file, once it is known to be one the app can load."""
+def _syntax(db: sqlite3.Connection) -> int:
+    """The Skedge version a file's requests are written in: 0 from before it was kept."""
+    done = db.execute("SELECT value FROM meta WHERE key = 'syntax'").fetchone()
+    return int(done[0]) if done else 0
+
+
+def _checked(source: Path) -> tuple[list[tuple], int]:
+    """A requests file's rows, once it is known to be one the app can load, and its syntax."""
     if not source.is_file():
         raise LoadError(f"{source}: no such file")
     try:
@@ -442,9 +453,10 @@ def _checked(source: Path) -> list[tuple]:
         try:
             _same_version(db, source)
             rows = db.execute(f"SELECT {_COLUMNS} FROM requests {_ORDER}").fetchall()
+            syntax = _syntax(db)
         finally:
             db.close()
     except (sqlite3.Error, TypeError) as e:
         raise LoadError(f"{source}: not a Puppet Strings requests file ({e})") from e
     _requests(rows)  # raises on a bad row
-    return rows
+    return rows, syntax
