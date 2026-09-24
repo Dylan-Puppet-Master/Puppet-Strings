@@ -277,7 +277,7 @@ def test_a_day_offset_is_still_an_offset_and_not_a_duration():
         ("REQUEST staff.rob DO 'x' FOR 1.25m DURING blocks.a", "whole number of minutes", 1, 30),
         # a PREFER with no amount is a score, so what is missing is the goal
         ("PREFER staff.rob DO 'x' DURING blocks.a", "expected one of", 1, 40),
-        ("REQUEST staff.rob NOT DO ANY 1 activities.clinics.all", "matched, not chosen", 1, 26),
+        ("REQUEST staff.rob NOT DO ANY 1 activities.clinics.all", "right of NOT a set", 1, 26),
         ("morning: PREFER AT_MOST 1 ANY staff.all DO 'x'", "expected one of", 1, 10),
         ("REQUEST AT_MOST 1 staff.all CONSECUTIVE", "expected one of", 1, 29),
         ("PREFER staff.all DO 'x' MAXIMIZE", "expected one of", 1, 33),
@@ -378,8 +378,8 @@ def test_a_definition_with_a_quantifier_is_a_binding():
         ("a: staff.x\na: staff.y\nREQUEST a DO 'x' DURING blocks.a", "'a' is defined twice"),
         ("c: staff.x\nREQUEST EACH_OF c IN staff.all DO 'x' DURING blocks.a", "defined twice"),
         ("a: {b + staff.x}\nb: {a}\nREQUEST a DO 'x' DURING blocks.a", "in terms of itself"),
-        ("IF ANY 1 staff.all FREE\nREQUEST staff.x FREE DURING blocks.a", "matched, not chosen"),
-        ("REQUEST staff.x NOT DO 'x' DURING ALL_OF blocks.all", "matched, not chosen"),
+        ("IF ANY 1 staff.all FREE\nREQUEST staff.x FREE DURING blocks.a", "one assignment at a time"),
+        ("REQUEST staff.x NOT DO 'x' DURING ANY 2 blocks.all", "right of NOT a set"),
     ],
 )
 def test_new_errors(text, message):

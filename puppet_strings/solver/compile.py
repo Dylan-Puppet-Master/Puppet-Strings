@@ -520,10 +520,37 @@ class Compiler:
     def _forbid(self, st: Forbid, active, name: str) -> None:
         """NOT DO: no assignment of a chosen staff member matches. NOT FREE: they are busy."""
         who = self._choose(st.who, active, f"{name}:staff")
+        if _together(st.pattern):
+            self._forbid_together(st, who, active, name)
+            return
         for m in self._matches(st.pattern, past=False):
             self._imply(
                 [active, who[m.staff]], m.literal if st.pattern.busy else _negate(m.literal)
             )
+
+    def _forbid_together(self, st: Forbid, who: dict, active, name: str) -> None:
+        """`NOT DO … DURING ALL_OF {…}`: not every one of them together; any on its own is fine.
+
+        What must not happen is the positive request the words to the right of NOT make: for
+        every combination of the ALL_OF items, an assignment matching it, where a part taken
+        ANY is matched by any of its items. A combination nothing could ever match means
+        the whole cannot happen, so nothing is forbidden. The past counts, since yesterday's
+        half of "not on both days" is already settled.
+        """
+        together = _together(st.pattern)
+        pattern = replace(st.pattern, busy=False)  # NOT FREE forbids being free
+        found: dict[str, dict[tuple, list]] = {}
+        for m in self._matches(pattern, past=True):
+            key = tuple(getattr(m, field) for field, _ in together)
+            found.setdefault(m.staff, {}).setdefault(key, []).append(m.literal)
+        combinations = list(product(*(items for _, items in together)))
+        for s, by_key in found.items():
+            if any(c not in by_key for c in combinations):
+                continue
+            each = [
+                self._any_of(by_key[c], f"{name}:{s}:{'+'.join(map(str, c))}") for c in combinations
+            ]
+            self._imply([active, who[s]], _negate(self._all_of(each, f"{name}:{s}:together")))
 
     # -- choices -------------------------------------------------------------------------------
 
@@ -1156,6 +1183,17 @@ def _distinct(literals: list) -> list:
 
 def _is_negated(literal) -> bool:
     return not isinstance(literal, cp_model.IntVar)
+
+
+def _together(pattern: Pattern) -> list[tuple[str, tuple]]:
+    """The parts of a NOT's pattern written ALL_OF, as the Match field each one fills."""
+    parts = (("activity", pattern.what), ("block", pattern.during), ("date", pattern.on))
+    parts += (("role", pattern.role),)
+    return [
+        (field, choice.items)
+        for field, choice in parts
+        if isinstance(choice, Choice) and choice.kind == ALL
+    ]
 
 
 def _negate(literal: Literal) -> Literal:

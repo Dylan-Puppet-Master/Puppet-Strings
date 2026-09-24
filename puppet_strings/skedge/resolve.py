@@ -124,6 +124,10 @@ class Forbid:
 
     For `REQUEST <who> NOT FREE …` the pattern is the busy one, and `who` must match it
     in every block it allows.
+
+    A part of the pattern that is ALL rather than POOL was written ALL_OF: then what is
+    forbidden is an assignment for every one of its items together, and any one of them on
+    its own is allowed.
     """
 
     who: Choice
@@ -941,7 +945,9 @@ def _choice(
             raise _AnotherDay  # a name EACH_OF bound to an act on another day
     if pool:
         _matched(selector, one)
-        return Choice(_sorted(items), POOL, pos=selector.pos)
+        # ALL_OF is only matched right of NOT, where it is all of them together
+        kind = ALL if selector.quantifier == ast.ALL_OF else POOL
+        return Choice(_sorted(items), kind, pos=selector.pos)
     if selector.quantifier == ast.ANY:
         raise _error(_CHOSEN, selector.pos)
     if selector.quantifier is None:
@@ -971,7 +977,7 @@ def _matched(selector: ast.Selector, one: bool) -> None:
         raise _error(
             "a set here is matched, so it takes ANY: write ANY in front of it", selector.pos
         )
-    if selector.quantifier == ast.ANY and one:
+    if selector.quantifier in (ast.ANY, ast.ALL_OF) and one:
         raise _error("is one item and takes no quantifier", selector.pos)
 
 
@@ -1024,6 +1030,8 @@ def _with_bound(
     choosing it again here would be choosing out of something still being chosen.
     """
     variables = [x for x in bound if isinstance(x, ast.Var)]
+    if pool and selector.quantifier == ast.ALL_OF:
+        raise _error("ALL_OF right of NOT takes names, not groups or chosen names", selector.pos)
     if pool:
         _matched(selector, False)
     elif selector.quantifier == ast.ANY:
@@ -1067,10 +1075,12 @@ def _group(
 ) -> Choice:
     """`(ALL_OF s)` or `(ANY n s)`, as the choice it is wherever it stands.
 
-    In a pool only `(ALL_OF s)` can stand, which the parser has seen to.
+    In a pool only `(ALL_OF s)` can stand, which the parser has seen to, and it is only more
+    of the pool.
     """
     selector = ast.Selector(group.expr, group.quantifier, group.n, None, group.pos)
-    return _choice(selector, namespace, scope, pool, when)
+    choice = _choice(selector, namespace, scope, pool, when)
+    return replace(choice, kind=POOL) if pool else choice
 
 
 def _on_those_days(

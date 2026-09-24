@@ -294,8 +294,20 @@ The subject of a `NOT` still chooses: `ALL_OF {…} NOT DO` is "none of them doe
 must not happen, so a set there is matched rather than chosen, and says so with `ANY`:
 `REQUEST staff.rob NOT DO 'break' DURING ANY blocks.meals` is no break at any meal.
 `DURING` can be left out to mean all day. `EACH_OF` splits the request, as it does
-anywhere; `WITH` and `WITHOUT` count company instead (below). `NOT DO ANY 1 …` is
-rejected, because it reads two ways in English.
+anywhere; `WITH` and `WITHOUT` count company instead (below).
+
+`NOT` turns round everything to its right, so `ALL_OF` there is "not all of these
+together", and any one of them on its own is fine:
+
+| Request | Meaning |
+|---|---|
+| `REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING ANY {blocks.clinic_1 + blocks.clinic_2}` | Lisa is on no clinic in either block. One request: a clinic in either block breaks it. |
+| `REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING EACH_OF {blocks.clinic_1 + blocks.clinic_2}` | The same rule, as two requests, one per block: at a soft priority a clinic in both is twice as bad as one. |
+| `REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}` | Lisa is not on a clinic in both blocks. A clinic in one of them is fine. |
+
+`ANY n` is rejected right of `NOT`: "not in two of them" is "in at most one", which a count
+says plainly — `REQUEST AT_MOST 1 staff.lisa DO ANY activities.clinics.all DURING ANY
+{…}`.
 
 **This is how "avoid" is written.** A `REQUEST` is all or nothing, so split it small and
 give it a soft priority:

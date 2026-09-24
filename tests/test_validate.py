@@ -301,9 +301,23 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (
             "PREFER AT_MOST 8 EACH_OF staff.all DO ALL_OF activities.clinics.all",
             Priority.HIGH,
-            "a set here is matched, not chosen, so it takes ANY or EACH_OF",
+            "a pattern matches one assignment at a time, so a set in it takes ANY or EACH_OF",
             1,
             39,
+        ),
+        (
+            "REQUEST staff.rob NOT DO 'x' DURING ANY 2 blocks.all_clinics",
+            Priority.HIGH,
+            "right of NOT a set takes ANY, for any of these, or ALL_OF, for all of them together",
+            1,
+            37,
+        ),
+        (
+            "REQUEST staff.rob NOT DO 'x' DURING ALL_OF blocks.clinic_1",
+            Priority.HIGH,
+            "is one item and takes no quantifier",
+            1,
+            37,
         ),
     ],
 )

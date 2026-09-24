@@ -10,7 +10,7 @@ REQUEST <who> NOT DO <what> ...           never doing that
 REQUEST staff.dylan FREE DURING blocks.playstation
 REQUEST staff.rob NOT DO 'break' DURING ANY blocks.meals
 
-• Right of NOT, ANY <set> means "any of these"
+• Right of NOT, ANY <set> means "any of these", and ALL_OF <set> "all of these together"
 • NOT DO can leave out DURING: then it's all day
 • The subject still chooses: ALL_OF {…} NOT DO means none of them does
 """

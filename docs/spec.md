@@ -418,7 +418,11 @@ in the language; it is the only default.
 
 Everything to the right of `NOT` is a pattern (§8): sets there are pools and take `ANY`,
 `DURING` may be left out to mean every block, and `EACH_OF` splits as anywhere, apart from
-`WITH` and `WITHOUT` (§8). The subject to the left of
+`WITH` and `WITHOUT` (§8). A set there may also take `ALL_OF`, of plain names with no group
+or chosen name in it: what is forbidden is then the positive request the words to the right
+of `NOT` make, with an assignment for every combination of the `ALL_OF` items, a part taken
+`ANY` matched by any of its items. Any one combination on its own is allowed. Past dates
+count, as facts. `ANY n` is an error to the right of `NOT`. The subject to the left of
 `NOT` still chooses, so `ANY 1 {staff.lucy + staff.tom} NOT DO 'break'` is "one of them
 takes no break" and `ALL_OF {…} NOT DO` is "none of them does".
 
@@ -691,7 +695,9 @@ after the amount`. The parser, the validator and the solver report:
 | `a declaration needs at least one statement` | Only bindings, definitions, conditions or `GAP` lines. |
 | `write ANY` | The old spelling `ANY_1_OF`; the message gives the new one, `ANY 1`. |
 | `ANY needs a number of 1 or more` | `ANY 0`. |
-| `a set here is matched, not chosen, so it takes ANY or EACH_OF` | `ALL_OF`, `ANY n` or an `(ANY n …)` group inside a pattern or to the right of `NOT`, other than after `WITH` or `WITHOUT`. |
+| `a pattern matches one assignment at a time` | `ALL_OF`, `ANY n` or an `(ANY n …)` group inside a pattern, other than after `WITH` or `WITHOUT`. |
+| `right of NOT a set takes ANY, for any of these` | `ANY n` or an `(ANY n …)` group to the right of `NOT`, other than after `WITH` or `WITHOUT`. |
+| `ALL_OF right of NOT takes names, not groups or chosen names` | `NOT DO … ALL_OF {staff.x + (ANY 1 …)}` and the like. |
 | `a set here is matched, so it takes ANY` | A set with no quantifier in a pattern or to the right of `NOT`. |
 | `ANY with no number matches rather than chooses` | `ANY` in a requirement, a subject left of `NOT`, or an `EXCLUDE`. |
 | `is defined twice` | Two definitions of one name, or a definition sharing its name with a variable or label. |
@@ -700,7 +706,7 @@ after the amount`. The parser, the validator and the solver report:
 | `CONSECUTIVE chooses blocks one at a time, so no groups` | A group in `DURING ANY n … CONSECUTIVE`. |
 | `right of NOT there are no blocks to choose, so no CONSECUTIVE` | `NOT DO … DURING … CONSECUTIVE`; the message gives the amount that limits a run instead. |
 | `needs a quantifier: ALL_OF, ANY n or EACH_OF` | A set with no quantifier in a requirement. |
-| `is one item and takes no quantifier` | `ANY 1 staff.rob`, or `ANY staff.rob` in a pattern. |
+| `is one item and takes no quantifier` | `ANY 1 staff.rob`; `ANY staff.rob` in a pattern; `ALL_OF blocks.clinic_1` right of `NOT`. |
 | `needs a quantifier: ALL_OF or ANY n` | `WITH` or `WITHOUT` a set of several, with no quantifier. |
 | `counts who is alongside, so it takes ALL_OF or ANY n` | `WITH EACH_OF staff.mfgs` or `WITH ANY staff.mfgs`; likewise `WITHOUT`. |
 | `one activity at a time` | `ALL_OF`, `ANY 2` or a group on a requirement's activity or `AS_ROLE`. |

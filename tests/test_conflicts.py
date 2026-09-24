@@ -175,3 +175,11 @@ def test_a_slot_nobody_could_be_assigned_to_is_not_a_conflict(dataset):
     resting = replace(dataset, resting={TARGET: {"dylan": frozenset({"clinic_1"})}})
     assert found(dataset, req("pin", PIN), req("free", FREE))  # the same pair, not resting
     assert found(resting, req("pin", PIN), req("free", FREE)) == ()
+
+
+def test_not_all_of_together_claims_no_one_slot(dataset):
+    """Riflery in clinic 1 is fine beside "not riflery in both blocks", so it is no conflict."""
+    both = "REQUEST staff.dylan NOT DO ANY activities.clinics.weapons DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}"
+    assert found(dataset, req("pin", PIN), req("not-both", both)) == ()
+    either = "REQUEST staff.dylan NOT DO ANY activities.clinics.weapons DURING ANY {blocks.clinic_1 + blocks.clinic_2}"
+    assert len(found(dataset, req("pin", PIN), req("neither", either))) == 1

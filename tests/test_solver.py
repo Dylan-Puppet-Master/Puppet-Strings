@@ -1679,3 +1679,26 @@ def test_a_target_session_request_is_skipped_on_a_date_in_no_session(dataset):
     )
     result = solve(replace(camp, requests=(request,)))
     assert result.feasible and ids(result.inactive) == ["camp-1"]
+
+
+def test_not_all_of_forbids_them_together_and_allows_either():
+    """`NOT DO … DURING ALL_OF {a + b}` is not both; either one on its own is fine."""
+    forbid = request(
+        "not-both",
+        "REQUEST staff.lisa NOT DO 'desk' DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}",
+        Priority.MUST_HAPPEN,
+    )
+
+    def desk(*blocks):
+        asks = [
+            request(
+                f"desk-{b}", f"REQUEST staff.lisa DO 'desk' DURING blocks.{b}", Priority.MUST_HAPPEN
+            )
+            for b in blocks
+        ]
+        return run(dataset([staff("Lisa")], [], requests=[forbid, *asks]))
+
+    one = desk("clinic_1")
+    assert one.feasible and [a.block for a in where(one, activity="desk")] == ["clinic_1"]
+    both = desk("clinic_1", "clinic_2")
+    assert not both.feasible and "not-both" in both.conflicts

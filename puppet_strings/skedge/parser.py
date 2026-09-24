@@ -422,9 +422,11 @@ def _with_clauses(items) -> ast.Pattern:
 def _check_pools(declaration: ast.Declaration) -> None:
     """Right of NOT, and in a pattern, a set is matched rather than chosen.
 
-    So a set there takes ANY, which says so, rather than ALL_OF or ANY n, and holds no
-    `(ANY n …)` group; and no DURING there chooses blocks in a row. Who is alongside is
-    the exception: WITH and WITHOUT count company, and say how many. Checked once the
+    So a set there takes ANY, which says so, rather than ANY n, and holds no `(ANY n …)`
+    group; and no DURING there chooses blocks in a row. Right of NOT a set may also take
+    ALL_OF: what must not happen is all of them together. A pattern matches one assignment
+    at a time, which cannot be all of anything, so it may not. Who is alongside is the
+    exception: WITH and WITHOUT count company, and say how many. Checked once the
     definitions are written in, so a group that arrives by a name is caught the same as one
     written out.
     """
@@ -439,7 +441,16 @@ def _check_pools(declaration: ast.Declaration) -> None:
                     "a run, count it: AT_MOST 1 CONSECUTIVE <who> DO …",
                     part.pos,
                 )
-        parts = list(negated)
+            selector = getattr(part, "selector", part)
+            if isinstance(part, ast.With | ast.Without) or not isinstance(selector, ast.Selector):
+                continue
+            if selector.quantifier == ast.ANY_OF or ast.picks(selector.expr):
+                raise _error(
+                    "right of NOT a set takes ANY, for any of these, or ALL_OF, for all of "
+                    "them together, not ANY n",
+                    selector.pos,
+                )
+        parts = []
         for pattern in ast.patterns(line):
             parts += [pattern.who, pattern.what, *pattern.clauses]
         for part in parts:
@@ -452,8 +463,8 @@ def _check_pools(declaration: ast.Declaration) -> None:
             selector = getattr(part, "selector", part)
             if isinstance(selector, ast.Selector) and ast.chooses(selector):
                 raise _error(
-                    "a set here is matched, not chosen, so it takes ANY or EACH_OF, "
-                    "not ALL_OF or ANY n",
+                    "a pattern matches one assignment at a time, so a set in it takes ANY or "
+                    "EACH_OF, not ALL_OF or ANY n",
                     selector.pos,
                 )
 
