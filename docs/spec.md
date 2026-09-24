@@ -97,7 +97,8 @@ define      : NAME ":" (ALL | EACH | amount | any_n)? set_
 if_         : _IF _NL* condition
 unless      : _UNLESS _NL* condition
 labeled     : NAME ":" request
-gap         : _GAP NAME _TO NAME amount
+// With no amount, the second is only after the first: AT_LEAST 0m.
+gap         : _GAP NAME _TO NAME amount?
 
 // A statement is its subject, verb and object in that order, with its clauses around them.
 // DURING and ON may go anywhere; AS_ROLE, FOR, WITH and WITHOUT describe the activity, so
@@ -610,7 +611,7 @@ A declaration is lines of these kinds, in any order.
 | Definition | `x: s` | A name for a set (§6.3). |
 | Condition | `IF <test>` | The statements apply only when this holds. |
 | Negative condition | `UNLESS <test>` | The statements apply only when this does not hold. |
-| Gap | `GAP a TO b <amount>` | Relates the assignments of the `REQUEST` labeled `a` to those of the one labeled `b`. |
+| Gap | `GAP a TO b [<amount>]` | Relates the assignments of the `REQUEST` labeled `a` to those of the one labeled `b`. |
 
 A test is a statement that says what happens, true or false of the day, past dates and
 today — with no count and no `FOR` it holds when it happens at all — or several tests
@@ -640,10 +641,10 @@ whether or not the requirements are met. A condition governs both.
 
 ### 10.1 GAP
 
-`GAP a TO b <bound> <duration>` compares the assignments of the two labeled requirements.
-Every assignment of `a` must end before any of `b` starts, and the time from the end of the
-last `a` to the start of the first `b` must meet the bound. `GAP a TO b AT_LEAST 0m` is
-plain ordering, and the one place a zero amount is allowed. The times compared are real
+`GAP a TO b [<bound> <duration>]` compares the assignments of the two labeled
+requirements. Every assignment of `a` must end before any of `b` starts, and the time from
+the end of the last `a` to the start of the first `b` must meet the bound. With no bound it
+is only that order, as `AT_LEAST 0m` is, which is the one place a zero amount is allowed. The times compared are real
 starts and ends, so a task shorter than its block may sit anywhere in it to satisfy a gap.
 
 A gap spans days. Times are counted from midnight on the date being scheduled, so an

@@ -18,7 +18,8 @@ define      : NAME ":" (ALL | EACH | amount | any_n)? set_
 if_         : _IF _NL* condition
 unless      : _UNLESS _NL* condition
 labeled     : NAME ":" request
-gap         : _GAP NAME _TO NAME amount
+// With no amount, the second is only after the first: AT_LEAST 0m.
+gap         : _GAP NAME _TO NAME amount?
 
 // A statement is its subject, verb and object in that order, with its clauses around them.
 // DURING and ON may go anywhere; AS_ROLE, FOR, WITH and WITHOUT describe the activity, so

@@ -458,3 +458,13 @@ def test_a_role_straight_after_with_is_the_companys():
         "DURING blocks.a AS_ROLE roles.trainee"
     ).lines
     assert ast.clause(before.clauses, ast.With).role is None  # not straight after: the subject's
+
+
+def test_a_gap_with_no_amount_is_only_the_order():
+    text = (
+        "a: REQUEST staff.rob DO 'x' DURING blocks.a\nb: REQUEST staff.rob DO 'y' DURING blocks.b\n"
+    )
+    (bare,) = parse(text + "GAP a TO b").gaps
+    (zero,) = parse(text + "GAP a TO b AT_LEAST 0m").gaps
+    assert (bare.amount.bound, bare.amount.value, bare.amount.duration) == (ast.AT_LEAST, 0, True)
+    assert bare.amount.value == zero.amount.value

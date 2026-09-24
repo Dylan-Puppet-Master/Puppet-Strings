@@ -600,8 +600,8 @@ afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.playst
 GAP morning TO afternoon AT_MOST 5h
 ```
 
-`GAP a TO b` means `b` starts after `a` ends, and the time between meets the amount.
-`GAP a TO b AT_LEAST 0m` is plain ordering. Real start and end times are compared, so a
+`GAP a TO b` means `b` starts after `a` ends, and the time between meets the amount, if
+it gives one. With none, `GAP a TO b` is only that order, however long between. Real start and end times are compared, so a
 one-hour task may slide around inside its 75-minute block to make a gap work. A labeled
 requirement is timed from what it makes, so it takes no count but one `AT_LEAST`, and no
 `FOR` over a pool.
@@ -1011,11 +1011,14 @@ Priority `HIGH`.
 
 ### The same person sets up and tears down
 
+The teardown can be any time after the setup, so its blocks are all of them and the `GAP`
+keeps it after.
+
 ```skedge
 EXACTLY 1 p IN staff.counselor
-first: REQUEST p DO 'campfire setup' DURING blocks.clinic_4
-last:  REQUEST p DO 'campfire teardown' DURING blocks.evening
-GAP first TO last AT_LEAST 0m
+setup:    REQUEST p DO 'campfire setup' DURING blocks.clinic_4
+teardown: REQUEST p DO 'campfire teardown' DURING ANY blocks.all
+GAP setup TO teardown
 ```
 
 Priority `MEDIUM`.

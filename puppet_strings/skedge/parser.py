@@ -287,8 +287,10 @@ class _Builder(Transformer):
         return replace(statement, label=str(name))
 
     def gap(self, meta, items):
-        first, second, amount = items
-        return ast.Gap(str(first), str(second), amount, _pos(meta))
+        """`GAP a TO b [amount]`; with none, b is only after a, `AT_LEAST 0m`."""
+        first, second, *amount = items
+        after = amount[0] if amount else ast.Amount(ast.AT_LEAST, 0, True, _pos(meta))
+        return ast.Gap(str(first), str(second), after, _pos(meta))
 
     # -- statements -------------------------------------------------------------------------
 
