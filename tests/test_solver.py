@@ -5,7 +5,7 @@ import pytest
 
 from puppet_strings.config import Config
 from puppet_strings.model import Priority, Request
-from puppet_strings.solver.solve import RequestError, solve
+from puppet_strings.solver.solve import RequestError, Resolutions, solve
 from tests.build import (
     BLOCKS,
     OK,
@@ -1708,3 +1708,51 @@ def test_not_all_of_forbids_them_together_and_allows_either():
     assert one.feasible and [a.block for a in where(one, activity="desk")] == ["clinic_1"]
     both = desk("clinic_1", "clinic_2")
     assert not both.feasible and "not-both" in both.conflicts
+
+
+# -- copies resolved beforehand ---------------------------------------------------------------
+
+
+def _known(ds):
+    from puppet_strings.skedge.validate import validate_request
+
+    return Resolutions(ds, {r.id: (r, validate_request(r, ds)) for r in ds.requests})
+
+
+def test_a_solve_uses_copies_resolved_beforehand(monkeypatch):
+    import puppet_strings.solver.solve as solving
+
+    ds = dataset([staff("Dylan")], [], requests=[request("x", "REQUEST staff.dylan DO 'x'")])
+    known = _known(ds)
+    checked = []
+    real = solving.validate_request
+    monkeypatch.setattr(
+        solving, "validate_request", lambda r, d: checked.append(r.id) or real(r, d)
+    )
+    assert where(solve(ds, CONFIG, known=known), activity="x")
+    assert checked == []
+
+
+def test_a_request_edited_since_or_a_day_changed_since_is_resolved_again(monkeypatch):
+    import puppet_strings.solver.solve as solving
+
+    ds = dataset([staff("Dylan")], [], requests=[request("x", "REQUEST staff.dylan DO 'x'")])
+    known = _known(ds)
+    edited = replace(ds, requests=(request("x", "REQUEST staff.dylan DO 'y'"),))
+    checked = []
+    real = solving.validate_request
+    monkeypatch.setattr(
+        solving, "validate_request", lambda r, d: checked.append(r.id) or real(r, d)
+    )
+    assert where(solve(edited, CONFIG, known=known), activity="y")
+    away = replace(ds, staff_categories={**ds.staff_categories, "all": frozenset()})
+    solve(away, CONFIG, known=known)
+    assert checked == ["x", "x"]
+
+
+def test_an_invalid_request_is_still_refused_with_copies_resolved_beforehand():
+    bad = request("bad", "REQUEST staff.dylan DO 'x' DURING ANY 2 blocks.all")
+    ds = dataset([staff("Dylan")], [], requests=[bad])
+    known = Resolutions(ds, {"bad": (bad, ())})  # what the window keeps for an invalid one
+    with pytest.raises(RequestError, match="write AT_LEAST 2"):
+        solve(ds, CONFIG, known=known)

@@ -158,7 +158,8 @@ class SolveWorker(QThread):
 
         try:
             self.dataset = self.store.for_solving()
-            result = solve(self.dataset, self.store.config, self.same_day, self.cancel)
+            known = self.store.resolutions()
+            result = solve(self.dataset, self.store.config, self.same_day, self.cancel, known)
         except Cancelled:
             self.stopped.emit()
         except (RequestError, LoadError) as e:

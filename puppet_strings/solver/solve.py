@@ -1,5 +1,7 @@
 """Solve one target date: build the model from a Dataset and return a Result."""
 
+from dataclasses import dataclass, field
+
 from ortools.sat.python import cp_model
 
 from puppet_strings.config import Config
@@ -16,7 +18,34 @@ from puppet_strings.solver.tiers import Cancel, Cancelled, Deadline, solve_tiers
 from puppet_strings.solver.variables import Slot, Variables
 
 # Cancel and Cancelled live in tiers
-__all__ = ["Cancel", "Cancelled", "RequestError", "build_model", "solve"]
+__all__ = ["Cancel", "Cancelled", "RequestError", "Resolutions", "build_model", "solve"]
+
+
+@dataclass(frozen=True)
+class Resolutions:
+    """Requests already resolved, and the dataset they were resolved against.
+
+    The request manager resolves every request when it loads a day, to list and check
+    them; handing those copies to the solve spares it doing the same work again.
+    """
+
+    dataset: Dataset
+    copies: dict[str, tuple[Request, tuple[Resolved, ...]]] = field(default_factory=dict)
+
+
+# What resolving a request reads. The past days a solve adds are not among them.
+RESOLVED_AGAINST = (
+    "target",
+    "staff",
+    "staff_categories",
+    "activities",
+    "activity_categories",
+    "blocks",
+    "block_categories",
+    "calendar",
+    "spans",
+    "mappings",
+)
 
 
 class RequestError(Exception):
@@ -33,12 +62,15 @@ def solve(
     config: Config | None = None,
     same_day: bool = False,
     cancel: Cancel | None = None,
+    known: Resolutions | None = None,
 ) -> Result:
     """Schedule the dataset's target date.
 
     With `same_day`, the schedule already published for that date is held together: keeping
     it matters more than anything but staffing the clinics, and the result lists what moved.
     Passing a `Cancel` lets another thread stop the solve, which raises `Cancelled`.
+    `known` are copies already resolved, used for each request that is still as it was
+    when they were made, against names that are still the same.
 
     `time_limit_seconds` is the budget for all of this, building the model included, so a
     solve takes about as long as the setting says however many tiers the requests use.
@@ -50,8 +82,13 @@ def solve(
     # a solve is right about who is here however its dataset was put together.
     dataset = apply_exclusions(dataset)
     deadline = Deadline(config.time_limit_seconds)
+    reuse = known.copies if known is not None and _same_names(known.dataset, dataset) else {}
     copies = []
     for request in dataset.requests:
+        cached = reuse.get(request.id)
+        if cached is not None and cached[0] == request and cached[1]:
+            copies += [(request, copy) for copy in cached[1]]
+            continue  # an invalid one resolved to nothing, so it is still checked below
         try:
             resolved = validate_request(request, dataset)
         except NoSession:
@@ -122,6 +159,11 @@ def build_model(dataset: Dataset, copies: list[tuple[Request, Resolved]], cancel
     variables.finish()
     add_structural_constraints(model, variables, dataset)
     return model, variables, compiler, active
+
+
+def _same_names(a: Dataset, b: Dataset) -> bool:
+    """Whether a request resolves the same against both: every name means the same."""
+    return a is b or all(getattr(a, f) == getattr(b, f) for f in RESOLVED_AGAINST)
 
 
 def _check_adhoc_tasks(copies: list[tuple[Request, Resolved]]) -> None:

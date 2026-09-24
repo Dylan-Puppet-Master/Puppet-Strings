@@ -197,6 +197,13 @@ class RequestStore:
         """
         return apply_exclusions(replace(self.dataset, requests=tuple(self.requests)))
 
+    def resolutions(self):
+        """The copies each request of the day resolved to, for a solve to use again."""
+        from puppet_strings.solver.solve import Resolutions
+
+        copies = {r.id: (r, self.resolved[r.id]) for r in self.requests if r.id in self.resolved}
+        return Resolutions(self.dataset, copies)
+
     def for_solving(self) -> Dataset:
         """The current dataset with the published days behind the target read into it.
 
