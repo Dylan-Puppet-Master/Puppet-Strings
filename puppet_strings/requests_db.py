@@ -56,8 +56,30 @@ SCHEMA_VERSION = "2"
 SYNTAX_VERSION = 3
 DEFAULT_SCOPE = SESSION  # what a request written in the app is read over, unless it says
 OLD_IMPORT_TAG = "generated"  # what IMPORT_TAG was called before, renamed on open
-# A date name from before `dates.session.four.week.two` became `dates.session_four.week_two`
-OLD_DATE_NAME = re.compile(r"\bdates\.(?:session\.|other\.)[a-z0-9_.]*")
+DATE_NAME = re.compile(r"\bdates\.[a-z0-9_.]*")
+# How sessions and weeks were numbered before `dates.session_four` became `dates.session_4`
+NUMBER_WORDS = (
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+    "twenty",
+)
 
 _FIELDS = (
     "id",
@@ -298,25 +320,26 @@ def _mark_syntax(db: sqlite3.Connection) -> None:
 
 
 def _rename_dates(db: sqlite3.Connection) -> None:
-    """Write the old nested date names the way they are written now.
+    """Write the old date names the way they are written now.
 
-    `dates.session.four.week.two.monday` is `dates.session_four.week_two.monday`, and
-    `dates.other.family_camp.all` is `dates.family_camp.all`. A request from before the
-    rename would otherwise stop validating the day the app is updated.
+    `dates.session.four.week.two.monday` and `dates.session_four.week_two.monday` are
+    `dates.session_4.week_2.monday`, and `dates.other.family_camp.all` is
+    `dates.family_camp.all`. A request from before a rename would otherwise stop validating
+    the day the app is updated.
     """
-    rows = db.execute(
-        """SELECT "id", "skedge" FROM requests
-        WHERE "skedge" LIKE '%dates.session.%' OR "skedge" LIKE '%dates.other.%'"""
-    ).fetchall()
-    for id, skedge in rows:
-        renamed = OLD_DATE_NAME.sub(lambda m: _flat_date_name(m.group()), skedge)
-        db.execute('UPDATE requests SET "skedge" = ? WHERE "id" = ?', (renamed, id))
-    if rows:
+    rows = db.execute("""SELECT "id", "skedge" FROM requests WHERE "skedge" LIKE '%dates.%'""")
+    changed = [
+        (renamed, id)
+        for id, skedge in rows.fetchall()
+        if (renamed := DATE_NAME.sub(lambda m: _date_name_now(m.group()), skedge)) != skedge
+    ]
+    db.executemany('UPDATE requests SET "skedge" = ? WHERE "id" = ?', changed)
+    if changed:
         db.commit()
 
 
-def _flat_date_name(name: str) -> str:
-    """`dates.session.four.week.two.all` as it is written now: `dates.session_four.week_two.all`."""
+def _date_name_now(name: str) -> str:
+    """`dates.session.four.week.two.all` as it is written now: `dates.session_4.week_2.all`."""
     parts = name.split(".")
     flat = [parts[0]]
     rest = iter(parts[1:])
@@ -325,6 +348,9 @@ def _flat_date_name(name: str) -> str:
             continue
         if part in ("session", "week"):
             part = f"{part}_{next(rest, '')}".rstrip("_")
+        kind, _, number = part.partition("_")
+        if kind in ("session", "week") and number in NUMBER_WORDS:
+            part = f"{kind}_{NUMBER_WORDS.index(number) + 1}"
         flat.append(part)
     return ".".join(flat)
 

@@ -256,7 +256,7 @@ def test_the_old_generated_tag_is_renamed_on_open(fixtures_copy):
 
 
 def test_old_nested_date_names_are_rewritten_on_open(fixtures_copy):
-    """A request written before `dates.session.one` became `dates.session_one` still loads."""
+    """A request written before `dates.session.one` became `dates.session_1` still loads."""
     old = "REQUEST staff.dylan DO 'x' ON {dates.session.one.week.two.all + dates.other.camp.all}"
     with sqlite3.connect(fixtures_copy / FIXTURE_FILE) as db:
         db.execute("UPDATE requests SET skedge = ? WHERE rowid = 1", (old,))
@@ -265,9 +265,20 @@ def test_old_nested_date_names_are_rewritten_on_open(fixtures_copy):
         for r in RequestDb(fixtures_copy / FIXTURE_FILE).every()
         if "dates.camp" in r.skedge
     ]
-    assert (
-        renamed == "REQUEST staff.dylan DO 'x' ON {dates.session_one.week_two.all + dates.camp.all}"
-    )
+    assert renamed == "REQUEST staff.dylan DO 'x' ON {dates.session_1.week_2.all + dates.camp.all}"
+
+
+def test_date_names_in_words_are_rewritten_in_digits_on_open(fixtures_copy):
+    """A request written before `dates.session_one` became `dates.session_1` still loads."""
+    old = "REQUEST staff.dylan DO 'x' ON {dates.session_twelve.week_two.all + dates.camp.all}"
+    with sqlite3.connect(fixtures_copy / FIXTURE_FILE) as db:
+        db.execute("UPDATE requests SET skedge = ? WHERE rowid = 1", (old,))
+    (renamed,) = [
+        r.skedge
+        for r in RequestDb(fixtures_copy / FIXTURE_FILE).every()
+        if "dates.camp" in r.skedge
+    ]
+    assert renamed == "REQUEST staff.dylan DO 'x' ON {dates.session_12.week_2.all + dates.camp.all}"
 
 
 def test_requests_written_in_an_older_skedge_are_rewritten_once(fixtures_copy, dataset):

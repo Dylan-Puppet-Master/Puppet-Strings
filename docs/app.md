@@ -276,7 +276,7 @@ before Solve is pressed. Pressing Solve sooner reads it then instead.
 
 **Calendar.** Below the names, a calendar with camp days (the dates on the Calendar sheet)
 shaded. Down its left-hand side, each week is labelled with the session and week it is,
-`S4` over `W2`, taken from the Calendar sheet — the numbers `dates.session_four.week_two.all`
+`S4` over `W2`, taken from the Calendar sheet — the numbers `dates.session_4.week_2.all`
 is built from, rather than the week of the year. Click any date to insert it into the
 Skedge editor at the cursor, as `2026-06-15`.
 
@@ -286,8 +286,8 @@ on a Sunday, and so does the pane before any sheet has been read, whatever the m
 own idea of the first day of the week is.
 
 **Saving a request about other dates.** A request does not have to be about the date being
-scheduled: `ON ALL_OF dates.session_two.week_one.all` is a perfectly good request to write in
+scheduled: `ON ALL_OF dates.session_2.week_1.all` is a perfectly good request to write in
 the middle of session 1. It will do nothing to the schedule you are about to solve, though,
-which is easy to write by accident — a mistyped date, or `session_two` where you meant
-`session_one`. So saving such a request asks first, names the dates it *is* about, and
+which is easy to write by accident — a mistyped date, or `session_2` where you meant
+`session_1`. So saving such a request asks first, names the dates it *is* about, and
 lets you either save it anyway or go back to editing.

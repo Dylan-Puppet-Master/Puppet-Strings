@@ -63,28 +63,6 @@ ORDINAL_WORDS = (
     "nineteenth",
     "twentieth",
 )
-CARDINAL_WORDS = (
-    "one",
-    "two",
-    "three",
-    "four",
-    "five",
-    "six",
-    "seven",
-    "eight",
-    "nine",
-    "ten",
-    "eleven",
-    "twelve",
-    "thirteen",
-    "fourteen",
-    "fifteen",
-    "sixteen",
-    "seventeen",
-    "eighteen",
-    "nineteen",
-    "twenty",
-)
 MAX_COUNTED = len(ORDINAL_WORDS)
 
 ORDINALS = ORDINAL_WORDS[:6]
@@ -259,13 +237,13 @@ WEEKEND = "weekend"
 DAY_TYPES = (FIRST_DAY, LAST_DAY, WEEKDAY, WEEKEND)
 
 DAYS_PER_WEEK = 7
-SESSION_PREFIX = "session_"  # `dates.session_four`
-WEEK_PREFIX = "week_"  # `dates.session_four.week_two`
+SESSION_PREFIX = "session_"  # `dates.session_4`
+WEEK_PREFIX = "week_"  # `dates.session_4.week_2`
 TARGET = "target"  # `dates.target`, and `session_target` and `week_target` around it
 SESSION_TARGET = f"{SESSION_PREFIX}{TARGET}"
 # `dates.<name>` a row that is not a numbered session cannot be called, since these are taken
 RESERVED_DATE_NAMES = frozenset(
-    {"season", TARGET, SESSION_TARGET, *(f"{SESSION_PREFIX}{w}" for w in CARDINAL_WORDS)}
+    {"season", TARGET, SESSION_TARGET, *(f"{SESSION_PREFIX}{n}" for n in range(1, MAX_COUNTED + 1))}
 )
 
 
@@ -273,7 +251,7 @@ RESERVED_DATE_NAMES = frozenset(
 class Span:
     """One row of the Calendar sheet: a named run of days running one programme.
 
-    A main season span is also numbered, in sheet order, which is what `dates.session_four`
+    A main season span is also numbered, in sheet order, which is what `dates.session_4`
     is named after. Anything else is reached by its own name, as `dates.family_camp`.
     """
 
@@ -286,9 +264,9 @@ class Span:
 
     @property
     def date_name(self) -> str:
-        """What it is called in the `dates` namespace: `session_four`, or its own name."""
+        """What it is called in the `dates` namespace: `session_4`, or its own name."""
         if self.session is not None:
-            return f"{SESSION_PREFIX}{CARDINAL_WORDS[self.session - 1]}"
+            return f"{SESSION_PREFIX}{self.session}"
         return self.id
 
     @property

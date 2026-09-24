@@ -12,7 +12,6 @@ from difflib import get_close_matches
 from functools import cache
 
 from puppet_strings.model import (
-    CARDINAL_WORDS,
     LIFEGUARD_ROLES,
     POSITION_ROLES,
     SESSION_TARGET,
@@ -359,10 +358,10 @@ def date_names(dataset: Dataset) -> dict[str, Named]:
     same names, so what can be said of one can be said of any other:
 
         dates.season.all                     every camp day
-        dates.session_four.all               every date of session 4
-        dates.session_four.mondays           every Monday of it
-        dates.session_four.week_two.all      every date of its second week
-        dates.session_four.week_two.monday   one date
+        dates.session_4.all               every date of session 4
+        dates.session_4.mondays           every Monday of it
+        dates.session_4.week_2.all      every date of its second week
+        dates.session_4.week_2.monday   one date
         dates.family_camp.all                a span that is not a numbered session
 
     Those names are the same on every day of the season. The ones with `target` in them
@@ -391,7 +390,7 @@ def _one_span(dataset: Dataset, span) -> dict[str, Named]:
     """One span's own names, with its weeks nested underneath."""
     names = _span_names(dataset.span_dates(span))
     for week, dates in dataset.span_weeks(span).items():
-        _add(names, f"{WEEK_PREFIX}{CARDINAL_WORDS[week - 1]}", _week_names(dates))
+        _add(names, f"{WEEK_PREFIX}{week}", _week_names(dates))
     return names
 
 

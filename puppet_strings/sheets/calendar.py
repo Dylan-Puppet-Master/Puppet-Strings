@@ -4,7 +4,7 @@ Columns: `name`, `start date`, `end date`, `program type`. A row covers every da
 start to its end, so a fortnight is one row rather than fourteen.
 
 The main season rows are numbered in sheet order, and that number is what
-`dates.session_four` is named after; anything else is reached by its name, as
+`dates.session_4` is named after; anything else is reached by its name, as
 `dates.family_camp`. Weeks are not written down: a span's week 1 is its first seven
 days, week 2 the next seven, which is why a row aligned to calendar weeks shows the week
 labels you would expect down the side of the calendar pane.

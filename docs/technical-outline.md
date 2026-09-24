@@ -221,7 +221,7 @@ but does not define.
 | `program type` | `main season` or `other` | `main season` |
 
 Main season rows are numbered in sheet order, and that number is the name: session 3 is
-`dates.session_three.all` and its second week `dates.session_three.week_two.all`. Anything
+`dates.session_3.all` and its second week `dates.session_3.week_2.all`. Anything
 else is `dates.<name>.all`. Weeks are not written down — a span's week is its days
 seven at a time from the start — and nor are day types: a date is `weekday` or `weekend` by
 the calendar and `first_day` or `last_day` at the ends of its span, which is what the
@@ -710,9 +710,9 @@ Recorded so the outline matches the code.
 - **The `date` namespace is built from session and week numbers** (2026-09-18). The
   Calendar sheet's `session` column holds a number rather than a name, and a new `week`
   column numbers the days within each session. Every date name is then a span or a name
-  inside one: `dates.season.all`, `dates.session_four.all`, `dates.session_four.week_two.all`, and
-  `dates.session_four.week_two.monday`. `dates.session_one.all` is the session holding the
-  target date and `dates.session_one.week_one.all` the week; the old `dates.session_all`,
+  inside one: `dates.season.all`, `dates.session_4.all`, `dates.session_4.week_2.all`, and
+  `dates.session_4.week_2.monday`. `dates.session_1.all` is the session holding the
+  target date and `dates.session_1.week_1.all` the week; the old `dates.session_all`,
   `dates.season.all` and `date.<session name>.all` are gone. A span carries `first`,
   `last`, the weekday sets and the counted occurrences; a week, reaching each weekday
   once, carries the weekday as a single date. An unknown name now suggests the nearest

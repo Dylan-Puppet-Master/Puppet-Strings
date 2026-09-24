@@ -66,7 +66,7 @@ def test_a_block_the_day_does_not_have_is_no_block_to_be_taken_out_of(dataset):
 def test_excluding_everybody_in_a_category_on_several_dates(dataset):
     text = (
         "EXCLUDE EACH_OF staff.counselor DO 'training' "
-        "DURING ALL_OF blocks.all_clinics ON ALL_OF dates.session_one.week_one.all"
+        "DURING ALL_OF blocks.all_clinics ON ALL_OF dates.session_1.week_1.all"
     )
     ds = away(dataset, text)
     assert len(ds.excluded) > 1  # every date of the week, not just the one being scheduled

@@ -31,7 +31,7 @@ wrong = [
 id = "free-day-off"
 title = "Clear all day"
 prompt = "Vic is on call all Thursday: at camp, but with nothing assigned in any block."
-answer = "REQUEST staff.vic FREE DURING ALL_OF blocks.all ON dates.session_six.week_one.thursday"
+answer = "REQUEST staff.vic FREE DURING ALL_OF blocks.all ON dates.session_6.week_1.thursday"
 priority = "MUST_HAPPEN"
 hints = ["Free in every block: FREE DURING ALL_OF blocks.all."]
 alternatives = ["REQUEST staff.vic FREE DURING ALL_OF blocks.all ON 2026-08-06", "REQUEST staff.vic FREE DURING EACH_OF blocks.all ON 2026-08-06"]
@@ -121,7 +121,7 @@ title = "No weapons for counselors"
 prompt = "No counselor runs any weapons clinic on Wednesday. (One request per counselor.)"
 answer = "REQUEST EACH_OF staff.counselors NOT DO ANY activities.clinics.weapons ON 2026-08-05"
 priority = "HIGH"
-alternatives = ["REQUEST EACH_OF staff.counselors NOT DO ANY activities.clinics.weapons ON dates.session_six.week_one.wednesday"]
+alternatives = ["REQUEST EACH_OF staff.counselors NOT DO ANY activities.clinics.weapons ON dates.session_6.week_1.wednesday"]
 wrong = ["REQUEST EACH_OF staff.counselors NOT DO ANY activities.clinics.weapons"]
 
 [[problem]]
@@ -172,6 +172,6 @@ wrong = ["REQUEST staff.hails NOT FREE DURING blocks.embers"]
 id = "free-whole-session-off"
 title = "Never on the lake"
 prompt = "All session long, Pip never does 'lifeguard'."
-answer = "REQUEST staff.pip NOT DO 'lifeguard' ON ANY dates.session_six.all"
+answer = "REQUEST staff.pip NOT DO 'lifeguard' ON ANY dates.session_6.all"
 alternatives = ["REQUEST staff.pip NOT DO 'lifeguard' ON ANY {2026-08-02 .. 2026-08-08}"]
 wrong = ["REQUEST staff.pip NOT DO 'lifeguard'"]

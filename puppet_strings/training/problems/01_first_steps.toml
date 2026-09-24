@@ -67,7 +67,7 @@ answer = "REQUEST staff.rob DO 'ropes check' DURING blocks.clinic_1 ON dates.tar
 hints = ["ON comes after DURING.", "The day being scheduled is dates.target."]
 explain = "dates.target is the day the schedule is being made for. Leaving ON out means exactly the same thing."
 alternatives = ["REQUEST staff.rob DO 'ropes check' DURING blocks.clinic_1"]
-wrong = ["REQUEST staff.rob DO 'ropes check' DURING blocks.clinic_1 ON dates.session_six.week_one.wednesday"]
+wrong = ["REQUEST staff.rob DO 'ropes check' DURING blocks.clinic_1 ON dates.session_6.week_1.wednesday"]
 
 [[problem]]
 id = "first-on-a-date"
@@ -75,16 +75,16 @@ title = "A different day"
 prompt = "Vic does 'zip line inspection' during clinic 2 on Wednesday, August 5th."
 answer = "REQUEST staff.vic DO 'zip line inspection' DURING blocks.clinic_2 ON 2026-08-05"
 hints = ["Dates are written year-month-day: 2026-08-05.", "Click a day in the Calendar pane to put its date in the editor."]
-explain = "A date can be written as it is, or by name: dates.session_six.week_one.wednesday is the same day."
-alternatives = ["REQUEST staff.vic DO 'zip line inspection' DURING blocks.clinic_2 ON dates.session_six.week_one.wednesday"]
+explain = "A date can be written as it is, or by name: dates.session_6.week_1.wednesday is the same day."
+alternatives = ["REQUEST staff.vic DO 'zip line inspection' DURING blocks.clinic_2 ON dates.session_6.week_1.wednesday"]
 wrong = ["REQUEST staff.vic DO 'zip line inspection' DURING blocks.clinic_2 ON 2026-08-06"]
 
 [[problem]]
 id = "first-friday"
 title = "Friday laundry"
 prompt = "Emily does 'laundry' during rest hour on the Friday of this session."
-answer = "REQUEST staff.emily DO 'laundry' DURING blocks.rest_hour ON dates.session_six.week_one.friday"
-hints = ["This session is session six. Its Friday is dates.session_six.week_one.friday, or 2026-08-07."]
+answer = "REQUEST staff.emily DO 'laundry' DURING blocks.rest_hour ON dates.session_6.week_1.friday"
+hints = ["This session is session six. Its Friday is dates.session_6.week_1.friday, or 2026-08-07."]
 alternatives = ["REQUEST staff.emily DO 'laundry' DURING blocks.rest_hour ON 2026-08-07"]
 wrong = ["REQUEST staff.emily DO 'laundry' DURING blocks.rest_hour ON 2026-08-06"]
 
@@ -92,8 +92,8 @@ wrong = ["REQUEST staff.emily DO 'laundry' DURING blocks.rest_hour ON 2026-08-06
 id = "first-sunday"
 title = "Opening day"
 prompt = "On the first day of the session, Lisa does 'check-in' during lunch."
-answer = "REQUEST staff.lisa DO 'check-in' DURING blocks.lunch ON dates.session_six.first"
-hints = ["The first day of session six is dates.session_six.first — a Sunday."]
+answer = "REQUEST staff.lisa DO 'check-in' DURING blocks.lunch ON dates.session_6.first"
+hints = ["The first day of session six is dates.session_6.first — a Sunday."]
 explain = "Sundays and Saturdays only run meals and rest hour, so only those blocks exist on them."
 alternatives = ["REQUEST staff.lisa DO 'check-in' DURING blocks.lunch ON 2026-08-02"]
 wrong = ["REQUEST staff.lisa DO 'check-in' DURING blocks.lunch ON 2026-08-03"]
@@ -102,9 +102,9 @@ wrong = ["REQUEST staff.lisa DO 'check-in' DURING blocks.lunch ON 2026-08-03"]
 id = "first-last-day"
 title = "Closing day"
 prompt = "On the last day of the session, David does 'pickup' during breakfast."
-answer = "REQUEST staff.david DO 'pickup' DURING blocks.breakfast ON dates.session_six.last"
+answer = "REQUEST staff.david DO 'pickup' DURING blocks.breakfast ON dates.session_6.last"
 alternatives = ["REQUEST staff.david DO 'pickup' DURING blocks.breakfast ON 2026-08-08"]
-wrong = ["REQUEST staff.david DO 'pickup' DURING blocks.breakfast ON dates.session_six.first"]
+wrong = ["REQUEST staff.david DO 'pickup' DURING blocks.breakfast ON dates.session_6.first"]
 
 [[problem]]
 id = "first-comment"
