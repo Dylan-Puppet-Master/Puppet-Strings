@@ -168,6 +168,10 @@ def test_a_count_moves_onto_the_set_it_counts(dataset, old, new):
             "REQUEST staff.dylan DO 'x' DURING AT_LEAST 1 blocks.all "
             "ON AT_LEAST 1 dates.session_1.all",
         ),
+        (  # a run shared by two people has no binding: left whole, not half rewritten
+            "REQUEST ANY 2 staff.counselor DO 'x' DURING ANY 3 blocks.all CONSECUTIVE",
+            "REQUEST ANY 2 staff.counselor DO 'x' DURING ANY 3 CONSECUTIVE blocks.all",
+        ),
         (
             "REQUEST staff.rob DO 'x' WITH ANY 2 staff.counselor DURING blocks.clinic_1",
             "REQUEST staff.rob DO 'x' WITH AT_LEAST 2 staff.counselor DURING blocks.clinic_1",

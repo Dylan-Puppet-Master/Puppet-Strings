@@ -293,25 +293,33 @@ def _shared_choices(node: Tree, text: str, edits: list, bindings: list, taken: s
     """ANY n in a requirement as a count, but after a count of several as a binding.
 
     Everyone the old ANY 2 chose shared the ANY 1 after it; a count of the blocks after a
-    count of two people would be each one's own, so the shared choice is named instead.
+    count of two people would be each one's own, so the shared choice is named instead. A
+    run of blocks chosen once has no binding, so a statement holding one is left whole for
+    somebody to rewrite, rather than half rewritten.
     """
+    mine: list = []
+    named: list[str] = []
+    names: list[str] = []
     several = False  # whether a count before this one takes more than one item
     for _, chooser in _choosers(node):
         any_n = next(iter(_direct(chooser, "any_n")), None)
         if any_n is None:
             continue
         if not several:
-            edits.append(_counted(any_n, "AT_LEAST"))
+            mine.append(_counted(any_n, "AT_LEAST"))
             several = int(str(any_n.children[-1])) > 1
             continue
         n = str(any_n.children[-1])
-        name = _fresh("chosen", taken)
         written = text[any_n.meta.end_pos : chooser.meta.end_pos].strip()
-        consecutive = written.upper().startswith("CONSECUTIVE")
-        if consecutive:
-            return  # a run chosen once has no binding; left for somebody to rewrite
-        bindings.append(f"EXACTLY {n} {name} IN {written}")
-        edits.append((chooser.meta.start_pos, chooser.meta.end_pos, _bound(name, n)))
+        if written.upper().startswith("CONSECUTIVE"):
+            return
+        name = _fresh("chosen", taken | set(names))
+        names.append(name)
+        named.append(f"EXACTLY {n} {name} IN {written}")
+        mine.append((chooser.meta.start_pos, chooser.meta.end_pos, _bound(name, n)))
+    taken.update(names)
+    bindings.extend(named)
+    edits.extend(mine)
 
 
 def _bound(name: str, n: str) -> str:
@@ -322,7 +330,6 @@ def _fresh(stem: str, taken: set) -> str:
     i = 1
     while f"{stem}_{i}" in taken:
         i += 1
-    taken.add(f"{stem}_{i}")
     return f"{stem}_{i}"
 
 
