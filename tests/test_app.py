@@ -103,7 +103,7 @@ def test_a_target_session_name_can_be_saved_on_a_date_in_no_session(window):
     editor.clear()
     editor.dataset = family_camp(editor.dataset)
     editor.skedge_edit.setPlainText(
-        "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON dates.session_target.all"
+        "REQUEST staff.dylan DO 'x' DURING AT_LEAST 1 blocks.all ON dates.session_target.all"
     )
     assert editor.validate() and editor.save_button.isEnabled()
     assert "which is not a session" in editor.status.text()

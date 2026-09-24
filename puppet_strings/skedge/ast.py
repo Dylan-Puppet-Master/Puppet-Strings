@@ -7,9 +7,9 @@ from datetime import date
 from puppet_strings.skedge.namespaces import ACTIVITIES, BLOCKS, DATES, ROLES, STAFF
 
 ALL = "ALL"
-ANY_OF = "ANY_OF"
-ANY = "ANY"  # with no number: any of these match, where a set is matched rather than chosen
+ANY = "ANY"  # any of these: the set is one pool
 EACH = "EACH"
+COUNT = "COUNT"  # AT_LEAST, AT_MOST or EXACTLY n: how many of the set the rest holds for
 
 AT_LEAST = "AT_LEAST"
 AT_MOST = "AT_MOST"
@@ -53,7 +53,7 @@ class Ref:
 
 @dataclass(frozen=True)
 class Var:
-    """A bare identifier bound by `EACH x IN …`, `ANY n x IN …` or `x: …`."""
+    """A bare identifier bound by `EACH x IN …`, `EXACTLY n x IN …` or `x: …`."""
 
     name: str
     pos: Pos
@@ -106,10 +106,10 @@ class Call:
 
 @dataclass(frozen=True)
 class Group:
-    """`(ALL s)` or `(ANY n s)` inside a set: one part of it, taken the way it says.
+    """`(ALL s)` or `(AT_LEAST n s)` inside a set: one part of it, taken the way it says.
 
     Added into a set taken whole, it brings its own members, all of them or the n chosen.
-    Inside `ANY n` it is one of the things chosen from: `ANY 1 {staff.x + (ALL s)}` is
+    Inside a count it is one of the things counted: `AT_LEAST 1 {staff.x + (ALL s)}` is
     x, or else everyone in s.
     """
 
@@ -117,6 +117,7 @@ class Group:
     n: int | None
     expr: "SetExpr"
     pos: Pos
+    bound: str | None = None
 
 
 SetExpr = Ref | Var | DateLiteral | DateOffset | DateRange | SetOp | Call | Group
@@ -126,10 +127,10 @@ SetExpr = Ref | Var | DateLiteral | DateOffset | DateRange | SetOp | Call | Grou
 class Selector:
     """A set with the quantifier written in front of it.
 
-    `quantifier` is ALL, ANY_OF (with `n`), ANY (no `n`: matched, not chosen) or EACH,
-    or None for one thing written on its own. `var` is the `x` of `EACH x IN s`.
-    `consecutive` is `ANY [n] CONSECUTIVE`, which only a DURING takes: the parser moves it
-    onto the During and refuses it anywhere else.
+    `quantifier` is ALL, ANY (a pool), EACH or COUNT (with `bound` and `n`), or None for
+    one thing written on its own. `var` is the `x` of `EACH x IN s`. `consecutive` is
+    `ANY CONSECUTIVE` or `<count> CONSECUTIVE`, which only a DURING takes: the parser moves
+    it onto the During and refuses it anywhere else.
     """
 
     expr: SetExpr
@@ -138,6 +139,7 @@ class Selector:
     var: str | None
     pos: Pos
     consecutive: bool = False
+    bound: str | None = None
 
 
 @dataclass(frozen=True)
@@ -147,7 +149,7 @@ class Task:
     text: str
 
 
-Target = Selector | Task | None  # None is FREE
+Target = Selector | Task | None  # None is FREE, or BUSY where a `busy` says so
 
 
 @dataclass(frozen=True)
@@ -159,7 +161,7 @@ class Clause:
 
 @dataclass(frozen=True)
 class During(Clause):
-    """`DURING <blocks>`, and with `consecutive`, `DURING ANY [n] CONSECUTIVE <blocks>`."""
+    """`DURING <blocks>`, and with `consecutive`, `DURING ANY|<count> CONSECUTIVE <blocks>`."""
 
     selector: Selector
     consecutive: bool = False
@@ -181,14 +183,15 @@ class AsRole(Clause):
 
 @dataclass(frozen=True)
 class For(Clause):
-    """`FOR <duration>`, in minutes."""
+    """`FOR [AT_LEAST|AT_MOST|EXACTLY] <duration>`, in minutes; no bound is EXACTLY."""
 
     minutes: int
+    bound: str | None = None
 
 
 @dataclass(frozen=True)
 class With(Clause):
-    """`WITH <staff>`: one name, or ALL or ANY n of a set."""
+    """`WITH <staff>`: one name, or ALL or a count of a set."""
 
     selector: Selector
 
@@ -202,7 +205,11 @@ class Without(Clause):
 
 @dataclass(frozen=True)
 class Amount:
-    """`AT_LEAST 3`, `AT_MOST 2h`: a bound and a count or a duration in minutes."""
+    """`AT_LEAST 3`, `AT_MOST 2h`: a bound and a count or a duration in minutes.
+
+    A count is written in front of the set it counts, where it becomes the selector's; a
+    duration is a GAP's, or a FOR's.
+    """
 
     bound: str
     value: int
@@ -212,7 +219,7 @@ class Amount:
 
 @dataclass(frozen=True)
 class Pattern:
-    """`<who> DO <what> …`, `<who> FREE …` or `<who> NOT FREE …` (`busy`)."""
+    """`<who> DO <what> …`, `<who> FREE …` or `<who> BUSY …` (`busy`)."""
 
     who: Selector
     what: Target
@@ -223,7 +230,7 @@ class Pattern:
 
 @dataclass(frozen=True)
 class Requirement:
-    """`REQUEST <who> DO <what> …`, `… FREE …`, and with `negated`, `… NOT DO …`, `… NOT FREE …`.
+    """`REQUEST <who> DO <what> …`, `… FREE …`, `… BUSY …`, and with `negated`, `… NOT DO …`.
 
     `who` is None for `REQUEST <activity>`, which names no one: the activity's own
     positions say who may hold it, so there is nothing left for the request to add.
@@ -235,23 +242,15 @@ class Requirement:
     clauses: tuple[Clause, ...]
     pos: Pos
     label: str | None = None
+    busy: bool = False
 
 
 @dataclass(frozen=True)
-class Count:
-    """`REQUEST|PREFER <amount> <pattern>`, or with `after_do`, `<who> DO <amount> <what> …`.
+class Preference:
+    """`PREFER <statement>`, scored by how close it comes to its count or its FOR length."""
 
-    `consecutive` is the pattern's `DURING ANY CONSECUTIVE <blocks>`: the amount is
-    measured over back-to-back blocks on one day.
-    """
-
-    prefer: bool
-    amount: Amount
     pattern: Pattern
-    consecutive: bool
     pos: Pos
-    label: str | None = None
-    after_do: bool = False
 
 
 @dataclass(frozen=True)
@@ -279,12 +278,12 @@ class Exclude:
     pos: Pos
 
 
-Statement = Requirement | Count | Score | Exclude
+Statement = Requirement | Preference | Score | Exclude
 
 
 @dataclass(frozen=True)
 class Binding:
-    """`EACH x IN s` or `ANY n x IN s` on a line of its own, or `x: ANY n s`."""
+    """`EACH x IN s` or `EXACTLY n x IN s` on a line of its own, or `x: EXACTLY n s`."""
 
     selector: Selector
     pos: Pos
@@ -305,13 +304,10 @@ class Definition:
 
 @dataclass(frozen=True)
 class Predicate:
-    """`[<amount>] <pattern>`, or `<who> DO <amount> <what> …`: one thing a condition asks about."""
+    """`<pattern>`: one thing a condition asks about, counted where it says so."""
 
-    amount: Amount | None
     pattern: Pattern
-    consecutive: bool
     pos: Pos
-    after_do: bool = False
 
 
 @dataclass(frozen=True)
@@ -366,7 +362,9 @@ class Declaration:
     @property
     def statements(self) -> tuple[Statement, ...]:
         """The REQUEST, PREFER and EXCLUDE lines."""
-        return tuple(x for x in self.lines if isinstance(x, Requirement | Count | Score | Exclude))
+        return tuple(
+            x for x in self.lines if isinstance(x, Requirement | Preference | Score | Exclude)
+        )
 
     @property
     def exclusions(self) -> tuple["Exclude", ...]:
@@ -396,7 +394,7 @@ def clause(clauses: tuple[Clause, ...], kind: type) -> Clause | None:
 
 def patterns(line: Line) -> tuple[Pattern, ...]:
     """The patterns a line contains."""
-    if isinstance(line, Count | Score):
+    if isinstance(line, Preference | Score):
         return (line.pattern,)
     if isinstance(line, Condition):
         return tuple(p.pattern for p in predicates(line.test))
@@ -468,13 +466,18 @@ def groups_in(expr: SetExpr) -> Iterator[Group]:
 
 
 def picks(expr: SetExpr) -> bool:
-    """Whether an expression holds an `(ANY n …)` group, which the solver chooses from."""
-    return any(group.quantifier == ANY_OF for group in groups_in(expr))
+    """Whether an expression holds an `(AT_LEAST n …)` group, which the solver chooses from."""
+    return any(group.quantifier == COUNT for group in groups_in(expr))
 
 
-def chooses(selector: Selector) -> bool:
-    """Whether a selector takes its set some way, ALL or ANY n, rather than matching it."""
-    return selector.quantifier in (ALL, ANY_OF) or picks(selector.expr)
+def counts(selector: Selector) -> bool:
+    """Whether a selector counts its set, or holds a group that does."""
+    return selector.quantifier == COUNT or picks(selector.expr)
+
+
+def worded(bound: str | None, n: int | None) -> str:
+    """A count as it is written: `AT_LEAST 3`."""
+    return f"{bound} {n}"
 
 
 def substitute(node, found: Callable[[Var], SetExpr | None]):
@@ -512,5 +515,5 @@ def spoken(expr: SetExpr) -> str:
         return f"{{{spoken(expr.left)} {expr.op} {spoken(expr.right)}}}"
     if isinstance(expr, Call):
         return f"{spoken(expr.mapping)}({', '.join(spoken(a) for a in expr.args)})"
-    quantifier = f"ANY {expr.n}" if expr.quantifier == ANY_OF else expr.quantifier
+    quantifier = worded(expr.bound, expr.n) if expr.quantifier == COUNT else expr.quantifier
     return f"({quantifier} {spoken(expr.expr)})"

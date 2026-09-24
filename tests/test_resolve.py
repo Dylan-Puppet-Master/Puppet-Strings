@@ -44,7 +44,7 @@ def test_defaults(dataset):
 def test_quantifiers(dataset):
     (copy,) = resolve(
         dataset,
-        "REQUEST ANY 2 staff.counselor DO 'x' DURING ALL blocks.all ON ANY 1 dates.session_1.all",
+        "EXACTLY 1 chosen_1 IN dates.session_1.all\nREQUEST AT_LEAST 2 staff.counselor DO 'x' DURING ALL blocks.all ON chosen_1",
     )
     (st,) = copy.statements
     assert (st.who.kind, st.who.n, st.who.items) == (ANY, 2, ("dylan", "james", "paul"))
@@ -84,8 +84,8 @@ def test_a_binding_line_is_visible_on_every_line(dataset):
     copies = resolve(
         dataset,
         "EACH c IN staff.counselor\n"
-        "m: REQUEST c DO 'a' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\n"
-        "n: REQUEST c DO 'a' DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\n"
+        "m: REQUEST c DO 'a' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}\n"
+        "n: REQUEST c DO 'a' DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}\n"
         "GAP m TO n AT_MOST 5h",
     )
     assert [c.key for c in copies] == ["dylan", "james", "paul"]
@@ -98,7 +98,7 @@ def test_a_binding_line_is_visible_on_every_line(dataset):
 def test_an_any_binding_is_one_choice_shared_by_the_declaration(dataset):
     (copy,) = resolve(
         dataset,
-        "ANY 1 p IN staff.counselor\n"
+        "EXACTLY 1 p IN staff.counselor\n"
         "first: REQUEST p DO 'setup' DURING blocks.clinic_4\n"
         "last:  REQUEST p DO 'teardown' DURING blocks.evening",
     )
@@ -118,31 +118,32 @@ def test_negation_makes_a_pattern_of_pools(dataset):
     assert st.pattern.on.items == (dataset.target,) and st.pattern.without == Company(
         frozenset({"vic"}), None
     )
-    copies = resolve(dataset, "REQUEST EACH staff.counselor NOT FREE DURING blocks.clinic_1")
-    assert copies[0].statements[0].pattern.what is None and copies[0].statements[0].pattern.busy
+    copies = resolve(dataset, "REQUEST EACH staff.counselor BUSY DURING blocks.clinic_1")
+    assert copies[0].statements[0].what is None and copies[0].statements[0].busy
 
 
 def test_with_takes_one_name_or_a_quantified_set(dataset):
     base = "REQUEST staff.rob NOT DO ANY activities.clinics.ropes "
-    (copy,) = resolve(dataset, base + "WITH ANY 2 {staff.vic + staff.dylan + staff.randy}")
+    (copy,) = resolve(dataset, base + "WITH AT_LEAST 2 {staff.vic + staff.dylan + staff.randy}")
     assert copy.statements[0].pattern.with_ == Company(frozenset({"vic", "dylan", "randy"}), 2)
     (copy,) = resolve(dataset, base + "WITHOUT ALL {staff.vic + staff.dylan}")
     assert copy.statements[0].pattern.without == Company(frozenset({"vic", "dylan"}), None)
-    with pytest.raises(SkedgeError, match="needs a quantifier: ALL or ANY n"):
+    with pytest.raises(SkedgeError, match="needs a quantifier: ALL or a count"):
         resolve(dataset, base + "WITHOUT {staff.vic + staff.dylan}")
     with pytest.raises(SkedgeError, match="is one item and takes no quantifier"):
-        resolve(dataset, base + "WITH ANY 1 staff.vic")
+        resolve(dataset, base + "WITH AT_LEAST 1 staff.vic")
 
 
 def test_patterns_conditions_and_mappings(dataset):
     (copy,) = resolve(
         dataset,
         "EACH s IN staff.director\n"
-        "IF AT_LEAST 3 s DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all\n"
-        "REQUEST s FREE DURING ANY 1 blocks.all",
+        "IF s DO ANY activities.clinics.all DURING AT_LEAST 3 CONSECUTIVE blocks.all\n"
+        "REQUEST s FREE DURING AT_LEAST 1 blocks.all",
     )[:1]
-    assert copy.condition.test.amount.value == 3 and copy.condition.test.consecutive
-    assert copy.condition.test.pattern.who.items == ("david",)
+    (level,) = copy.condition.test.tally.levels
+    assert level.field == "block" and level.choice.n == 3 and level.choice.consecutive
+    assert copy.condition.test.tally.pattern.who.items == ("david",)
     copies = resolve(
         dataset,
         "PREFER EACH s IN staff.counselor DO EACH c IN activities.clinics.weapons "
@@ -234,14 +235,14 @@ def test_a_date_in_no_session_has_no_target_session(dataset):
 def test_roles(dataset):
     (copy,) = resolve(
         dataset,
-        "REQUEST staff.dylan DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY 1 blocks.all_clinics",
+        "REQUEST staff.dylan DO activities.clinics.candle_making AS_ROLE roles.trainee DURING AT_LEAST 1 blocks.all_clinics",
     )
     assert copy.statements[0].role.items == ("trainee",)
     (copy,) = resolve(
         dataset,
-        "PREFER AT_MOST 3 staff.rob DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second}",
+        "PREFER staff.rob DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second} DURING AT_MOST 3 blocks.all",
     )[:1]
-    assert copy.key == "first" and copy.statements[0].pattern.role.kind == POOL
+    assert copy.key == "first" and copy.statements[0].pattern.role.kind == ALL
 
 
 def test_name_listing_matches_the_namespaces(dataset):

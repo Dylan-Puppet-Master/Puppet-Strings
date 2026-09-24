@@ -405,7 +405,7 @@ class MappingTable:
     A numeric mapping is a scale of ratings: `rows` hold numbers between `scale_min` and
     `scale_max`, and `default` is what a key with no row is worth (the bottom of the scale
     if it is None). Any other mapping gives a name: `rows` hold identifiers (a date's in
-    ISO form), and `default` is a Skedge phrase, such as `ANY 1 {staff.office}`, to
+    ISO form), and `default` is a Skedge phrase, such as `AT_LEAST 1 {staff.office}`, to
     stand in for a key with no row, or None when every key needs one.
 
     Key identifiers are strings throughout, a date's in ISO form, so a row reads the same

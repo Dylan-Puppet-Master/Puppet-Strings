@@ -7,7 +7,7 @@ from puppet_strings.exclude import apply_exclusions
 from puppet_strings.model import Assignment, Dataset, Priority, Request, minute_to_time
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.ast import NoSession, SkedgeError
-from puppet_strings.skedge.resolve import Count, Exclusion, Requirement, Resolved
+from puppet_strings.skedge.resolve import Exclusion, Requirement, Resolved, asks
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.compile import SCALE, Compiled, Compiler
 from puppet_strings.solver.result import Change, RequestOutcome, Result
@@ -127,13 +127,13 @@ def build_model(dataset: Dataset, copies: list[tuple[Request, Resolved]], cancel
 def _check_adhoc_tasks(copies: list[tuple[Request, Resolved]]) -> None:
     """A quoted task means nothing unless some positive REQUEST asks for it.
 
-    A `REQUEST … DO` asks for it, and so does a `REQUEST AT_LEAST` or `EXACTLY` pattern.
+    A `REQUEST … DO` asks for it, unless all it says is how much there may be at most.
     """
-    asked = {_task(st) for _, copy in copies for st in copy.statements if _asks(st)}
+    asked = {_task(st) for _, copy in copies for st in copy.statements if asks(st)}
     for request, copy in copies:
         for st in copy.statements:
             text = _task(st)
-            if text is None or text in asked or _asks(st):
+            if text is None or text in asked or asks(st):
                 continue
             raise RequestError(
                 request,
@@ -151,16 +151,6 @@ def _task(statement) -> str | None:
         return None
     what = statement.what if isinstance(statement, Requirement) else statement.pattern.what
     return what.text if isinstance(what, ast.Task) else None
-
-
-def _asks(statement) -> bool:
-    if isinstance(statement, Requirement):
-        return True
-    return (
-        isinstance(statement, Count)
-        and not statement.prefer
-        and statement.amount.bound != ast.AT_MOST
-    )
 
 
 def _hold_to(compiler: Compiler, variables: Variables, baseline, hints: dict) -> None:

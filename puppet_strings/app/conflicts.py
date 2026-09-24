@@ -15,7 +15,7 @@ reported, and both of them are what keeps this quiet enough to be worth reading:
     impossible, so only what must happen is read here.
 *   The statements are *forced* — they leave the solver no choice. `REQUEST staff.rob DO
     activities.clinics.ropes DURING blocks.clinic_1` claims Rob's clinic 1; `REQUEST
-    ANY 1 staff.all DO …` and `DURING ANY 2 blocks.all` claim nothing in particular,
+    AT_LEAST 1 staff.all DO …` and `DURING AT_LEAST 2 blocks.all` claim nothing in particular,
     because the solver picks, and picking around each other is its job.
 
 Two MUST_HAPPEN requests meeting in one slot are not a conflict by themselves: two asking
@@ -108,12 +108,15 @@ def _requirement_claims(statement: Requirement, request: Request, dataset: Datas
     if statement.during is not None and not forced(statement.during):
         return
     if statement.what is None:
-        claim = Claim(request.id, FREE)
+        claim = Claim(request.id, BUSY if statement.busy else FREE)
     else:
         target = one_target(statement.what)
         if target is None:
             return  # the solver picks the activity, so nothing here is settled
-        claim = Claim(request.id, DO, target, minutes=statement.minutes)
+        minutes = statement.minutes
+        if minutes is not None and statement.length_bound == ast.AT_MOST:
+            minutes = 1  # the least of the block it can take
+        claim = Claim(request.id, DO, target, minutes=minutes)
     during = statement.during.items if statement.during else None
     yield from _slots(statement.who.items, statement.on.items, during, dataset, claim)
 
@@ -125,13 +128,10 @@ def _forbid_claims(statement: Forbid, request: Request, dataset: Dataset):
     parts = (pattern.what, pattern.during, pattern.on, pattern.role)
     if any(isinstance(p, Choice) and p.kind == ALL and len(p.items) > 1 for p in parts):
         return  # NOT … ALL forbids them together, so no one slot on its own
-    if pattern.busy:  # REQUEST … NOT FREE: something must happen here
-        claim = Claim(request.id, BUSY)
-    else:
-        forbidden = _targets(pattern.what)
-        if not forbidden:
-            return
-        claim = Claim(request.id, NOT_DO, forbidden=forbidden)
+    forbidden = _targets(pattern.what)
+    if not forbidden:
+        return
+    claim = Claim(request.id, NOT_DO, forbidden=forbidden)
     during = pattern.during.items if pattern.during else None
     yield from _slots(statement.who.items, pattern.on.items, during, dataset, claim)
 

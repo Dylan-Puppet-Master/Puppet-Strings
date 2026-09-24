@@ -1,18 +1,21 @@
 [level]
-name = "FREE and NOT"
+name = "FREE, BUSY and NOT"
 blurb = "Keeping people free, busy, or off something."
 day = "2026-08-04"
 teaches = """
 REQUEST <who> FREE DURING <blocks>        nothing assigned then
-REQUEST <who> NOT FREE DURING <blocks>    something assigned then
+REQUEST <who> BUSY DURING <blocks>        something assigned then
 REQUEST <who> NOT DO <what> ...           never doing that
 
 REQUEST staff.dylan FREE DURING blocks.playstation
+REQUEST staff.hails BUSY DURING AT_LEAST 1 blocks.evening
 REQUEST staff.rob NOT DO 'break' DURING ANY blocks.meals
 
-• Right of NOT, ANY <set> means "any of these", and ALL <set> "all of these together"
+• Everything right of NOT is the situation that must not happen
+• There, ANY <set> means "any of these", and ALL <set> "all of these together"
+• A count never goes right of NOT: say how many of what does happen instead
 • NOT DO can leave out DURING: then it's all day
-• The subject still chooses: ALL {…} NOT DO means none of them does
+• The subject is who the NOT is about: ALL {…} NOT DO means none of them does
 """
 
 [[problem]]
@@ -23,7 +26,7 @@ answer = "REQUEST staff.dylan FREE DURING blocks.playstation"
 hints = ["FREE takes the place of DO and the task."]
 explain = "FREE means working that day, with nothing assigned in that block."
 wrong = [
-  "REQUEST staff.dylan NOT FREE DURING blocks.playstation",
+  "REQUEST staff.dylan BUSY DURING blocks.playstation",
   "REQUEST staff.dylan NOT DO 'break' DURING blocks.playstation",
 ]
 
@@ -36,15 +39,15 @@ priority = "MUST_HAPPEN"
 hints = ["Free in every block: FREE DURING ALL blocks.all."]
 alternatives = ["REQUEST staff.vic FREE DURING ALL blocks.all ON 2026-08-06", "REQUEST staff.vic FREE DURING EACH blocks.all ON 2026-08-06"]
 explain = "FREE is somebody at camp with nothing to do. Somebody away for the day is an EXCLUDE, which comes later."
-wrong = ["REQUEST staff.vic FREE DURING ANY 1 blocks.all ON 2026-08-06"]
+wrong = ["REQUEST staff.vic FREE DURING AT_LEAST 1 blocks.all ON 2026-08-06"]
 
 [[problem]]
 id = "free-not-free"
 title = "Keep them busy"
 prompt = "Every counselor should have something to do during clinic 1. Each counselor counts on their own."
-answer = "REQUEST EACH staff.counselors NOT FREE DURING blocks.clinic_1"
+answer = "REQUEST EACH staff.counselors BUSY DURING blocks.clinic_1"
 priority = "HIGH"
-explain = "NOT FREE means something is assigned. It doesn't say what — anything will do."
+explain = "BUSY means something is assigned. It doesn't say what — anything will do."
 wrong = ["REQUEST EACH staff.counselors FREE DURING blocks.clinic_1"]
 
 [[problem]]
@@ -82,16 +85,16 @@ id = "free-none-of-them"
 title = "Nobody on felting"
 prompt = "None of the directors runs Felting today."
 answer = "REQUEST ALL staff.directors NOT DO activities.clinics.felting"
-explain = "The subject of NOT still chooses. ALL staff.directors NOT DO … is 'none of them does it'."
+explain = "The subject is who the NOT is about. ALL staff.directors NOT DO … is 'none of them does it'."
 alternatives = ["REQUEST ALL {staff.david + staff.lisa + staff.matthew} NOT DO activities.clinics.felting"]
-wrong = ["REQUEST ANY 1 staff.directors NOT DO activities.clinics.felting"]
+wrong = ["REQUEST AT_LEAST 1 staff.directors NOT DO activities.clinics.felting"]
 
 [[problem]]
 id = "free-one-of-them-not"
 title = "At least one stays off"
 prompt = "At least one of Rob and Vic stays off the canopy tour today."
-answer = "REQUEST ANY 1 {staff.rob + staff.vic} NOT DO activities.clinics.canopy_tour_dbl"
-explain = "ANY 1 on the left of NOT is 'one of them doesn't' — the solver picks who."
+answer = "REQUEST AT_LEAST 1 {staff.rob + staff.vic} NOT DO activities.clinics.canopy_tour_dbl"
+explain = "AT_LEAST 1 on the left of NOT is 'one of them doesn't' — the solver picks who."
 wrong = ["REQUEST ALL {staff.rob + staff.vic} NOT DO activities.clinics.canopy_tour_dbl"]
 
 [[problem]]
@@ -99,13 +102,13 @@ id = "free-two-blocks"
 title = "Free for the afternoon"
 prompt = "Kara is free during both clinic 3 and clinic 4."
 answer = "REQUEST staff.kara FREE DURING ALL {blocks.clinic_3 + blocks.clinic_4}"
-wrong = ["REQUEST staff.kara FREE DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}"]
+wrong = ["REQUEST staff.kara FREE DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}"]
 
 [[problem]]
 id = "free-any-clinic-block"
 title = "One free clinic"
 prompt = "Mogee gets one clinic block free today — any of the four."
-answer = "REQUEST staff.mogee FREE DURING ANY 1 blocks.all_clinics"
+answer = "REQUEST staff.mogee FREE DURING AT_LEAST 1 blocks.all_clinics"
 wrong = ["REQUEST staff.mogee FREE DURING ALL blocks.all_clinics"]
 
 [[problem]]
@@ -128,9 +131,9 @@ wrong = ["REQUEST EACH staff.counselors NOT DO ANY activities.clinics.weapons"]
 id = "free-not-free-evening"
 title = "Someone on duty"
 prompt = "Each village leader has something to do during the evening program."
-answer = "REQUEST EACH staff.village_leaders NOT FREE DURING blocks.evening_program"
+answer = "REQUEST EACH staff.village_leaders BUSY DURING blocks.evening_program"
 priority = "HIGH"
-wrong = ["REQUEST EACH staff.village_leaders NOT FREE DURING blocks.embers"]
+wrong = ["REQUEST EACH staff.village_leaders BUSY DURING blocks.embers"]
 
 [[problem]]
 id = "free-avoid-meal-breaks-each"
@@ -163,10 +166,10 @@ wrong = ["REQUEST staff.alan NOT DO 'break' DURING blocks.rest_hour"]
 id = "free-not-free-some-block"
 title = "Busy all evening"
 prompt = "Hails has something to do in every evening block."
-answer = "REQUEST staff.hails NOT FREE DURING ANY blocks.evening"
-hints = ["Right of NOT, sets are plain: NOT FREE DURING blocks.evening is busy in each of them."]
-alternatives = ["REQUEST staff.hails NOT FREE DURING ANY {blocks.embers + blocks.evening_program}"]
-wrong = ["REQUEST staff.hails NOT FREE DURING blocks.embers"]
+answer = "REQUEST staff.hails BUSY DURING ALL blocks.evening"
+hints = ["Every evening block: ALL blocks.evening."]
+alternatives = ["REQUEST staff.hails BUSY DURING ALL {blocks.embers + blocks.evening_program}"]
+wrong = ["REQUEST staff.hails BUSY DURING blocks.embers"]
 
 [[problem]]
 id = "free-whole-session-off"
@@ -175,3 +178,23 @@ prompt = "All session long, Pip never does 'lifeguard'."
 answer = "REQUEST staff.pip NOT DO 'lifeguard' ON ANY dates.session_6.all"
 alternatives = ["REQUEST staff.pip NOT DO 'lifeguard' ON ANY {2026-08-02 .. 2026-08-08}"]
 wrong = ["REQUEST staff.pip NOT DO 'lifeguard'"]
+
+[[problem]]
+id = "free-busy-one-evening"
+title = "Busy at least once"
+prompt = "Hails has something to do in at least one of the evening blocks. The other can be free."
+answer = "REQUEST staff.hails BUSY DURING AT_LEAST 1 blocks.evening"
+hints = ["Count the evening blocks she is busy in."]
+explain = "ALL blocks.evening would be busy in every one of them; a count says how many."
+alternatives = ["REQUEST staff.hails BUSY DURING ANY blocks.evening"]
+wrong = ["REQUEST staff.hails BUSY DURING ALL blocks.evening"]
+
+[[problem]]
+id = "free-not-both"
+title = "Not both"
+prompt = "Lisa shouldn't run a clinic in both clinic 1 and clinic 2. A clinic in one of them is fine."
+answer = "REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_2}"
+hints = ["What must not happen is a clinic in clinic 1 and a clinic in clinic 2, together: ALL, right of NOT."]
+explain = "Right of NOT, ALL is all of them together, so one on its own is fine. Said as a count of what does happen, it is the same: DO ANY activities.clinics.all DURING AT_MOST 1 of the two."
+alternatives = ["REQUEST staff.lisa DO ANY activities.clinics.all DURING AT_MOST 1 {blocks.clinic_1 + blocks.clinic_2}"]
+wrong = ["REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING ANY {blocks.clinic_1 + blocks.clinic_2}"]

@@ -41,6 +41,7 @@ KEYWORD_WORDS = (
     "DO",
     "NOT",
     "FREE",
+    "BUSY",
     "DURING",
     "ON",
     "AS_ROLE",

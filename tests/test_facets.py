@@ -21,7 +21,7 @@ def test_a_request_about_no_calendar_date_covers_nothing(dataset):
 def test_facets_collect_staff_activities_dates(dataset):
     f = facets(
         req(
-            "REQUEST ANY 1 staff.counselor DO activities.clinics.riflery DURING blocks.clinic_1 ON dates.target"
+            "REQUEST AT_LEAST 1 staff.counselor DO activities.clinics.riflery DURING blocks.clinic_1 ON dates.target"
         ),
         dataset,
     )
@@ -43,6 +43,6 @@ def test_facets_collect_staff_activities_dates(dataset):
 
 
 def test_invalid_request_keeps_its_error(dataset):
-    f = facets(req("REQUEST staff.dylan DO 'a'"), dataset)
-    assert not f.valid and "needs DURING" in f.error
+    f = facets(req("REQUEST staff.dylan NOT FREE DURING blocks.clinic_1"), dataset)
+    assert not f.valid and "write BUSY" in f.error
     assert f.staff == frozenset()

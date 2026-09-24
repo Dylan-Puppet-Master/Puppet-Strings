@@ -51,6 +51,8 @@ def check(declaration: ast.Declaration, hard: bool) -> None:
         )
     for line in declaration.lines:
         _check_line(line)
+        if isinstance(line, ast.Preference):
+            _measured(line.pattern)
     _check_labels(declaration)
     _check_variables(declaration)
 
@@ -76,91 +78,80 @@ def _check_exclusions(declaration: ast.Declaration, hard: bool) -> None:
                 raise _error(
                     f"EXCLUDE takes DURING and ON, not {CLAUSE_NAMES[type(clause)]}", clause.pos
                 )
-        _check_clauses(line.clauses, ast.Task(line.label))
+        _check_clauses(line.clauses, ast.Task(line.label), matched=False)
     _check_variables(declaration)
 
 
 def _settled(selector: ast.Selector) -> None:
     """Nothing in an EXCLUDE is the solver's to pick: it is either so or it is not."""
-    if selector.quantifier == ast.ANY_OF or ast.picks(selector.expr):
-        raise _error("EXCLUDE says who is away, so nothing in it is ANY n", selector.pos)
+    if selector.quantifier == ast.ANY or ast.counts(selector):
+        raise _error("EXCLUDE says who is away, so nothing in it is counted or ANY", selector.pos)
 
 
 def _check_line(line: ast.Line) -> None:
     if isinstance(line, ast.Requirement):
-        _check_clauses(line.clauses, line.what)
-        if line.negated:
-            return
-        if ast.clause(line.clauses, ast.During) is None:
-            raise _error("needs DURING", line.pos)
-        _one_at_a_time(line.what)
-        role = ast.clause(line.clauses, ast.AsRole)
-        _one_at_a_time(role.selector if role else None)
+        _check_clauses(line.clauses, line.what, matched=line.negated)
+        if not line.negated:
+            _one_at_a_time(line.what, ast.clause(line.clauses, ast.During))
         return
     if isinstance(line, ast.Gap):
         if not line.amount.duration:
             raise _error("GAP needs a duration", line.amount.pos)
         return
-    amounts = (
-        [p.amount for p in ast.predicates(line.test)]
-        if isinstance(line, ast.Condition)
-        else [getattr(line, "amount", None)]
-    )
-    for amount in amounts:
-        if amount is not None:
-            _check_amount(amount)
     for pattern in ast.patterns(line):
-        _check_clauses(pattern.clauses, pattern.what)
+        _check_clauses(pattern.clauses, pattern.what, matched=isinstance(line, ast.Score))
+        if not isinstance(line, ast.Score):
+            _one_at_a_time(pattern.what, ast.clause(pattern.clauses, ast.During))
 
 
-def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target) -> None:
+def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target, matched: bool) -> None:
     seen: set[type] = set()
     for clause in clauses:
         if type(clause) in seen:
             raise _error(f"{CLAUSE_NAMES[type(clause)]} given twice", clause.pos)
         seen.add(type(clause))
-        if isinstance(clause, ast.During) and clause.consecutive:
-            selector = clause.selector
-            if selector.quantifier == ast.ANY:
-                continue  # a count measured in runs, which the parser has seen to
-            if selector.quantifier != ast.ANY_OF or selector.n < 2:
-                raise _error(
-                    "CONSECUTIVE after DURING chooses blocks next to each other, so it needs "
-                    "ANY n with n of 2 or more",
-                    clause.pos,
-                )
         if isinstance(clause, ast.AsRole) and not isinstance(what, ast.Selector):
             raise _error("AS_ROLE needs an activity", clause.pos)
-        if isinstance(clause, ast.For) and not isinstance(what, ast.Task):
+        if isinstance(clause, ast.For) and matched and not isinstance(what, ast.Task):
             raise _error("FOR needs a quoted task", clause.pos)
         if isinstance(clause, ast.With | ast.Without):
             if what is None:
-                raise _error("FREE has no instance", clause.pos)
+                raise _error("FREE and BUSY have no instance", clause.pos)
             if clause.selector.quantifier in (ast.EACH, ast.ANY):
                 name, q = CLAUSE_NAMES[type(clause)], clause.selector.quantifier
                 raise _error(
-                    f"{name} counts who is alongside, so it takes ALL or ANY n, not {q}",
+                    f"{name} counts who is alongside, so it takes ALL or a count, not {q}",
                     clause.selector.pos,
                 )
 
 
-def _one_at_a_time(selector: ast.Selector | ast.Task | None) -> None:
-    """The activity and role of a requirement take an item, ANY 1 or EACH, and no group."""
-    if not isinstance(selector, ast.Selector):
+def _one_at_a_time(what: ast.Selector | ast.Task | None, during: ast.During | None) -> None:
+    """Several activities at once need the blocks pooled or counted, and no group.
+
+    Everyone does one thing at a time, so ALL of two activities in one block is two things
+    at once; spread over blocks that are pooled or counted, it is not.
+    """
+    if not isinstance(what, ast.Selector):
         return
-    several = selector.quantifier == ast.ALL or (
-        selector.quantifier == ast.ANY_OF and selector.n > 1
-    )
-    if several or any(ast.groups_in(selector.expr)):
-        raise _error("one activity at a time", selector.pos)
+    spread = during is None or during.selector.quantifier in (ast.ANY, ast.COUNT)
+    if (what.quantifier == ast.ALL and not spread) or any(ast.groups_in(what.expr)):
+        raise _error("one activity at a time", what.pos)
 
 
-def _check_amount(amount: ast.Amount) -> None:
-    if amount.value >= 1:
-        return
-    if amount.bound == ast.AT_LEAST:
-        raise _error("amount must be at least 1", amount.pos)
-    raise _error("write NOT DO", amount.pos)
+def _measured(pattern: ast.Pattern) -> None:
+    """A PREFER is weighed by how close it comes to something: a count, or a FOR length."""
+    counted = any(ast.counts(selector) for _, selector in ast.selectors(pattern_line(pattern)))
+    if not counted and ast.clause(pattern.clauses, ast.For) is None:
+        raise _error(
+            "PREFER is weighed by how close it comes, so it needs a count or a FOR length: "
+            "… DURING AT_LEAST 3 <blocks>",
+            pattern.pos,
+        )
+
+
+def pattern_line(pattern: ast.Pattern) -> ast.Line:
+    """A pattern as a line of its own, for walking its selectors."""
+    return ast.Preference(pattern, pattern.pos)
 
 
 def _check_labels(declaration: ast.Declaration) -> None:

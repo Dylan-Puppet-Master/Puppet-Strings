@@ -3,7 +3,7 @@
 Skedge is the language requests are written in. A request reads as a sentence with a subject, a verb and an object:
 
 ```skedge
-REQUEST staff.dylan DO 'archery maintenance' DURING ANY 1 blocks.all ON ANY 1 {2026-09-14 .. 2026-09-18}
+REQUEST staff.dylan DO 'archery maintenance' DURING ANY blocks.all ON ANY {2026-09-14 .. 2026-09-18}
 ```
 
 This page is the readable version, with worked examples. For the exact rules, including
@@ -18,30 +18,33 @@ date. There are two statements:
 | Statement | Meaning |
 |---|---|
 | `REQUEST` | A constraint that is either met or not met. Its priority says how much it matters; `MUST_HAPPEN` makes it hard. |
-| `PREFER` | A soft constraint that can be partly met: closer is better. |
+| `PREFER` | A soft constraint that can be partly met: how close the day comes to a count or a length. |
 
-And two ways to talk about assignments:
+Each says what happens, in one of three forms:
 
 | Form | Meaning |
 |---|---|
-| `<what> DURING <blocks> ON <dates>` | An **activity requirement**: this activity happens, then. It names nobody, because the activity already says who may run it. |
-| `<who> DO <what> DURING <blocks> ON <dates>` | A **requirement**: these people do this, then. |
-| `<amount> <who> DO <what> …` | A **pattern**, with how many of it you want: all the assignments where these people are doing this. Used for counting, scoring and conditions. |
+| `<who> DO <what> DURING <blocks> ON <dates>` | These people do this, then. |
+| `<who> FREE …` | They have nothing to do. |
+| `<who> BUSY …` | They have something to do, whatever it is. |
+| `<what> DURING <blocks> ON <dates>` | This activity happens, then. It names nobody, because the activity already says who may run it. |
 
 Every set of names says out loud how it is meant:
 
 | Quantifier | Meaning |
 |---|---|
 | `ALL {staff.lucy + staff.tom}` | Both of them, together, all or nothing. |
-| `ANY 1 {staff.lucy + staff.tom}` | One of them, the solver's choice. `ANY 2`, `ANY 3`, … work the same way. |
+| `ANY {staff.lucy + staff.tom}` | Either of them: any of these will do. |
+| `AT_LEAST 1 {staff.lucy + staff.tom}` | A **count**: at least one of them. `AT_MOST` and `EXACTLY` count the same way. |
 | `EACH {staff.lucy + staff.tom}` | A separate request for each of them, each met or not on its own. |
-| `ANY {staff.lucy + staff.tom}` | Either of them matches. With no number nothing is chosen: this is for a set that is matched, to the right of `NOT` and in a pattern. |
 
-A single thing (`staff.rob`, `blocks.clinic_1`, `2026-09-21`) needs no quantifier, and
-takes none. A missing `ON` means the day being scheduled.
+A number is always a count, and it goes directly in front of the set it counts. A length
+goes on `FOR`. A single thing (`staff.rob`, `blocks.clinic_1`, `2026-09-21`) needs no
+quantifier, and takes none. A missing `ON` means the day being scheduled, and a missing
+`DURING` any block of it.
 
-`NOT DO` forbids, `FREE` means nothing to do (and `NOT FREE` something), `WITH` / `WITHOUT` say who is alongside,
-`IF` / `UNLESS` make a request conditional (`AND` / `OR` join conditions), `GAP` puts time between two requirements, and
+`NOT DO` forbids, `WITH` / `WITHOUT` say who is alongside, `IF` / `UNLESS` make a request
+conditional (`AND` / `OR` join conditions), `GAP` puts time between two requirements, and
 `EXCLUDE` takes somebody out of the day altogether. That is the whole language.
 
 Keywords are written in upper case here and everywhere else, which is what makes a request
@@ -65,8 +68,9 @@ Names are dotted, lowercase `snake_case`. Sheet values become identifiers by the
 | `mapping` | Mapping tables, such as `mappings.preference` and `mappings.buddy` |
 
 A name is either one thing or a set, and sets are always plural or collective
-(`blocks.all`, `dates.session_1.mondays`). There is no `blocks.any`: "any one block" is
-`ANY 1 blocks.all`, so the choosing is always visible.
+(`blocks.all`, `dates.session_1.mondays`). There is no `blocks.any`: "any block" is
+`ANY blocks.all`, and "two blocks" is `AT_LEAST 2 blocks.all`, so how a set is taken is
+always visible.
 
 A staff category holds only the people working on the day being scheduled. Someone resting
 all day is in no category, though their own name still works.
@@ -130,7 +134,7 @@ And `dates.target` is the date being scheduled, which is the date every request 
 unless it says `ON` something else.
 
 ```skedge
-REQUEST ALL staff.director DO 'session opening' DURING ANY 1 blocks.all ON ALL dates.session_2.week_1.all
+REQUEST ALL staff.director DO 'session opening' DURING AT_LEAST 1 blocks.all ON dates.session_2.first
 ```
 
 **There is no `first_monday` or `last_friday`.** A week's weekday says the same thing and
@@ -154,20 +158,20 @@ mixing different operators requires them, so there is no precedence to remember:
 ### Choosing inside a set
 
 A quantifier can also go inside a set, on a part of it in parentheses. That part is a
-**group**, taken the way its own quantifier says. In a set taken whole, `(ANY 1 …)` adds
+**group**, taken `ALL` or `AT_LEAST n`. In a set taken whole, `(AT_LEAST 1 …)` adds
 whichever one the solver picks — "Alesa and one of these two":
 
 ```skedge
-REQUEST ALL {staff.alesa + (ANY 1 {staff.dylan + staff.cam_vl})}
+REQUEST ALL {staff.alesa + (AT_LEAST 1 {staff.dylan + staff.cam_vl})}
 DO 'Video KM Rope Swing' FOR 30m
-DURING ANY 1 blocks.all
+DURING AT_LEAST 1 blocks.all
 ```
 
-In `ANY n`, each group counts as one of the things chosen from, so `(ALL …)` keeps
+In a count, each group counts as one of the things counted, all of it, so `(ALL …)` keeps
 people together — "Lucy, or else Tom and Charles together":
 
 ```skedge
-REQUEST ANY 1 {staff.lucy + (ALL {staff.tom + staff.charles})} DO 'take out garbage' DURING ANY 1 blocks.all
+REQUEST AT_LEAST 1 {staff.lucy + (ALL {staff.tom + staff.charles})} DO 'take out garbage' DURING AT_LEAST 1 blocks.all
 ```
 
 In `EACH`, each group is one of the separate requests: `EACH {staff.lucy +
@@ -175,30 +179,31 @@ In `EACH`, each group is one of the separate requests: `EACH {staff.lucy +
 together.
 
 A group is added with `+`. `(ALL s)` may be taken away or crossed like `s`, but
-`(ANY n s)` may not: what it holds is not known until the solver has chosen.
+`(AT_LEAST n s)` may not: what it holds is not known until the solver has chosen.
 
-## Requirements: `<who> DO <what>`
+## Saying what happens: `<who> DO <what>`
 
 ```skedge
-REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 1 blocks.all ON EACH dates.session_1.mondays
+REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING AT_LEAST 1 blocks.all ON EACH dates.session_1.mondays
 ```
 
 Read it in three steps, always in this order:
 
 1. **`EACH` splits.** There is one separate request per Monday.
-2. **`ANY n` chooses, once.** Within each Monday's request, the solver picks one block.
-3. **Everyone chosen does it in every chosen block on every chosen date.** Lucy and Tom
-   both take out the garbage in that one block, so they do it together.
+2. **`ALL` makes one unit.** Lucy and Tom are taken together, as one.
+3. **A count counts what the unit does.** At least one block in which Lucy and Tom both
+   take out the garbage, so they do it together.
 
-A requirement never forbids anything. `DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}`
-is met when the thing happens in one of them, and does not mind if it happens in both.
+`EACH` in its place would give each of them a request of their own, and so a block of
+their own.
 
-The difference between the three quantifiers, on one example:
+The difference between the quantifiers, on one example:
 
 | Request | Meaning |
 |---|---|
 | `REQUEST staff.rob DO activities.clinics.ropes_course AS_ROLE roles.first DURING ALL {blocks.clinic_1 + blocks.clinic_2} ON 2026-09-28` | Rob is first on ropes in both clinics. One request: both or it is not met. |
-| `… DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2} …` | Rob is first on ropes in clinic 1 or clinic 2. One request. |
+| `… DURING ANY {blocks.clinic_1 + blocks.clinic_2} …` | Rob is first on ropes in clinic 1 or clinic 2, or both. One request. |
+| `… DURING EXACTLY 1 {blocks.clinic_1 + blocks.clinic_2} …` | In one of them, and not the other. |
 | `… DURING EACH {blocks.clinic_1 + blocks.clinic_2} …` | Two requests, one per clinic. Rob may end up with neither, one or both, and each counts on its own. |
 
 At `MUST_HAPPEN`, `ALL` and `EACH` come to the same schedule. They differ when the
@@ -206,43 +211,117 @@ request is soft: `ALL` earns nothing for half, `EACH` earns half.
 
 | Clause | Meaning |
 |---|---|
-| `DURING <blocks>` | When in the day. Required. |
+| `DURING <blocks>` | When in the day. Left out: any block of the day. |
 | `ON <dates>` | Which dates. Left out: the day being scheduled. |
 | `AS_ROLE <role>` | In that position or trainee role. Left out: any position. |
-| `FOR <duration>` | How long each one is. Ad hoc tasks only; left out, a task fills its block. |
-| `WITH <staff>` | That person is working the same clinic or task alongside; of a set, `ANY n` or `ALL` says how many of it. |
+| `FOR <duration>` | How long ([lengths](#lengths-for)). Left out, a task fills its block. |
+| `WITH <staff>` | That person is working the same clinic or task alongside; of a set, a count or `ALL` says how many of it. |
 | `WITHOUT <staff>` | The opposite of `WITH` the same. |
+
+`DURING` and `ON` go anywhere in a statement, even before the subject. `AS_ROLE`, `FOR`,
+`WITH` and `WITHOUT` describe the activity, so they go after `DO`, `FREE` or `BUSY`:
+
+```skedge
+REQUEST DURING blocks.clinic_1 staff.rob DO 'break' FOR 30m ON 2026-09-16
+```
 
 An ad hoc task such as `'break'` has no positions, skills or camper slots; it occupies
 staff time only. `'break' FOR 30m` is a 30-minute break somewhere inside one block, the
 Staff View labels the rest of the block `DYOW/WPs`, and several short tasks can share a
 block.
 
-### Blocks in a row
+### Counting
 
-`CONSECUTIVE` between `ANY n` and the blocks chooses blocks that are next to each other:
+A count is `AT_LEAST`, `AT_MOST` or `EXACTLY` and a number, written directly in front of
+the set it counts. It counts the members of that set the rest of the statement holds for:
+
+| Request | Meaning |
+|---|---|
+| `REQUEST AT_LEAST 3 staff.support DO 'lifeguard' DURING blocks.rest_hour` | Three or more support staff lifeguard at rest hour. |
+| `REQUEST AT_MOST 2 staff.all DO 'break' DURING EACH blocks.all` | Never more than two people on break in the same block. |
+| `REQUEST EACH staff.village_hero DO 'break' DURING EXACTLY 3 blocks.all` | Every village hero has a break in exactly three blocks. |
+| `REQUEST staff.rob DO AT_LEAST 2 activities.clinics.all ON ANY dates.session_1.all` | Rob runs at least two different clinics this session. |
+
+A count counts its own set and nothing else. `EXACTLY 1 {staff.dylan + staff.alesa} DO
+'rake leaves'` is one of those two raking and the other one not; it says nothing about who
+else rakes. `AT_LEAST` never forbids, but `AT_MOST` and `EXACTLY` do, which is what makes
+them caps.
+
+An activity has no quantity of its own: it is the blocks, the dates and the people that
+come in numbers. So a count of activities counts different ones, and "three breaks" is a
+count of the blocks they are in.
+
+Where two sets are counted, the counts go one inside the other in this order, whatever
+order they are written in: who, what, the dates, the blocks. `AT_MOST 2 staff.counselor DO
+'break' DURING AT_LEAST 3 blocks.all` is at most two counselors who break three or more
+times. `ALL` is one unit inside every count, which is what put Lucy and Tom in the same
+block above.
+
+`ANY` is the other way to take a set: any of these will do. It is not a number, so it
+says nothing about how many:
 
 ```skedge
-REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 2 CONSECUTIVE blocks.all
+REQUEST EACH staff.all DO ANY activities.clinics.all DURING AT_MOST 1 CONSECUTIVE blocks.all
+```
+
+This counts the blocks, and the clinics only say which blocks those are: blocks in which
+they run a clinic, any clinic. `AT_LEAST 1` on the clinics would be a second count asking
+something else — whether there is a clinic whose own runs are short — which any clinic
+they never run passes. A count asks how many; `ANY` says what counts.
+
+On the blocks of a statement, `ANY` is at least one of them, so it is nearly `AT_LEAST 1`.
+The difference is where a pool sits: inside the units, where a count sits outside them.
+`ALL {staff.dylan + staff.sarah} DO 'x' DURING ANY blocks.all` gives each of them a block,
+not necessarily the same one; `DURING AT_LEAST 1 blocks.all` gives them one together.
+
+### Blocks in a row
+
+`CONSECUTIVE` after a count on the blocks counts blocks that are next to each other:
+
+```skedge
+REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING AT_LEAST 2 CONSECUTIVE blocks.all
 ```
 
 Lucy and Tom take out the garbage together, in two blocks one after the other. Blocks are
 next to each other when they are next to each other in the Blocks sheet, so
-`ANY 2 CONSECUTIVE blocks.all_clinics` may be clinic 1 and 2, but not clinic 2 and 3
-with lunch between them. It needs `ANY n` with n of 2 or more: anything else has nothing
-to choose. For the same reason it cannot follow `NOT DO`, where blocks are ruled out rather
-than chosen. To keep something from running back to back, count the run instead:
+`AT_LEAST 2 CONSECUTIVE blocks.all_clinics` may be clinic 1 and 2, but not clinic 2 and 3
+with lunch between them. `AT_MOST` caps the longest run:
 
 ```skedge
-REQUEST AT_MOST 1 EACH staff.all DO 'break' DURING ANY CONSECUTIVE blocks.all
+REQUEST EACH staff.all DO 'break' DURING AT_MOST 1 CONSECUTIVE blocks.all
 ```
 
 Nobody has a break in two blocks in a row.
 
 `CONSECUTIVE` is always about blocks, since blocks are what can be in a row, so it only
-ever goes in a `DURING`, just before the blocks. With a number, `ANY 2 CONSECUTIVE`, it
-chooses them; with none, `ANY CONSECUTIVE`, it measures a count in runs
-([patterns](#patterns-who-do-what)).
+ever goes in a `DURING`, just before the blocks. After `ANY` it pools each run of blocks
+for a `FOR` to measure, below.
+
+### Lengths: `FOR`
+
+`FOR` says how long, and measures the activity within one unit of the blocks. Blocks taken
+one at a time — one block, `ALL`, `EACH` or a count — make each block a unit, so `FOR` is
+the length of each piece. Blocks pooled with `ANY` are one unit together, so `FOR` is what
+the pieces add up to:
+
+| You mean | Write |
+|---|---|
+| Two hours in total, split over any blocks | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks.all` |
+| Two hours in one go: one block, or blocks in a row | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY CONSECUTIVE blocks.all` |
+| One piece of 45 minutes, in one block | `REQUEST staff.cam_vl DO 'video editing' FOR 45m DURING AT_LEAST 1 blocks.all` |
+| Three breaks of 30 minutes | `REQUEST staff.cam_vl DO 'break' FOR 30m DURING EXACTLY 3 blocks.all` |
+
+`FOR 2h` is exactly two hours; `FOR AT_LEAST 2h` and `FOR AT_MOST 2h` bound it. A piece
+never leaves its block, so one block shorter than the length cannot hold it. Over a pool
+the pieces fill their blocks, all but one, which is cut to what is left, or under
+`AT_LEAST` to whatever reaches it: two hours over 75-minute blocks is one whole block and
+45 minutes of another.
+
+`FOR` on a clinic, `FREE` or `BUSY` adds up the blocks, so it needs the blocks pooled:
+
+```skedge
+PREFER EACH staff.counselor FREE FOR AT_LEAST 2h DURING ANY blocks.all_clinics
+```
 
 ### Asking for an activity without naming anybody
 
@@ -255,10 +334,10 @@ REQUEST activities.clinics.archery_1_2 DURING blocks.clinic_2
 ```
 
 That asks that archery runs in clinic 2, staffed by whoever its positions allow. There is
-no `DO`, because there is no subject: adding `ANY 1 staff.all DO` in front would say the
-same thing twice. Filling one position of an activity fills them all, so this is a request
-for every person it needs, and the report names the activity once rather than once per
-position.
+no `DO`, because there is no subject: adding `AT_LEAST 1 staff.all DO` in front would say
+the same thing twice. Filling one position of an activity fills them all, so this is a
+request for every person it needs, and the report names the activity once rather than once
+per position.
 
 `EACH` over a set asks for each of them separately, which is how two lines ask for a
 whole board of cabin acts: one for the acts in the cabin act block, one for those the
@@ -277,25 +356,26 @@ REQUEST activities.clinics.candle_making DURING blocks.clinic_1
 REQUEST EACH staff.counselor NOT DO activities.clinics.candle_making
 ```
 
-### NOT DO and FREE
+### NOT DO, FREE and BUSY
 
 | Request | Meaning |
 |---|---|
 | `REQUEST staff.dylan NOT DO ANY activities.clinics.ropes` | Dylan does no ropes clinic today. |
 | `REQUEST staff.dylan FREE DURING ALL blocks.all ON 2026-09-16` | At camp with nothing assigned all day. Somebody away is an [`EXCLUDE`](#exclude-somebody-who-is-not-here). |
 | `REQUEST EACH {staff.all - staff.director} FREE DURING blocks.playstation` | Each non-director should have nothing on during playstation. |
-| `REQUEST EACH staff.counselor NOT FREE DURING blocks.clinic_1` | Every counselor has something to do in clinic 1. |
+| `REQUEST EACH staff.counselor BUSY DURING blocks.clinic_1` | Every counselor has something to do in clinic 1. |
+| `REQUEST staff.hails BUSY DURING AT_LEAST 1 blocks.evening` | Something to do in at least one evening block. |
 
-`FREE` means working that day with nothing assigned in the block; `NOT FREE` means having
+`FREE` means working that day with nothing assigned in the block; `BUSY` means having
 something assigned. Someone resting is neither. There is no word for "anything": nothing to
-do is `FREE`, something to do is `NOT FREE`.
+do is `FREE`, something to do is `BUSY`.
 
-The subject of a `NOT` still chooses: `ALL {…} NOT DO` is "none of them does",
-`ANY 1 {…} NOT DO` is "one of them doesn't". Everything to the right of `NOT` describes the
-situation that must not happen, so a set there is matched rather than chosen, and says so with `ANY`:
-`REQUEST staff.rob NOT DO 'break' DURING ANY blocks.meals` is no break at any meal.
-`DURING` can be left out to mean all day. `EACH` splits the request, as it does
-anywhere; `WITH` and `WITHOUT` count company instead (below).
+The subject of a `NOT` is who it is about: `ALL {…} NOT DO` is "none of them does",
+`AT_LEAST 1 {…} NOT DO` is "one of them doesn't". Everything to the right of `NOT`
+describes the situation that must not happen, so a set there is matched rather than
+counted, and says so with `ANY`: `REQUEST staff.rob NOT DO 'break' DURING ANY blocks.meals`
+is no break at any meal. `DURING` can be left out to mean all day. `EACH` splits the
+request, as it does anywhere; `WITH` and `WITHOUT` count company instead (below).
 
 `NOT` turns round everything to its right, so `ALL` there is "not all of these
 together", and any one of them on its own is fine:
@@ -306,9 +386,9 @@ together", and any one of them on its own is fine:
 | `REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING EACH {blocks.clinic_1 + blocks.clinic_2}` | The same rule, as two requests, one per block: at a soft priority a clinic in both is twice as bad as one. |
 | `REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_2}` | Lisa is not on a clinic in both blocks. A clinic in one of them is fine. |
 
-`ANY n` is rejected right of `NOT`: "not in two of them" is "in at most one", which a count
-says plainly — `REQUEST AT_MOST 1 staff.lisa DO ANY activities.clinics.all DURING ANY
-{…}`.
+A count is rejected right of `NOT`: "not in two of them" is "in at most one", which a count
+of what does happen says plainly — `REQUEST staff.lisa DO ANY activities.clinics.all
+DURING AT_MOST 1 {…}`.
 
 **This is how "avoid" is written.** A `REQUEST` is all or nothing, so split it small and
 give it a soft priority:
@@ -325,54 +405,35 @@ exactly one of them, so three such breaks are three times as bad as one.
 | Request | Meaning |
 |---|---|
 | `REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT staff.vic` | If Rob is on ropes, Vic must be on it too. |
-| `REQUEST EACH staff.junior NOT DO ANY activities.clinics.waterfront WITHOUT ANY 1 staff.senior` | No junior at the waterfront unless a senior is there. |
+| `REQUEST EACH staff.junior NOT DO ANY activities.clinics.waterfront WITHOUT AT_LEAST 1 staff.senior` | No junior at the waterfront unless a senior is there. |
 | `REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT ALL {staff.vic + staff.charlton}` | Rob is on ropes only with both Vic and Charlton. |
 | `REQUEST staff.jack NOT DO ANY activities.clinics.all WITH staff.lucy` | Jack and Lucy never share a clinic. |
 
-One name stands alone. A set of several needs `ANY n` (at least n of them) or `ALL`
-(every one of them), even to the right of `NOT`: `WITHOUT staff.senior` would not say
-whether one senior is enough.
+One name stands alone. A set of several needs a count (`AT_LEAST 1`, `EXACTLY 2`, …) or
+`ALL` (every one of them), even to the right of `NOT`: `WITHOUT staff.senior` would not
+say whether one senior is enough.
 
 "X only if Y is there too" is always "X `NOT DO` it `WITHOUT` Y". At `MUST_HAPPEN` these
 are hard rules; at a soft priority they are wishes.
 
-## Patterns: `<who> DO <what>`
+## PREFER: how close
 
-A pattern describes assignments without asking for them. It is the same `DO` a requirement
-is written with; what makes it a pattern is the amount in front of it. A pattern matches one
-assignment at a time, so a set in it is matched, with `ANY` ("any of these"), or split,
-with `EACH`; `ALL` and `ANY n` have nothing to choose here, apart from `WITH` and
-`WITHOUT`, which count company. Put an amount in front and it becomes something you can
-request or prefer:
+A `PREFER` is scored by how far the day is from something, so it needs a count or a `FOR`
+to be scored against:
 
 | Request | Meaning |
 |---|---|
-| `REQUEST AT_MOST 2 ANY staff.all DO 'break' DURING EACH blocks.all` | Never more than two people on break at once. Met or not. |
-| `PREFER AT_MOST 8 EACH staff.all DO ANY activities.clinics.all ON ANY dates.session_1.all` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
-| `REQUEST AT_LEAST 2h staff.james DO 'dance practice' ON ANY {2026-09-16 .. 2026-09-17}` | James's dance practice adds up to two hours. |
+| `PREFER EACH staff.all DO ANY activities.clinics.all ON AT_MOST 4 dates.session_1.all` | Nobody should run clinics on more than four days a session. Six is twice as bad as five. |
+| `PREFER staff.james DO 'dance practice' FOR AT_LEAST 2h DURING ANY blocks.all ON ANY {2026-09-16 .. 2026-09-17}` | Two hours of dance practice across the two days, each hour short costing the same. |
+| `PREFER staff.dylan DO activities.clinics.riflery DURING AT_LEAST 1 blocks.clinic_2` | Dylan on riflery in clinic 2, if it can be managed. |
 
-An amount is `AT_LEAST`, `AT_MOST` or `EXACTLY`, then a number of assignments or a length
-of time. Write the blocks as `DURING ANY CONSECUTIVE <blocks>` and it is measured over
-back-to-back blocks on one day: `AT_LEAST 2h … DURING ANY CONSECUTIVE blocks.all` is one
-unbroken two-hour stretch, `AT_MOST 3 … DURING ANY CONSECUTIVE blocks.all` is never more
-than three in a row.
+With several counts, a `PREFER` is scored on the outermost: `PREFER AT_LEAST 5
+staff.counselor DO 'break' DURING AT_LEAST 2 blocks.all` scores the counselors who reach
+two breaks, and one with a single break earns nothing. `EACH staff.counselor` in its place
+scores each counselor on their own breaks.
 
-When the subject is one person — a name, a variable, or `EACH`, which makes a copy per
-person — the amount can go after `DO` instead, where it reads as what that person does:
-
-```skedge
-EACH s IN staff.all
-IF s DO AT_LEAST 3 ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all
-REQUEST s FREE DURING ANY 1 blocks.all
-```
-
-That is the same test as `IF AT_LEAST 3 s DO ANY activities.clinics.all …`. With a set of
-people the amount is a total across all of them, so it goes in front, where it reads as
-one: `REQUEST AT_MOST 2 ANY staff.all DO 'break'`. After `DO` it would read as each
-person's, and is an error.
-
-`REQUEST` and `PREFER` take the same amount and pattern. `REQUEST` is met or not, and can
-be `MUST_HAPPEN`. `PREFER` is never hard and is scored by how far off it is.
+`REQUEST` and `PREFER` take the same words. `REQUEST` is met or not, and can be
+`MUST_HAPPEN`. `PREFER` is never hard and is scored by how far off it is.
 
 ### Mappings
 
@@ -402,15 +463,15 @@ REQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.evening
 ```
 
 A counselor whose cabin has no row gets the mapping's `default`, which is a phrase such as
-`ANY 1 {staff.all - staff.counselor - staff.director}`: the call stands for that phrase,
-quantifier and all, so the solver picks one of them. So does a counselor whose buddy is
+`AT_LEAST 1 {staff.all - staff.counselor - staff.director}`: the call stands for that
+phrase, count and all, so the solver picks one of them. So does a counselor whose buddy is
 resting or away that day, since a buddy who isn't at work can't cover anyone.
 
 The Mappings tab says what a mapping takes and gives, so a call is checked like any other
 name. `mappings.buddy(staff.alan)` is an error if Alan isn't a counselor, and so is
 `mappings.buddy(c)` written where an activity belongs. A call can also go inside a set,
 `ALL {staff.office - mappings.buddy(c)}`, but only when it gives one name or an
-`ALL` set. A default of `ANY 1` is a choice the solver hasn't made yet, so nothing
+`ALL` set. A default that is a count is a choice the solver hasn't made yet, so nothing
 can be taken away from it.
 
 ## Several lines: variables, IF, UNLESS, GAP
@@ -421,13 +482,13 @@ lines come to be about the same person:
 ```skedge
 # Nobody who worked the night block yesterday works clinic 1 today.
 EACH s IN staff.all
-IF s NOT FREE DURING blocks.night ON {dates.target - 1d}
+IF s BUSY DURING blocks.night ON {dates.target - 1d}
 REQUEST s FREE DURING blocks.clinic_1
 ```
 
-`IF <pattern>` makes the request apply only when the pattern has a match (or meets an
-amount: `IF AT_LEAST 3 s DO …`). `UNLESS` is the opposite. Published past days are
-facts, so an `IF` about yesterday is simply true or false.
+`IF` makes the request apply only when its test holds: when what it says happens, or meets
+its count. `UNLESS` is the opposite. Published past days are facts, so an `IF` about
+yesterday is simply true or false.
 
 Conditions join with `AND` (every one holds) and `OR` (at least one does), and a long one
 reads best a test to a line:
@@ -435,7 +496,7 @@ reads best a test to a line:
 ```skedge
 # If two counselors are on break at once and Dylan is free at lunch, he covers the desk.
 IF
-AT_LEAST 2 ANY staff.counselor DO 'break' DURING EACH blocks.all
+AT_LEAST 2 staff.counselor DO 'break' DURING ANY blocks.all
 AND
 staff.dylan FREE DURING blocks.lunch
 REQUEST staff.dylan DO 'front desk' DURING blocks.lunch
@@ -448,22 +509,23 @@ so a line beginning with either continues the condition above it.
 ```skedge
 # Someone from the office covers the front desk in clinic 1, unless a director is free then.
 UNLESS ANY staff.director FREE DURING blocks.clinic_1
-REQUEST ANY 1 staff.office DO 'front desk' DURING blocks.clinic_1
+REQUEST AT_LEAST 1 staff.office DO 'front desk' DURING blocks.clinic_1
 ```
 
-`ANY 1 x IN <set>` on its own line picks one item for the whole request: "the same
-person sets up and tears down".
+`EXACTLY 1 x IN <set>` on its own line picks one item for the whole request: "the same
+person sets up and tears down". `EXACTLY 3 x IN <set>` picks three, and `x` is then a set,
+taken `ALL` or `EACH` where it is used.
 
 A name bound this way can also be **added into a set** with `+`, which is how you say
 "Alesa and one of these two":
 
 ```skedge
-ANY 1 videographer IN {staff.dylan + staff.cam_vl}
+EXACTLY 1 videographer IN {staff.dylan + staff.cam_vl}
 
 REQUEST ALL {staff.alesa + videographer}
-DO 'Video KM Rope Swing'
-DURING ANY 1 blocks.all FOR 30m
-ON ANY 1 dates.session_1.all
+DO 'Video KM Rope Swing' FOR 30m
+DURING AT_LEAST 1 blocks.all
+ON AT_LEAST 1 dates.session_1.all
 ```
 
 Alesa is named outright, so she is always in it; `videographer` brings whichever of Dylan
@@ -471,11 +533,11 @@ and Cam the solver picked, and it is the same one everywhere the name appears in
 request. Only `+` works: `-` and `&` ask what a chosen name is *not*, or what it has in
 common with something, and neither can be answered before the solver has chosen. A set
 holding a bound name is taken with `ALL`, or with nothing at all, for the same reason —
-`ANY 2 {staff.alesa + videographer}` would be choosing out of something that is
+`AT_LEAST 2 {staff.alesa + videographer}` would be counting out of something that is
 itself still being chosen.
 
 The same request with the choice written in place is
-`ALL {staff.alesa + (ANY 1 {staff.dylan + staff.cam_vl})}` (see
+`ALL {staff.alesa + (AT_LEAST 1 {staff.dylan + staff.cam_vl})}` (see
 [choosing inside a set](#choosing-inside-a-set)). The binding line is the one to reach for
 when the name is used in more than one place.
 
@@ -498,31 +560,33 @@ group inside one chooses afresh wherever the name is used. A name can't be both 
 a variable or a label.
 
 With a quantifier after the colon, it is a binding line written the other way round:
-`videographer: ANY 1 {staff.dylan + staff.cam_vl}` is the same as
-`ANY 1 videographer IN {staff.dylan + staff.cam_vl}`, and `c: EACH staff.counselor` the
-same as `EACH c IN staff.counselor`.
+`videographer: EXACTLY 1 {staff.dylan + staff.cam_vl}` is the same as
+`EXACTLY 1 videographer IN {staff.dylan + staff.cam_vl}`, and `c: EACH staff.counselor`
+the same as `EACH c IN staff.counselor`.
 
 Label two requirements and put a `GAP` between them:
 
 ```skedge
 EACH c IN staff.counselor
-morning:   REQUEST c DO 'counselor hour' FOR 1h DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}
-afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING ANY 1 {blocks.playstation + blocks.clinic_3}
+morning:   REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}
+afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.playstation + blocks.clinic_3}
 GAP morning TO afternoon AT_MOST 5h
 ```
 
 `GAP a TO b` means `b` starts after `a` ends, and the time between meets the amount.
 `GAP a TO b AT_LEAST 0m` is plain ordering. Real start and end times are compared, so a
-one-hour task may slide around inside its 75-minute block to make a gap work.
+one-hour task may slide around inside its 75-minute block to make a gap work. A labeled
+requirement is timed from what it makes, so it takes no count but one `AT_LEAST`, and no
+`FOR` over a pool.
 
 Durations are written in minutes, hours or days: `30m`, `1.5h`, `2d`. A gap can reach
 across days, which is what the longer units are for:
 
 ```skedge
 first_meeting:  REQUEST ALL {staff.dylan + staff.sarah} DO 'meeting'
-DURING ANY 1 blocks.all ON ANY 1 {2026-09-14 .. 2026-09-16}
+DURING AT_LEAST 1 blocks.all ON AT_LEAST 1 {2026-09-14 .. 2026-09-16}
 second_meeting: REQUEST ALL {staff.dylan + staff.sarah} DO 'meeting'
-DURING ANY 1 blocks.all ON ANY 1 {2026-09-16 .. 2026-09-18}
+DURING AT_LEAST 1 blocks.all ON AT_LEAST 1 {2026-09-16 .. 2026-09-18}
 GAP first_meeting TO second_meeting AT_LEAST 40h
 ```
 
@@ -533,38 +597,37 @@ anywhere nearer to it than forty hours, so it waits for a day that is far enough
 date later than the one being scheduled holds nothing yet, so it is never the near end of a
 gap; it is checked on the day it turns into.
 
-### Clauses in any order
+### Where the clauses go
 
-`DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH` and `WITHOUT` can go anywhere in a statement: before
-the subject, between it and `DO`, or after the object. Only the subject, `DO` and the
-object keep their order. These are the same request:
+The subject, the verb and the object keep their order. `DURING` and `ON` go anywhere, before
+the subject included; `AS_ROLE`, `FOR`, `WITH` and `WITHOUT` go anywhere after the verb.
+These are the same request:
 
 ```skedge
 REQUEST
-ON ANY 1 {2026-09-14 .. 2026-09-18}
+ON AT_LEAST 1 {2026-09-14 .. 2026-09-18}
 ALL {staff.dylan + staff.alesa}
 DO 'video'
 FOR 30m
-DURING ANY 1 blocks.all
+DURING AT_LEAST 1 blocks.all
 ```
 
 ```
-REQUEST ALL {staff.dylan + staff.alesa} DO 'video' FOR 30m DURING ANY 1 blocks.all ON ANY 1 {2026-09-14 .. 2026-09-18}
+REQUEST ALL {staff.dylan + staff.alesa} DO 'video' FOR 30m DURING AT_LEAST 1 blocks.all ON AT_LEAST 1 {2026-09-14 .. 2026-09-18}
 ```
 
-The same goes for patterns, and for `MAXIMIZE` or `MINIMIZE` in a `PREFER`. A clause
-written before an amount, `REQUEST DURING blocks.lunch AT_MOST 2 ANY staff.all DO 'break'`, is
-part of the pattern the amount counts.
+Where a clause is written never changes what it means: the counts in it always go who,
+what, dates, blocks. `MAXIMIZE` or `MINIMIZE` goes before or after the pattern it weighs.
 
 ### A statement over several lines
 
 A statement can be written on as many lines as it reads well on. A new line starts a new
 statement only where one can: at `REQUEST`, `PREFER`, `EXCLUDE`, `IF`, `UNLESS` or `GAP`,
-at a binding line (`EACH x IN …`, `ANY n x IN …`), or at a name followed by a colon (a
+at a binding line (`EACH x IN …`, `EXACTLY n x IN …`), or at a name followed by a colon (a
 label or a definition). Every other line carries on the one above it. Nothing needs
 indenting, and where a statement fits on one line it can stay there.
 
-So a line inside a statement can't start with `EACH x IN` or `ANY n x IN`, which would
+So a line inside a statement can't start with `EACH x IN` or `EXACTLY n x IN`, which would
 be read as a binding line: put it at the end of the line above instead.
 
 ### One request, several statements
@@ -578,7 +641,7 @@ them under one description, one priority and one weight, and lets them share a b
 ```skedge
 # Rob runs the pole course this morning, and we would rather he were free at playstation.
 REQUEST staff.rob DO activities.clinics.pole_course_explore_level_1_2_dbl AS_ROLE roles.first DURING ALL {blocks.clinic_1 + blocks.clinic_2}
-PREFER AT_LEAST 1 staff.rob FREE DURING blocks.playstation
+PREFER staff.rob FREE DURING AT_LEAST 1 blocks.playstation
 ```
 
 The `REQUEST` statements stand or fall together: the request is met when every one of them
@@ -598,15 +661,16 @@ requirements must be hard.
 ad hoc task exists only because some `REQUEST` asks for it. `NOT`, `AT_MOST`, `PREFER`,
 `IF` and `UNLESS` steer where those things land; they never create more of them. So a
 request that people `NOT DO 'break'` outside meals moves the breaks they already have and
-cannot buy or cost anyone a break. It also means that naming an ad hoc task no `REQUEST`
-asks for is an error, which catches misspelled task names.
+cannot buy or cost anyone a break. A count of clinics, or `ANY` of them, counts the clinics
+that are running and starts none of its own. And naming an ad hoc task no `REQUEST` asks
+for is an error, which catches misspelled task names.
 
 ## Priorities
 
 `MUST_HAPPEN` is hard. `CLINIC`, `HIGH`, `MEDIUM` and `LOW` are soft tiers, and no amount
 of a lower tier outweighs a higher one; within a tier, weights set the exchange rate. See
 [How the solver decides](solver.md). A `PREFER` cannot be `MUST_HAPPEN`, in a request of
-its own or beside requirements; a cap that must hold is `REQUEST AT_MOST`.
+its own or beside requirements; a cap that must hold is a `REQUEST` with `AT_MOST`.
 
 ## EXCLUDE: somebody who is not here
 
@@ -635,11 +699,11 @@ whole day is in no category that day, so nothing is asked of them and the day st
 Somebody out for part of a day is still at camp and is still owed their breaks; they are
 simply taken in a block they are around for.
 
-An `EXCLUDE` is a fact, so nothing in it is the solver's to choose: `ANY n` is refused,
-it takes no `IF`, and it is written at `MUST_HAPPEN` in a request of its own. Naming that
-person anyway in another request — `REQUEST staff.dylan DO activities.clinics.riflery` on
-his day off — is a contradiction the errors pane names: at `MUST_HAPPEN` the day will not
-solve, and below it the work simply never happens.
+An `EXCLUDE` is a fact, so nothing in it is the solver's to choose: `ANY` and counts are
+refused, it takes no `IF`, and it is written at `MUST_HAPPEN` in a request of its own.
+Naming that person anyway in another request — `REQUEST staff.dylan DO
+activities.clinics.riflery` on his day off — is a contradiction the errors pane names: at
+`MUST_HAPPEN` the day will not solve, and below it the work simply never happens.
 
 The Adjustments sheet does the same thing for somebody who is [ill or short of
 sleep](same-day.md); `EXCLUDE` is for what is known in advance and belongs with the
@@ -648,9 +712,9 @@ requests.
 ## Time horizon
 
 The solver schedules the target date. Published past dates are facts: they cannot change,
-and they count in every requirement, amount and condition. Future dates hold nothing yet.
+and they count in every statement, count and condition. Future dates hold nothing yet.
 
-A request that could still be met later, such as one `ON ANY 1` a week of dates, is
+A request that could still be met later, such as one `ON ANY` a week of dates, is
 **deferrable**. It does not have to happen today as long as it can still happen later,
 with a small nudge to do it early. The solver knows from the sheets when "later" runs out,
 for example because the person rests for the remainder of the week, and enforces it on the
@@ -665,13 +729,13 @@ every example on this page against it.
 ### Clinic assignment
 
 Archery runs during clinic 2. Loading a date creates a request like this for every
-offered clinic, at `CLINIC` priority, tagged `clinic_import`, naming every position on
-Clinic_Data. `EACH` over the roles is what asks for a different person in each;
-`ALL` would ask one person to hold both. The clinic runs fully staffed or not at all,
-so the positions stand together whichever way they are written.
+offered clinic, at `CLINIC` priority, tagged `clinic_import`. Asked for by name, the clinic
+is staffed from its positions; naming the positions instead asks for a different person in
+each with `EACH` — `ALL` would ask one person to hold both. The clinic runs fully staffed
+or not at all, so the positions stand together whichever way they are written.
 
 ```skedge
-REQUEST ANY 1 staff.all DO activities.clinics.archery_1_2 AS_ROLE EACH {roles.first + roles.second} DURING blocks.clinic_2 ON 2026-09-16
+REQUEST AT_LEAST 1 staff.all DO activities.clinics.archery_1_2 AS_ROLE EACH {roles.first + roles.second} DURING blocks.clinic_2 ON 2026-09-16
 ```
 
 Priority `CLINIC`.
@@ -687,25 +751,25 @@ Priority `MUST_HAPPEN`.
 ### Lucy and Tom take out the garbage together every Monday
 
 ```skedge
-REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 1 blocks.all ON EACH dates.session_1.mondays
+REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING AT_LEAST 1 blocks.all ON EACH dates.session_1.mondays
 ```
 
 Priority `HIGH`.
 
-### Lucy or Tom takes out the garbage on the first Monday of every session
+### Lucy or Tom takes out the garbage every Monday
 
 ```skedge
-REQUEST ANY 1 {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 1 blocks.all ON EACH dates.season.mondays
+REQUEST AT_LEAST 1 {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY blocks.all ON EACH dates.season.mondays
 ```
 
 Priority `HIGH`.
 
 ### Two of three people, twice in a day
 
-The same two people, in the same two blocks.
+Two of them, each on two blocks of the day.
 
 ```skedge
-REQUEST ANY 2 {staff.lucy + staff.tom + staff.charles} DO 'take out garbage' DURING ANY 2 blocks.all ON 2026-09-21
+REQUEST AT_LEAST 2 {staff.lucy + staff.tom + staff.charles} DO 'take out garbage' DURING AT_LEAST 2 blocks.all ON 2026-09-21
 ```
 
 Priority `MEDIUM`.
@@ -715,7 +779,7 @@ Priority `MEDIUM`.
 Three separate requests, and each person may get a different day.
 
 ```skedge
-REQUEST EACH {staff.lucy + staff.tom + staff.charles} DO 'take out garbage' DURING blocks.playstation ON ANY 1 {2026-09-21 .. 2026-09-25}
+REQUEST EACH {staff.lucy + staff.tom + staff.charles} DO 'take out garbage' DURING blocks.playstation ON ANY {2026-09-21 .. 2026-09-25}
 ```
 
 Priority `MEDIUM`.
@@ -725,7 +789,7 @@ Priority `MEDIUM`.
 One day is chosen; clinic 1 and clinic 2 on it are separate requests.
 
 ```skedge
-ANY 1 d IN dates.session_2.all
+EXACTLY 1 d IN dates.session_2.all
 REQUEST staff.dylan DO 'archery maintenance' DURING EACH {blocks.clinic_1 + blocks.clinic_2} ON d
 ```
 
@@ -738,7 +802,7 @@ Cam VL is trained on candle making for two clinics in a row, some day this week.
 additional to the clinic's positions.
 
 ```skedge
-REQUEST staff.cam_vl DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY 2 CONSECUTIVE blocks.all_clinics ON ANY 1 {2026-09-14 .. 2026-09-18}
+REQUEST staff.cam_vl DO activities.clinics.candle_making AS_ROLE roles.trainee DURING AT_LEAST 2 CONSECUTIVE blocks.all_clinics ON AT_LEAST 1 {2026-09-14 .. 2026-09-18}
 ```
 
 Priority `HIGH`.
@@ -761,27 +825,33 @@ Priority `MEDIUM`, weight `1`.
 
 ### Clinic variety over a rolling week
 
-Each person should run each clinic at most once in any seven days; every repeat costs a
+Each person should run each clinic on at most one day in any seven; every repeat costs a
 point. Shares a tier with the preference request so the two trade off.
 
 ```skedge
-PREFER AT_MOST 1 EACH staff.all DO EACH activities.clinics.all ON ANY {(dates.target - 6d) .. dates.target}
+PREFER EACH staff.all DO EACH activities.clinics.all ON AT_MOST 1 {(dates.target - 6d) .. dates.target}
 ```
 
 Priority `MEDIUM`, weight `0.5`.
 
 ### Rotate ropes positions
 
+Nobody holds the same ropes position on more than three days a session.
+
 ```skedge
-PREFER AT_MOST 3 EACH staff.ropes_level_2 DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second} ON ANY dates.session_1.all
+PREFER EACH staff.ropes_level_2 DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second} ON AT_MOST 3 dates.session_1.all
 ```
 
 Priority `LOW`.
 
 ### Balance clinic workload
 
+Nobody should run more than ten hours of clinics a session. A count of clinics would count
+the blocks of one day or the days of a session, but not both at once, so the load is
+measured in hours.
+
 ```skedge
-PREFER AT_MOST 8 EACH staff.all DO ANY activities.clinics.all ON ANY dates.session_1.all
+PREFER EACH staff.all DO ANY activities.clinics.all FOR AT_MOST 10h DURING ANY blocks.all ON ANY dates.session_1.all
 ```
 
 Priority `MEDIUM`, weight `0.25`.
@@ -789,7 +859,7 @@ Priority `MEDIUM`, weight `0.25`.
 ### Never more than three clinics in a row
 
 ```skedge
-REQUEST EACH staff.all DO AT_MOST 3 ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all
+REQUEST EACH staff.all DO ANY activities.clinics.all DURING AT_MOST 3 CONSECUTIVE blocks.all
 ```
 
 Priority `MUST_HAPPEN`.
@@ -802,8 +872,8 @@ every day.
 
 ```skedge
 EACH c IN staff.counselor
-morning:   REQUEST c DO 'counselor hour' FOR 1h DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}
-afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING ANY 1 {blocks.playstation + blocks.clinic_3}
+morning:   REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}
+afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING AT_LEAST 1 {blocks.playstation + blocks.clinic_3}
 GAP morning TO afternoon AT_MOST 5h
 ```
 
@@ -815,7 +885,7 @@ Each non-director, non-counselor staff member takes three 30-minute breaks per d
 three different blocks. A break in a clinic block keeps that person off clinics in it.
 
 ```skedge
-REQUEST EACH {staff.all - staff.director - staff.counselor} DO 'break' FOR 30m DURING ANY 3 blocks.all
+REQUEST EACH {staff.all - staff.director - staff.counselor} DO 'break' FOR 30m DURING AT_LEAST 3 blocks.all
 ```
 
 Priority `MUST_HAPPEN`.
@@ -833,10 +903,28 @@ Priority `HIGH`, weight `2`.
 ### Never more than two people on break at once
 
 ```skedge
-REQUEST AT_MOST 2 ANY staff.all DO 'break' DURING EACH blocks.all
+REQUEST AT_MOST 2 staff.all DO 'break' DURING EACH blocks.all
 ```
 
 Priority `MUST_HAPPEN`.
+
+### Two hours of video editing in one go
+
+```skedge
+REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY CONSECUTIVE blocks.all
+```
+
+Priority `HIGH`.
+
+### Exactly one of two people rakes the leaves
+
+Whoever else is asked to rake, only one of these two does.
+
+```skedge
+REQUEST EXACTLY 1 {staff.dylan + staff.alesa} DO 'rake leaves' DURING ANY blocks.all
+```
+
+Priority `HIGH`.
 
 ### Playstation availability
 
@@ -860,7 +948,7 @@ Priority `MUST_HAPPEN`.
 ### A review with every director, on the second Thursday
 
 ```skedge
-REQUEST ALL staff.director DO 'mid-session review' DURING ANY 1 blocks.all ON dates.session_1.week_2.thursday
+REQUEST ALL staff.director DO 'mid-session review' DURING AT_LEAST 1 blocks.all ON dates.session_1.week_2.thursday
 ```
 
 Priority `MEDIUM`.
@@ -889,8 +977,8 @@ Priority `MUST_HAPPEN`.
 
 ```skedge
 EACH s IN staff.all
-IF s DO AT_LEAST 3 ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all
-REQUEST s FREE DURING ANY 1 blocks.all
+IF s DO ANY activities.clinics.all DURING AT_LEAST 3 CONSECUTIVE blocks.all
+REQUEST s FREE DURING ANY blocks.all
 ```
 
 Priority `HIGH`.
@@ -898,7 +986,7 @@ Priority `HIGH`.
 ### The same person sets up and tears down
 
 ```skedge
-ANY 1 p IN staff.counselor
+EXACTLY 1 p IN staff.counselor
 first: REQUEST p DO 'campfire setup' DURING blocks.clinic_4
 last:  REQUEST p DO 'campfire teardown' DURING blocks.evening
 GAP first TO last AT_LEAST 0m

@@ -95,7 +95,7 @@ def test_an_unreadable_answer_says_where():
 
 def test_a_counterexample_is_a_day_that_tells_them_apart():
     verdict = check_answer(
-        "REQUEST staff.rob DO 'break' DURING ANY 1 {blocks.lunch + blocks.dinner}",
+        "REQUEST staff.rob DO 'break' DURING AT_LEAST 1 {blocks.lunch + blocks.dinner}",
         "REQUEST staff.rob DO 'break' DURING blocks.lunch",
         Priority.HIGH,
         dataset,

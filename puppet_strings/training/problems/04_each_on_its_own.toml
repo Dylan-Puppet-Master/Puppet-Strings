@@ -5,13 +5,13 @@ day = "2026-08-04"
 teaches = """
 EACH <set>       a separate request for each one
 
-REQUEST EACH staff.directors DO 'break' DURING ANY 1 blocks.all
+REQUEST EACH staff.directors DO 'break' DURING ANY blocks.all
 REQUEST staff.rob DO 'break' DURING EACH {blocks.lunch + blocks.dinner}
 
 Read a request in three steps:
   1. EACH splits it into copies
-  2. ANY n chooses, once per copy
-  3. everyone chosen does it in every block chosen
+  2. counts pick, once per copy: who, then what, then dates, then blocks
+  3. ALL is one unit; ANY is any of them, for each unit
 
 Below MUST_HAPPEN, ALL is all-or-nothing; EACH earns credit for each part.
 """
@@ -20,16 +20,16 @@ Below MUST_HAPPEN, ALL is all-or-nothing; EACH earns credit for each part.
 id = "each-director-break"
 title = "A break each"
 prompt = "Each director gets their own 'break' at some point today. They don't need to be together."
-answer = "REQUEST EACH staff.directors DO 'break' DURING ANY 1 blocks.all"
+answer = "REQUEST EACH staff.directors DO 'break' DURING AT_LEAST 1 blocks.all"
 priority = "HIGH"
-hints = ["EACH staff.directors makes one request per director.", "Each copy then chooses its own block with ANY 1 blocks.all."]
+hints = ["EACH staff.directors makes one request per director.", "Each copy then has its own block: ANY blocks.all."]
 explain = "Three separate requests. Each director's break can land in a different block, and each counts on its own."
 alternatives = [
-  "REQUEST EACH {staff.david + staff.lisa + staff.matthew} DO 'break' DURING ANY 1 blocks.all",
+  "REQUEST EACH {staff.david + staff.lisa + staff.matthew} DO 'break' DURING AT_LEAST 1 blocks.all",
 ]
 wrong = [
-  "REQUEST ALL staff.directors DO 'break' DURING ANY 1 blocks.all",
-  "REQUEST EACH staff.directors DO 'break' DURING ANY 1 blocks.meals",
+  "REQUEST ALL staff.directors DO 'break' DURING AT_LEAST 1 blocks.all",
+  "REQUEST EACH staff.directors DO 'break' DURING AT_LEAST 1 blocks.meals",
 ]
 
 [[problem]]
@@ -58,7 +58,7 @@ answer = "REQUEST staff.leni DO 'dish duty' DURING EACH {blocks.lunch + blocks.d
 priority = "HIGH"
 wrong = [
   "REQUEST staff.leni DO 'dish duty' DURING ALL {blocks.lunch + blocks.dinner}",
-  "REQUEST staff.leni DO 'dish duty' DURING ANY 1 {blocks.lunch + blocks.dinner}",
+  "REQUEST staff.leni DO 'dish duty' DURING AT_LEAST 1 {blocks.lunch + blocks.dinner}",
 ]
 
 [[problem]]
@@ -83,10 +83,10 @@ wrong = ["REQUEST staff.hailey DO 'feed the horses' DURING blocks.breakfast ON A
 id = "each-with-any-block"
 title = "Each gets one"
 prompt = "Each village leader does a 'cabin check' in one of the evening blocks — whichever suits each of them."
-answer = "REQUEST EACH staff.village_leaders DO 'cabin check' DURING ANY 1 blocks.evening"
+answer = "REQUEST EACH staff.village_leaders DO 'cabin check' DURING AT_LEAST 1 blocks.evening"
 priority = "MEDIUM"
 wrong = [
-  "REQUEST ALL staff.village_leaders DO 'cabin check' DURING ANY 1 blocks.evening",
+  "REQUEST ALL staff.village_leaders DO 'cabin check' DURING AT_LEAST 1 blocks.evening",
   "REQUEST EACH staff.village_leaders DO 'cabin check' DURING ALL blocks.evening",
 ]
 
@@ -115,24 +115,24 @@ answer = "REQUEST EACH staff.directors DO 'first aid refresher' DURING blocks.re
 priority = "MUST_HAPPEN"
 explain = "A hard request must be met in full, so splitting it changes nothing. The difference only shows below MUST_HAPPEN."
 alternatives = ["REQUEST ALL staff.directors DO 'first aid refresher' DURING blocks.rest_hour"]
-wrong = ["REQUEST ANY 1 staff.directors DO 'first aid refresher' DURING blocks.rest_hour"]
+wrong = ["REQUEST AT_LEAST 1 staff.directors DO 'first aid refresher' DURING blocks.rest_hour"]
 
 [[problem]]
 id = "each-some-day"
 title = "Each some day"
 prompt = "Each MFG does a 'tool inventory' during rest hour on some day between Monday and Friday — each on whatever day suits them."
-answer = "REQUEST EACH staff.mfgs DO 'tool inventory' DURING blocks.rest_hour ON ANY 1 {2026-08-03 .. 2026-08-07}"
+answer = "REQUEST EACH staff.mfgs DO 'tool inventory' DURING blocks.rest_hour ON AT_LEAST 1 {2026-08-03 .. 2026-08-07}"
 priority = "MEDIUM"
-wrong = ["REQUEST ALL staff.mfgs DO 'tool inventory' DURING blocks.rest_hour ON ANY 1 {2026-08-03 .. 2026-08-07}"]
+wrong = ["REQUEST ALL staff.mfgs DO 'tool inventory' DURING blocks.rest_hour ON AT_LEAST 1 {2026-08-03 .. 2026-08-07}"]
 
 [[problem]]
 id = "each-clinic-block"
 title = "Coverage in every clinic"
 prompt = "In each of the four clinic blocks, one of the directors does 'walkabout'. Each block counts separately."
-answer = "REQUEST ANY 1 staff.directors DO 'walkabout' DURING EACH blocks.all_clinics"
+answer = "REQUEST AT_LEAST 1 staff.directors DO 'walkabout' DURING EACH blocks.all_clinics"
 priority = "HIGH"
-explain = "EACH splits first, then ANY 1 chooses once per copy — so each block gets its own director, maybe different ones."
-wrong = ["REQUEST ANY 1 staff.directors DO 'walkabout' DURING ALL blocks.all_clinics"]
+explain = "EACH splits first, then AT_LEAST 1 picks once per copy — so each block gets its own director, maybe different ones."
+wrong = ["REQUEST AT_LEAST 1 staff.directors DO 'walkabout' DURING ALL blocks.all_clinics"]
 
 [[problem]]
 id = "each-heroes-dinner"
@@ -146,15 +146,15 @@ wrong = ["REQUEST ALL staff.village_heroes DO 'table setting' DURING blocks.dinn
 id = "each-names"
 title = "Each of three"
 prompt = "Kara, Khushi and Tala each do 'mail sorting' in one of the morning clinic blocks (1 or 2), each on their own."
-answer = "REQUEST EACH {staff.kara + staff.khushi + staff.tala} DO 'mail sorting' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}"
+answer = "REQUEST EACH {staff.kara + staff.khushi + staff.tala} DO 'mail sorting' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}"
 priority = "MEDIUM"
-wrong = ["REQUEST ALL {staff.kara + staff.khushi + staff.tala} DO 'mail sorting' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}"]
+wrong = ["REQUEST ALL {staff.kara + staff.khushi + staff.tala} DO 'mail sorting' DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}"]
 
 [[problem]]
 id = "each-evening-leader"
 title = "One per evening block"
 prompt = "In each evening block, one village leader does 'night patrol'. Each block counts separately."
-answer = "REQUEST ANY 1 staff.village_leaders DO 'night patrol' DURING EACH blocks.evening"
+answer = "REQUEST AT_LEAST 1 staff.village_leaders DO 'night patrol' DURING EACH blocks.evening"
 priority = "HIGH"
 wrong = ["REQUEST ALL staff.village_leaders DO 'night patrol' DURING EACH blocks.evening"]
 
@@ -162,18 +162,18 @@ wrong = ["REQUEST ALL staff.village_leaders DO 'night patrol' DURING EACH blocks
 id = "each-two-per-meal"
 title = "Two per meal"
 prompt = "At each meal, two counselors do 'bus tables'. Each meal counts on its own."
-answer = "REQUEST ANY 2 staff.counselors DO 'bus tables' DURING EACH blocks.meals"
+answer = "REQUEST AT_LEAST 2 staff.counselors DO 'bus tables' DURING EACH blocks.meals"
 priority = "MEDIUM"
-wrong = ["REQUEST ANY 2 staff.counselors DO 'bus tables' DURING ALL blocks.meals"]
+wrong = ["REQUEST AT_LEAST 2 staff.counselors DO 'bus tables' DURING ALL blocks.meals"]
 
 [[problem]]
 id = "each-staff-all-break"
 title = "Everyone gets a break"
 prompt = "Every single staff member gets a 'break' in one of today's clinic blocks. Each person counts separately."
-answer = "REQUEST EACH staff.all DO 'break' DURING ANY 1 blocks.all_clinics"
+answer = "REQUEST EACH staff.all DO 'break' DURING AT_LEAST 1 blocks.all_clinics"
 priority = "HIGH"
 hints = ["Everybody on staff this session is staff.all."]
-wrong = ["REQUEST EACH staff.counselors DO 'break' DURING ANY 1 blocks.all_clinics"]
+wrong = ["REQUEST EACH staff.counselors DO 'break' DURING AT_LEAST 1 blocks.all_clinics"]
 
 [[problem]]
 id = "each-wednesday-thursday"

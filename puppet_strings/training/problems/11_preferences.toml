@@ -3,15 +3,17 @@ name = "Preferences"
 blurb = "PREFER: soft constraints scored by how close they come, and scoring by a mapping."
 day = "2026-08-04"
 teaches = """
-PREFER <amount> <pattern>                        fewer misses is better
+PREFER <statement with a count or a FOR>         the nearer, the better
 PREFER <pattern> MAXIMIZE mappings.x(args)       more points is better
 PREFER <pattern> MINIMIZE mappings.x(args)       fewer points is better
 
-PREFER AT_MOST 2 EACH staff.counselors DO ANY activities.clinics.all
+PREFER EACH staff.counselors DO ANY activities.clinics.all DURING AT_MOST 2 blocks.all
 PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all
        MAXIMIZE mappings.preference(s, c)
 
 • REQUEST is met or not. PREFER is scored by how close it comes.
+• So a PREFER needs a count or a FOR to come close to; one thing is AT_LEAST 1 of it
+• With two counts, a PREFER is scored on the outermost
 • A PREFER is never MUST_HAPPEN
 • EACH x IN <set> names the item, so a mapping can look it up
 """
@@ -20,13 +22,13 @@ PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all
 id = "prefer-at-most-two"
 title = "Not too many clinics"
 prompt = "We'd like each counselor to run no more than two clinics today; three is worse than two, four is worse still."
-answer = "PREFER AT_MOST 2 EACH staff.counselors DO ANY activities.clinics.all"
+answer = "PREFER EACH staff.counselors DO ANY activities.clinics.all DURING AT_MOST 2 blocks.all"
 priority = "MEDIUM"
 hints = ["'Worse and worse' means it's scored by how far off it is: that's PREFER."]
 explain = "A REQUEST would be simply missed at three; a PREFER counts how far over it went."
 wrong = [
-  "REQUEST AT_MOST 2 EACH staff.counselors DO ANY activities.clinics.all",
-  "PREFER AT_MOST 3 EACH staff.counselors DO ANY activities.clinics.all",
+  "REQUEST EACH staff.counselors DO ANY activities.clinics.all DURING AT_MOST 2 blocks.all",
+  "PREFER EACH staff.counselors DO ANY activities.clinics.all DURING AT_MOST 3 blocks.all",
 ]
 
 [[problem]]
@@ -62,37 +64,37 @@ wrong = ["PREFER EACH s IN staff.village_heroes DO EACH c IN activities.clinics.
 id = "prefer-free-counselors-playstation"
 title = "Free if possible"
 prompt = "We'd like at least three counselors free at playstation. Two is better than one, and one is better than none."
-answer = "PREFER AT_LEAST 3 ANY staff.counselors FREE DURING blocks.playstation"
+answer = "PREFER AT_LEAST 3 staff.counselors FREE DURING blocks.playstation"
 priority = "HIGH"
 explain = "Each counselor short of three costs a little. A REQUEST would score two free the same as none."
-wrong = ["REQUEST AT_LEAST 3 ANY staff.counselors FREE DURING blocks.playstation"]
+wrong = ["REQUEST AT_LEAST 3 staff.counselors FREE DURING blocks.playstation"]
 
 [[problem]]
 id = "prefer-at-most-one-break-at-once"
 title = "Stagger the breaks"
 prompt = "Ideally no more than one director is on 'break' in any block."
-answer = "PREFER AT_MOST 1 ANY staff.directors DO 'break' DURING EACH blocks.all"
+answer = "PREFER AT_MOST 1 staff.directors DO 'break' DURING EACH blocks.all"
 priority = "MEDIUM"
 wrong = [
-  "REQUEST AT_MOST 1 ANY staff.directors DO 'break' DURING EACH blocks.all",
-  "PREFER AT_MOST 1 ANY staff.directors DO 'break'",
+  "REQUEST AT_MOST 1 staff.directors DO 'break' DURING EACH blocks.all",
+  "PREFER AT_MOST 1 staff.directors DO 'break' DURING ANY blocks.all",
 ]
 
 [[problem]]
 id = "prefer-two-hours-rest"
 title = "Plenty of rest"
 prompt = "We'd like each counselor to be free for at least two hours of clinic time today."
-answer = "PREFER AT_LEAST 2h EACH staff.counselors FREE DURING ANY blocks.all_clinics"
+answer = "PREFER EACH staff.counselors FREE DURING ANY blocks.all_clinics FOR AT_LEAST 2h"
 priority = "LOW"
-wrong = ["PREFER AT_LEAST 2h ANY staff.counselors FREE DURING ANY blocks.all_clinics"]
+wrong = ["PREFER ANY staff.counselors FREE DURING ANY blocks.all_clinics FOR AT_LEAST 2h"]
 
 [[problem]]
 id = "prefer-not-three-in-a-row"
 title = "Short runs"
 prompt = "Nobody should ideally do more than one clinic in a row. Measure it person by person."
-answer = "PREFER AT_MOST 1 EACH staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"
+answer = "PREFER EACH staff.all DO ANY activities.clinics.all DURING AT_MOST 1 CONSECUTIVE blocks.all"
 priority = "MEDIUM"
-wrong = ["REQUEST AT_MOST 1 EACH staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"]
+wrong = ["REQUEST EACH staff.all DO ANY activities.clinics.all DURING AT_MOST 1 CONSECUTIVE blocks.all"]
 
 [[problem]]
 id = "prefer-maximize-one-person"
@@ -106,7 +108,7 @@ wrong = ["PREFER staff.rob DO EACH c IN activities.clinics.all MAXIMIZE mappings
 id = "prefer-with-request"
 title = "A must and a wish"
 prompt = "In one request: Rob runs the Gravity Zip Line as first during clinic 2, and we'd rather he were free during playstation."
-answer = "REQUEST staff.rob DO activities.clinics.gravity_zip_line AS_ROLE roles.first DURING blocks.clinic_2\nPREFER AT_LEAST 1 staff.rob FREE DURING blocks.playstation"
+answer = "REQUEST staff.rob DO activities.clinics.gravity_zip_line AS_ROLE roles.first DURING blocks.clinic_2\nPREFER staff.rob FREE DURING AT_LEAST 1 blocks.playstation"
 priority = "HIGH"
 hints = ["One request can hold several statements, a line each."]
 explain = "The REQUEST lines stand or fall together; each PREFER is weighed on its own."
@@ -116,30 +118,52 @@ wrong = ["REQUEST staff.rob DO activities.clinics.gravity_zip_line AS_ROLE roles
 id = "prefer-heroes-few-breaks-at-meals"
 title = "Fewer meal breaks"
 prompt = "We'd like at most one village hero on 'break' at each meal."
-answer = "PREFER AT_MOST 1 ANY staff.village_heroes DO 'break' DURING EACH blocks.meals"
+answer = "PREFER AT_MOST 1 staff.village_heroes DO 'break' DURING EACH blocks.meals"
 priority = "LOW"
-wrong = ["PREFER AT_MOST 2 ANY staff.village_heroes DO 'break' DURING EACH blocks.meals"]
+wrong = ["PREFER AT_MOST 2 staff.village_heroes DO 'break' DURING EACH blocks.meals"]
 
 [[problem]]
 id = "prefer-exactly"
 title = "Just right"
 prompt = "We'd like exactly two MFGs on 'maintenance' during clinic 3 — one or three are both a bit off."
-answer = "PREFER EXACTLY 2 ANY staff.mfgs DO 'maintenance' DURING blocks.clinic_3"
+answer = "PREFER EXACTLY 2 staff.mfgs DO 'maintenance' DURING blocks.clinic_3"
 priority = "MEDIUM"
-wrong = ["PREFER AT_LEAST 2 ANY staff.mfgs DO 'maintenance' DURING blocks.clinic_3"]
+wrong = ["PREFER AT_LEAST 2 staff.mfgs DO 'maintenance' DURING blocks.clinic_3"]
 
 [[problem]]
 id = "prefer-directors-free-hour"
 title = "An hour off"
 prompt = "We'd like each director to have at least an hour free between clinic 3 and clinic 4."
-answer = "PREFER AT_LEAST 1h EACH staff.directors FREE DURING ANY {blocks.clinic_3 + blocks.clinic_4}"
+answer = "PREFER EACH staff.directors FREE DURING ANY {blocks.clinic_3 + blocks.clinic_4} FOR AT_LEAST 1h"
 priority = "LOW"
-wrong = ["PREFER AT_LEAST 1h ANY staff.directors FREE DURING ANY {blocks.clinic_3 + blocks.clinic_4}"]
+wrong = ["PREFER ANY staff.directors FREE DURING ANY {blocks.clinic_3 + blocks.clinic_4} FOR AT_LEAST 1h"]
 
 [[problem]]
 id = "prefer-weekly-balance"
 title = "Share the load"
-prompt = "Over the whole session, we'd like no counselor to run more than 8 clinics."
-answer = "PREFER AT_MOST 8 EACH staff.counselors DO ANY activities.clinics.all ON ANY dates.session_6.all"
+prompt = "Over the whole session, we'd like no counselor to run more than ten hours of clinics."
+answer = "PREFER EACH staff.counselors DO ANY activities.clinics.all FOR AT_MOST 10h DURING ANY blocks.all ON ANY dates.session_6.all"
 priority = "MEDIUM"
-wrong = ["PREFER AT_MOST 8 EACH staff.counselors DO ANY activities.clinics.all"]
+hints = ["Add it up with FOR, over any block of any day of the session."]
+explain = "A count counts one set: the blocks of a day, or the days of a session, not both at once. Load across both is measured in hours."
+wrong = ["PREFER EACH staff.counselors DO ANY activities.clinics.all FOR AT_MOST 10h DURING ANY blocks.all"]
+
+[[problem]]
+id = "prefer-one-thing"
+title = "If it can be managed"
+prompt = "We'd like Dylan to spend clinic 2 on 'archery maintenance', if it can be managed."
+answer = "PREFER staff.dylan DO 'archery maintenance' DURING AT_LEAST 1 blocks.clinic_2"
+priority = "MEDIUM"
+hints = ["A PREFER needs something to come close to. One block of one is AT_LEAST 1 blocks.clinic_2."]
+explain = "A count of 1 on one block is that block: met or missed by one. A REQUEST at a soft priority says nearly the same, but a PREFER can sit beside requirements without falling with them."
+wrong = ["PREFER staff.dylan DO 'archery maintenance' DURING AT_LEAST 1 blocks.clinic_3"]
+
+[[problem]]
+id = "prefer-outermost"
+title = "Two breaks, five people"
+prompt = "We'd like at least five counselors to get two 'break' blocks each today. A counselor with one break doesn't count toward the five."
+answer = "PREFER AT_LEAST 5 staff.counselors DO 'break' DURING AT_LEAST 2 blocks.all"
+priority = "LOW"
+hints = ["Count the counselors; inside that, count each one's blocks."]
+explain = "A PREFER is scored on its outermost count, here the counselors: each one short of five costs the same, however close they came. EACH staff.counselors in its place would score every counselor on their own breaks."
+wrong = ["PREFER EACH staff.counselors DO 'break' DURING AT_LEAST 2 blocks.all"]

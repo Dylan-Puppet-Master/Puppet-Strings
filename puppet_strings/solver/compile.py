@@ -33,19 +33,22 @@ from puppet_strings.skedge.resolve import (
     ALL,
     ANY,
     DEFAULT_POS,
+    POOL,
     TRAINEE,
     Choice,
     Company,
     Condition,
-    Count,
     Exclusion,
     Forbid,
     Junction,
+    Level,
     Pattern,
     Predicate,
     Requirement,
     Resolved,
     Score,
+    Tally,
+    asks,
     is_prefer,
 )
 from puppet_strings.solver.variables import Literal, Slot, Variables
@@ -54,7 +57,7 @@ SCALE = 1000
 DEFER_BONUS = 1  # for acting early on a deferrable request; sits in the last tier
 MINUTES_PER_DAY = 24 * 60
 MINUTES_PER_HOUR = 60
-ONE_MATCH = ast.Amount(ast.AT_LEAST, 1, False, DEFAULT_POS)
+FIELDS = {"staff": "who", "activity": "what", "date": "on", "block": "during"}
 
 
 @dataclass(frozen=True)
@@ -133,23 +136,29 @@ class Compiler:
         """Create what a positive REQUEST may put on the target date.
 
         A clinic instance exists only where a `REQUEST … DO` names it. A quoted-task or
-        trainee assignment exists where one asks for it, or where a `REQUEST AT_LEAST` or
-        `EXACTLY` pattern could match it, partners named by `WITH` included.
+        trainee assignment exists where one asks for it, or where a counted REQUEST could
+        match it, partners named by `WITH` included. A count or a FOR over a pool of
+        activities asks for no clinic of its own: it counts the ones that run.
         """
         target = self.dataset.target
         for request, copy in copies:
             for st in copy.statements:
                 if isinstance(st, Requirement) and st.what is not None and target in st.on.items:
-                    self._create(st.who.items, st.what, st.during, st.role, st.with_, request.id)
+                    named = not isinstance(st.what, Choice) or st.what.kind == ALL
+                    self._create(
+                        st.who.items, st.what, st.during, st.role, st.with_, request.id, named
+                    )
         # second, so these attach to the clinics above rather than bringing their own
         for request, copy in copies:
             for st in copy.statements:
-                if not isinstance(st, Count) or st.prefer or st.amount.bound == ast.AT_MOST:
+                if not isinstance(st, Tally) or not asks(st):
                     continue
                 p = st.pattern
                 if p.what is not None and target in p.on.items:
+                    named = isinstance(p.what, Choice) and p.what.kind == ALL
+                    clinics = st.measure is None and named
                     self._create(
-                        p.who.items, p.what, p.during, p.role, p.with_, request.id, clinics=False
+                        p.who.items, p.what, p.during, p.role, p.with_, request.id, clinics=clinics
                     )
 
     def _create(self, staff_ids, what, during, role, partners, source: str, clinics=True) -> None:
@@ -227,7 +236,7 @@ class Compiler:
             elif isinstance(st, Forbid):
                 self._forbid(st, active, name)
             else:
-                deferred.append(self._count(st, active, name))
+                deferred.append(self._tally(st, active, name))
         for gap in copy.gaps:
             self._gap(gap, active, made[gap.first], made[gap.second], name)
         if not request.priority.hard:
@@ -276,12 +285,12 @@ class Compiler:
         if isinstance(test, Junction):
             parts = [self._test(part, f"{name}.{i}") for i, part in enumerate(test.parts)]
             return self._all_of(parts, name) if test.all else self._any_of(parts, name)
-        amount = test.amount or ONE_MATCH
-        return self._holds(amount, test.pattern, test.consecutive, name)
+        tally = test.tally
+        return self._reify_levels(tally, tally.levels, tally.pattern, name)
 
     # -- PREFER --------------------------------------------------------------------------------
 
-    def _prefer(self, st: Score | Count, applies: Literal, weight: float, tier, name: str) -> None:
+    def _prefer(self, st: Score | Tally, applies: Literal, weight: float, tier, name: str) -> None:
         if applies is False:
             return
         if isinstance(st, Score):
@@ -295,28 +304,35 @@ class Compiler:
                 if not isinstance(literal, bool):
                     self.terms[tier].append((coefficient, literal))
             return
-        miss, bound = self._miss(st.amount, st.pattern, st.consecutive, name)
+        miss, bound = self._tally_miss(st, name)
         if isinstance(miss, int):
             return
         if applies is not True:
             gated = self.model.NewIntVar(0, bound, f"miss:{name}:applies")
             self.model.Add(gated >= miss).OnlyEnforceIf(applies)
             miss = gated
-        unit = MINUTES_PER_HOUR if st.amount.duration else 1
+        unit = 1 if st.levels else MINUTES_PER_HOUR  # a count, or else a FOR length
         self.terms[tier].append((-round(SCALE * weight / unit), miss))
 
     # -- requirements --------------------------------------------------------------------------
 
     def _require(self, st: Requirement, active, name: str) -> tuple[list[Made], Literal]:
-        """Every chosen staff member does the thing in every chosen block on every chosen date."""
+        """Every chosen staff member does the thing in every chosen block on every chosen date.
+
+        A pooled set is chosen from one item at a time, for each combination of the sets that
+        are not: `ALL {staff.x + staff.y} DO … DURING ANY blocks.all` gives each of them a
+        block of their own.
+        """
         target = self.dataset.target
         loose = self._loose(st)
 
         def chosen(choice: Choice, label: str) -> dict:
-            if choice is loose:
-                return dict.fromkeys(choice.items, True)  # counted at the end, not chosen here
+            if choice is loose or choice.kind == POOL:
+                return dict.fromkeys(choice.items, True)  # counted at the end, or picked below
             return self._choose(choice, active, f"{name}:{label}")
 
+        fields = (st.on, st.during, st.who, st.what, st.role)
+        pooled = [isinstance(c, Choice) and c.kind == POOL and c is not loose for c in fields]
         who = chosen(st.who, "staff")
         whats = chosen(st.what, "activity") if isinstance(st.what, Choice) else {st.what: True}
         blocks = chosen(st.during, "block")
@@ -326,10 +342,23 @@ class Compiler:
         dates = chosen(st.on, "date")
         made = []
         counted: list[Literal] = []
-        for (d, on), (b, on_b), (s, on_s), (w, on_w), (r, on_r) in product(
+        picks: dict[tuple, dict[tuple, Literal]] = {}
+        under: dict[tuple, list] = {}
+        for combination in product(
             dates.items(), blocks.items(), who.items(), whats.items(), roles.items()
         ):
+            (d, on), (b, on_b), (s, on_s), (w, on_w), (r, on_r) = combination
             conds = [active, on, on_b, on_s, on_w, on_r]
+            if any(pooled):
+                key = tuple(v for (v, _), p in zip(combination, pooled, strict=True) if not p)
+                pick = tuple(v for (v, _), p in zip(combination, pooled, strict=True) if p)
+                options = picks.setdefault(key, {})
+                if pick not in options:
+                    options[pick] = self.model.NewBoolVar(f"{name}:pick:{key}:{pick}")
+                under.setdefault(
+                    key, [c for (_, c), p in zip(combination, pooled, strict=True) if not p]
+                )
+                conds.append(options[pick])
             if d < target:
                 held = self._was_held(s, w, r, d, b, st)
                 self._imply(conds, held)
@@ -351,10 +380,21 @@ class Compiler:
                 counted.append(held)
             self._partners(s, w, b, st, conds, name)
             made.append(Made(self._all_of(conds, f"made:{name}:{s}:{b}"), start, end))
+        for key, options in picks.items():
+            self._add(sum(options.values()) == 1, [active, *under[key]])  # one of each pool
         if loose is not None:
             terms = [x for x in counted if x is not False and x is not True]
             constant = sum(1 for x in counted if x is True)
             self._add(sum(terms) + constant >= loose.n, [active])
+        if pooled[0]:  # the dates are pooled: a pick of a later date is met later
+            later = [
+                lit for opts in picks.values() for pick, lit in opts.items() if pick[0] > target
+            ]
+            for opts in picks.values():
+                for pick, lit in opts.items():
+                    if pick[0] == target:
+                        self._bonus(lit)
+            return made, self._any_of(later, f"later:{name}")
         later = [on for d, on in dates.items() if d > target]
         if not later or st.on.kind != ANY:
             return made, False
@@ -386,7 +426,7 @@ class Compiler:
     def _loose(self, st: Requirement) -> Choice | None:
         """The one chooser a requirement can count rather than choose, if it has one.
 
-        `ANY n` asks that n of a pool do the one thing named of them, which is the same
+        AT_LEAST n asks that n of a set do the one thing named of them, which is the same
         as asking that n of those assignments happen. When everything else in the
         requirement names a single thing, so each member has exactly one assignment to its
         name, counting says it without a variable per member. A quoted task keeps its
@@ -401,7 +441,7 @@ class Compiler:
             for c in (st.who, st.what, st.during, st.role)
             if isinstance(c, Choice) and (len(c.items) > 1 or c.units)
         ]
-        if len(wide) != 1 or wide[0].kind != ANY or wide[0].var is not None:
+        if len(wide) != 1 or wide[0].kind not in (ANY, POOL) or wide[0].var is not None:
             return None
         if wide[0].consecutive or wide[0].units:
             return None  # which n matters, not only how many
@@ -411,7 +451,8 @@ class Compiler:
         """The literal for one assignment on the target date, and its start and end."""
         block = self.dataset.blocks[b]
         if w is None:
-            return self.variables.free(s, b), block.start_minute, block.end_minute
+            state = self.variables.busy(s, b) if st.busy else self.variables.free(s, b)
+            return state, block.start_minute, block.end_minute
         if isinstance(w, ast.Task):
             var = self.variables.adhoc(s, w.text, b, name)
             slot = Slot(s, w.text, None, b)
@@ -419,7 +460,7 @@ class Compiler:
             selector = self._all_of(conds, f"asks:{name}:{s}:{b}")
             self.asked_for.setdefault(slot, []).append(selector)
             if st.minutes is not None:
-                self._add(interval.size == st.minutes, conds)
+                self._add(_length(interval.size, st.minutes, st.length_bound), conds)
                 self.shortened.setdefault(slot, []).append(selector)
             return var, interval.start, interval.end
         asks = self._all_of(conds, f"asks:{name}:{s}:{w}:{b}")
@@ -448,8 +489,13 @@ class Compiler:
             self._imply(conds, _negate(company))
 
     def _company(self, s: str, what, d: date, b: str, company: Company, name: str) -> Literal:
-        """Whether `n` others from the set, or all of them, share the instance `s` is on."""
+        """Whether enough others from the set, or all of them, share the instance `s` is on."""
         together = [self._together(s, p, what, d, b) for p in sorted(company.staff - {s})]
+        terms = [t for t in together if not isinstance(t, bool)]
+        constant = sum(t is True for t in together)
+        if company.n is not None and company.bound != ast.AT_LEAST:
+            amount = ast.Amount(company.bound, company.n, False, DEFAULT_POS)
+            return self._compare(terms, constant, amount, name)
         n = len(together) if company.n is None else company.n
         if n > len(together):
             return False
@@ -457,8 +503,7 @@ class Compiler:
             return self._all_of(together, name)
         if n == 1:
             return self._any_of(together, name)
-        terms = [t for t in together if not isinstance(t, bool)]
-        return self._at_least(terms, sum(t is True for t in together), n, name)
+        return self._at_least(terms, constant, n, name)
 
     def _together(self, s: str, p: str, what, d: date, b: str) -> Literal:
         """Whether `p` holds an assignment on the same instance as `s`, in any role.
@@ -497,11 +542,14 @@ class Compiler:
     def _was_held(self, s: str, w, r, d: date, b: str, st: Requirement) -> bool:
         """Whether a published date holds what the requirement asks for."""
         if w is None:
-            return self.variables.was_free(s, d, b)
+            free = self.variables.was_free(s, d, b)
+            return not free if st.busy else free
         activity = w.text if isinstance(w, ast.Task) else w
         rows = list(self.variables.was_member(s, activity, d, b))
         if isinstance(w, ast.Task):
-            held = any(st.minutes in (None, a.minutes) for a in rows)
+            held = any(
+                st.minutes is None or _length(a.minutes, st.minutes, st.length_bound) for a in rows
+            )
         elif r is None:
             held = any(a.role not in TRAINEE_ROLES for a in rows)
         elif r == TRAINEE:
@@ -518,7 +566,7 @@ class Compiler:
         return without is None or not self._company(s, what, d, b, without, "")
 
     def _forbid(self, st: Forbid, active, name: str) -> None:
-        """NOT DO: no assignment of a chosen staff member matches. NOT FREE: they are busy."""
+        """NOT DO: no assignment of a chosen staff member matches."""
         who = self._choose(st.who, active, f"{name}:staff")
         if _together(st.pattern):
             self._forbid_together(st, who, active, name)
@@ -538,7 +586,7 @@ class Compiler:
         half of "not on both days" is already settled.
         """
         together = _together(st.pattern)
-        pattern = replace(st.pattern, busy=False)  # NOT FREE forbids being free
+        pattern = st.pattern
         found: dict[str, dict[tuple, list]] = {}
         for m in self._matches(pattern, past=True):
             key = tuple(getattr(m, field) for field, _ in together)
@@ -605,7 +653,7 @@ class Compiler:
         return chosen
 
     def _adjacent(self, chosen: dict, n: int, days, active: Literal, name: str) -> None:
-        """`ANY n <blocks> CONSECUTIVE`: the n chosen blocks are a run of adjacent ones.
+        """`AT_LEAST n CONSECUTIVE <blocks>`: the n chosen blocks are a run of adjacent ones.
 
         Blocks are adjacent when they are next to each other in the Blocks sheet, as they
         are for a CONSECUTIVE amount, on any of the dates the requirement is about. Exactly
@@ -662,7 +710,7 @@ class Compiler:
                 if roles is not None and row.role not in roles:
                     continue
                 parts = [row.literal, who[row.staff], whats[row.activity] if whats else True]
-                parts.append(self._length_is(row, pattern.minutes))
+                parts.append(self._length_is(row, pattern.minutes, pattern.length_bound))
                 parts.append(self._partner_matches(row, pattern, d))
                 literal = self._all_of(parts, f"match:{row.staff}:{row.activity}:{d}:{row.block}")
                 matches.append(
@@ -711,14 +759,14 @@ class Compiler:
             self._published[d] = index
         return self._published[d]
 
-    def _length_is(self, row: Row, minutes: int | None) -> Literal:
+    def _length_is(self, row: Row, minutes: int | None, bound: str = ast.EXACTLY) -> Literal:
         if minutes is None:
             return True
         if isinstance(row.minutes, int):
-            return row.minutes == minutes
+            return _length(row.minutes, minutes, bound)
         same = self.model.NewBoolVar(f"length:{row.staff}:{row.activity}:{row.block}:{minutes}")
-        self.model.Add(row.minutes == minutes).OnlyEnforceIf(same)
-        self.model.Add(row.minutes != minutes).OnlyEnforceIf(same.Not())
+        self.model.Add(_length(row.minutes, minutes, bound)).OnlyEnforceIf(same)
+        self.model.Add(_length(row.minutes, minutes, _OPPOSITE[bound])).OnlyEnforceIf(same.Not())
         return same
 
     def _partner_matches(self, row: Row, pattern: Pattern, d: date) -> Literal:
@@ -825,14 +873,6 @@ class Compiler:
         return self._all_of(
             [self._at_least(terms, constant, n, f"{name}:ge"), at_most], f"{name}:eq"
         )
-
-    def _holds(self, amount: ast.Amount, pattern: Pattern, consecutive: bool, name: str) -> Literal:
-        """A literal equivalent to the condition holding over past dates and today."""
-        matches = self._matches(pattern, past=True)
-        if consecutive:
-            return self._runs_hold(amount, matches, name)
-        terms, constant = self._amount(matches, amount.duration)
-        return self._compare(terms, constant, amount, name)
 
     def _windows(
         self, matches: list[Match], duration: bool, needed: int, name: str
@@ -962,24 +1002,262 @@ class Compiler:
             self.model.Add(miss >= n - best)
         return miss, bound
 
-    def _count(self, st: Count, active: Literal, name: str) -> Literal:
-        """A REQUEST with an amount. Returns the literal for its being deferred."""
-        p, amount, n = st.pattern, st.amount, st.amount.value
+    # -- tallies ---------------------------------------------------------------------------------
+
+    def _tally(self, st: Tally, active: Literal, name: str) -> Literal:
+        """A REQUEST with counts, or a FOR over a pool. Returns its being deferred."""
+        deferred = self._enforce_levels(st, st.levels, st.pattern, active, name)
+        return self._any_of(deferred, f"deferred:{name}")
+
+    def _enforce_levels(self, st: Tally, levels, pattern: Pattern, active, name: str) -> list:
+        """Post a tally's counts, outermost first, down to what each item they count asks for.
+
+        AT_LEAST n chooses n items and asks the rest of the statement of each, which is also
+        how the solver makes what they need. AT_MOST counts the items the rest holds for, and
+        EXACTLY does both.
+        """
+        if not levels:
+            return self._enforce_leaf(st, pattern, active, name)
+        level, rest = levels[0], levels[1:]
+        choice, field = level.choice, level.field
+        deferred = []
+        if choice.bound != ast.AT_MOST:
+            chosen = self._choose(replace(choice, kind=ANY, bound=None), active, f"{name}:{field}")
+            if choice.consecutive:
+                self._adjacent(chosen, choice.n, pattern.on.items, active, f"{name}:{field}")
+            for item, literal in chosen.items():
+                fixed = _fixed(pattern, field, item)
+                deferred += self._enforce_levels(st, rest, fixed, literal, f"{name}:{item}")
+            if field == "date":
+                later = [lit for d, lit in chosen.items() if d > self.dataset.target]
+                deferred.append(self._any_of(later, f"{name}:later"))
+        if choice.bound != ast.AT_LEAST:
+            holds = self._each_holds(st, level, rest, pattern, name)
+            if choice.consecutive:
+                for i, window in enumerate(self._windows_of(level, holds, pattern, choice.n + 1)):
+                    self._imply([active], _negate(self._all_of(window, f"{name}:long{i}")))
+            else:
+                terms, constant = _split(list(holds.values()))
+                self._add(sum(terms) + constant <= choice.n, [active])
+        return deferred
+
+    def _enforce_leaf(self, st: Tally, pattern: Pattern, active, name: str) -> list:
+        """What is left of a tally once each count has an item: a requirement, or a FOR."""
+        if st.measure is None:
+            during = pattern.during or Choice(self._day_blocks(pattern.on), POOL)
+            requirement = Requirement(
+                who=pattern.who,
+                what=pattern.what,
+                during=during,
+                on=pattern.on,
+                role=pattern.role,
+                minutes=pattern.minutes,
+                with_=pattern.with_,
+                without=pattern.without,
+                label=None,
+                pos=pattern.pos,
+                busy=pattern.busy,
+                length_bound=pattern.length_bound,
+            )
+            return [self._require(requirement, active, name)[1]]
+        return [
+            self._measure(unit, st.measure, st.runs, active, f"{name}:unit{i}")
+            for i, unit in enumerate(self._units(pattern))
+        ]
+
+    def _each_holds(self, st: Tally, level: Level, rest, pattern: Pattern, name: str) -> dict:
+        """A literal per thing a count counts: each item, and each group, all of it."""
+        holds = {}
+        for item in level.choice.items:
+            fixed = _fixed(pattern, level.field, item)
+            holds[item] = self._reify_levels(st, rest, fixed, f"{name}:{item}")
+        for i, unit in enumerate(level.choice.units):
+            each = [
+                self._reify_levels(st, rest, _fixed(pattern, level.field, item), f"{name}:{item}")
+                for item in unit.items
+            ]
+            holds[("group", i)] = self._all_of(each, f"{name}:group{i}")
+        return holds
+
+    def _reify_levels(self, st: Tally, levels, pattern: Pattern, name: str) -> Literal:
+        """A literal equivalent to a tally holding, over past dates and today."""
+        if not levels:
+            return self._leaf_holds(st, pattern, name)
+        level, rest = levels[0], levels[1:]
+        holds = self._each_holds(st, level, rest, pattern, name)
+        choice = level.choice
+        if choice.consecutive:
+            reaching = [
+                self._all_of(window, f"{name}:run{i}")
+                for i, window in enumerate(self._windows_of(level, holds, pattern, choice.n))
+            ]
+            exceeding = [
+                self._all_of(window, f"{name}:long{i}")
+                for i, window in enumerate(self._windows_of(level, holds, pattern, choice.n + 1))
+            ]
+            at_least = self._any_of(reaching, f"{name}:reached")
+            at_most = _negate(self._any_of(exceeding, f"{name}:exceeded"))
+            if choice.bound == ast.AT_LEAST:
+                return at_least
+            if choice.bound == ast.AT_MOST:
+                return at_most
+            return self._all_of([at_least, at_most], f"{name}:exact")
+        terms, constant = _split(list(holds.values()))
+        amount = ast.Amount(choice.bound, choice.n, False, DEFAULT_POS)
+        return self._compare(terms, constant, amount, name)
+
+    def _leaf_holds(self, st: Tally, pattern: Pattern, name: str) -> Literal:
+        """Whether every unit of the pattern is matched, or measures up to its FOR."""
+        parts = []
+        for i, unit in enumerate(self._units(pattern)):
+            matches = self._matches(unit, past=True)
+            label = f"{name}:unit{i}"
+            if st.measure is None:
+                parts.append(self._any_of([m.literal for m in matches], label))
+            elif st.runs:
+                parts.append(self._runs_hold(st.measure, matches, label))
+            else:
+                terms, constant = self._amount(matches, True)
+                parts.append(self._compare(terms, constant, st.measure, label))
+        return self._all_of(parts, name)
+
+    def _units(self, pattern: Pattern) -> list[Pattern]:
+        """The pattern once per combination of the sets it takes ALL of, each a pool of one.
+
+        A set taken whole is one unit: every one of its items must be matched, so each is
+        matched, or measured, on its own.
+        """
+        split = []
+        for attr in ("who", "what", "during", "on", "role"):
+            choice = getattr(pattern, attr)
+            if isinstance(choice, Choice) and choice.kind == ALL and not choice.parts:
+                split.append((attr, [replace(choice, items=(i,), kind=POOL) for i in choice.items]))
+        if not split:
+            return [pattern]
+        return [
+            replace(pattern, **{attr: c for (attr, _), c in zip(split, combination, strict=True)})
+            for combination in product(*(options for _, options in split))
+        ]
+
+    def _windows_of(self, level: Level, holds: dict, pattern: Pattern, length: int) -> list:
+        """The literals of every `length` counted blocks in a row, in the Blocks sheet's order."""
+        days = pattern.on.items
+        if len(days) == 1:
+            order = [b.id for b in self.dataset.blocks_on(days[0])]
+        else:
+            on_some = {b.id for d in days for b in self.dataset.blocks_on(d)}
+            order = [b for b in self.dataset.blocks if b in on_some]
+        windows, run = [], []
+        for block in order:
+            if block not in holds or holds[block] is False:
+                run = []
+                continue
+            run.append(holds[block])
+            if len(run) >= length:
+                windows.append(run[-length:])
+        return windows
+
+    def _day_blocks(self, on: Choice) -> tuple[str, ...]:
+        blocks = {b.id for d in on.items for b in self.dataset.blocks_on(d)}
+        return tuple(sorted(blocks))
+
+    def _tally_miss(self, st: Tally, name: str) -> tuple:
+        """How far a PREFER is from its outermost count, or from its FOR; (0, 0) when fixed."""
+        if not st.levels:
+            misses, bound = [], 0
+            for i, unit in enumerate(self._units(st.pattern)):
+                miss, most = self._miss(st.measure, unit, st.runs, f"{name}:unit{i}")
+                if not isinstance(miss, int):
+                    misses.append(miss)
+                    bound += most
+            if len(misses) < 2:
+                return (misses[0], bound) if misses else (0, 0)
+            total = self.model.NewIntVar(0, bound, f"miss:{name}")
+            self.model.Add(total == sum(misses))
+            return total, bound
+        level, rest = st.levels[0], st.levels[1:]
+        holds = self._each_holds(st, level, rest, st.pattern, name)
+        choice, n = level.choice, level.choice.n
+        if choice.consecutive:
+            return self._runs_miss(level, holds, st.pattern, name)
+        terms, constant = _split(list(holds.values()))
+        if not terms:
+            return 0, 0
+        bound = max(n, len(holds))
+        miss = self.model.NewIntVar(0, bound, f"miss:{name}")
+        total = sum(terms) + constant
+        if choice.bound != ast.AT_MOST:
+            self.model.Add(miss >= n - total)
+        if choice.bound != ast.AT_LEAST:
+            self.model.Add(miss >= total - n)
+        return miss, bound
+
+    def _runs_miss(self, level: Level, holds: dict, pattern: Pattern, name: str) -> tuple:
+        """How far the runs of counted blocks are from a CONSECUTIVE count."""
+        choice, n = level.choice, level.choice.n
+        runs = []
+        for length in range(1, len(holds) + 1):
+            for i, window in enumerate(self._windows_of(level, holds, pattern, length)):
+                present = self._all_of(window, f"{name}:run{length}:{i}")
+                if present is not False:
+                    runs.append((length, present))
+        if not runs:
+            return 0, 0
+        bound = max(n, max(length for length, _ in runs))
+        miss = self.model.NewIntVar(0, bound, f"miss:{name}")
+        if choice.bound != ast.AT_LEAST:
+            for length, present in runs:
+                if length > n:
+                    self._add(miss >= length - n, [present])
+        if choice.bound != ast.AT_MOST:
+            reaches = []
+            for i, (length, present) in enumerate(runs):
+                reach = self.model.NewIntVar(0, length, f"{name}:reach{i}")
+                self._add(reach == length, [present])
+                self._add(reach == 0, [_negate(present)])
+                reaches.append(reach)
+            best = self.model.NewIntVar(0, bound, f"{name}:best_run")
+            self.model.AddMaxEquality(best, reaches)
+            self.model.Add(miss >= n - best)
+        return miss, bound
+
+    def _allow_partial(self, matches: list[Match], name: str) -> None:
+        """A FOR over a pool fills whole blocks, all but one of which may be cut short.
+
+        A task with no FOR of its own fills its block; this lets one of the pieces a length
+        is made of be shorter, so two hours and six minutes over one-hour blocks is two
+        blocks and six minutes of a third.
+        """
+        target = self.dataset.target
+        partial = []
+        for m in matches:
+            if m.date != target or isinstance(m.minutes, int):
+                continue
+            cut = self.model.NewBoolVar(f"{name}:partial:{m.staff}:{m.activity}:{m.block}")
+            self.shortened.setdefault(Slot(m.staff, m.activity, None, m.block), []).append(cut)
+            partial.append(cut)
+        if len(partial) > 1:
+            self.model.Add(sum(partial) <= 1)
+
+    def _measure(self, p: Pattern, amount, consecutive: bool, active, name: str) -> Literal:
+        """A FOR over a pool. Returns the literal for its being deferred."""
+        n = amount.value
         target = self.dataset.target
         later = [d for d in p.on.items if d > target]
         capacity = 0
         if later and amount.bound != ast.AT_MOST:
-            capacity = self._capacity(p, later, amount.duration, st.consecutive)
+            capacity = self._capacity(p, later, amount.duration, consecutive)
         matches = self._matches(p, past=True)
+        self._allow_partial(matches, name)
         if amount.bound != ast.AT_MOST:
             self._ask_for(matches, p, active)
         # a run must fit inside one date, so it defers only to a date that can hold all of it
-        due = n if st.consecutive else 1
+        due = n if consecutive else 1
         if capacity < due:  # later dates cannot hold the remainder, so it is all due today
-            self._enforce(amount, matches, st.consecutive, [active], name)
+            self._enforce(amount, matches, consecutive, [active], name)
             return False
         # deferrable: today it must only stay reachable, and progress earns the early bonus
-        if st.consecutive:
+        if consecutive:
             now = self._runs_hold(amount, matches, name)
             if amount.bound == ast.EXACTLY:
                 upper = replace(amount, bound=ast.AT_MOST)
@@ -1144,6 +1422,40 @@ class Compiler:
         self.model.AddBoolAnd(real).OnlyEnforceIf(var)
         self.model.AddBoolOr([v.Not() for v in real]).OnlyEnforceIf(var.Not())
         return var
+
+
+def _fixed(pattern: Pattern, field: str, item) -> Pattern:
+    """A pattern with one of its fields down to one item: the one a count is at."""
+    choice = getattr(pattern, FIELDS[field])
+    return replace(pattern, **{FIELDS[field]: Choice((item,), ALL, pos=choice.pos)})
+
+
+def _split(literals: list) -> tuple[list, int]:
+    """Literals as variable terms and the number of them that are true already."""
+    terms = [x for x in literals if not isinstance(x, bool)]
+    return terms, sum(1 for x in literals if x is True)
+
+
+_OPPOSITE = {
+    ast.EXACTLY: "DIFFERS",
+    ast.AT_LEAST: "BELOW",
+    ast.AT_MOST: "ABOVE",
+}
+
+
+def _length(value, minutes: int, bound: str):
+    """`value` compared with `minutes` by a FOR's bound, or by its opposite."""
+    if bound == ast.EXACTLY:
+        return value == minutes
+    if bound == ast.AT_LEAST:
+        return value >= minutes
+    if bound == ast.AT_MOST:
+        return value <= minutes
+    if bound == "DIFFERS":
+        return value != minutes
+    if bound == "BELOW":
+        return value <= minutes - 1
+    return value >= minutes + 1
 
 
 def _needed(amount: ast.Amount) -> int:

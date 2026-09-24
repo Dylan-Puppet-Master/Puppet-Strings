@@ -21,7 +21,7 @@ def build():
         requests=[
             request(
                 "break",
-                "REQUEST staff.dylan DO 'break' FOR 30m DURING ANY 1 blocks.all_clinics",
+                "REQUEST staff.dylan DO 'break' FOR 30m DURING AT_LEAST 1 blocks.all_clinics",
                 Priority.MUST_HAPPEN,
             )
         ],

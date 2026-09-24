@@ -41,15 +41,16 @@ from puppet_strings.skedge import ast
 from puppet_strings.skedge.resolve import (
     ALL,
     ANY,
+    COUNT,
     DEFAULT_POS,
     POOL,
     Choice,
-    Count,
     Exclusion,
     Pattern,
     Requirement,
     Resolved,
     Score,
+    Tally,
     is_prefer,
 )
 from puppet_strings.skedge.validate import validate_request
@@ -133,7 +134,7 @@ def _canon(value, names: dict[str, str], day: tuple[str, ...] = ()):
 
     Positions and the key of a copy go; a variable or a GAP label keeps only the order it was
     first met in, so two requests binding `s` and `who` the same way are the same. A choice of one
-    item is that item however it was quantified, and `ANY n` of n items is all of them.
+    item is that item however it was quantified, and AT_LEAST n of n items is all of them.
     A pattern with no DURING is about every block of `day`, which is what it would say if it
     named them all.
     """
@@ -141,16 +142,18 @@ def _canon(value, names: dict[str, str], day: tuple[str, ...] = ()):
         value = replace(value, during=Choice(day, POOL))
     if isinstance(value, Choice):
         items = tuple(sorted(value.items, key=str))
-        kind, n = value.kind, value.n
-        if kind == ANY and n >= len(items) and not value.consecutive and not value.units:
-            kind = ALL
+        kind, n, bound = value.kind, value.n, value.bound
+        whole = n >= len(items) and not value.consecutive and not value.units
+        if whole and (kind == ANY or (kind == COUNT and bound != ast.AT_MOST)):
+            kind, bound = ALL, None
         if len(items) == 1 and not value.parts and not value.units:
-            kind, n = "one", 1
+            kind, n, bound = "one", 1, None
         var = names.setdefault(value.var, f"v{len(names)}") if value.var else None
         parts = _canon(value.parts, names, day)
         units = _canon(value.units, names, day)
-        run = value.consecutive and kind == ANY
-        return ("choice", items, kind, n if kind == ANY else None, var, parts, run, units)
+        run = value.consecutive and kind in (ANY, COUNT, POOL)
+        counted = n if kind in (ANY, COUNT) else None
+        return ("choice", items, kind, counted, bound, var, parts, run, units)
     if isinstance(value, ast.Gap):
         amount = (value.amount.bound, value.amount.value, value.amount.duration)
         return ("gap", _label(value.first, names), _label(value.second, names), amount)
@@ -227,14 +230,18 @@ def _shape_difference(
     return None
 
 
-def _lengths(copies) -> set[tuple[str, int]]:
+def _lengths(copies) -> set[tuple]:
     """Each quoted task with the FOR length it is asked for with, wherever one is given."""
     found = set()
     for st in _statements(copies):
         for part in (st, getattr(st, "pattern", None)):
             minutes = getattr(part, "minutes", None)
             if minutes is not None and isinstance(part.what, ast.Task):
-                found.add((part.what.text, minutes))
+                found.add((part.what.text, part.length_bound, minutes))
+        if isinstance(st, Tally) and st.measure is not None:
+            what = st.pattern.what
+            text = what.text if isinstance(what, ast.Task) else None
+            found.add((text, st.measure.bound, st.measure.value))
     return found
 
 
@@ -312,7 +319,7 @@ def _patterns(test) -> Iterator[Pattern]:
         for part in test.parts:
             yield from _patterns(part)
     else:
-        yield test.pattern
+        yield test.tally.pattern
 
 
 def _list_dates(days: list[date]) -> str:
@@ -418,7 +425,7 @@ def _judged(copies: tuple[Resolved, ...]) -> tuple[Resolved, ...]:
     judged = []
     for copy in copies:
         statements = tuple(
-            replace(st, prefer=False) if isinstance(st, Count) else st
+            replace(st, prefer=False) if isinstance(st, Tally) else st
             for st in copy.statements
             if not _fixed(st)
         )

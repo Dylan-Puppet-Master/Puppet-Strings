@@ -113,6 +113,7 @@ analysis = Analysis(  # noqa: F821
     binaries=ORTOOLS_DLLS,
     datas=[
         ("puppet_strings/skedge/grammar.lark", "puppet_strings/skedge"),
+        ("puppet_strings/skedge/grammar_v4.lark", "puppet_strings/skedge"),
         ("puppet_strings/training/problems", "puppet_strings/training/problems"),
         ("puppet_strings/training/data", "puppet_strings/training/data"),
     ],

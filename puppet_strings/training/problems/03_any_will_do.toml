@@ -1,40 +1,51 @@
 [level]
-name = "Choosing: ANY n"
+name = "Some of them: ANY and AT_LEAST"
 blurb = "Letting the solver pick which people, blocks or dates."
 day = "2026-08-04"
 teaches = """
-ANY n <set>      n of them — the solver picks which
+ANY <set>           any of them will do
+AT_LEAST n <set>    n of them or more — the solver picks which
 
-REQUEST ANY 1 staff.directors DO 'office' DURING blocks.clinic_1
-REQUEST staff.rob DO 'break' DURING ANY 1 blocks.meals
-REQUEST ANY 2 staff.mfgs DO 'mowing' DURING ANY 1 blocks.all_clinics
-REQUEST staff.rob DO 'range repair' DURING ANY 2 CONSECUTIVE blocks.all_clinics
+REQUEST AT_LEAST 1 staff.directors DO 'office' DURING blocks.clinic_1
+REQUEST staff.rob DO 'break' DURING ANY blocks.meals
+REQUEST AT_LEAST 2 staff.mfgs DO 'mowing' DURING ANY blocks.all_clinics
+REQUEST staff.rob DO 'range repair' DURING AT_LEAST 2 CONSECUTIVE blocks.all_clinics
 
-• The solver chooses once, then everyone chosen does it in every block chosen
+• A number goes right in front of the set it counts
+• ANY takes no number: any one of them will do
+• Leave DURING out and it is any block of the day
+• ALL is one unit: ALL <people> … DURING AT_LEAST 1 <blocks> is one block they share
 • A single name (staff.rob) never takes a quantifier
-• ANY n CONSECUTIVE <blocks>: the chosen blocks are next to each other
+• AT_LEAST n CONSECUTIVE <blocks>: blocks next to each other
 """
 
 [[problem]]
 id = "any-one-director"
 title = "Somebody in the office"
 prompt = "One of the directors — any one — covers the 'front office' during clinic 1."
-answer = "REQUEST ANY 1 staff.directors DO 'front office' DURING blocks.clinic_1"
-hints = ["When the solver may pick, use ANY 1 instead of ALL."]
-explain = "ANY 1 lets the solver pick whichever director fits the rest of the day best."
-alternatives = ["REQUEST ANY 1 {staff.david + staff.lisa + staff.matthew} DO 'front office' DURING blocks.clinic_1"]
+answer = "REQUEST AT_LEAST 1 staff.directors DO 'front office' DURING blocks.clinic_1"
+hints = ["When the solver may pick, count: AT_LEAST 1 in front of the set."]
+explain = "AT_LEAST 1 lets the solver pick whichever director fits the rest of the day best."
+alternatives = [
+  "REQUEST AT_LEAST 1 {staff.david + staff.lisa + staff.matthew} DO 'front office' DURING blocks.clinic_1",
+  "REQUEST ANY staff.directors DO 'front office' DURING blocks.clinic_1",
+]
 wrong = [
   "REQUEST ALL staff.directors DO 'front office' DURING blocks.clinic_1",
-  "REQUEST ANY 1 {staff.david + staff.lisa} DO 'front office' DURING blocks.clinic_1",
+  "REQUEST AT_LEAST 1 {staff.david + staff.lisa} DO 'front office' DURING blocks.clinic_1",
 ]
 
 [[problem]]
 id = "any-one-meal"
 title = "Break at some meal"
 prompt = "Rob takes a 'break' at one of the meals — whichever works."
-answer = "REQUEST staff.rob DO 'break' DURING ANY 1 blocks.meals"
-hints = ["Rob is one person, so no quantifier on him. The choice is in the blocks: ANY 1 blocks.meals."]
-alternatives = ["REQUEST staff.rob DO 'break' DURING ANY 1 {blocks.breakfast + blocks.lunch + blocks.dinner}"]
+answer = "REQUEST staff.rob DO 'break' DURING ANY blocks.meals"
+hints = ["Rob is one person, so no quantifier on him. The choice is in the blocks: ANY blocks.meals."]
+explain = "ANY blocks.meals is any meal will do. AT_LEAST 1 blocks.meals says the same here."
+alternatives = [
+  "REQUEST staff.rob DO 'break' DURING AT_LEAST 1 blocks.meals",
+  "REQUEST staff.rob DO 'break' DURING ANY {blocks.breakfast + blocks.lunch + blocks.dinner}",
+]
 wrong = [
   "REQUEST staff.rob DO 'break' DURING ALL blocks.meals",
   "REQUEST staff.rob DO 'break' DURING blocks.lunch",
@@ -44,10 +55,10 @@ wrong = [
 id = "any-two-mfgs"
 title = "Two of three"
 prompt = "Two of the MFGs do 'mowing' during clinic 2."
-answer = "REQUEST ANY 2 staff.mfgs DO 'mowing' DURING blocks.clinic_2"
-hints = ["ANY 2 picks two."]
+answer = "REQUEST AT_LEAST 2 staff.mfgs DO 'mowing' DURING blocks.clinic_2"
+hints = ["AT_LEAST 2 in front of the MFGs picks two of them."]
 wrong = [
-  "REQUEST ANY 1 staff.mfgs DO 'mowing' DURING blocks.clinic_2",
+  "REQUEST AT_LEAST 1 staff.mfgs DO 'mowing' DURING blocks.clinic_2",
   "REQUEST ALL staff.mfgs DO 'mowing' DURING blocks.clinic_2",
 ]
 
@@ -55,59 +66,74 @@ wrong = [
 id = "any-lucy-or-tom"
 title = "One or the other"
 prompt = "Either Kara or Paul does 'recycling' during rest hour."
-answer = "REQUEST ANY 1 {staff.kara + staff.paul} DO 'recycling' DURING blocks.rest_hour"
-alternatives = ["REQUEST ANY 1 {staff.paul + staff.kara} DO 'recycling' DURING blocks.rest_hour"]
+answer = "REQUEST AT_LEAST 1 {staff.kara + staff.paul} DO 'recycling' DURING blocks.rest_hour"
+alternatives = [
+  "REQUEST AT_LEAST 1 {staff.paul + staff.kara} DO 'recycling' DURING blocks.rest_hour",
+  "REQUEST ANY {staff.kara + staff.paul} DO 'recycling' DURING blocks.rest_hour",
+]
 wrong = ["REQUEST ALL {staff.kara + staff.paul} DO 'recycling' DURING blocks.rest_hour"]
 
 [[problem]]
 id = "any-block-any-time"
 title = "Whenever it fits"
 prompt = "Dylan does 'archery maintenance' at some point today — any block at all."
-answer = "REQUEST staff.dylan DO 'archery maintenance' DURING ANY 1 blocks.all"
-hints = ["Every block is blocks.all; you want one of them."]
-wrong = ["REQUEST staff.dylan DO 'archery maintenance' DURING ANY 1 blocks.all_clinics"]
+answer = "REQUEST staff.dylan DO 'archery maintenance' DURING ANY blocks.all"
+hints = ["Every block is blocks.all; any of them will do."]
+explain = "Leaving DURING out says the same thing: a statement with no DURING is about any block of the day."
+alternatives = [
+  "REQUEST staff.dylan DO 'archery maintenance'",
+  "REQUEST staff.dylan DO 'archery maintenance' DURING AT_LEAST 1 blocks.all",
+]
+wrong = ["REQUEST staff.dylan DO 'archery maintenance' DURING ANY blocks.all_clinics"]
 
 [[problem]]
 id = "any-clinic-block"
 title = "Some clinic block"
 prompt = "Vic spends one of the four clinic blocks on 'harness inspection'."
-answer = "REQUEST staff.vic DO 'harness inspection' DURING ANY 1 blocks.all_clinics"
-alternatives = ["REQUEST staff.vic DO 'harness inspection' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2 + blocks.clinic_3 + blocks.clinic_4}"]
-wrong = ["REQUEST staff.vic DO 'harness inspection' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}"]
+answer = "REQUEST staff.vic DO 'harness inspection' DURING ANY blocks.all_clinics"
+alternatives = [
+  "REQUEST staff.vic DO 'harness inspection' DURING AT_LEAST 1 blocks.all_clinics",
+  "REQUEST staff.vic DO 'harness inspection' DURING ANY {blocks.clinic_1 + blocks.clinic_2 + blocks.clinic_3 + blocks.clinic_4}",
+]
+wrong = ["REQUEST staff.vic DO 'harness inspection' DURING ANY {blocks.clinic_1 + blocks.clinic_2}"]
 
 [[problem]]
 id = "any-two-blocks"
 title = "Twice today"
 prompt = "Hailey does 'horse check' in two of today's clinic blocks."
-answer = "REQUEST staff.hailey DO 'horse check' DURING ANY 2 blocks.all_clinics"
+answer = "REQUEST staff.hailey DO 'horse check' DURING AT_LEAST 2 blocks.all_clinics"
+hints = ["Two of something is a count: AT_LEAST 2, in front of the blocks."]
 wrong = [
-  "REQUEST staff.hailey DO 'horse check' DURING ANY 1 blocks.all_clinics",
-  "REQUEST staff.hailey DO 'horse check' DURING ANY 2 blocks.all",
+  "REQUEST staff.hailey DO 'horse check' DURING ANY blocks.all_clinics",
+  "REQUEST staff.hailey DO 'horse check' DURING AT_LEAST 2 blocks.all",
 ]
 
 [[problem]]
 id = "any-leader-evening"
 title = "Evening lead"
 prompt = "One village leader leads 'campfire songs' during embers."
-answer = "REQUEST ANY 1 staff.village_leaders DO 'campfire songs' DURING blocks.embers"
-wrong = ["REQUEST ANY 1 staff.village_heroes DO 'campfire songs' DURING blocks.embers"]
+answer = "REQUEST AT_LEAST 1 staff.village_leaders DO 'campfire songs' DURING blocks.embers"
+wrong = ["REQUEST AT_LEAST 1 staff.village_heroes DO 'campfire songs' DURING blocks.embers"]
 
 [[problem]]
-id = "any-two-in-one-block"
-title = "A pair, some block"
-prompt = "Two of the EQ staff do 'hoof trimming' together, in one of the morning clinic blocks (clinic 1 or clinic 2)."
-answer = "REQUEST ANY 2 staff.eq_staff DO 'hoof trimming' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}"
-explain = "The solver picks two people and one block, then both of them do it in that block."
-wrong = ["REQUEST ANY 2 staff.eq_staff DO 'hoof trimming' DURING ALL {blocks.clinic_1 + blocks.clinic_2}"]
+id = "any-each-their-own-block"
+title = "Two mowers, any time"
+prompt = "Two of the MFGs each do 'mowing' in a clinic block — each in whichever block suits them."
+answer = "REQUEST AT_LEAST 2 staff.mfgs DO 'mowing' DURING ANY blocks.all_clinics"
+hints = ["Count the people; the blocks are any of them."]
+explain = "The count of people comes first, and for each of them any clinic block will do — not necessarily the same one."
+wrong = ["REQUEST AT_LEAST 2 staff.mfgs DO 'mowing' DURING AT_LEAST 2 blocks.all_clinics"]
 
 [[problem]]
 id = "any-all-in-some-block"
-title = "Everyone, some block"
-prompt = "All of the directors meet for a 'directors sync' in one of the afternoon clinic blocks (clinic 3 or 4)."
-answer = "REQUEST ALL staff.directors DO 'directors sync' DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}"
-explain = "ALL the people, ANY 1 the blocks: all three meet, together, whichever block the solver picks."
+title = "Everyone, one block"
+prompt = "All of the directors meet together for a 'directors sync' in one of the afternoon clinic blocks (clinic 3 or 4)."
+answer = "REQUEST ALL staff.directors DO 'directors sync' DURING AT_LEAST 1 {blocks.clinic_3 + blocks.clinic_4}"
+hints = ["ALL the directors; count the blocks they meet in."]
+explain = "ALL makes the directors one unit, and AT_LEAST 1 counts the blocks that unit meets in: one block, all of them together. ANY in its place is any block for each director, which may not be the same one."
 wrong = [
-  "REQUEST ANY 1 staff.directors DO 'directors sync' DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}",
+  "REQUEST ALL staff.directors DO 'directors sync' DURING ANY {blocks.clinic_3 + blocks.clinic_4}",
+  "REQUEST AT_LEAST 1 staff.directors DO 'directors sync' DURING ANY {blocks.clinic_3 + blocks.clinic_4}",
   "REQUEST ALL staff.directors DO 'directors sync' DURING ALL {blocks.clinic_3 + blocks.clinic_4}",
 ]
 
@@ -115,68 +141,74 @@ wrong = [
 id = "any-some-day"
 title = "Some day this week"
 prompt = "Sometime this week (Monday to Friday), Charlton does 'shop cleanup' during rest hour."
-answer = "REQUEST staff.charlton DO 'shop cleanup' DURING blocks.rest_hour ON ANY 1 {2026-08-03 .. 2026-08-07}"
-hints = ["A run of dates is written {first .. last}.", "The choice is in the dates: ON ANY 1 {...}."]
+answer = "REQUEST staff.charlton DO 'shop cleanup' DURING blocks.rest_hour ON ANY {2026-08-03 .. 2026-08-07}"
+hints = ["A run of dates is written {first .. last}.", "Any of those days will do: ON ANY {...}."]
 explain = "A request that can still happen later doesn't have to happen today. The solver waits until the last day it could."
-alternatives = ["REQUEST staff.charlton DO 'shop cleanup' DURING blocks.rest_hour ON ANY 1 {dates.session_6.week_1.monday .. dates.session_6.week_1.friday}"]
-wrong = ["REQUEST staff.charlton DO 'shop cleanup' DURING blocks.rest_hour ON ANY 1 {2026-08-03 .. 2026-08-06}"]
+alternatives = [
+  "REQUEST staff.charlton DO 'shop cleanup' DURING blocks.rest_hour ON ANY {dates.session_6.week_1.monday .. dates.session_6.week_1.friday}",
+  "REQUEST staff.charlton DO 'shop cleanup' DURING blocks.rest_hour ON AT_LEAST 1 {2026-08-03 .. 2026-08-07}",
+]
+wrong = ["REQUEST staff.charlton DO 'shop cleanup' DURING blocks.rest_hour ON ANY {2026-08-03 .. 2026-08-06}"]
 
 [[problem]]
 id = "any-three-counselors"
 title = "Three helpers"
 prompt = "Three counselors help with 'dessert prep' during dinner."
-answer = "REQUEST ANY 3 staff.counselors DO 'dessert prep' DURING blocks.dinner"
-wrong = ["REQUEST ANY 2 staff.counselors DO 'dessert prep' DURING blocks.dinner"]
+answer = "REQUEST AT_LEAST 3 staff.counselors DO 'dessert prep' DURING blocks.dinner"
+wrong = ["REQUEST AT_LEAST 2 staff.counselors DO 'dessert prep' DURING blocks.dinner"]
 
 [[problem]]
 id = "any-hero-or-leader"
 title = "A hero or a leader"
 prompt = "Someone who is either a village hero or a village leader does 'lost and found' during lunch."
-answer = "REQUEST ANY 1 {staff.village_heroes + staff.village_leaders} DO 'lost and found' DURING blocks.lunch"
-wrong = ["REQUEST ANY 1 staff.village_heroes DO 'lost and found' DURING blocks.lunch"]
+answer = "REQUEST AT_LEAST 1 {staff.village_heroes + staff.village_leaders} DO 'lost and found' DURING blocks.lunch"
+wrong = ["REQUEST AT_LEAST 1 staff.village_heroes DO 'lost and found' DURING blocks.lunch"]
 
 [[problem]]
 id = "any-evening-block"
 title = "One evening block"
 prompt = "Tyson does 'paintball cleanup' in one of the evening blocks."
-answer = "REQUEST staff.tyson DO 'paintball cleanup' DURING ANY 1 blocks.evening"
-alternatives = ["REQUEST staff.tyson DO 'paintball cleanup' DURING ANY 1 {blocks.embers + blocks.evening_program}"]
+answer = "REQUEST staff.tyson DO 'paintball cleanup' DURING ANY blocks.evening"
+alternatives = [
+  "REQUEST staff.tyson DO 'paintball cleanup' DURING AT_LEAST 1 blocks.evening",
+  "REQUEST staff.tyson DO 'paintball cleanup' DURING ANY {blocks.embers + blocks.evening_program}",
+]
 wrong = ["REQUEST staff.tyson DO 'paintball cleanup' DURING ALL blocks.evening"]
 
 [[problem]]
 id = "any-two-of-four-names"
 title = "Two of four"
 prompt = "Two of Gabe, Julian, Nathan and Peyton do 'target repair' during clinic 3."
-answer = "REQUEST ANY 2 {staff.gabe + staff.julian + staff.nathan + staff.peyton} DO 'target repair' DURING blocks.clinic_3"
-wrong = ["REQUEST ANY 2 {staff.gabe + staff.julian + staff.nathan} DO 'target repair' DURING blocks.clinic_3"]
+answer = "REQUEST AT_LEAST 2 {staff.gabe + staff.julian + staff.nathan + staff.peyton} DO 'target repair' DURING blocks.clinic_3"
+wrong = ["REQUEST AT_LEAST 2 {staff.gabe + staff.julian + staff.nathan} DO 'target repair' DURING blocks.clinic_3"]
 
 [[problem]]
 id = "any-weekend-meal"
 title = "Saturday meal"
 prompt = "On the last day of the session, one director does 'parent greeting' at one of the meals."
-answer = "REQUEST ANY 1 staff.directors DO 'parent greeting' DURING ANY 1 blocks.meals ON dates.session_6.last"
-alternatives = ["REQUEST ANY 1 staff.directors DO 'parent greeting' DURING ANY 1 blocks.meals ON 2026-08-08"]
-wrong = ["REQUEST ANY 1 staff.directors DO 'parent greeting' DURING ANY 1 blocks.meals"]
+answer = "REQUEST AT_LEAST 1 staff.directors DO 'parent greeting' DURING ANY blocks.meals ON dates.session_6.last"
+alternatives = ["REQUEST AT_LEAST 1 staff.directors DO 'parent greeting' DURING ANY blocks.meals ON 2026-08-08"]
+wrong = ["REQUEST AT_LEAST 1 staff.directors DO 'parent greeting' DURING ANY blocks.meals"]
 
 [[problem]]
 id = "any-one-is-plenty"
 title = "Everybody or anybody?"
 prompt = "Somebody from the MFGs — just one — does 'generator check' during setup."
-answer = "REQUEST ANY 1 staff.mfgs DO 'generator check' DURING blocks.setup"
+answer = "REQUEST AT_LEAST 1 staff.mfgs DO 'generator check' DURING blocks.setup"
 wrong = ["REQUEST ALL staff.mfgs DO 'generator check' DURING blocks.setup"]
 
 [[problem]]
 id = "any-two-meals"
 title = "Two meals out of three"
 prompt = "Samaya does 'allergy table' at two of today's three meals."
-answer = "REQUEST staff.samaya DO 'allergy table' DURING ANY 2 blocks.meals"
+answer = "REQUEST staff.samaya DO 'allergy table' DURING AT_LEAST 2 blocks.meals"
 wrong = ["REQUEST staff.samaya DO 'allergy table' DURING ALL blocks.meals"]
 
 [[problem]]
 id = "any-two-in-a-row"
 title = "Two in a row"
 prompt = "Rob does 'range repair' for two clinic blocks in a row."
-answer = "REQUEST staff.rob DO 'range repair' DURING ANY 2 CONSECUTIVE blocks.all_clinics"
-hints = ["Two of the clinic blocks is ANY 2 blocks.all_clinics. CONSECUTIVE between ANY 2 and the blocks keeps them together."]
+answer = "REQUEST staff.rob DO 'range repair' DURING AT_LEAST 2 CONSECUTIVE blocks.all_clinics"
+hints = ["Two of the clinic blocks is AT_LEAST 2 blocks.all_clinics. CONSECUTIVE between the count and the blocks keeps them together."]
 explain = "Blocks are next to each other when they are next to each other on the Blocks sheet, so clinic 2 and clinic 3 are not."
-wrong = ["REQUEST staff.rob DO 'range repair' DURING ANY 2 blocks.all_clinics"]
+wrong = ["REQUEST staff.rob DO 'range repair' DURING AT_LEAST 2 blocks.all_clinics"]

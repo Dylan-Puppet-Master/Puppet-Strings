@@ -34,24 +34,26 @@ assignment is as long as its block unless `FOR` gives a shorter length, in which
 solver also chooses where in the block it sits.
 
 In any block, a staff member is **busy** if they hold an assignment in it, **free** if they
-are working that day and hold none, and neither if they are resting through it. `NOT FREE`
-means busy.
+are working that day and hold none, and neither if they are resting through it.
 
-Skedge has two statements and two ways of talking about assignments.
+Skedge has two statements.
 
 | | |
 |---|---|
 | `REQUEST` | A constraint that is either met or not met. |
-| `PREFER` | A soft constraint that can be partly met. |
-| `<who> DO <what> …` after `REQUEST <chooser>` | A **requirement**: these people do this. Quantifiers *choose* who, what and when. |
-| `<who> DO <what> …` after an amount | A **pattern**: the assignments in which these people are doing this. A pattern matches assignments; nothing in it chooses. |
+| `PREFER` | A soft constraint that can be partly met: how close the day comes to a count or a length. |
+
+Both say what happens — `<who> DO <what> …`, `<who> FREE …` or `<who> BUSY …` — with every
+set in it taken whole, pooled or counted (§6). Right of `NOT`, and in a `PREFER … MAXIMIZE`,
+the same words are a **pattern**: they match assignments, and nothing in them is counted
+(§8).
 
 ## 3. Lexical structure
 
 | Element | Form |
 |---|---|
-| Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `AND`, `OR`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL`, `ANY`, `EACH`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
-| Quantifier | `ALL`, `EACH`, `ANY n` for any whole `n` from 1 (`ANY 1`, `ANY 3`), and `ANY` with no number |
+| Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `AND`, `OR`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `BUSY`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL`, `ANY`, `EACH`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
+| Quantifier | `ALL`, `EACH`, `ANY`, and a count: `AT_LEAST n`, `AT_MOST n` or `EXACTLY n` for any whole `n` from 1 |
 | Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session_4.week_2.monday` |
 | Variable, label | A bare identifier: `s`, `morning`. A label or a definition is followed by a colon. |
 | Quoted task | Single quotes, any text but a quote: `'archery maintenance'` |
@@ -70,8 +72,9 @@ A duration must be a whole number of minutes: `1.5h` is 90 minutes, `1d` is 1,44
 ## 4. Grammar
 
 The parser reads this grammar, in [Lark](https://lark-parser.readthedocs.io) EBNF (LALR).
-Requirements and patterns have separate rules, so a choosing quantifier inside a pattern,
-or a clause a statement cannot take, is a parse error and not a validation rule.
+It also reads a few spellings the language no longer has — `ANY n`, `NOT FREE`, a count in
+front of another quantifier or of a quoted task — so that the builder can say what to write
+now rather than only that something was unexpected.
 
 ```lark
 // Skedge grammar. See docs/skedge.md for the language reference.
@@ -87,75 +90,76 @@ or a clause a statement cannot take, is a parse error and not a validation rule.
 start       : _NL* line (_NL+ line)* _NL*
 ?line       : binding | define | if_ | unless | labeled | request | prefer | gap | exclude
 
-binding     : (EACH | any_n) NAME _IN set_
-// A name for a set, written once and meaning the same wherever it is used. With ANY n or
-// EACH in front it is a binding line spelled the other way round.
-define      : NAME ":" (ALL | EACH | any_n)? set_
+binding     : (EACH | amount | any_n) NAME _IN set_
+// A name for a set, written once and meaning the same wherever it is used. With EXACTLY n
+// or EACH in front it is a binding line spelled the other way round.
+define      : NAME ":" (ALL | EACH | amount | any_n)? set_
 if_         : _IF _NL* condition
 unless      : _UNLESS _NL* condition
 labeled     : NAME ":" request
 gap         : _GAP NAME _TO NAME amount
 
-// A statement is its subject, verb and object in that order, with its clauses -- DURING,
-// ON, AS_ROLE, FOR, WITH, WITHOUT -- anywhere among them: before the subject, between the
-// subject and the verb, after the object.
-request     : _REQUEST _clauses chooser _clauses _DO _clauses do_target _clauses              -> request_do
-            | _REQUEST _clauses chooser _clauses                                            -> request_activity
-            | _REQUEST _clauses chooser _clauses FREE _clauses                               -> request_free
-            | _REQUEST _clauses chooser _clauses _NOT _DO _clauses do_target _clauses         -> request_not_do
-            | _REQUEST _clauses chooser _clauses _NOT FREE _clauses                          -> request_not_free
-            | _REQUEST _clauses amount CONSECUTIVE? pattern                                -> request_count
-            | _REQUEST counted                                                             -> request_counted
-prefer      : _PREFER _clauses amount CONSECUTIVE? pattern                                 -> prefer_count
-            | _PREFER counted                                                              -> prefer_counted
-            | _PREFER pattern goal _clauses                                                -> prefer_score
-            | _PREFER _clauses goal pattern                                                -> prefer_score
+// A statement is its subject, verb and object in that order, with its clauses around them.
+// DURING and ON may go anywhere; AS_ROLE, FOR, WITH and WITHOUT describe the activity, so
+// the builder refuses them before the verb, which is why the verb is kept in the tree.
+request     : _REQUEST _clauses chooser _clauses DO _clauses do_target _clauses               -> request_do
+            | _REQUEST _clauses chooser _clauses                                             -> request_activity
+            | _REQUEST _clauses chooser _clauses FREE _clauses                                -> request_free
+            | _REQUEST _clauses chooser _clauses BUSY _clauses                                -> request_busy
+            | _REQUEST _clauses chooser _clauses _NOT DO _clauses do_target _clauses          -> request_not_do
+            | _REQUEST _clauses chooser _clauses _NOT FREE _clauses                           -> request_not_free
+            | _REQUEST _clauses chooser _clauses _NOT BUSY _clauses                           -> request_not_busy
+prefer      : _PREFER pattern                                                               -> prefer_count
+            | _PREFER pattern goal _clauses                                                 -> prefer_score
+            | _PREFER _clauses goal pattern                                                 -> prefer_score
 
 // Who is not at camp for part of a day, and what to write where they would have been.
 // It takes a quoted label rather than an activity: they are not doing anything here.
-exclude     : _EXCLUDE _clauses chooser _clauses _DO _clauses STRING _clauses
+exclude     : _EXCLUDE _clauses chooser _clauses DO _clauses STRING _clauses
 
 // A condition is one test, or several joined by AND or by OR. Mixing the two needs
 // parentheses, as mixing set operators does, so there is no precedence to remember.
 ?condition  : term ((AND | OR) _NL* term)*        -> junction
 ?term       : test | "(" _NL* condition ")"
-test        : (amount CONSECUTIVE?)? pattern
-            | counted
+test        : pattern
 
-// A pattern matches rather than chooses, so the parser takes a quantifier anywhere and the
-// builder refuses the ones that choose, with a message saying why.
-pattern     : _clauses chooser _clauses _DO _clauses do_target _clauses              -> pattern_doing
-            | _clauses chooser _clauses FREE _clauses                              -> pattern_free
-            | _clauses chooser _clauses _NOT FREE _clauses                         -> pattern_busy
-// An amount after DO counts one person's assignments: `s DO AT_LEAST 3 ANY activities.clinics.all`.
-counted     : _clauses chooser _clauses _DO _clauses amount do_target _clauses
+pattern     : _clauses chooser _clauses DO _clauses do_target _clauses               -> pattern_doing
+            | _clauses chooser _clauses FREE _clauses                               -> pattern_free
+            | _clauses chooser _clauses BUSY _clauses                               -> pattern_busy
+            | _clauses chooser _clauses _NOT FREE _clauses                          -> pattern_not_free
 goal        : (MAXIMIZE | MINIMIZE) call
 call        : REF "(" arg ("," arg)* ")"
 ?arg        : NAME | REF
 
-// CONSECUTIVE right after an amount is the old spelling, parsed only to say the new one.
+// A count: AT_LEAST, AT_MOST or EXACTLY and a number, in front of the set it counts. With a
+// duration it is a GAP's, or the old spelling of a length, which goes on FOR now.
 amount      : BOUND (INT | DURATION)
 
-?do_target  : chooser | STRING
+// An amount in front of a quoted task is the old spelling, parsed only to say the new one.
+?do_target  : chooser | STRING | amount STRING   -> counted_task
 _clauses    : clause*
 ?clause     : during | on | as_role | for_ | with_ | without
 // CONSECUTIVE after the blocks is the old spelling, parsed only to say the new one.
 during      : _DURING chooser CONSECUTIVE?
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
-for_        : _FOR DURATION
-// Who is alongside: one name, or several with ALL or ANY n to say how many.
+for_        : _FOR BOUND? DURATION
+// Who is alongside: one name, or several with ALL or a count to say how many.
 with_       : _WITH chooser
 without     : _WITHOUT chooser
 
-// ANY with no number matches rather than chooses: right of NOT, and in a pattern.
-// CONSECUTIVE is about blocks, after DURING: `ANY 2 CONSECUTIVE blocks.all` chooses two next
-// to each other, and `ANY CONSECUTIVE blocks.all` in a count measures it in runs.
-chooser     : (ALL | any_n | ANY)? CONSECUTIVE? set_
+// ANY with no number is any of these: the set is one pool. A number is a count, in front
+// of the set it counts. CONSECUTIVE is about blocks, after DURING: `AT_LEAST 2 CONSECUTIVE
+// blocks.all` counts blocks in a row, and `ANY CONSECUTIVE blocks.all` pools each run for
+// a FOR to measure. A count before another quantifier, and ANY n, are old spellings,
+// parsed only to say the new ones.
+chooser     : (ALL | ANY | amount)? CONSECUTIVE? set_
+            | amount (ALL | ANY | EACH) CONSECUTIVE? set_
+            | any_n CONSECUTIVE? set_
             | EACH set_
             | EACH NAME _IN set_
 any_n       : ANY INT
-            | ANY_N_OF                 // the old spelling, parsed only to say the new one
+            | ANY_N_OF
 
 ?set_       : REF | NAME | DATE | call | "{" setexpr "}"
 ?setexpr    : range (SETOP range)*     -> setop
@@ -164,7 +168,7 @@ any_n       : ANY INT
 ?primary    : date_atom OFFSET         -> date_offset
             | date_atom
             | "(" setexpr ")"
-            | "(" (ALL | any_n) set_ ")"   -> group
+            | "(" (ALL | amount | any_n) set_ ")"   -> group
 ?date_atom  : DATE | REF | NAME | call
 
 // Two more ways in, for the cells of the Mappings tab rather than for a request: what a
@@ -181,7 +185,7 @@ _IF.5       : /IF\b/i
 _UNLESS.5   : /UNLESS\b/i
 _GAP.5      : /GAP\b/i
 _TO.5       : /TO\b/i
-_DO.5       : /DO\b/i
+DO.5        : /DO\b/i
 _NOT.5      : /NOT\b/i
 _IN.5       : /IN\b/i
 _DURING.5   : /DURING\b/i
@@ -197,6 +201,7 @@ EACH.5      : /EACH(_OF)?\b/i
 ANY.5       : /ANY\b/i
 ANY_N_OF.5  : /ANY_[0-9]+_OF\b/i
 FREE.5      : /FREE\b/i
+BUSY.5      : /BUSY\b/i
 MAXIMIZE.5  : /MAXIMIZE\b/i
 MINIMIZE.5  : /MINIMIZE\b/i
 CONSECUTIVE.5 : /CONSECUTIVE\b/i
@@ -215,10 +220,10 @@ COMMENT     : /#[^\n]*/
 
 // A statement may be written over as many lines as it reads well on. A new line starts a new
 // statement only where one can start: at REQUEST, PREFER, EXCLUDE, IF, UNLESS or GAP, at a
-// binding (`EACH x IN`, `ANY n x IN`), or at a name and a colon. Anywhere else the
+// binding (`EACH x IN`, `EXACTLY n x IN`), or at a name and a colon. Anywhere else the
 // newline before it is nothing, so the line carries on the statement above it. The
 // lookahead spells out how `binding`, `define` and `labeled` begin, so it changes with them.
-_CONTINUES  : /(\r?\n[ \t]*)+(?![ \t\r\n]|(?i:REQUEST|PREFER|EXCLUDE|IF|UNLESS|GAP)\b|(?i:EACH(?:_OF)?|ANY[ \t]+\d+|ANY_\d+_OF)[ \t]+[a-z_][a-z0-9_]*[ \t]+(?i:IN)\b|[a-z_][a-z0-9_]*[ \t]*:|$)/
+_CONTINUES  : /(\r?\n[ \t]*)+(?![ \t\r\n]|(?i:REQUEST|PREFER|EXCLUDE|IF|UNLESS|GAP)\b|(?i:EACH(?:_OF)?|(?:ANY|AT_LEAST|AT_MOST|EXACTLY)[ \t]+\d+|ANY_\d+_OF)[ \t]+[a-z_][a-z0-9_]*[ \t]+(?i:IN)\b|[a-z_][a-z0-9_]*[ \t]*:|$)/
 _NL         : /(\r?\n[ \t]*)+/
 %import common.INT
 %import common.WS_INLINE
@@ -250,7 +255,7 @@ is a cabin act; only `activities.all` is both.
 
 Every name is either an **item** (one thing: `staff.rob`, `blocks.clinic_1`, `dates.target`)
 or a **set** (`staff.counselor`, `blocks.all`). Set names are plural or collective; there is
-no name that means "any one of": that is what `ANY 1` is for.
+no name that means "any one of": that is what `ANY` and a count are for.
 
 A staff category, and `staff.all`, hold only the people working on `dates.target`: someone
 resting all day is in no category, though their own name still resolves. `staff.all` is the
@@ -318,33 +323,44 @@ inclusive date range, and a single date may be offset by whole days. An offset o
 endpoint that is not a single date is an error.
 
 A **group** is a set in parentheses with a quantifier in front of it, inside braces:
-`{staff.charlton + (ANY 1 {staff.dylan + staff.donny})}`. It is one part of the set it
-stands in, taken the way its own quantifier says:
+`{staff.charlton + (AT_LEAST 1 {staff.dylan + staff.donny})}`. It is one part of the set it
+stands in, taken `ALL` or `AT_LEAST n`:
 
 - In a set taken whole (`ALL`, or with no quantifier), `(ALL s)` adds every member
-  of `s`, and `(ANY n s)` adds the `n` members of `s` it chooses. So
-  `ALL {staff.charlton + (ANY 1 {staff.dylan + staff.donny})}` is Charlton and one of
-  the other two, the same as a binding line `ANY 1 x IN {staff.dylan + staff.donny}` and
-  `ALL {staff.charlton + x}`.
-- In `ANY n`, each group is one of the things chosen from:
-  `ANY 1 {staff.lucy + (ALL {staff.tom + staff.charles})}` is Lucy, or else Tom and
+  of `s`, and `(AT_LEAST n s)` adds `n` members of `s`, chosen. So
+  `ALL {staff.charlton + (AT_LEAST 1 {staff.dylan + staff.donny})}` is Charlton and one of
+  the other two, the same as a binding line `EXACTLY 1 x IN {staff.dylan + staff.donny}`
+  and `ALL {staff.charlton + x}`.
+- In a count, each group is one of the things counted, taken whole, so it takes `ALL`:
+  `AT_LEAST 1 {staff.lucy + (ALL {staff.tom + staff.charles})}` is Lucy, or else Tom and
   Charles together.
 - In `EACH`, each group is one copy: `EACH {staff.lucy + (ALL {staff.tom +
   staff.charles})}` is one request for Lucy and one for Tom and Charles together.
 
 A group is added with `+` only. `(ALL s)` may also be taken away or crossed, where it is
-just `s`; `(ANY n s)` may not, since what it holds is not known until the solver chooses.
+just `s`; `(AT_LEAST n s)` may not, since what it holds is not known until the solver
+chooses.
 
-### 6.2 Quantifiers in a requirement
+### 6.2 Quantifiers
 
-In a requirement every set must carry a quantifier. An item takes none. `ANY` with no
-number matches rather than chooses (§6.3), so it is an error here.
+Every set in a statement carries a quantifier; an item takes none.
 
 | Quantifier | Meaning |
 |---|---|
-| `ALL s` | Every member of `s`, as one all-or-nothing requirement. |
-| `ANY n s` | `n` different members of `s`, the solver's choice. |
+| `ALL s` | Every member of `s`, together, as one unit. |
+| `ANY s` | Any of these: `s` is one pool, matched by any of its members. |
+| `AT_LEAST n s`, `AT_MOST n s`, `EXACTLY n s` | A **count**: how many members of `s` the rest of the statement holds for, compared so with `n`. |
 | `EACH s` | The declaration is copied once per member, each copy a separate request. |
+
+`n` is 1 or more. A count counts the members of the set it stands in front of, and nothing
+else: `EXACTLY 1 {staff.dylan + staff.alesa} DO 'rake leaves'` is one of those two raking and
+the other one not, whoever else rakes. On one item a count of 1 is that item, which is how a
+`PREFER` weighs one thing; a larger count there is an error.
+
+A count is not a choice. `AT_LEAST 3` holds with three or with four; `AT_MOST` and
+`EXACTLY` rule the rest out, so a statement with a count can forbid. One with none never
+does: `ANY {blocks.clinic_1 + blocks.clinic_2}` holds when the thing happens in at least one
+of them, and says nothing against both.
 
 Evaluation order is fixed:
 
@@ -352,38 +368,32 @@ Evaluation order is fixed:
    every combination. Each copy is an independent request with its own satisfaction,
    reported under `id[item, …]`. `EACH` over an empty set gives no copies, and the
    request is inactive.
-2. Within a copy, each `ANY n` is one choice, made once.
-3. Every chosen staff member then does the chosen activity in **every** chosen block on
-   **every** chosen date.
+2. Within a copy, the counts apply one inside the other in this order, wherever each is
+   written: the subject, the activity, `ON`, `DURING`. So `AT_MOST 2 staff.counselor DO
+   'break' DURING AT_LEAST 3 blocks.all` is at most two counselors with three breaks or
+   more each.
+3. A set taken `ALL` is one unit inside every count:
+   `ALL {staff.lucy + staff.tom} DO … DURING EXACTLY 1 blocks.all` is one block that both
+   of them work. `EACH` gives each of them a block of their own.
+4. A pool is innermost: it is matched by any of its members for each combination of the
+   units and counted items around it. `ALL {staff.lucy + staff.tom} DO … DURING ANY
+   blocks.all` gives each of them a block, not necessarily the same one.
 
-So `ALL {staff.lucy + staff.tom} DO … DURING ANY 1 blocks.all` puts Lucy and Tom in
-the same block, because there is one block choice and both work it.
+`ANY` on the blocks of a statement is at least one of them, so it differs from `AT_LEAST 1`
+only where rules 3 and 4 differ: a count sits outside the units, a pool inside them.
 
-A requirement never forbids. `ANY 1 {blocks.clinic_1 + blocks.clinic_2}` holds when the
-thing happens in at least one of them, and says nothing against both.
+The activity and `AS_ROLE` take one thing at a time, since a person does one thing in a
+block. `ALL` of several activities needs the blocks pooled or counted, and `AS_ROLE` takes
+a role, `ANY` or `EACH`. A count of activities counts different ones:
+`DO AT_LEAST 2 activities.clinics.all DURING ANY blocks.all` is two different clinics.
 
-The activity and `AS_ROLE` of a requirement take an item, `ANY 1` or `EACH`, since a
-person does one thing at a time. `ANY n` over fewer than `n` members cannot hold.
+`CONSECUTIVE` goes on the blocks, after a count or `ANY`. `DURING AT_LEAST 2 CONSECUTIVE
+blocks.all` holds when some **run** of adjacent blocks the rest holds for reaches 2,
+`AT_MOST` when no run exceeds it, and `EXACTLY` when both do. Blocks are adjacent when they
+are next to each other in the Blocks sheet, on one date. `DURING ANY CONSECUTIVE blocks.all`
+pools each run on its own, for a `FOR` to measure (§7.1), and needs one.
 
-`DURING ANY n CONSECUTIVE <blocks>` chooses `n` blocks that are next to each other in
-the Blocks sheet, on a date the requirement is about, which is what adjacent means for an
-amount too (§8.1). The choice is still one choice, made once, so everyone chosen does it in
-the same run of blocks. It takes `ANY n` with `n` of 2 or more, and cannot hold when no
-`n` members of the set are next to each other.
-
-### 6.3 Sets in a pattern
-
-In a pattern a set is a **pool**: the pattern matches an assignment whose field is any
-member. A pool says so with `ANY`, with no number: `ANY staff.counselor`. A set with no
-quantifier is an error in a pattern, as in a requirement; an item still takes none, and
-whether a name is an item is a question about the name, not the day, so a cabin's act all
-season, `activities.cabin_acts.p4`, takes `ANY` even on a day it comes to one act.
-
-`EACH` splits the declaration exactly as above. `ALL`, `ANY n` and a `(ANY n …)`
-group are errors in a pattern, except after `WITH` and `WITHOUT`, which count company
-rather than choose it (§8), and take `ALL` or `ANY n` but not `ANY`.
-
-### 6.4 Variables
+### 6.3 Variables
 
 `EACH x IN s` names the member each copy is about. `x` can then stand wherever a set
 can, and as a mapping argument. Written inline, `x` is visible in that statement. Written on
@@ -392,7 +402,7 @@ a line of its own, it is visible in every line of the declaration:
 | Binding line | Meaning |
 |---|---|
 | `EACH x IN s` | One copy of the declaration per member of `s`, with `x` that member. |
-| `ANY n x IN s` | `x` is `n` members of `s`, chosen once for the whole declaration. With `n` of 1, `x` is an item. |
+| `EXACTLY n x IN s` | `x` is `n` members of `s`, chosen once for the whole declaration. With `n` of 1, `x` is an item; otherwise a set, which takes a quantifier where it is used. |
 
 A binding line is the only way for two lines of a declaration to be about the same
 person, block or date.
@@ -405,102 +415,110 @@ is nobody else's: a definition may not share it with a variable, a label or anot
 definition, and may not be defined in terms of itself.
 
 With a quantifier after the colon, a definition is a binding line spelled the other way
-round: `videographer: ANY 1 {staff.dylan + staff.donny}` is
-`ANY 1 videographer IN {staff.dylan + staff.donny}`, and `c: EACH staff.counselor` is
+round: `videographer: EXACTLY 1 {staff.dylan + staff.donny}` is
+`EXACTLY 1 videographer IN {staff.dylan + staff.donny}`, and `c: EACH staff.counselor` is
 `EACH c IN staff.counselor`. `x: ALL s` is `x: s`.
 
-## 7. Requirements
+## 7. What happens
 
-| Form | Holds when, for every chosen staff member, block and date |
+| Form | Holds for a staff member, a block and a date when |
 |---|---|
-| `<who> DO <what> DURING <blocks> [clauses]` | the staff member holds an assignment to the activity there, passing the clauses |
-| `<who> FREE DURING <blocks> [ON …]` | the staff member is free there |
-| `<who> NOT DO <pattern target> [pattern clauses]` | the staff member holds **no** assignment matching the pattern |
-| `<who> NOT FREE [pattern clauses]` | the staff member is busy in every block the clauses allow |
+| `<who> DO <what> [clauses]` | the staff member holds an assignment to the activity there, passing the clauses |
+| `<who> FREE [clauses]` | the staff member is working and holds nothing there |
+| `<who> BUSY [clauses]` | the staff member holds something there |
+| `<who> NOT DO <what> [clauses]` | the staff member holds **no** assignment matching the pattern (§8) |
 
 `<what>` is an activity or a `'quoted task'`. "Anything at all" is not a target: nothing to
-do is `FREE`, and something to do is `NOT FREE`.
+do is `FREE`, something to do is `BUSY`, and someone resting is neither.
 
-`DURING` is required in the positive forms. A missing `ON` is `ON dates.target`, everywhere
-in the language; it is the only default.
+A missing `ON` is `ON dates.target`, everywhere in the language. A missing `DURING` is
+`ANY` of the blocks the date has: `REQUEST staff.rob DO 'x'` is at least once today.
 
 Everything to the right of `NOT` describes the situation that must not happen. It is a
-pattern (§8): sets there are pools and take `ANY`,
-`DURING` may be left out to mean every block, and `EACH` splits as anywhere, apart from
-`WITH` and `WITHOUT` (§8). A set there may also take `ALL`, of plain names with no group
-or chosen name in it: what is forbidden is then the positive request the words to the right
-of `NOT` make, with an assignment for every combination of the `ALL` items, a part taken
-`ANY` matched by any of its items. Any one combination on its own is allowed. Past dates
-count, as facts. `ANY n` is an error to the right of `NOT`. The subject to the left of
-`NOT` still chooses, so `ANY 1 {staff.lucy + staff.tom} NOT DO 'break'` is "one of them
-takes no break" and `ALL {…} NOT DO` is "none of them does".
+pattern (§8): sets there are pools and take `ANY`, `DURING` may be left out to mean every
+block, and `EACH` splits as anywhere, apart from `WITH` and `WITHOUT` (§8). A set there may
+also take `ALL`, of plain names with no group or chosen name in it: what is forbidden is
+then the positive request the words to the right of `NOT` make, with an assignment for
+every combination of the `ALL` items, a part taken `ANY` matched by any of its items. Any
+one combination on its own is allowed. Past dates count, as facts. A count is an error to
+the right of `NOT`: what it could say is clearer as a count of what does happen, so "not
+in two or more" is `DURING AT_MOST 1`. The subject to the left of `NOT` is who the `NOT` is
+about, taken whole or counted with `AT_LEAST`, so
+`AT_LEAST 1 {staff.lucy + staff.tom} NOT DO 'break'` is "one of them takes no break" and
+`ALL {…} NOT DO` is "none of them does".
 
-Clauses of a requirement:
+Clauses of a statement:
 
 | Clause | Meaning |
 |---|---|
 | `DURING <blocks>`, `ON <dates>` | When. |
 | `AS_ROLE <role>` | In that role. Without it, any position of the activity; a trainee role only when named. |
-| `FOR <duration>` | The length of each assignment. Quoted tasks only. |
+| `FOR [AT_LEAST\|AT_MOST\|EXACTLY] <duration>` | How long (§7.1). |
 | `WITH <staff>` | Enough others from the set are on the same instance (§8). |
 | `WITHOUT <staff>` | Not enough are. |
 
+### 7.1 Lengths
+
+`FOR` measures the activity within one unit of the blocks. Blocks taken one at a time — an
+item, `ALL`, `EACH` or a count — make each block a unit, and a quoted-task piece never
+leaves its block, so there `FOR` is the length of each piece:
+`DO 'break' FOR 30m DURING EXACTLY 3 blocks.all` is three breaks of 30 minutes. Blocks
+pooled with `ANY` are one unit together, and `FOR` is what they add up to:
+`DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks.all` is two hours in whichever
+blocks. `ANY CONSECUTIVE` makes each run a unit, a run being one staff member's blocks.
+Pooled dates and people are added up the same way.
+
+`FOR 2h` is `FOR EXACTLY 2h`; `AT_LEAST` and `AT_MOST` bound it instead. A quoted task with
+no `FOR` fills its block. Under a `FOR` over a pool the pieces fill their blocks, all but
+one, which may be cut short: to what remains, or under `AT_LEAST` to any length that
+reaches it.
+
+`FOR` on an activity, `FREE` or `BUSY` adds up the lengths of the blocks, so it needs the
+blocks pooled: `EACH staff.counselor FREE FOR AT_LEAST 2h DURING ANY blocks.all_clinics`.
+
 ## 8. Patterns
 
-`<who> DO <what> [clauses]` matches every assignment that passes all of its parts.
-`<who> FREE [clauses]` matches every (staff, block, date) in which the staff member is
-free, and `<who> NOT FREE [clauses]` every one in which they are busy. A clause left out does not filter, except `ON`.
+Right of `NOT`, and in a `PREFER … MAXIMIZE` or `MINIMIZE`, the words describe the
+assignments to match. `<who> DO <what> [clauses]` matches every assignment that passes all
+of its parts; `<who> FREE [clauses]` and `<who> BUSY [clauses]` match every (staff, block,
+date) in which the staff member is free, or busy. A clause left out does not filter, except
+`ON`.
 
 | Part | Passes an assignment when |
 |---|---|
 | `<who>` | its staff member is in the pool |
 | `DO <what>` | its activity is in the pool, or is that quoted task |
 | `DURING`, `ON`, `AS_ROLE` | its block, date, role is in the pool |
-| `FOR <duration>` | its length is exactly the duration |
+| `FOR <duration>` | its length compares so with the duration |
 | `WITH <staff>` | enough others in the set hold an assignment on the same instance |
 | `WITHOUT <staff>` | not enough do |
 
-`WITH` and `WITHOUT` take one name, or a set with `ALL` or `ANY n` to say how many is
-enough: `WITH staff.vic` is Vic, `WITH ANY 2 staff.mfgs` at least two MFGs, `WITH ALL
-staff.mfgs` every MFG. A set of several with no quantifier is an error, as in a
-requirement, and so is `EACH`. This holds on both sides of `NOT`.
+In a pattern a set is a **pool**: the pattern matches an assignment whose field is any
+member. A pool says so with `ANY`: `ANY staff.counselor`. A set with no quantifier is an
+error in a pattern; an item still takes none, and whether a name is an item is a question
+about the name, not the day, so a cabin's act all season, `activities.cabin_acts.p4`, takes
+`ANY` even on a day it comes to one act. `EACH` splits the declaration as anywhere. A count
+and an `(AT_LEAST n …)` group are errors in a pattern, and so is `ALL` in a score, which
+matches one assignment at a time.
 
-`WITH` and `WITHOUT` are exact opposites: `WITHOUT ANY 1 staff.mfgs` is no MFG,
+`WITH` and `WITHOUT` count company rather than match it. They take one name, or a set with
+`ALL` or a count to say how many is enough: `WITH staff.vic` is Vic, `WITH AT_LEAST 2
+staff.mfgs` at least two MFGs, `WITH ALL staff.mfgs` every MFG. A set of several with no
+quantifier is an error, and so are `EACH` and `ANY`. This holds on both sides of `NOT`.
+
+`WITH` and `WITHOUT` are exact opposites: `WITHOUT AT_LEAST 1 staff.mfgs` is no MFG,
 `WITHOUT ALL staff.mfgs` is not every MFG. "Others" excludes the assignment's own staff
 member, so `ALL` does not ask anyone to be alongside themselves, and counts any role,
-trainees included. For a quoted task shorter than its block,
-"the same instance" also means the same start time. `AS_ROLE` needs an activity; `FOR` needs a quoted task; `WITH`, `WITHOUT`, `AS_ROLE` and `FOR` cannot follow
-`FREE`.
-
-### 8.1 Amounts
-
-An amount turns a pattern into a condition.
-
-| Amount | Holds when |
-|---|---|
-| `AT_LEAST n`, `AT_MOST n`, `EXACTLY n` | the number of matches compares so with `n` |
-| `AT_LEAST d`, `AT_MOST d`, `EXACTLY d` | the summed length of the matches compares so with duration `d` |
-
-`n` is at least 1. `AT_MOST 0` and `EXACTLY 0` are errors: write `NOT DO`.
-
-With `DURING ANY CONSECUTIVE <blocks>` in its pattern, the amount is measured over
-**runs**. A run is one staff member's matches in adjacent blocks on one date, blocks being
-adjacent when they are next to each other in the Blocks sheet. `AT_LEAST` holds when some
-run reaches the amount, `AT_MOST` when no run exceeds it, `EXACTLY` when both do.
-`CONSECUTIVE` in a pattern with no amount, or after `ANY n` there, is an error.
-
-The amount may instead follow `DO`: `<who> DO <amount> <what> …` counts exactly what
-`<amount> <who> DO <what> …` does. There the subject must be one person in each copy — an
-item, a variable `EACH` or `ANY 1` binds, a mapping call, or `EACH` — since after
-`DO` the amount reads as that person's. A count over a set of people goes in front.
+trainees included. For a quoted task shorter than its block, "the same instance" also means
+the same start time. `AS_ROLE` needs an activity; `FOR` in a pattern needs a quoted task;
+`WITH`, `WITHOUT` and `AS_ROLE` cannot follow `FREE` or `BUSY`.
 
 ## 9. Statements
 
 | Statement | Met |
 |---|---|
-| `REQUEST <requirement>` | when the requirement holds |
-| `REQUEST <amount> <pattern>` | when the condition holds |
-| `PREFER <amount> <pattern>` | by degree: the closer the matches are to the amount, the better |
+| `REQUEST <statement>` | when it holds |
+| `PREFER <statement>` | by degree: the closer it comes to its outermost count, or to its `FOR`, the better |
 | `PREFER <pattern> MAXIMIZE mappings.x(args)` | by degree: each match earns the mapping's value |
 | `PREFER <pattern> MINIMIZE mappings.x(args)` | by degree: each match costs the mapping's value |
 | `EXCLUDE <who> DO '<label>' [DURING] [ON]` | not met or unmet: applied (§9.2) |
@@ -510,8 +528,11 @@ A `REQUEST` is all or nothing. To get partial credit from a `REQUEST`, split it 
 `REQUEST EACH staff.office NOT DO 'break' DURING EACH {blocks.breakfast + blocks.lunch}`
 at a soft priority is one small request per person per block.
 
-`PREFER` takes patterns only. A soft wish that some requirement hold is a `REQUEST` at a
-soft priority, so `PREFER <who> DO …` does not exist.
+A `PREFER` needs something to come close to: a count, or a `FOR`. Its **miss** is how far
+the outermost count is from its `n`, the things below it counted as met or not, or how far
+its `FOR` is from its duration, in hours. A soft wish that something happen at all is a
+`REQUEST` at a soft priority, or a count of 1: `PREFER staff.dylan DO … DURING AT_LEAST 1
+blocks.clinic_2`.
 
 ### 9.1 EXCLUDE
 
@@ -526,7 +547,8 @@ at camp for those blocks on those dates. `DURING` left out is every block the da
   a date stays in their categories.
 - `<label>` is what the published views write where their assignments would have been.
 
-Nothing in an `EXCLUDE` is chosen, so `ANY n` is refused in every position. It takes no
+Nothing in an `EXCLUDE` is chosen or counted, so `ANY` and a count are refused in every
+position. It takes no
 clause but `DURING` and `ON`, holds no `IF`, no `GAP` and no label, is the only statement
 in its declaration, and its priority is `MUST_HAPPEN`.
 
@@ -549,9 +571,9 @@ call gives is the namespace of its `value`. What it stands for is:
 
 - the name its row gives, if there is a row and that name is in the `value` set that day.
   A row naming somebody not working that day is passed over.
-- otherwise the mapping's default, a Skedge phrase such as `ANY 1 {staff.office}`. A
+- otherwise the mapping's default, a Skedge phrase such as `AT_LEAST 1 {staff.office}`. A
   call standing alone with no quantifier stands for the whole phrase, quantifier and all.
-  Anywhere else (inside `{…}`, or after a quantifier), a default that is `ANY n` is an
+  Anywhere else (inside `{…}`, or after a quantifier), a default that is a count is an
   error, because the solver hasn't chosen yet and the set can't be worked out. `ALL`
   and single-name defaults are their sets.
 - with neither a row nor a default, an error.
@@ -567,25 +589,26 @@ A declaration is lines of these kinds, in any order.
 | Line | Form | Meaning |
 |---|---|---|
 | Statement | `[label:] REQUEST …` or `PREFER …` | §9. Only a positive `REQUEST … DO` may be labeled. |
-| Binding | `EACH x IN s`, `ANY n x IN s`, `x: ANY n s`, `x: EACH s` | §6.4. |
-| Definition | `x: s` | A name for a set (§6.4). |
+| Binding | `EACH x IN s`, `EXACTLY n x IN s`, `x: EXACTLY n s`, `x: EACH s` | §6.3. |
+| Definition | `x: s` | A name for a set (§6.3). |
 | Condition | `IF <test>` | The statements apply only when this holds. |
 | Negative condition | `UNLESS <test>` | The statements apply only when this does not hold. |
 | Gap | `GAP a TO b <amount>` | Relates the assignments of the `REQUEST` labeled `a` to those of the one labeled `b`. |
 
-A test is `[<amount>] <pattern>`, or `<who> DO <amount> <what> …`, which with no amount holds when there is a
-match, or several tests joined by `AND` (all hold) or by `OR` (at least one does).
-Parentheses group, and mixing `AND` with `OR` requires them.
+A test is a statement that says what happens, true or false of the day, past dates and
+today — with no count and no `FOR` it holds when it happens at all — or several tests
+joined by `AND` (all hold) or by `OR` (at least one does). Parentheses group, and mixing
+`AND` with `OR` requires them.
 
-Within a statement or a pattern, the clauses — `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`,
-`WITHOUT` — go in any order and anywhere: before the subject, between the subject and `DO`,
-between `DO` and the object, or after it. So can `MAXIMIZE` or `MINIMIZE`, except inside the
-subject, verb and object, which keep their order. A clause written before a count's amount
-belongs to its pattern.
+The subject, the verb and the object keep their order: who, then `DO`, `FREE` or `BUSY`,
+then what. `DURING` and `ON` may go anywhere in a statement, before the subject included.
+`AS_ROLE`, `FOR`, `WITH` and `WITHOUT` describe the activity, so they go after the verb,
+before or after the object. `MAXIMIZE` or `MINIMIZE` goes before or after the pattern it
+weighs.
 
 A line may be written over as many lines as it reads well on. A new line starts a new line
 of the declaration only where one can start: at `REQUEST`, `PREFER`, `EXCLUDE`, `IF`,
-`UNLESS` or `GAP`, at a binding (`EACH x IN`, `ANY n x IN`), or at a name followed by a
+`UNLESS` or `GAP`, at a binding (`EACH x IN`, `EXACTLY n x IN`), or at a name followed by a
 colon. Anywhere else it carries on the line above. A line may also end in `IF`, `UNLESS`,
 `AND`, `OR` or `(`.
 
@@ -621,11 +644,12 @@ time it is a published assignment like any other.
 Only a positive `REQUEST` makes things happen. `NOT`, `AT_MOST`, `PREFER`, `IF` and
 `UNLESS` steer what is otherwise asked for and never create an assignment.
 
-1. A clinic instance runs only if a `REQUEST … DO` names it. Rule 13.4 then staffs the rest
-   of it.
-2. A trainee or quoted-task assignment exists only where a `REQUEST … DO` asks for it, where
-   a `REQUEST AT_LEAST` or `REQUEST EXACTLY` pattern matches it, or as the `WITH` partner
-   one of those needs.
+1. A clinic instance runs only if a `REQUEST … DO` names it, by itself or in a set taken
+   `ALL`. A pool or a count of activities, or a `FOR` over them, counts the clinics that run
+   and asks for none of its own. Rule 13.4 then staffs the rest of it.
+2. A trainee or quoted-task assignment exists only where a positive `REQUEST` asks for it,
+   one that does not only cap it with `AT_MOST`, or as the `WITH` partner one of those
+   needs.
 3. A `REQUEST` whose condition says it does not apply asks for nothing.
 4. Nothing exists in a block an `EXCLUDE` has taken somebody out of, whatever asks for it.
 
@@ -643,7 +667,7 @@ names is an error, not a line that does nothing.
 
 `REQUEST` may have any priority. `PREFER` may not be `MUST_HAPPEN`, in a declaration of its
 own or beside requirements: there is no tier above the hard one to weigh a preference in,
-and a cap that must hold is `REQUEST AT_MOST`.
+and a cap that must hold is a `REQUEST` with `AT_MOST`.
 
 Soft tiers are solved lexicographically: a tier's score is maximized, fixed as a floor, and
 the next tier is then maximized. No amount of a lower tier outweighs a higher one.
@@ -653,7 +677,7 @@ Within a tier, a declaration (or each `EACH` copy of it) contributes:
 | Statement | Contribution |
 |---|---|
 | `REQUEST` | 1 if the declaration is met, 0 otherwise |
-| `PREFER <amount> …` | minus its **miss**: how far the matches are from the amount, in assignments, or in hours when the amount is a duration |
+| `PREFER` with a count or a `FOR` | minus its **miss** (§9), in things counted, or in hours for a `FOR` |
 | `PREFER … MAXIMIZE` | the sum of the mapping's value over the matches |
 | `PREFER … MINIMIZE` | minus that sum |
 
@@ -682,13 +706,13 @@ These come from the sheets and are never written as requests.
 The solver schedules `dates.target`.
 
 - **Past dates** with a published schedule are facts. They cannot change, and they count
-  exactly as today's assignments do, in every requirement, pattern, condition and amount.
+  exactly as today's assignments do, in every statement, pattern, condition and count.
 - **Future dates** hold nothing yet.
 - **Excluded blocks** (§9.1) hold nothing for the person excluded from them, on any date.
 - A request all of whose dates are past, or all future, is inactive.
-- A positive `REQUEST` that could still be met on later dates is **deferrable**: a
-  requirement whose `ON ANY n` can still choose later dates, or an `AT_LEAST` or
-  `EXACTLY` pattern whose `ON` reaches past the target. Today it must only stay reachable:
+- A positive `REQUEST` that could still be met on later dates is **deferrable**: one whose
+  `ON` is pooled or counted with `AT_LEAST` and can still reach later dates, or a `FOR`
+  over dates that reach past the target. Today it must only stay reachable:
   what is still missing after today may not exceed what the later dates can hold. A later
   date holds nothing for a staff member resting through it or a block that does not exist
   on it. On the last date that can hold anything, the whole remainder is due. Until then
@@ -699,41 +723,58 @@ The solver schedules `dates.target`.
 
 ## 15. Errors
 
-Every error names the line and column. The parser reports what it expected, which covers
-`PREFER` with a requirement, a label on a `PREFER`, and `MAXIMIZE` without a mapping call.
-`CONSECUTIVE` where it used to go, after an amount or after a `DURING`'s blocks, is still
-parsed, only to say where it goes now. The parser, the validator and the solver report:
+Every error names the line and column. The parser reports what it expected, which covers a
+label on a `PREFER` and `MAXIMIZE` without a mapping call. The spellings of earlier
+versions — `ANY n`, `NOT FREE`, a count in front of a pattern or after `DO`, and
+`CONSECUTIVE` where it used to go — are still parsed, only to say what to write now. The
+parser, the validator and the solver report:
 
 | Message | Condition |
 |---|---|
 | `a declaration needs at least one statement` | Only bindings, definitions, conditions or `GAP` lines. |
-| `write ANY` | The old spelling `ANY_1_OF`; the message gives the new one, `ANY 1`. |
+| `write AT_LEAST` | `ANY 2 staff.x`, and the older `ANY_2_OF`; the message gives the count. |
+| `write EXACTLY` | `ANY 1 x IN s` on a binding line; the message gives the count. |
 | `write ALL`, `write EACH` | The old spellings `ALL_OF` and `EACH_OF`; the message gives the new one. |
-| `ANY needs a number of 1 or more` | `ANY 0`. |
-| `a pattern matches one assignment at a time` | `ALL`, `ANY n` or an `(ANY n …)` group inside a pattern, other than after `WITH` or `WITHOUT`. |
-| `right of NOT a set takes ANY, for any of these` | `ANY n` or an `(ANY n …)` group to the right of `NOT`, other than after `WITH` or `WITHOUT`. |
-| `ALL right of NOT takes names, not groups or chosen names` | `NOT DO … ALL {staff.x + (ANY 1 …)}` and the like. |
+| `write BUSY, not NOT FREE` | `NOT FREE`, anywhere. |
+| `write FREE, not NOT BUSY` | `NOT BUSY`. |
+| `amount must be at least 1` | `AT_LEAST 0`. |
+| `write NOT DO` | `AT_MOST 0`, `EXACTLY 0`. |
+| `a length goes on FOR` | A duration in front of a set, or after `DO`: `AT_LEAST 2h staff.cam DO …`; the message gives the `FOR`. |
+| `a task is not counted; count the blocks it is done in` | `DO AT_LEAST 3 'break'`. |
+| `a count goes on the set it counts, in place of ANY` | `AT_MOST 2 ANY staff.x`, the old spelling; the message gives the new one. |
+| `EACH splits the request, so its set is not what is counted` | `AT_LEAST 3 EACH staff.x`, the old spelling. |
+| `a set takes one quantifier` | Two quantifiers on one set: `AT_LEAST 2 ALL …`. |
+| `a count counts the members of a set, and` | A count of 2 or more on one item: `AT_LEAST 2 staff.charlton`. |
+| `a group takes ALL or AT_LEAST n` | `(EXACTLY 1 …)` or `(AT_MOST 1 …)` as a group. |
+| `a group in a count is taken whole, so it takes ALL` | An `(AT_LEAST n …)` group inside a count. |
+| `a binding names exactly which, so it takes EXACTLY` | `AT_LEAST 1 x IN s`. |
+| `a pattern matches one assignment at a time` | `ALL`, a count or a group in the pattern of a `PREFER … MAXIMIZE`, other than after `WITH` or `WITHOUT`. |
+| `right of NOT a set takes ANY, for any of these` | A count or an `(AT_LEAST n …)` group to the right of `NOT`, other than after `WITH` or `WITHOUT`. |
+| `ALL right of NOT takes names, not groups or chosen names` | `NOT DO … ALL {staff.x + (AT_LEAST 1 …)}` and the like. |
 | `a set here is matched, so it takes ANY` | A set with no quantifier in a pattern or to the right of `NOT`. |
-| `ANY with no number matches rather than chooses` | `ANY` in a requirement, a subject left of `NOT`, or an `EXCLUDE`. |
+| `left of NOT the subject is who the NOT is about` | `ANY` as the subject of a `NOT`. |
+| `left of NOT the subject is chosen, so a count there takes AT_LEAST` | `EXACTLY 1 staff.x NOT DO …`. |
+| `ANY pools names, not groups or chosen names` | `ANY {staff.x + (ALL …)}`, or `ANY` of a set holding a bound name. |
 | `is defined twice` | Two definitions of one name, or a definition sharing its name with a variable or label. |
 | `is defined in terms of itself` | `a: {staff.x + b}` and `b: {staff.y + a}`. |
 | `names one item at a time, and` | `EACH x IN` a set holding a group. |
-| `CONSECUTIVE chooses blocks one at a time, so no groups` | A group in `DURING ANY n CONSECUTIVE …`. |
-| `CONSECUTIVE goes on the blocks` | `AT_LEAST 3 CONSECUTIVE <pattern>`, the old spelling; the message gives the new one. |
-| `CONSECUTIVE goes before the blocks` | `DURING ANY 2 blocks.all CONSECUTIVE`, the old spelling; the message gives the new one. |
-| `CONSECUTIVE comes after ANY or ANY n` | `DURING ALL CONSECUTIVE …` or `CONSECUTIVE` with no quantifier. |
+| `CONSECUTIVE counts blocks one at a time, so no groups` | A group in `DURING … CONSECUTIVE …`. |
+| `CONSECUTIVE goes before the blocks` | `DURING AT_LEAST 2 blocks.all CONSECUTIVE`, the old spelling; the message gives the new one. |
+| `CONSECUTIVE comes after ANY or a count` | `DURING ALL CONSECUTIVE …` or `CONSECUTIVE` with no quantifier. |
 | `CONSECUTIVE is about blocks, so it goes after DURING` | `CONSECUTIVE` in any clause but `DURING`, or on a subject or activity. |
-| `CONSECUTIVE in a pattern measures an amount in runs` | `DURING ANY CONSECUTIVE …` in a pattern with no amount. |
-| `a count measured in runs is DURING ANY CONSECUTIVE <blocks>` | `DURING ANY 2 CONSECUTIVE …` in a counted pattern. |
-| `an amount after DO counts one person's assignments` | `<who> DO <amount> …` with `ANY` or a set of several people as `<who>`. |
-| `right of NOT there are no blocks to choose, so no CONSECUTIVE` | `NOT DO … DURING ANY CONSECUTIVE …`; the message gives the amount that limits a run instead. |
-| `needs a quantifier: ALL, ANY n or EACH` | A set with no quantifier in a requirement. |
-| `is one item and takes no quantifier` | `ANY 1 staff.rob`; `ANY staff.rob` in a pattern; `ALL blocks.clinic_1` right of `NOT`. |
-| `needs a quantifier: ALL or ANY n` | `WITH` or `WITHOUT` a set of several, with no quantifier. |
-| `counts who is alongside, so it takes ALL or ANY n` | `WITH EACH staff.mfgs` or `WITH ANY staff.mfgs`; likewise `WITHOUT`. |
-| `one activity at a time` | `ALL`, `ANY 2` or a group on a requirement's activity or `AS_ROLE`. |
-| `needs DURING` | A positive requirement with no `DURING`. |
-| `CONSECUTIVE after DURING chooses blocks next to each other` | `CONSECUTIVE` after `DURING` a single block, `ALL`, `EACH` or `ANY 1`. |
+| `ANY CONSECUTIVE pools each run of blocks for a FOR to measure` | `DURING ANY CONSECUTIVE …` with no `FOR`; to count blocks in a row, a count goes there instead. |
+| `right of NOT there are no blocks to choose, so no CONSECUTIVE` | `NOT DO … DURING ANY CONSECUTIVE …`; the message gives the count that limits a run instead. |
+| `a score counts no runs, so no CONSECUTIVE` | `CONSECUTIVE` in the pattern of a `PREFER … MAXIMIZE`. |
+| `needs a quantifier: ALL, ANY, EACH or a count` | A set with no quantifier in a statement. |
+| `is one item and takes no quantifier` | `ANY staff.rob`; `WITH AT_LEAST 1 staff.vic`; `ALL blocks.clinic_1` right of `NOT`. |
+| `needs a quantifier: ALL or a count` | `WITH` or `WITHOUT` a set of several, with no quantifier. |
+| `counts who is alongside, so it takes ALL or a count` | `WITH EACH staff.mfgs` or `WITH ANY staff.mfgs`; likewise `WITHOUT`. |
+| `one activity at a time` | `ALL` of several activities in blocks that are not pooled or counted, or a group on the activity. |
+| `one role at a time: AS_ROLE takes a role, ANY or EACH` | `ALL` of several roles, or a count of them. |
+| `describes the activity, so it goes after` | `AS_ROLE`, `FOR`, `WITH` or `WITHOUT` before the verb; the message names the clause and the verb. |
+| `FOR on an activity, FREE or BUSY measures its time across blocks` | Such a `FOR` with its blocks not pooled. |
+| `PREFER is weighed by how close it comes, so it needs a count or a FOR length` | A `PREFER` with neither. |
+| `a GAP is measured from what a REQUEST makes` | A labeled `REQUEST` with a count other than one `AT_LEAST`, or with a `FOR` over a pool. |
 | `given twice` | A clause repeated in one statement. |
 | `only one IF or UNLESS per declaration` | Two condition lines. |
 | `unknown … name` | A name that does not exist in its namespace. |
@@ -742,36 +783,35 @@ parsed, only to say where it goes now. The parser, the validator and the solver 
 | `variable bound twice` | Two bindings of one identifier. |
 | `mixed set operators need parentheses` | `{a + b & c}` and the like. |
 | `mixed AND and OR need parentheses` | `IF a AND b OR c`. |
-| `AS_ROLE needs an activity` | `AS_ROLE` with a quoted task or `FREE`. |
-| `FOR needs a quoted task` | `FOR` with any other target. |
-| `FREE has no instance` | `WITH` or `WITHOUT` after `FREE`. |
-| `amount must be at least 1` | `AT_LEAST 0`. |
-| `write NOT DO` | `AT_MOST 0`, `EXACTLY 0`. |
+| `AS_ROLE needs an activity` | `AS_ROLE` with a quoted task, `FREE` or `BUSY`. |
+| `FOR needs a quoted task` | `FOR` in a pattern with any other target. |
+| `FREE and BUSY have no instance` | `WITH` or `WITHOUT` after `FREE` or `BUSY`. |
 | `wrong number of arguments` | A mapping call with more or fewer arguments than the mapping has keys. |
 | `takes a name from` | A mapping argument from the wrong namespace. |
 | `is not in it` | A mapping argument outside its key's set. |
-| `mapping argument must be one item` | A set, or an `ANY 2` variable, as an argument. |
+| `mapping argument must be one item` | A set, or a variable bound to several, as an argument. |
 | `gives one from` | A mapping call where a name from another namespace belongs. |
 | `gives a number, not a name` | A numeric mapping called where a set belongs. |
 | `there is nothing to maximize or minimize` | `MAXIMIZE` or `MINIMIZE` of a mapping that gives names. |
 | `and no default` | A mapping call whose key has no row, of a mapping with no default. |
-| `its default is a choice` | A call falling back to an `ANY n` default inside a set or after a quantifier. |
-| `PREFER needs a priority it can be weighed at` | A `PREFER` in a `MUST_HAPPEN` declaration; use `REQUEST AT_MOST`, `AT_LEAST` or `EXACTLY`. |
+| `its default is a choice` | A call falling back to a count as its default inside a set or after a quantifier. |
+| `a default is one choice, so it takes ALL or a count` | A default written with `EACH` or `ANY`. |
+| `PREFER needs a priority it can be weighed at` | A `PREFER` in a `MUST_HAPPEN` declaration; use a `REQUEST` with `AT_MOST`, `AT_LEAST` or `EXACTLY`. |
 | `weight must be positive` | A weight of zero or less. |
 | `unknown requester` | A `requester` field naming nobody on the Skills sheet. |
 | `weight is not allowed with MUST_HAPPEN` | A weight on a hard request. |
 | `GAP needs a duration` | `GAP a TO b AT_LEAST 3`. |
-| `only REQUEST … DO can be labeled` | A label on a `NOT`, `FREE` or amount `REQUEST`. |
+| `only REQUEST … DO can be labeled` | A label on a `NOT`, `FREE` or `BUSY` `REQUEST`. |
 | `undefined label` | `GAP` naming a label that no statement defines. |
 | `defined twice` | Two statements with the same label. |
 | `EXCLUDE is a fact about the day, so it is MUST_HAPPEN` | An `EXCLUDE` at any other priority. |
 | `EXCLUDE stands on its own line and its own request` | An `EXCLUDE` beside any other line but a definition. |
-| `EXCLUDE says who is away, so nothing in it is ANY n` | `ANY n` or an `(ANY n …)` group anywhere in an `EXCLUDE`. |
+| `EXCLUDE says who is away, so nothing in it is counted or ANY` | A count, `ANY` or an `(AT_LEAST n …)` group anywhere in an `EXCLUDE`. |
 | `EXCLUDE takes DURING and ON, not` | Any other clause on an `EXCLUDE`; the message names it. |
 | `date range ends before it starts` | A backwards range. |
 | `needs a single date here` | An offset or range endpoint that is a set of dates. |
 | `invalid date` | A date that is not a date. |
-| `no request asks for` | A quoted task that no positive `REQUEST` names. |
+| `no request asks for` | A quoted task that no positive `REQUEST` asks for. |
 
 ## 16. Left to the implementation
 
@@ -783,4 +823,5 @@ declaration meaning something different:
 - That a task shorter than its block sits as early in it as the constraints allow.
 - The scale factor the objective uses internally, and the size of the incentive to do a
   deferrable request early.
-- How `EACH` copies and `ANY n` choices are encoded. They need not be enumerated.
+- How `EACH` copies, counts and pools are encoded. They need not be enumerated.
+- Which piece of a `FOR` over a pool is the one cut short, and how short.

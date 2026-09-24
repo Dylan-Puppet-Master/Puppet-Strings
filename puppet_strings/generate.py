@@ -4,7 +4,7 @@ Each offered clinic instance becomes a CLINIC request tagged IMPORT_TAG, so the 
 Master can see, edit or delete it before solving. The request names the clinic and when,
 and nothing else: `REQUEST activities.clinics.archery_1_2 DURING blocks.clinic_2`. Who may
 run it is already written down, as the skill each of its positions needs, so a request that
-said `ANY 1 staff.all` as well would be saying it twice. The clinic runs fully staffed or
+said `AT_LEAST 1 staff.all` as well would be saying it twice. The clinic runs fully staffed or
 not at all, because filling one position of an instance fills them all
 (`solver.structural`), which is what lets the request stop at naming it.
 

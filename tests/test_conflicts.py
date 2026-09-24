@@ -77,7 +77,7 @@ def test_being_asked_to_do_something_and_not_to(dataset):
 
 
 def test_being_asked_to_be_free_and_to_be_busy(dataset):
-    busy = "REQUEST staff.dylan NOT FREE DURING blocks.clinic_1 ON dates.target"
+    busy = "REQUEST staff.dylan BUSY DURING blocks.clinic_1 ON dates.target"
     (conflict,) = found(dataset, req("free", FREE), req("busy", busy))
     assert conflict.reasons == ("must be free, and must not be free",)
 
@@ -120,14 +120,14 @@ def test_a_choice_the_solver_makes_is_not_a_conflict(dataset):
         # someone, not anyone in particular
         req(
             "any",
-            "REQUEST ANY 1 staff.counselor DO activities.clinics.riflery DURING blocks.clinic_1",
+            "REQUEST AT_LEAST 1 staff.counselor DO activities.clinics.riflery DURING blocks.clinic_1",
         ),
         # somewhere in the day, not in this block
-        req("loose", "REQUEST staff.dylan DO 'paperwork' FOR 60m DURING ANY 1 blocks.all"),
+        req("loose", "REQUEST staff.dylan DO 'paperwork' FOR 60m DURING AT_LEAST 1 blocks.all"),
         # a preference, which never has to hold
         req(
             "wish",
-            "PREFER AT_MOST 1 staff.dylan DO activities.clinics.riflery",
+            "PREFER staff.dylan DO activities.clinics.riflery DURING AT_MOST 1 blocks.all",
             Priority.HIGH,
         ),
     ]

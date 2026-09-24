@@ -25,7 +25,7 @@ prompt = "Riflery runs during clinic 2 — whoever is qualified can staff it."
 answer = "REQUEST activities.clinics.riflery DURING blocks.clinic_2"
 hints = ["An activity with no DO: REQUEST activities.clinics.riflery DURING …"]
 explain = "The clinic already says who may run it, so the request just names it."
-alternatives = ["REQUEST ANY 1 staff.all DO activities.clinics.riflery DURING blocks.clinic_2"]
+alternatives = ["REQUEST AT_LEAST 1 staff.all DO activities.clinics.riflery DURING blocks.clinic_2"]
 wrong = ["REQUEST activities.clinics.riflery DURING blocks.clinic_3"]
 
 [[problem]]
@@ -60,13 +60,13 @@ id = "clinic-candle-both-morning"
 title = "Candles all morning"
 prompt = "Candle Making runs in both clinic 1 and clinic 2, as one request."
 answer = "REQUEST activities.clinics.candle_making DURING ALL {blocks.clinic_1 + blocks.clinic_2}"
-wrong = ["REQUEST activities.clinics.candle_making DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}"]
+wrong = ["REQUEST activities.clinics.candle_making DURING AT_LEAST 1 {blocks.clinic_1 + blocks.clinic_2}"]
 
 [[problem]]
 id = "clinic-guitar-someone"
 title = "Guitar, some block"
 prompt = "Guitar runs once today, in whichever clinic block works."
-answer = "REQUEST activities.clinics.guitar DURING ANY 1 blocks.all_clinics"
+answer = "REQUEST activities.clinics.guitar DURING AT_LEAST 1 blocks.all_clinics"
 wrong = ["REQUEST activities.clinics.guitar DURING blocks.clinic_2"]
 
 [[problem]]
@@ -81,7 +81,7 @@ wrong = ["REQUEST staff.rob DO activities.clinics.gravity_zip_line AS_ROLE roles
 id = "clinic-either-archery-person"
 title = "One of the archers"
 prompt = "Either Dylan or Tyson runs Archery 1 & 2 during clinic 3."
-answer = "REQUEST ANY 1 {staff.dylan + staff.tyson} DO activities.clinics.archery_1_2 DURING blocks.clinic_3"
+answer = "REQUEST AT_LEAST 1 {staff.dylan + staff.tyson} DO activities.clinics.archery_1_2 DURING blocks.clinic_3"
 explain = "Dylan and Tyson are the only two checked off on Archery 1 & 2, so this is the same as asking for the clinic by itself."
 alternatives = ["REQUEST activities.clinics.archery_1_2 DURING blocks.clinic_3"]
 wrong = ["REQUEST staff.dylan DO activities.clinics.archery_1_2 DURING blocks.clinic_3"]
@@ -106,7 +106,7 @@ wrong = ["REQUEST staff.caroline DO activities.clinics.climbing_wall AS_ROLE rol
 id = "clinic-trainee-riflery"
 title = "Learning riflery"
 prompt = "Leah trains on Riflery (as a trainee) in one of the clinic blocks today."
-answer = "REQUEST staff.leah DO activities.clinics.riflery AS_ROLE roles.trainee DURING ANY 1 blocks.all_clinics"
+answer = "REQUEST staff.leah DO activities.clinics.riflery AS_ROLE roles.trainee DURING AT_LEAST 1 blocks.all_clinics"
 wrong = ["REQUEST staff.leah DO activities.clinics.riflery AS_ROLE roles.trainee DURING blocks.clinic_1"]
 
 [[problem]]
@@ -167,7 +167,7 @@ wrong = ["REQUEST activities.clinics.throwing_range DURING ALL {blocks.clinic_1 
 id = "clinic-tie-dye-by-a-counselor"
 title = "A counselor's tie dye"
 prompt = "Tie Dye runs during clinic 1, run by one of the counselors."
-answer = "REQUEST ANY 1 staff.counselors DO activities.clinics.tie_dye DURING blocks.clinic_1"
+answer = "REQUEST AT_LEAST 1 staff.counselors DO activities.clinics.tie_dye DURING blocks.clinic_1"
 wrong = ["REQUEST activities.clinics.tie_dye DURING blocks.clinic_1"]
 
 [[problem]]

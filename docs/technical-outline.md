@@ -264,7 +264,7 @@ HEROs; a metric is now a numeric mapping.)
 | `value` | `numeric` | `{staff.all - staff.counselor}` |
 | `scale_min` | `1` | |
 | `scale_max` | `5` | |
-| `default` | `3` | `ANY 1 {staff.all - staff.counselor - staff.director}` |
+| `default` | `3` | `AT_LEAST 1 {staff.all - staff.counselor - staff.director}` |
 
 `keys` and `value` are Skedge sets (or a bare namespace), so what a call may take and
 give is checked like any other name. `mapping_enjoyment`:
@@ -778,6 +778,27 @@ Recorded so the outline matches the code.
   spans walks `2027/Main Season` once rather than four times, and `discover` runs once per
   root and year. Measured over a modelled season, a reload 70 published days in goes from
   143 API calls to 73.
+- **A count goes on the set it counts** (Puppet Master, 2026-09-23). An activity has no
+  quantity of its own; the blocks, the dates and the people come in numbers. So a count is
+  written directly in front of the set it counts — `DURING EXACTLY 3 blocks.all`,
+  `AT_MOST 2 staff.counselor` — rather than after `REQUEST`, far from what it measures, or
+  after `DO`, where it read as a quantity of the activity. A length goes on `FOR`, which
+  measures within one unit of the blocks: each block when they are taken one at a time,
+  their total when they are pooled with `ANY`. `ANY n` is gone: a number is always a
+  count, `ANY` is always a pool, and a binding line names exactly which, `EXACTLY n x IN`.
+  `NOT FREE` is `BUSY`, which was what it meant; with it gone, a count right of `NOT` is
+  refused, since what it could say reads better as a count of what does happen. `ALL` is
+  one unit inside every count, which is what lets `ALL {…} DURING EXACTLY 1 blocks.all`
+  mean one block together. `DURING` and `ON` still go anywhere; `AS_ROLE`, `FOR`, `WITH`
+  and `WITHOUT` go after the verb, and the counts nest by role — who, what, dates,
+  blocks — rather than by where they were written. A statement with no count but one
+  `AT_LEAST`, or with only one-item counts outside it, still compiles as the requirement it
+  always was (`resolve._chosen_once`); anything else is a `Tally`, compiled by
+  `Compiler._enforce_levels`, `_reify_levels` and `_tally_miss`, which choose for
+  `AT_LEAST`, count reified holds for `AT_MOST`, and do both for `EXACTLY`. A `FOR` over a
+  pool lets one of its pieces be cut short (`_allow_partial`). Saved requests are read with
+  the grammar they were written in, kept as `grammar_v4.lark`, and rewritten on their next
+  load; a count over two pools has no spelling now, and is left for somebody to rewrite.
 - **Every set says how it is taken, and CONSECUTIVE is on the blocks** (Puppet Master,
   2026-09-23). A set right of `NOT` or in a pattern is matched rather than chosen, and was
   the one kind of set written with no word in front of it; it now takes `ANY`, with no

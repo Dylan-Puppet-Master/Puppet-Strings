@@ -211,7 +211,7 @@ def preference(values: dict[tuple[str, str], float], default: float | None = Non
     return {"preference": MappingTable("preference", keys, "numeric", table, 1, 5, default)}
 
 
-BUDDY_DEFAULT = "ANY 1 {staff.all - staff.counselor - staff.director}"
+BUDDY_DEFAULT = "AT_LEAST 1 {staff.all - staff.counselor - staff.director}"
 
 
 def buddies(rows: dict[str, str], default: str | None = BUDDY_DEFAULT):
