@@ -141,12 +141,12 @@ wrong = ["PREFER ANY staff.directors FREE DURING ANY {blocks.clinic_3 + blocks.c
 [[problem]]
 id = "prefer-weekly-balance"
 title = "Share the load"
-prompt = "Over the whole session, we'd like no counselor to run more than ten hours of clinics."
-answer = "PREFER EACH staff.counselors DO ANY activities.clinics.all FOR AT_MOST 10h DURING ANY blocks.all ON ANY dates.session_6.all"
+prompt = "Over the whole session, we'd like no counselor to run more than 8 clinics."
+answer = "PREFER EACH staff.counselors DO ANY activities.clinics.all DURING AT_MOST 8 blocks.all ON ANY dates.session_6.all"
 priority = "MEDIUM"
-hints = ["Add it up with FOR, over any block of any day of the session."]
-explain = "A count counts one set: the blocks of a day, or the days of a session, not both at once. Load across both is measured in hours."
-wrong = ["PREFER EACH staff.counselors DO ANY activities.clinics.all FOR AT_MOST 10h DURING ANY blocks.all"]
+hints = ["Count the clinic blocks, over any day of the session."]
+explain = "Over dates pooled with ANY, a count of blocks counts each block on each date, so this is eight clinic blocks across the whole session."
+wrong = ["PREFER EACH staff.counselors DO ANY activities.clinics.all DURING AT_MOST 8 blocks.all"]
 
 [[problem]]
 id = "prefer-one-thing"

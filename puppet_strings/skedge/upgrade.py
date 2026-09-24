@@ -29,8 +29,9 @@ Version 5, where a count goes on the set it counts:
   between everyone the first chose; that one becomes a binding line, since a count of the
   blocks would now be each person's own.
 - A count in front of a pattern moves onto the one set it pooled, in place of its ANY, or
-  onto the blocks when it was measured in runs or named none; a length moves onto FOR. A
-  count over two pools has no spelling now, and is left for somebody to rewrite.
+  onto the blocks when it was measured in runs, named none, or pooled dates as well; a
+  length moves onto FOR. A count over pooled people and something else has no spelling
+  now, and is left for somebody to rewrite.
 - `NOT FREE` is `BUSY`. Right of NOT a pool was every one of its items, so it becomes ALL,
   and ALL was all of them together, which is at least one: `AT_LEAST 1`.
 """
@@ -364,19 +365,26 @@ def _counted_set(pattern: Tree):
 
     The old count was of assignments. Runs of blocks are counted on the blocks. Otherwise
     each pooled set of people, dates or blocks, a missing DURING being the whole day, is one
-    the assignments spread over, and a count over one of them is a count of its members;
-    over two there is no spelling now. A person holds one activity a block, so a pool of
-    activities is counted only where nothing else is pooled.
+    the assignments spread over, and a count over one of them is a count of its members.
+    Dates and blocks both pooled are a count of the blocks, since a count of blocks over
+    pooled dates counts each block on each date; people and anything else pooled have no
+    spelling now. A person holds one activity a block, so a pool of activities is counted
+    only where nothing else is pooled.
     """
     choosers = _choosers(pattern)
     during = next((c for field, c in choosers if field == "during"), None)
     if during is not None and _is(during.children[0], "ANY") and _consecutive(during):
         return during
-    pools = [
-        c for field, c in choosers if field != "what" and _is(c.children[0], "ANY") and _pooled(c)
-    ]
+    pooled = {
+        field: c
+        for field, c in choosers
+        if field != "what" and _is(c.children[0], "ANY") and _pooled(c)
+    }
     if during is None:
-        pools.append("day")
+        pooled["during"] = "day"
+    if set(pooled) == {"on", "during"}:
+        return pooled["during"]  # the blocks on each of the dates: a count of the blocks
+    pools = list(pooled.values())
     if len(pools) == 1:
         return pools[0]
     if pools:

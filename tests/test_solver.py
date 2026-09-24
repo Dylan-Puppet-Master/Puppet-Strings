@@ -704,7 +704,7 @@ def test_weights_trade_within_a_tier():
 # -- amounts, mappings and past dates --------------------------------------------------------
 
 PREFERENCE = "PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)"
-VARIETY = "PREFER EACH staff.all DO EACH activities.clinics.all ON AT_MOST 1 {(dates.target - 6d) .. dates.target}"
+VARIETY = "PREFER EACH staff.all DO EACH activities.clinics.all DURING AT_MOST 1 blocks.all ON ANY {(dates.target - 6d) .. dates.target}"
 
 
 @pytest.mark.parametrize(

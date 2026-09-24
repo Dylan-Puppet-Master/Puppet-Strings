@@ -659,17 +659,22 @@ class Compiler:
         are for a CONSECUTIVE amount, on any of the dates the requirement is about. Exactly
         one such run is picked when the requirement is active, and it is what is chosen.
         """
-        runs: set[tuple[str, ...]] = set()
+        runs: set[tuple] = set()
         for day in days:
             order = [b.id for b in self.dataset.blocks_on(day)]
             for i in range(len(order) - n + 1):
                 run = tuple(order[i : i + n])
+                if all((day, b) in chosen for b in run):  # blocks on each of pooled dates
+                    run = tuple((day, b) for b in run)
                 if all(b in chosen for b in run):
                     runs.add(run)
         if not runs:
             self._imply([active], False)  # no n of them are ever next to each other
             return
-        picked = {run: self.model.NewBoolVar(f"{name}:run:{'+'.join(run)}") for run in sorted(runs)}
+        picked = {
+            run: self.model.NewBoolVar(f"{name}:run:{'+'.join(map(str, run))}")
+            for run in sorted(runs, key=str)
+        }
         self.model.Add(sum(picked.values()) == active)
         for block, literal in chosen.items():
             self.model.Add(literal == sum(p for run, p in picked.items() if block in run))
@@ -1019,7 +1024,8 @@ class Compiler:
         if not levels:
             return self._enforce_leaf(st, pattern, active, name)
         level, rest = levels[0], levels[1:]
-        choice, field = level.choice, level.field
+        field = level.field
+        choice = self._counted(level, pattern)
         deferred = []
         if choice.bound != ast.AT_MOST:
             chosen = self._choose(replace(choice, kind=ANY, bound=None), active, f"{name}:{field}")
@@ -1028,9 +1034,8 @@ class Compiler:
             for item, literal in chosen.items():
                 fixed = _fixed(pattern, field, item)
                 deferred += self._enforce_levels(st, rest, fixed, literal, f"{name}:{item}")
-            if field == "date":
-                later = [lit for d, lit in chosen.items() if d > self.dataset.target]
-                deferred.append(self._any_of(later, f"{name}:later"))
+            later = [lit for item, lit in chosen.items() if _day(field, item) > self.dataset.target]
+            deferred.append(self._any_of(later, f"{name}:later"))
         if choice.bound != ast.AT_LEAST:
             holds = self._each_holds(st, level, rest, pattern, name)
             if choice.consecutive:
@@ -1068,7 +1073,7 @@ class Compiler:
     def _each_holds(self, st: Tally, level: Level, rest, pattern: Pattern, name: str) -> dict:
         """A literal per thing a count counts: each item, and each group, all of it."""
         holds = {}
-        for item in level.choice.items:
+        for item in self._counted(level, pattern).items:
             fixed = _fixed(pattern, level.field, item)
             holds[item] = self._reify_levels(st, rest, fixed, f"{name}:{item}")
         for i, unit in enumerate(level.choice.units):
@@ -1139,22 +1144,46 @@ class Compiler:
             for combination in product(*(options for _, options in split))
         ]
 
+    def _counted(self, level: Level, pattern: Pattern) -> Choice:
+        """What a count counts: the items of its set, or for blocks, each one on each date.
+
+        A block happens once a date, so where the dates are pooled a count of blocks is of
+        every block on every one of those dates: clinic 1 on Monday and clinic 1 on Tuesday
+        are two. Anywhere else the dates are one, or one at a time, and a block is itself.
+        """
+        if not _over_days(level, pattern):
+            return level.choice
+        items = tuple(
+            (d, b.id)
+            for d in pattern.on.items
+            for b in self.dataset.blocks_on(d)
+            if b.id in level.choice.items
+        )
+        return replace(level.choice, items=items)
+
     def _windows_of(self, level: Level, holds: dict, pattern: Pattern, length: int) -> list:
-        """The literals of every `length` counted blocks in a row, in the Blocks sheet's order."""
+        """The literals of every `length` counted blocks in a row, in the Blocks sheet's order.
+
+        A run never crosses from one date to the next.
+        """
         days = pattern.on.items
-        if len(days) == 1:
-            order = [b.id for b in self.dataset.blocks_on(days[0])]
+        if _over_days(level, pattern):
+            orders = [[(d, b.id) for b in self.dataset.blocks_on(d)] for d in days]
+        elif len(days) == 1:
+            orders = [[b.id for b in self.dataset.blocks_on(days[0])]]
         else:
             on_some = {b.id for d in days for b in self.dataset.blocks_on(d)}
-            order = [b for b in self.dataset.blocks if b in on_some]
-        windows, run = [], []
-        for block in order:
-            if block not in holds or holds[block] is False:
-                run = []
-                continue
-            run.append(holds[block])
-            if len(run) >= length:
-                windows.append(run[-length:])
+            orders = [[b for b in self.dataset.blocks if b in on_some]]
+        windows = []
+        for order in orders:
+            run = []
+            for key in order:
+                if key not in holds or holds[key] is False:
+                    run = []
+                    continue
+                run.append(holds[key])
+                if len(run) >= length:
+                    windows.append(run[-length:])
         return windows
 
     def _day_blocks(self, on: Choice) -> tuple[str, ...]:
@@ -1425,9 +1454,31 @@ class Compiler:
 
 
 def _fixed(pattern: Pattern, field: str, item) -> Pattern:
-    """A pattern with one of its fields down to one item: the one a count is at."""
+    """A pattern with one of its fields down to one item: the one a count is at.
+
+    A block counted over pooled dates is a block on a date, so both come down to one.
+    """
+    if field == "block" and isinstance(item, tuple):
+        day, block = item
+        pattern = replace(pattern, on=Choice((day,), ALL, pos=pattern.on.pos))
+        item = block
     choice = getattr(pattern, FIELDS[field])
     return replace(pattern, **{FIELDS[field]: Choice((item,), ALL, pos=choice.pos)})
+
+
+def _over_days(level: Level, pattern: Pattern) -> bool:
+    """Whether a count of blocks is over several pooled dates, each block on each of them."""
+    on = pattern.on
+    return level.field == "block" and on.kind == POOL and len(on.items) > 1
+
+
+def _day(field: str, item) -> date:
+    """The date a counted item is on, where it is on one; else no later than any."""
+    if field == "date":
+        return item
+    if field == "block" and isinstance(item, tuple):
+        return item[0]
+    return date.min
 
 
 def _split(literals: list) -> tuple[list, int]:

@@ -796,9 +796,13 @@ Recorded so the outline matches the code.
   always was (`resolve._chosen_once`); anything else is a `Tally`, compiled by
   `Compiler._enforce_levels`, `_reify_levels` and `_tally_miss`, which choose for
   `AT_LEAST`, count reified holds for `AT_MOST`, and do both for `EXACTLY`. A `FOR` over a
-  pool lets one of its pieces be cut short (`_allow_partial`). Saved requests are read with
-  the grammar they were written in, kept as `grammar_v4.lark`, and rewritten on their next
-  load; a count over two pools has no spelling now, and is left for somebody to rewrite.
+  pool lets one of its pieces be cut short (`_allow_partial`). A block is a block on a
+  date, so over dates pooled with `ANY` a count of blocks counts each block on each of them
+  (`Compiler._counted`): "at most eight clinics a session" is `DURING AT_MOST 8 blocks.all
+  ON ANY <session>`, and runs of blocks stay within a day. Saved requests are read with the
+  grammar they were written in, kept as `grammar_v4.lark`, and rewritten on their next
+  load; a count over pooled people and something else has no spelling now, and is left for
+  somebody to rewrite.
 - **Every set says how it is taken, and CONSECUTIVE is on the blocks** (Puppet Master,
   2026-09-23). A set right of `NOT` or in a pattern is matched rather than chosen, and was
   the one kind of set written with no word in front of it; it now takes `ANY`, with no

@@ -382,6 +382,15 @@ Evaluation order is fixed:
 `ANY` on the blocks of a statement is at least one of them, so it differs from `AT_LEAST 1`
 only where rules 3 and 4 differ: a count sits outside the units, a pool inside them.
 
+**A block is a block on a date.** Blocks happen every day, so where a statement's dates are
+pooled with `ANY`, a count of its blocks counts each block on each of those dates:
+`DURING AT_MOST 8 blocks.all_clinics ON ANY dates.session_1.all` is at most eight clinic
+blocks over the session, clinic 1 on Monday and clinic 1 on Tuesday being two. Everywhere
+else the blocks are counted on one date at a time — the dates are one date, split with
+`EACH`, or counted outside the blocks by rule 2 — except under `ALL` dates, one unit by
+rule 3, where a block counts when the rest holds in it on every one of them. A count of
+blocks over pooled dates takes no group.
+
 The activity and `AS_ROLE` take one thing at a time, since a person does one thing in a
 block. `ALL` of several activities needs the blocks pooled or counted, and `AS_ROLE` takes
 a role, `ANY` or `EACH`. A count of activities counts different ones:
@@ -391,7 +400,8 @@ a role, `ANY` or `EACH`. A count of activities counts different ones:
 blocks.all` holds when some **run** of adjacent blocks the rest holds for reaches 2,
 `AT_MOST` when no run exceeds it, and `EXACTLY` when both do. Blocks are adjacent when they
 are next to each other in the Blocks sheet, on one date. `DURING ANY CONSECUTIVE blocks.all`
-pools each run on its own, for a `FOR` to measure (§7.1), and needs one.
+pools each run on its own, for a `FOR` to measure (§7.1), and needs one. A run never
+crosses from one date to the next.
 
 ### 6.3 Variables
 
@@ -747,6 +757,7 @@ parser, the validator and the solver report:
 | `a count counts the members of a set, and` | A count of 2 or more on one item: `AT_LEAST 2 staff.charlton`. |
 | `a group takes ALL or AT_LEAST n` | `(EXACTLY 1 …)` or `(AT_MOST 1 …)` as a group. |
 | `a group in a count is taken whole, so it takes ALL` | An `(AT_LEAST n …)` group inside a count. |
+| `a count of blocks over pooled dates counts each block on each date` | `DURING AT_MOST 3 {blocks.a + (ALL …)} ON ANY …`. |
 | `a binding names exactly which, so it takes EXACTLY` | `AT_LEAST 1 x IN s`. |
 | `a pattern matches one assignment at a time` | `ALL`, a count or a group in the pattern of a `PREFER … MAXIMIZE`, other than after `WITH` or `WITHOUT`. |
 | `right of NOT a set takes ANY, for any of these` | A count or an `(AT_LEAST n …)` group to the right of `NOT`, other than after `WITH` or `WITHOUT`. |

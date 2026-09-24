@@ -58,11 +58,11 @@ wrong = ["REQUEST EACH activities.cabin_acts.all DURING blocks.cabin_act\nREQUES
 [[problem]]
 id = "big-ropes-rotation"
 title = "Rotating ropes"
-prompt = "Over the session, we'd like nobody to be first on the Climbing Wall on more than three days."
-answer = "PREFER EACH staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first ON AT_MOST 3 dates.session_6.all"
+prompt = "Over the session, we'd like nobody to be first on the Climbing Wall more than 3 times."
+answer = "PREFER EACH staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first DURING AT_MOST 3 blocks.all ON ANY dates.session_6.all"
 priority = "LOW"
-hints = ["Count the days: ON AT_MOST 3 dates.session_6.all."]
-wrong = ["REQUEST EACH staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first ON AT_MOST 3 dates.session_6.all"]
+hints = ["Count the blocks, over any day of the session."]
+wrong = ["REQUEST EACH staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first DURING AT_MOST 3 blocks.all ON ANY dates.session_6.all"]
 
 [[problem]]
 id = "big-new-archer"

@@ -257,6 +257,28 @@ order they are written in: who, what, the dates, the blocks. `AT_MOST 2 staff.co
 times. `ALL` is one unit inside every count, which is what put Lucy and Tom in the same
 block above.
 
+#### Blocks across days
+
+A block happens every day, so clinic 1 on Monday and clinic 1 on Tuesday are two blocks.
+Where the dates are pooled with `ANY`, a count of blocks counts every block on every one
+of those dates, which is how a number of times over a week or a session is written:
+
+```skedge
+REQUEST staff.dylan DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_MOST 8 blocks.all_clinics ON ANY dates.session_1.all
+```
+
+Dylan facilitates at most eight clinics in the session, however they fall across its days.
+How the dates are taken decides what a count of blocks is over:
+
+| Written | A count of blocks is over |
+|---|---|
+| `ON ANY dates.session_1.all` | every block of every day together: `EXACTLY 1` is once in the whole session |
+| `ON EACH dates.session_1.all` | each day on its own, as a separate request: `EXACTLY 1` is once a day, in any block |
+| `ON ALL dates.session_1.all` | the days as one unit: a block counts when it happens on every one of them, so `EXACTLY 1` is the same block every day |
+
+Blocks in a row stay within a day: the last block of one day and the first of the next are
+not next to each other.
+
 `ANY` is the other way to take a set: any of these will do. It is not a number, so it
 says nothing about how many:
 
@@ -423,7 +445,7 @@ to be scored against:
 
 | Request | Meaning |
 |---|---|
-| `PREFER EACH staff.all DO ANY activities.clinics.all ON AT_MOST 4 dates.session_1.all` | Nobody should run clinics on more than four days a session. Six is twice as bad as five. |
+| `PREFER EACH staff.all DO ANY activities.clinics.all DURING AT_MOST 8 blocks.all ON ANY dates.session_1.all` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
 | `PREFER staff.james DO 'dance practice' FOR AT_LEAST 2h DURING ANY blocks.all ON ANY {2026-09-16 .. 2026-09-17}` | Two hours of dance practice across the two days, each hour short costing the same. |
 | `PREFER staff.dylan DO activities.clinics.riflery DURING AT_LEAST 1 blocks.clinic_2` | Dylan on riflery in clinic 2, if it can be managed. |
 
@@ -825,33 +847,32 @@ Priority `MEDIUM`, weight `1`.
 
 ### Clinic variety over a rolling week
 
-Each person should run each clinic on at most one day in any seven; every repeat costs a
+Each person should run each clinic at most once in any seven days; every repeat costs a
 point. Shares a tier with the preference request so the two trade off.
 
 ```skedge
-PREFER EACH staff.all DO EACH activities.clinics.all ON AT_MOST 1 {(dates.target - 6d) .. dates.target}
+PREFER EACH staff.all DO EACH activities.clinics.all DURING AT_MOST 1 blocks.all ON ANY {(dates.target - 6d) .. dates.target}
 ```
 
 Priority `MEDIUM`, weight `0.5`.
 
 ### Rotate ropes positions
 
-Nobody holds the same ropes position on more than three days a session.
+Nobody holds the same ropes position more than three times a session.
 
 ```skedge
-PREFER EACH staff.ropes_level_2 DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second} ON AT_MOST 3 dates.session_1.all
+PREFER EACH staff.ropes_level_2 DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second} DURING AT_MOST 3 blocks.all ON ANY dates.session_1.all
 ```
 
 Priority `LOW`.
 
 ### Balance clinic workload
 
-Nobody should run more than ten hours of clinics a session. A count of clinics would count
-the blocks of one day or the days of a session, but not both at once, so the load is
-measured in hours.
+Nobody should run more than eight clinics a session: a count of the blocks they run
+clinics in, over every day of it.
 
 ```skedge
-PREFER EACH staff.all DO ANY activities.clinics.all FOR AT_MOST 10h DURING ANY blocks.all ON ANY dates.session_1.all
+PREFER EACH staff.all DO ANY activities.clinics.all DURING AT_MOST 8 blocks.all ON ANY dates.session_1.all
 ```
 
 Priority `MEDIUM`, weight `0.25`.

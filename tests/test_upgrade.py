@@ -124,9 +124,20 @@ def test_consecutive_moves_onto_the_blocks(dataset, old, new):
             "REQUEST AT_LEAST 2h staff.dylan DO 'video editing'",
             "REQUEST staff.dylan DO 'video editing' FOR AT_LEAST 2h",
         ),
-        (  # dates and the whole day are two pools: no spelling now, so left as it was
+        (  # over pooled dates, a count of blocks is of each block on each date
             "REQUEST AT_LEAST 2 staff.dylan DO 'x' ON ANY {2026-09-16 .. 2026-09-17}",
-            "REQUEST AT_LEAST 2 staff.dylan DO 'x' ON ANY {2026-09-16 .. 2026-09-17}",
+            "REQUEST staff.dylan DO 'x' ON ANY {2026-09-16 .. 2026-09-17} "
+            "DURING AT_LEAST 2 blocks.all",
+        ),
+        (
+            "PREFER AT_MOST 8 EACH staff.all DO ANY activities.clinics.all "
+            "DURING ANY blocks.all_clinics ON ANY dates.session_1.all",
+            "PREFER EACH staff.all DO ANY activities.clinics.all "
+            "DURING AT_MOST 8 blocks.all_clinics ON ANY dates.session_1.all",
+        ),
+        (  # people and blocks are two pools: no spelling now, so left as it was
+            "REQUEST AT_MOST 2 ANY staff.counselor DO 'break'",
+            "REQUEST AT_MOST 2 ANY staff.counselor DO 'break'",
         ),
     ],
 )

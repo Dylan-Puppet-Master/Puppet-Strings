@@ -1,11 +1,13 @@
 """Counts on the sets they count, lengths on FOR, and BUSY, as the solver keeps them."""
 
+from datetime import timedelta
+
 import pytest
 
 from puppet_strings.config import Config
 from puppet_strings.model import Priority
 from puppet_strings.solver.solve import solve
-from tests.build import OK, clinic, dataset, request, staff
+from tests.build import OK, TARGET, clinic, dataset, published, request, staff
 
 CONFIG = Config(time_limit_seconds=10, workers=4)
 MUST = Priority.MUST_HAPPEN
@@ -266,3 +268,46 @@ def test_a_preference_is_weighed_by_its_outermost_count():
         ],
     )
     assert len(rows(run(ds), "break")) == 2
+
+
+def test_a_count_of_blocks_over_pooled_dates_counts_each_block_on_each_date():
+    """Yesterday's clinic 1 and today's are two blocks, so two done leaves one of three."""
+    yesterday = TARGET - timedelta(days=1)
+    window = f"{{{yesterday} .. {TARGET}}}"
+    ds = dataset(
+        [staff("Dylan")],
+        [],
+        published=published(
+            yesterday, ("Dylan", "'x'", None, "clinic_1"), ("Dylan", "'x'", None, "clinic_2")
+        ),
+        requests=[
+            request(
+                "most",
+                f"REQUEST staff.dylan DO 'x' DURING AT_MOST 3 blocks.all ON ANY {window}",
+                MUST,
+            ),
+            request(
+                "more", "REQUEST staff.dylan DO 'x' DURING EACH blocks.all_clinics", Priority.LOW
+            ),
+        ],
+    )
+    assert len(rows(run(ds), "x", "dylan")) == 1
+
+
+def test_a_run_of_blocks_over_pooled_dates_stays_within_a_date():
+    yesterday = TARGET - timedelta(days=1)
+    window = f"{{{yesterday} .. {TARGET}}}"
+    ds = dataset(
+        [staff("Dylan")],
+        [],
+        published=published(yesterday, ("Dylan", "'x'", None, "playstation")),
+        requests=[
+            request(
+                "run",
+                f"REQUEST staff.dylan DO 'x' DURING AT_MOST 1 CONSECUTIVE blocks.all ON ANY {window}",
+                MUST,
+            ),
+            request("first", "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1", Priority.LOW),
+        ],
+    )
+    assert blocks(run(ds), "x", "dylan") == {"clinic_1"}  # yesterday's last block is no neighbour

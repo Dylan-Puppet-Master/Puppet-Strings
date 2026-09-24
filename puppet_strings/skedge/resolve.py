@@ -700,9 +700,11 @@ def _phrase(
         for field, key in FIELDS
         if isinstance(chosen[key], Choice) and chosen[key].kind == COUNT
     )
+    over_days = on.kind == POOL and len(on.items) > 1
     for level in levels:
-        _countable(level)
-    simple = _chosen_once(levels)
+        _countable(level, over_days)
+    per_occurrence = over_days and any(level.field == "block" for level in levels)
+    simple = _chosen_once(levels) and not per_occurrence
     if not (prefer or test) and measure is None and simple:
         for _, key in FIELDS:
             if isinstance(chosen[key], Choice) and chosen[key].kind == COUNT:
@@ -733,11 +735,17 @@ def _chosen_once(levels: tuple[Level, ...]) -> bool:
     return all(level.choice.n == 1 and not level.choice.units for level in levels[:-1])
 
 
-def _countable(level: Level) -> None:
+def _countable(level: Level, over_days: bool) -> None:
     """A count's groups are each one thing counted, taken whole."""
     for unit in level.choice.units:
         if unit.kind != ALL or unit.parts:
             raise _error("a group in a count is taken whole, so it takes ALL", unit.pos)
+        if level.field == "block" and over_days:
+            raise _error(
+                "a count of blocks over pooled dates counts each block on each date, so it "
+                "takes no group",
+                unit.pos,
+            )
     if level.choice.consecutive and level.field != "block":
         raise _error("CONSECUTIVE is about blocks", level.choice.pos)
 

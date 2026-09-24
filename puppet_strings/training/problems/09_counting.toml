@@ -14,6 +14,7 @@ REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks.all
 • A count counts the members of its own set the rest holds for — nobody else
 • AT_MOST and EXACTLY rule the rest out; AT_LEAST never does
 • Two counts go one inside the other: who, then what, then dates, then blocks
+• A block is a block on a date: over ANY dates, a count of blocks is of every block of every day
 • A count of activities counts different ones; three breaks is a count of blocks
 • FOR in blocks taken one at a time is each piece; over ANY blocks it is the total
 • ANY CONSECUTIVE: the total of one run of back-to-back blocks
@@ -241,3 +242,34 @@ prompt = "Exactly two village heroes do 'dining hall duty' at each meal."
 answer = "REQUEST EXACTLY 2 staff.village_heroes DO 'dining hall duty' DURING EACH blocks.meals"
 priority = "MUST_HAPPEN"
 wrong = ["REQUEST AT_LEAST 2 staff.village_heroes DO 'dining hall duty' DURING EACH blocks.meals"]
+
+[[problem]]
+id = "count-clinics-a-session"
+title = "Eight a session"
+prompt = "Over the whole session, Dylan facilitates (roles.first) at most eight clinics."
+answer = "REQUEST staff.dylan DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_MOST 8 blocks.all ON ANY dates.session_6.all"
+hints = ["Count the blocks he facilitates in.", "Over ANY dates of the session, each block of each day counts."]
+explain = "Clinic 1 on Monday and clinic 1 on Tuesday are two blocks, so a count of blocks over dates pooled with ANY is a number of times across the session."
+wrong = ["REQUEST staff.dylan DO ANY activities.clinics.all AS_ROLE roles.first DURING AT_MOST 8 blocks.all"]
+
+[[problem]]
+id = "count-once-a-day"
+title = "Once a day"
+prompt = "Every day from today to Friday, Tori does 'feed the goats' in exactly one block — any block, and each day counts on its own."
+answer = "REQUEST staff.tori DO 'feed the goats' DURING EXACTLY 1 blocks.all ON EACH {2026-08-04 .. 2026-08-07}"
+priority = "HIGH"
+hints = ["A request per day: ON EACH.", "In each, a count of the blocks."]
+explain = "ON EACH makes a request per day, so the block can differ from day to day. ON ALL would make the days one unit: the same block every day. ON ANY would count blocks over all the days together: once in the whole week."
+wrong = [
+  "REQUEST staff.tori DO 'feed the goats' DURING EXACTLY 1 blocks.all ON ANY {2026-08-04 .. 2026-08-07}",
+  "REQUEST staff.tori DO 'feed the goats' DURING EXACTLY 1 blocks.all ON ALL {2026-08-04 .. 2026-08-07}",
+]
+
+[[problem]]
+id = "count-once-a-week"
+title = "Once, some day"
+prompt = "Between today and Friday, Tori does 'hay delivery' exactly once — one block on one day."
+answer = "REQUEST staff.tori DO 'hay delivery' DURING EXACTLY 1 blocks.all ON ANY {2026-08-04 .. 2026-08-07}"
+hints = ["Pool the days with ANY, and count the blocks across all of them."]
+explain = "Over dates pooled with ANY, a count of blocks is of every block of every day, so EXACTLY 1 is once in the four days."
+wrong = ["REQUEST staff.tori DO 'hay delivery' DURING EXACTLY 1 blocks.all ON EACH {2026-08-04 .. 2026-08-07}"]
