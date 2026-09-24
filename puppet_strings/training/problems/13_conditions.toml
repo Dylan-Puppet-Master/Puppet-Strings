@@ -66,7 +66,7 @@ wrong = ["IF staff.rob DO activities.clinics.gravity_zip_line DURING blocks.clin
 id = "if-each-after-clinics"
 title = "After two in a row"
 prompt = "For each village leader: if they run two clinics back to back, they get a free block somewhere today."
-answer = "EACH_OF s IN staff.village_leaders\nIF AT_LEAST 2 s DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all\nREQUEST s FREE DURING ANY 1 blocks.all"
+answer = "EACH s IN staff.village_leaders\nIF AT_LEAST 2 s DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all\nREQUEST s FREE DURING ANY 1 blocks.all"
 priority = "HIGH"
 
 [[problem]]
@@ -104,17 +104,17 @@ wrong = ["IF staff.kara DO 'break' DURING blocks.lunch\nREQUEST staff.kara DO 'b
 id = "if-three-conditions-and"
 title = "Three things true"
 prompt = "If Lisa, David and Matthew are all free during rest hour, they have a 'directors huddle' during playstation."
-answer = "IF staff.lisa FREE DURING blocks.rest_hour AND staff.david FREE DURING blocks.rest_hour AND staff.matthew FREE DURING blocks.rest_hour\nREQUEST ALL_OF staff.directors DO 'directors huddle' DURING blocks.playstation"
-alternatives = ["IF\nstaff.lisa FREE DURING blocks.rest_hour\nAND staff.david FREE DURING blocks.rest_hour\nAND staff.matthew FREE DURING blocks.rest_hour\nREQUEST ALL_OF staff.directors DO 'directors huddle' DURING blocks.playstation"]
-wrong = ["IF staff.lisa FREE DURING blocks.rest_hour AND staff.david FREE DURING blocks.rest_hour\nREQUEST ALL_OF staff.directors DO 'directors huddle' DURING blocks.playstation"]
+answer = "IF staff.lisa FREE DURING blocks.rest_hour AND staff.david FREE DURING blocks.rest_hour AND staff.matthew FREE DURING blocks.rest_hour\nREQUEST ALL staff.directors DO 'directors huddle' DURING blocks.playstation"
+alternatives = ["IF\nstaff.lisa FREE DURING blocks.rest_hour\nAND staff.david FREE DURING blocks.rest_hour\nAND staff.matthew FREE DURING blocks.rest_hour\nREQUEST ALL staff.directors DO 'directors huddle' DURING blocks.playstation"]
+wrong = ["IF staff.lisa FREE DURING blocks.rest_hour AND staff.david FREE DURING blocks.rest_hour\nREQUEST ALL staff.directors DO 'directors huddle' DURING blocks.playstation"]
 
 [[problem]]
 id = "if-each-counselor-lunch-break"
 title = "Break then cover"
 prompt = "For each counselor: if they are on 'break' during lunch, their buddy does 'cabin cover' during lunch."
-answer = "EACH_OF c IN staff.counselors\nIF c DO 'break' DURING blocks.lunch\nREQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.lunch"
+answer = "EACH c IN staff.counselors\nIF c DO 'break' DURING blocks.lunch\nREQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.lunch"
 priority = "HIGH"
-wrong = ["EACH_OF c IN staff.counselors\nREQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.lunch"]
+wrong = ["EACH c IN staff.counselors\nREQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.lunch"]
 
 [[problem]]
 id = "if-busy-evening"

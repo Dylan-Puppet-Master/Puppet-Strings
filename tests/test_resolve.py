@@ -25,7 +25,7 @@ def resolve(dataset, skedge, priority=Priority.HIGH):
 
 
 def on(dataset, name, item=False):
-    quantifier = "" if item else "ALL_OF "
+    quantifier = "" if item else "ALL "
     (copy,) = resolve(
         dataset, f"REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON {quantifier}{name}"
     )
@@ -44,7 +44,7 @@ def test_defaults(dataset):
 def test_quantifiers(dataset):
     (copy,) = resolve(
         dataset,
-        "REQUEST ANY 2 staff.counselor DO 'x' DURING ALL_OF blocks.all ON ANY 1 dates.session_1.all",
+        "REQUEST ANY 2 staff.counselor DO 'x' DURING ALL blocks.all ON ANY 1 dates.session_1.all",
     )
     (st,) = copy.statements
     assert (st.who.kind, st.who.n, st.who.items) == (ANY, 2, ("dylan", "james", "paul"))
@@ -53,12 +53,12 @@ def test_quantifiers(dataset):
 
 
 def test_each_of_expands_into_keyed_copies(dataset):
-    copies = resolve(dataset, "REQUEST EACH_OF staff.counselor DO 'x' DURING blocks.clinic_1")
+    copies = resolve(dataset, "REQUEST EACH staff.counselor DO 'x' DURING blocks.clinic_1")
     assert [c.key for c in copies] == ["dylan", "james", "paul"]
     assert copies[0].statements[0].who.items == ("dylan",)
     product = resolve(
         dataset,
-        "REQUEST EACH_OF staff.director DO 'x' DURING EACH_OF {blocks.clinic_1 + blocks.clinic_2}",
+        "REQUEST EACH staff.director DO 'x' DURING EACH {blocks.clinic_1 + blocks.clinic_2}",
     )
     assert [c.key for c in product] == [
         "david, clinic_1",
@@ -68,13 +68,13 @@ def test_each_of_expands_into_keyed_copies(dataset):
     ]
     dated = resolve(
         dataset,
-        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON EACH_OF dates.session_1.mondays",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON EACH dates.session_1.mondays",
     )
     assert [c.key for c in dated] == ["2026-09-14", "2026-09-21"]
     assert (
         resolve(
             dataset,
-            "REQUEST EACH_OF {staff.counselor & staff.director} DO 'x' DURING blocks.clinic_1",
+            "REQUEST EACH {staff.counselor & staff.director} DO 'x' DURING blocks.clinic_1",
         )
         == ()
     )
@@ -83,7 +83,7 @@ def test_each_of_expands_into_keyed_copies(dataset):
 def test_a_binding_line_is_visible_on_every_line(dataset):
     copies = resolve(
         dataset,
-        "EACH_OF c IN staff.counselor\n"
+        "EACH c IN staff.counselor\n"
         "m: REQUEST c DO 'a' DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\n"
         "n: REQUEST c DO 'a' DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\n"
         "GAP m TO n AT_MOST 5h",
@@ -109,7 +109,7 @@ def test_an_any_binding_is_one_choice_shared_by_the_declaration(dataset):
 def test_negation_makes_a_pattern_of_pools(dataset):
     (copy,) = resolve(
         dataset,
-        "REQUEST ALL_OF staff.counselor NOT DO ANY activities.clinics.ropes WITHOUT staff.vic",
+        "REQUEST ALL staff.counselor NOT DO ANY activities.clinics.ropes WITHOUT staff.vic",
     )
     (st,) = copy.statements
     assert isinstance(st, Forbid) and st.who.kind == ALL
@@ -118,7 +118,7 @@ def test_negation_makes_a_pattern_of_pools(dataset):
     assert st.pattern.on.items == (dataset.target,) and st.pattern.without == Company(
         frozenset({"vic"}), None
     )
-    copies = resolve(dataset, "REQUEST EACH_OF staff.counselor NOT FREE DURING blocks.clinic_1")
+    copies = resolve(dataset, "REQUEST EACH staff.counselor NOT FREE DURING blocks.clinic_1")
     assert copies[0].statements[0].pattern.what is None and copies[0].statements[0].pattern.busy
 
 
@@ -126,9 +126,9 @@ def test_with_takes_one_name_or_a_quantified_set(dataset):
     base = "REQUEST staff.rob NOT DO ANY activities.clinics.ropes "
     (copy,) = resolve(dataset, base + "WITH ANY 2 {staff.vic + staff.dylan + staff.randy}")
     assert copy.statements[0].pattern.with_ == Company(frozenset({"vic", "dylan", "randy"}), 2)
-    (copy,) = resolve(dataset, base + "WITHOUT ALL_OF {staff.vic + staff.dylan}")
+    (copy,) = resolve(dataset, base + "WITHOUT ALL {staff.vic + staff.dylan}")
     assert copy.statements[0].pattern.without == Company(frozenset({"vic", "dylan"}), None)
-    with pytest.raises(SkedgeError, match="needs a quantifier: ALL_OF or ANY n"):
+    with pytest.raises(SkedgeError, match="needs a quantifier: ALL or ANY n"):
         resolve(dataset, base + "WITHOUT {staff.vic + staff.dylan}")
     with pytest.raises(SkedgeError, match="is one item and takes no quantifier"):
         resolve(dataset, base + "WITH ANY 1 staff.vic")
@@ -137,7 +137,7 @@ def test_with_takes_one_name_or_a_quantified_set(dataset):
 def test_patterns_conditions_and_mappings(dataset):
     (copy,) = resolve(
         dataset,
-        "EACH_OF s IN staff.director\n"
+        "EACH s IN staff.director\n"
         "IF AT_LEAST 3 s DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all\n"
         "REQUEST s FREE DURING ANY 1 blocks.all",
     )[:1]
@@ -145,7 +145,7 @@ def test_patterns_conditions_and_mappings(dataset):
     assert copy.condition.test.pattern.who.items == ("david",)
     copies = resolve(
         dataset,
-        "PREFER EACH_OF s IN staff.counselor DO EACH_OF c IN activities.clinics.weapons "
+        "PREFER EACH s IN staff.counselor DO EACH c IN activities.clinics.weapons "
         "MAXIMIZE mappings.preference(s, c)",
     )
     assert copies[0].statements[0].key == ("dylan", "archery_1_2")
@@ -153,12 +153,14 @@ def test_patterns_conditions_and_mappings(dataset):
 
 
 def test_set_operators(dataset):
-    text = "REQUEST EACH_OF {staff.all - staff.director - staff.counselor} DO 'x' DURING ALL_OF blocks.all"
+    text = (
+        "REQUEST EACH {staff.all - staff.director - staff.counselor} DO 'x' DURING ALL blocks.all"
+    )
     keys = {c.key for c in resolve(dataset, text)}
     assert keys and not keys & {"david", "lisa", "dylan", "james", "paul"}
     (copy,) = resolve(
         dataset,
-        "REQUEST ALL_OF {staff.counselor & staff.ropes_level_2} DO 'x' DURING ALL_OF blocks.all",
+        "REQUEST ALL {staff.counselor & staff.ropes_level_2} DO 'x' DURING ALL blocks.all",
     )
     assert copy.statements[0].who.items == ()
 
@@ -237,7 +239,7 @@ def test_roles(dataset):
     assert copy.statements[0].role.items == ("trainee",)
     (copy,) = resolve(
         dataset,
-        "PREFER AT_MOST 3 staff.rob DO ANY activities.clinics.ropes AS_ROLE EACH_OF {roles.first + roles.second}",
+        "PREFER AT_MOST 3 staff.rob DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second}",
     )[:1]
     assert copy.key == "first" and copy.statements[0].pattern.role.kind == POOL
 
@@ -258,7 +260,7 @@ def test_name_listing_matches_the_namespaces(dataset):
     assert ("buddy", "staff.counselor -> {staff.all - staff.counselor}") in listing["mappings"]
 
 
-BUDDY = "EACH_OF c IN staff.counselor\nREQUEST {who} FREE DURING blocks.evening"
+BUDDY = "EACH c IN staff.counselor\nREQUEST {who} FREE DURING blocks.evening"
 
 
 def test_a_mapping_gives_its_row_or_else_its_default_as_written(dataset):
@@ -273,7 +275,7 @@ def test_a_mapping_gives_its_row_or_else_its_default_as_written(dataset):
 
 
 def test_a_mapping_is_a_set_among_sets(dataset):
-    text = "REQUEST ALL_OF {staff.office - mappings.buddy(staff.dylan)} FREE DURING blocks.evening"
+    text = "REQUEST ALL {staff.office - mappings.buddy(staff.dylan)} FREE DURING blocks.evening"
     (copy,) = resolve(dataset, text)
     office = dataset.staff_categories["office"]
     assert set(copy.statements[0].who.items) == office - {"alan"}
@@ -283,7 +285,7 @@ def test_a_mapping_is_a_set_among_sets(dataset):
     ("skedge", "message"),
     [
         (
-            BUDDY.format(who="ALL_OF {staff.all - mappings.buddy(c)}"),
+            BUDDY.format(who="ALL {staff.all - mappings.buddy(c)}"),
             "its default is a choice the solver makes",
         ),
         (
@@ -333,13 +335,13 @@ def test_ast_positions_survive_into_errors(dataset):
 
 
 def test_each_of_the_cabin_acts_is_only_the_ones_on_the_day(dataset):
-    copies = resolve(dataset, "REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act")
+    copies = resolve(dataset, "REQUEST EACH activities.cabin_acts.all DURING blocks.cabin_act")
     days = [dataset.activities[c.statements[0].what.items[0]].day for c in copies]
     assert days == [dataset.target]
     week = resolve(
         dataset,
-        "REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act "
-        "ON EACH_OF {2026-09-14 .. 2026-09-18}",
+        "REQUEST EACH activities.cabin_acts.all DURING blocks.cabin_act "
+        "ON EACH {2026-09-14 .. 2026-09-18}",
     )
     assert len(week) == 3  # Monday's, Wednesday's and Friday's; the 28th is another week
 
@@ -349,8 +351,8 @@ def test_the_board_splits_into_cabin_act_and_rest_hour_acts(dataset):
     split = {
         name: resolve(
             dataset,
-            f"REQUEST EACH_OF activities.cabin_acts.{name} DURING "
-            "blocks.cabin_act ON EACH_OF dates.season.all",
+            f"REQUEST EACH activities.cabin_acts.{name} DURING "
+            "blocks.cabin_act ON EACH dates.season.all",
         )
         for name in ("all", "at_cabin_act", "at_rest_hour")
     }
@@ -362,12 +364,12 @@ def test_the_board_splits_into_cabin_act_and_rest_hour_acts(dataset):
 
 def test_a_bound_cabin_act_on_another_day_is_no_copy(dataset):
     bound = resolve(
-        dataset, "EACH_OF a IN activities.cabin_acts.all\nREQUEST a DURING blocks.cabin_act"
+        dataset, "EACH a IN activities.cabin_acts.all\nREQUEST a DURING blocks.cabin_act"
     )
     assert [c.statements[0].what.items for c in bound] == [("cabin_act_m2_2026_09_16",)]
     conditioned = resolve(
         dataset,
-        "EACH_OF a IN activities.cabin_acts.all\n"
+        "EACH a IN activities.cabin_acts.all\n"
         "IF staff.dylan DO a DURING blocks.cabin_act\n"
         "REQUEST staff.dylan FREE DURING blocks.lunch",
     )

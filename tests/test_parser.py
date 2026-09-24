@@ -14,20 +14,20 @@ def test_every_doc_example_parses(name):
 
 def test_requirement_shape_and_positions():
     (st,) = parse(
-        "REQUEST ALL_OF {staff.lucy + staff.tom} DO 'take out garbage' "
-        "DURING ANY 1 blocks.all ON EACH_OF dates.session_1.mondays"
+        "REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' "
+        "DURING ANY 1 blocks.all ON EACH dates.session_1.mondays"
     ).lines
     assert isinstance(st, ast.Requirement) and not st.negated and st.label is None
-    assert st.who.quantifier == ast.ALL_OF and st.who.pos == ast.Pos(1, 9)
+    assert st.who.quantifier == ast.ALL and st.who.pos == ast.Pos(1, 9)
     assert isinstance(st.who.expr, ast.SetOp) and st.who.expr.op == "+"
-    assert st.who.expr.left == ast.Ref("staff", "lucy", ast.Pos(1, 17))
+    assert st.who.expr.left == ast.Ref("staff", "lucy", ast.Pos(1, 14))
     assert st.what == ast.Task("take out garbage")
     during = ast.clause(st.clauses, ast.During).selector
     assert (during.quantifier, during.n) == (ast.ANY_OF, 1)
-    assert during.expr == ast.Ref("blocks", "all", ast.Pos(1, 76))
+    assert during.expr == ast.Ref("blocks", "all", ast.Pos(1, 73))
     on = ast.clause(st.clauses, ast.On).selector
-    assert on.quantifier == ast.EACH_OF and on.var is None
-    assert on.expr == ast.Ref("dates", "session_1.mondays", ast.Pos(1, 98))
+    assert on.quantifier == ast.EACH and on.var is None
+    assert on.expr == ast.Ref("dates", "session_1.mondays", ast.Pos(1, 92))
 
 
 def test_negation_and_free():
@@ -38,18 +38,18 @@ def test_negation_and_free():
     assert ast.clause(forbid.clauses, ast.Without).selector.expr == ast.Ref(
         "staff", "rob", ast.Pos(1, 63)
     )
-    (free,) = parse("REQUEST staff.dylan FREE DURING ALL_OF blocks.all ON 2026-09-16").lines
+    (free,) = parse("REQUEST staff.dylan FREE DURING ALL blocks.all ON 2026-09-16").lines
     assert free.what is None and not free.negated
     assert ast.clause(free.clauses, ast.On).selector.expr == ast.DateLiteral(
-        date(2026, 9, 16), ast.Pos(1, 54)
+        date(2026, 9, 16), ast.Pos(1, 51)
     )
-    (busy,) = parse("REQUEST EACH_OF staff.counselor NOT FREE DURING blocks.clinic_1").lines
+    (busy,) = parse("REQUEST EACH staff.counselor NOT FREE DURING blocks.clinic_1").lines
     assert busy.what is None and busy.negated
-    assert busy.who.quantifier == ast.EACH_OF
+    assert busy.who.quantifier == ast.EACH
 
 
 def test_amount_statements():
-    (count,) = parse("REQUEST AT_MOST 2 ANY staff.all DO 'break' DURING EACH_OF blocks.all").lines
+    (count,) = parse("REQUEST AT_MOST 2 ANY staff.all DO 'break' DURING EACH blocks.all").lines
     assert isinstance(count, ast.Count) and not count.prefer and not count.consecutive
     assert count.amount == ast.Amount(ast.AT_MOST, 2, False, ast.Pos(1, 9))
     assert count.pattern.who.quantifier == ast.ANY and count.pattern.what == ast.Task("break")
@@ -66,29 +66,29 @@ def test_amount_statements():
 
 def test_mapping_statement():
     (score,) = parse(
-        "PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all "
+        "PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all "
         "MINIMIZE mappings.preference(s, activities.clinics.riflery)"
     ).lines
     assert isinstance(score, ast.Score) and not score.maximize
-    assert score.mapping == ast.Ref("mappings", "preference", ast.Pos(1, 79))
+    assert score.mapping == ast.Ref("mappings", "preference", ast.Pos(1, 73))
     assert score.args == (
-        ast.Var("s", ast.Pos(1, 99)),
-        ast.Ref("activities", "clinics.riflery", ast.Pos(1, 102)),
+        ast.Var("s", ast.Pos(1, 93)),
+        ast.Ref("activities", "clinics.riflery", ast.Pos(1, 96)),
     )
-    assert (score.pattern.who.quantifier, score.pattern.who.var) == (ast.EACH_OF, "s")
+    assert (score.pattern.who.quantifier, score.pattern.who.var) == (ast.EACH, "s")
     assert score.pattern.what.var == "c"
 
 
 def test_a_mapping_call_is_a_set():
     (binding, request) = parse(
-        "EACH_OF c IN staff.counselor\n"
-        "REQUEST ALL_OF {staff.office - mappings.buddy(c)} FREE DURING blocks.evening"
+        "EACH c IN staff.counselor\n"
+        "REQUEST ALL {staff.office - mappings.buddy(c)} FREE DURING blocks.evening"
     ).lines
     call = request.who.expr.right
     assert call == ast.Call(
-        ast.Ref("mappings", "buddy", ast.Pos(2, 32)),
-        (ast.Var("c", ast.Pos(2, 47)),),
-        ast.Pos(2, 32),
+        ast.Ref("mappings", "buddy", ast.Pos(2, 29)),
+        (ast.Var("c", ast.Pos(2, 44)),),
+        ast.Pos(2, 29),
     )
 
 
@@ -163,13 +163,13 @@ def test_set_expressions():
     )
     assert on.end.name == "target"
     (st,) = parse(
-        "REQUEST EACH_OF {staff.all - staff.director - staff.counselor} DO 'x' DURING blocks.a"
+        "REQUEST EACH {staff.all - staff.director - staff.counselor} DO 'x' DURING blocks.a"
     ).lines
     expr = st.who.expr
     assert expr.op == "-" and expr.right.name == "counselor"
     assert expr.left.op == "-" and expr.left.left.name == "all"
     (st,) = parse(
-        "REQUEST EACH_OF {staff.all - (staff.counselor & staff.director)} DO 'x' DURING blocks.a"
+        "REQUEST EACH {staff.all - (staff.counselor & staff.director)} DO 'x' DURING blocks.a"
     ).lines
     assert st.who.expr.right.op == "&"
     (st,) = parse("REQUEST staff.dylan DO 'x' DURING blocks.a ON {2026-09-14 +2d}").lines
@@ -203,11 +203,11 @@ def test_a_gap_may_be_written_in_days():
 
 
 def test_exclude_statement():
-    (line,) = parse("EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all ON 2026-08-26").lines
+    (line,) = parse("EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all ON 2026-08-26").lines
     assert isinstance(line, ast.Exclude)
     assert line.who.expr == ast.Ref("staff", "dylan", ast.Pos(1, 9))
     assert line.label == "offsite"  # a label for the schedule, not an activity
-    assert ast.clause(line.clauses, ast.During).selector.quantifier == ast.ALL_OF
+    assert ast.clause(line.clauses, ast.During).selector.quantifier == ast.ALL
     assert ast.clause(line.clauses, ast.On).selector.expr.value == date(2026, 8, 26)
     (bare,) = parse("EXCLUDE staff.dylan DO 'offsite'").lines  # every block of the day
     assert bare.clauses == ()
@@ -215,13 +215,13 @@ def test_exclude_statement():
 
 def test_a_keyword_may_be_written_in_either_case():
     """Upper case is the convention; lower case is the same request, not an error."""
-    shouted = parse("REQUEST ALL_OF staff.counselor DO 'x' FOR 30m DURING ANY 1 blocks.all")
-    quiet = parse("request all_of staff.counselor do 'x' for 30m during any 1 blocks.all")
+    shouted = parse("REQUEST ALL staff.counselor DO 'x' FOR 30m DURING ANY 1 blocks.all")
+    quiet = parse("request all staff.counselor do 'x' for 30m during any 1 blocks.all")
     assert shouted == quiet
     (binding, line) = parse(
-        "each_of c in staff.counselor\nrequest c not free during blocks.clinic_1"
+        "each c in staff.counselor\nrequest c not free during blocks.clinic_1"
     ).lines
-    assert binding.selector.quantifier == ast.EACH_OF and line.negated
+    assert binding.selector.quantifier == ast.EACH and line.negated
     (count,) = parse(
         "prefer at_most 2 any staff.all do 'break' during any consecutive blocks.all"
     ).lines
@@ -250,7 +250,7 @@ def test_an_amount_may_follow_do():
     assert if_after.test.after_do and not if_before.test.after_do
     assert if_after.test.amount.value == if_before.test.amount.value == 3
     assert if_after.test.consecutive and if_before.test.consecutive
-    (count,) = parse("PREFER EACH_OF staff.all DO AT_MOST 8 ANY activities.clinics.all").lines
+    (count,) = parse("PREFER EACH staff.all DO AT_MOST 8 ANY activities.clinics.all").lines
     assert count.prefer and count.after_do and count.amount.value == 8
 
 
@@ -266,7 +266,7 @@ def test_an_amount_may_follow_do():
             "REQUEST staff.dylan DO 'x' DURING ANY 2 blocks.all CONSECUTIVE",
             "CONSECUTIVE goes before the blocks: DURING ANY 2 CONSECUTIVE blocks.all",
         ),
-        ("REQUEST staff.dylan DO 'x' DURING ALL_OF CONSECUTIVE blocks.all", "after ANY or ANY n"),
+        ("REQUEST staff.dylan DO 'x' DURING ALL CONSECUTIVE blocks.all", "after ANY or ANY n"),
         ("REQUEST staff.dylan DO 'x' ON ANY 2 CONSECUTIVE dates.season.all", "is about blocks"),
         (
             "IF staff.dylan DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all\nREQUEST staff.dylan FREE",
@@ -288,7 +288,7 @@ def test_consecutive_and_amounts_in_the_old_places_say_the_new_ones(text, messag
 def test_consecutive_right_of_not_says_to_count_the_run():
     """Right of NOT nothing is chosen, so the message points at the amount that limits runs."""
     with pytest.raises(ast.SkedgeError) as e:
-        parse("REQUEST EACH_OF staff.all NOT DO 'break' DURING ANY 2 CONSECUTIVE blocks.all")
+        parse("REQUEST EACH staff.all NOT DO 'break' DURING ANY 2 CONSECUTIVE blocks.all")
     assert e.value.message.startswith("right of NOT there are no blocks to choose")
     assert "DURING ANY CONSECUTIVE" in e.value.message
 
@@ -296,7 +296,7 @@ def test_consecutive_right_of_not_says_to_count_the_run():
 def test_a_name_that_starts_with_a_keyword_is_still_a_name():
     """`FOR` ends at a word boundary, so `format` is one word and not two."""
     (binding, _) = parse(
-        "each_of format in staff.counselor\nrequest format do 'x' during blocks.a"
+        "each format in staff.counselor\nrequest format do 'x' during blocks.a"
     ).lines
     assert binding.selector.var == "format"
 
@@ -340,13 +340,13 @@ def test_clauses_go_anywhere_in_a_statement():
     written = parse(
         "REQUEST\n"
         "ON ANY 1 {2026-08-04 .. 2026-08-07}  # a clause before the subject\n"
-        "ALL_OF {x + staff.alesa}\n"
+        "ALL {x + staff.alesa}\n"
         "DO 'video'\n"
         "FOR 30m\n"
         "DURING ANY 1 blocks.all"
     ).lines[0]
     assert [type(c) for c in written.clauses] == [ast.On, ast.For, ast.During]
-    assert written.who.quantifier == ast.ALL_OF and written.what == ast.Task("video")
+    assert written.who.quantifier == ast.ALL and written.what == ast.Task("video")
     between = parse("REQUEST staff.rob DURING blocks.a DO 'x' ON dates.target").lines[0]
     assert [type(c) for c in between.clauses] == [ast.During, ast.On]
     (count,) = parse("REQUEST DURING blocks.lunch AT_MOST 2 ANY staff.all DO 'break'").lines
@@ -359,7 +359,7 @@ def test_clauses_go_anywhere_in_a_statement():
 
 def test_a_line_that_cannot_start_a_statement_continues_the_one_above():
     lines = parse(
-        "EACH_OF c IN staff.counselor\n"
+        "EACH c IN staff.counselor\n"
         "REQUEST\n"
         "  staff.rob DO 'x'\n"
         "  DURING ANY 1 {blocks.a +\n"
@@ -372,27 +372,26 @@ def test_a_line_that_cannot_start_a_statement_continues_the_one_above():
 
 def test_a_group_is_a_quantified_part_of_a_set():
     (st,) = parse(
-        "REQUEST ALL_OF {staff.charlton + (ANY 1 {staff.dylan + staff.donny})} DO 'x' "
-        "DURING blocks.a"
+        "REQUEST ALL {staff.charlton + (ANY 1 {staff.dylan + staff.donny})} DO 'x' DURING blocks.a"
     ).lines
     group = st.who.expr.right
     assert isinstance(group, ast.Group) and (group.quantifier, group.n) == (ast.ANY_OF, 1)
     (st,) = parse(
-        "REQUEST ANY 1 {staff.x + (ALL_OF {staff.y + staff.z})} DO 'x' DURING blocks.a"
+        "REQUEST ANY 1 {staff.x + (ALL {staff.y + staff.z})} DO 'x' DURING blocks.a"
     ).lines
-    assert st.who.expr.right.quantifier == ast.ALL_OF
+    assert st.who.expr.right.quantifier == ast.ALL
 
 
 def test_a_definition_is_written_in_where_it_is_used():
     (st,) = parse(
         "office_elves: {staff.emily + staff.tori}\n"
-        "REQUEST EACH_OF {staff.directors + office_elves} DO 'DYOW' DURING blocks.a"
+        "REQUEST EACH {staff.directors + office_elves} DO 'DYOW' DURING blocks.a"
     ).lines
     assert ast.spoken(st.who.expr.right) == "{staff.emily + staff.tori}"
     assert not list(ast.vars_in(st.who.expr))
     # one definition may use another, in either order
     (st,) = parse(
-        "b: {a + staff.z}\na: {staff.x + staff.y}\nREQUEST ALL_OF b DO 'x' DURING blocks.a"
+        "b: {a + staff.z}\na: {staff.x + staff.y}\nREQUEST ALL b DO 'x' DURING blocks.a"
     ).lines
     assert not list(ast.vars_in(st.who.expr))
 
@@ -400,12 +399,12 @@ def test_a_definition_is_written_in_where_it_is_used():
 def test_a_definition_with_a_quantifier_is_a_binding():
     (binding, _) = parse(
         "videographer: ANY 1 {staff.dylan + staff.donny}\n"
-        "REQUEST ALL_OF {staff.charlton + videographer} DO 'x' DURING blocks.a"
+        "REQUEST ALL {staff.charlton + videographer} DO 'x' DURING blocks.a"
     ).lines
     selector = binding.selector
     assert (selector.quantifier, selector.n, selector.var) == (ast.ANY_OF, 1, "videographer")
-    (each, _) = parse("c: EACH_OF staff.counselor\nREQUEST c DO 'x' DURING blocks.a").lines
-    assert isinstance(each, ast.Binding) and each.selector.quantifier == ast.EACH_OF
+    (each, _) = parse("c: EACH staff.counselor\nREQUEST c DO 'x' DURING blocks.a").lines
+    assert isinstance(each, ast.Binding) and each.selector.quantifier == ast.EACH
 
 
 @pytest.mark.parametrize(
@@ -414,7 +413,7 @@ def test_a_definition_with_a_quantifier_is_a_binding():
         ("REQUEST ANY_1_OF staff.all DO 'x' DURING blocks.a", "write ANY 1, not ANY_1_OF"),
         ("REQUEST ANY 0 staff.all DO 'x' DURING blocks.a", "ANY needs a number of 1 or more"),
         ("a: staff.x\na: staff.y\nREQUEST a DO 'x' DURING blocks.a", "'a' is defined twice"),
-        ("c: staff.x\nREQUEST EACH_OF c IN staff.all DO 'x' DURING blocks.a", "defined twice"),
+        ("c: staff.x\nREQUEST EACH c IN staff.all DO 'x' DURING blocks.a", "defined twice"),
         ("a: {b + staff.x}\nb: {a}\nREQUEST a DO 'x' DURING blocks.a", "in terms of itself"),
         (
             "IF ANY 1 staff.all FREE\nREQUEST staff.x FREE DURING blocks.a",
@@ -427,3 +426,19 @@ def test_new_errors(text, message):
     with pytest.raises(ast.SkedgeError) as info:
         parse(text)
     assert message in info.value.message
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        ("REQUEST ALL_OF staff.counselor DO 'x' DURING blocks.clinic_1", "write ALL, not ALL_OF"),
+        ("REQUEST staff.dylan DO 'x' ON EACH_OF dates.season.all", "write EACH, not EACH_OF"),
+        (
+            "each_of d IN dates.season.all\nREQUEST staff.dylan DO 'x' ON d",
+            "write EACH, not each_of",
+        ),
+    ],
+)
+def test_the_old_spellings_of_all_and_each_say_the_new_ones(text, message):
+    with pytest.raises(ast.SkedgeError, match=message):
+        parse(text)

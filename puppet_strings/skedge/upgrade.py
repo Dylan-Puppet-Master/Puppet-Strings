@@ -15,6 +15,7 @@ a request that is already up to date changes nothing.
   `DURING ANY 2 CONSECUTIVE blocks.all`, and a count measured in runs,
   `AT_MOST 3 CONSECUTIVE <pattern>`, says so in its DURING, `DURING ANY CONSECUTIVE …`, or
   gains one over the whole day, which is what it measured before.
+- ALL_OF is ALL and EACH_OF is EACH, as ANY n dropped its `_OF` before them.
 """
 
 from lark import Token, Tree
@@ -44,6 +45,9 @@ def upgrade(text: str, dataset: Dataset) -> str:
     }
     edits: list[tuple[int, int, str]] = []
     runs: set[int] = set()  # the choosers a moved CONSECUTIVE has already given their ANY
+    for token in tree.scan_values(lambda v: _is(v, "ALL") or _is(v, "EACH")):
+        if str(token).upper() != token.type:  # ALL_OF or EACH_OF, in whatever case
+            edits.append((token.start_pos, token.end_pos, token.type))
     for node in tree.iter_subtrees():
         _move_consecutive(node, edits, runs)
     for node in tree.iter_subtrees():
@@ -68,7 +72,7 @@ def _move_consecutive(node: Tree, edits: list, runs: set) -> None:
         quantifier = chooser.children[0]
         if isinstance(quantifier, Tree) and quantifier.data == "any_n":
             edits.append((quantifier.meta.end_pos, quantifier.meta.end_pos, " CONSECUTIVE"))
-        elif isinstance(quantifier, Token) and quantifier.type in ("ANY", "ALL_OF"):
+        elif isinstance(quantifier, Token) and quantifier.type in ("ANY", "ALL"):
             edits.append((quantifier.end_pos, quantifier.end_pos, " CONSECUTIVE"))
         else:  # moved, not dropped, so a request that was wrong still says so
             edits.append((chooser.meta.start_pos, chooser.meta.start_pos, "CONSECUTIVE "))

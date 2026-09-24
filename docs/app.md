@@ -23,10 +23,10 @@ position on Clinic_Data, so a clinic wanting a facilitator, a second and a lifeg
 reads:
 
 ```skedge
-REQUEST ANY 1 staff.all DO activities.clinics.canoe_1_2 AS_ROLE EACH_OF {roles.first + roles.second + roles.lifeguard} DURING blocks.clinic_1 ON 2026-09-17
+REQUEST ANY 1 staff.all DO activities.clinics.canoe_1_2 AS_ROLE EACH {roles.first + roles.second + roles.lifeguard} DURING blocks.clinic_1 ON 2026-09-17
 ```
 
-`EACH_OF` is what makes each position its own choice of person; `ALL_OF` would ask one
+`EACH` is what makes each position its own choice of person; `ALL` would ask one
 person to hold all three. A clinic with one position names it on its own, `AS_ROLE
 roles.first`, because a one-item set takes no quantifier. The clinic runs fully
 staffed or not at all — filling one position of an instance fills them all — and every
@@ -57,8 +57,8 @@ Acts folder each time **Reload** runs. Two requests ask for all of them, one for
 in the cabin act block and one for those the board moved to rest hour:
 
 ```skedge
-REQUEST EACH_OF activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
-REQUEST EACH_OF activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
+REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
+REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
 ```
 
 Each act's HEROES cell becomes its positions, so who may fill them is already written
@@ -286,7 +286,7 @@ on a Sunday, and so does the pane before any sheet has been read, whatever the m
 own idea of the first day of the week is.
 
 **Saving a request about other dates.** A request does not have to be about the date being
-scheduled: `ON ALL_OF dates.session_2.week_1.all` is a perfectly good request to write in
+scheduled: `ON ALL dates.session_2.week_1.all` is a perfectly good request to write in
 the middle of session 1. It will do nothing to the schedule you are about to solve, though,
 which is easy to write by accident — a mistyped date, or `session_2` where you meant
 `session_1`. So saving such a request asks first, names the dates it *is* about, and

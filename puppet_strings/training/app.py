@@ -524,7 +524,7 @@ class TrainingWindow(QMainWindow):
         self.hints_shown = min(self.hints_shown + 1, len(problem.hints))
         self._feedback("hint", f"Hint {self.hints_shown} of {len(problem.hints)}", "")
         for hint in problem.hints[: self.hints_shown]:
-            if "\n" in hint or hint.startswith(("REQUEST", "{", "PREFER", "IF", "EACH_OF")):
+            if "\n" in hint or hint.startswith(("REQUEST", "{", "PREFER", "IF", "EACH")):
                 self.feedback_layout.addWidget(_code(hint))
             else:
                 label = QLabel(hint)

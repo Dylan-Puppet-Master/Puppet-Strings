@@ -5,10 +5,10 @@ day = "2026-08-04"
 teaches = """
 ... WITH staff.vic              Vic is on the same clinic or task, alongside
 ... WITH ANY 1 staff.mfgs    at least one MFG is (ANY 2: at least two)
-... WITH ALL_OF staff.mfgs      every MFG is
+... WITH ALL staff.mfgs      every MFG is
 ... WITHOUT <staff>             the opposite of WITH <staff>
 
-One name stands alone; a set of several says how many of it with ALL_OF or ANY n.
+One name stands alone; a set of several says how many of it with ALL or ANY n.
 
 REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT staff.vic
 REQUEST staff.jack NOT DO ANY activities.clinics.all WITH staff.lucy
@@ -44,16 +44,16 @@ title = "Store with a friend"
 prompt = "Jana runs the 'camp store' during clinic 1, with Kara working it alongside her."
 answer = "REQUEST staff.jana DO 'camp store' DURING blocks.clinic_1 WITH staff.kara"
 explain = "WITH on a positive request asks for the partner too."
-alternatives = ["REQUEST ALL_OF {staff.jana + staff.kara} DO 'camp store' DURING blocks.clinic_1"]
+alternatives = ["REQUEST ALL {staff.jana + staff.kara} DO 'camp store' DURING blocks.clinic_1"]
 wrong = ["REQUEST staff.jana DO 'camp store' DURING blocks.clinic_1"]
 
 [[problem]]
 id = "with-junior-senior"
 title = "Never alone on the water"
 prompt = "No counselor does 'canoe safety' unless a director is doing it with them. One request per counselor."
-answer = "REQUEST EACH_OF staff.counselors NOT DO 'canoe safety' WITHOUT ANY 1 staff.directors"
+answer = "REQUEST EACH staff.counselors NOT DO 'canoe safety' WITHOUT ANY 1 staff.directors"
 priority = "HIGH"
-wrong = ["REQUEST EACH_OF staff.counselors NOT DO 'canoe safety' WITH ANY 1 staff.directors"]
+wrong = ["REQUEST EACH staff.counselors NOT DO 'canoe safety' WITH ANY 1 staff.directors"]
 
 [[problem]]
 id = "with-no-mfg-together"
@@ -68,7 +68,7 @@ wrong = ["REQUEST staff.charlton NOT DO 'trail work' WITH staff.alan"]
 id = "with-shared-clinic-each-block"
 title = "One point per clinic"
 prompt = "Gabe and Peyton shouldn't share a clinic. Make it one small request per block, so each shared clinic costs a point."
-answer = "REQUEST staff.gabe NOT DO ANY activities.clinics.all WITH staff.peyton DURING EACH_OF blocks.all"
+answer = "REQUEST staff.gabe NOT DO ANY activities.clinics.all WITH staff.peyton DURING EACH blocks.all"
 priority = "HIGH"
 wrong = ["REQUEST staff.gabe NOT DO ANY activities.clinics.all WITH staff.peyton"]
 
@@ -91,9 +91,9 @@ wrong = ["REQUEST staff.khushi DO 'cabin inspections' DURING blocks.rest_hour"]
 id = "with-without-directors-desk"
 title = "Never alone at the desk"
 prompt = "Each village hero may only do 'front desk' when a permanent hero is on the desk with them."
-answer = "REQUEST EACH_OF staff.village_heroes NOT DO 'front desk' WITHOUT ANY 1 staff.permanent_heroes"
+answer = "REQUEST EACH staff.village_heroes NOT DO 'front desk' WITHOUT ANY 1 staff.permanent_heroes"
 priority = "HIGH"
-wrong = ["REQUEST EACH_OF staff.village_heroes NOT DO 'front desk' WITHOUT ANY 1 staff.directors"]
+wrong = ["REQUEST EACH staff.village_heroes NOT DO 'front desk' WITHOUT ANY 1 staff.directors"]
 
 [[problem]]
 id = "with-apart-at-meals"
@@ -107,21 +107,21 @@ wrong = ["REQUEST staff.diya NOT DO 'kitchen help' WITH staff.audrey DURING bloc
 id = "with-ropes-pair-each"
 title = "Every ropes counselor has backup"
 prompt = "No counselor is on the Giant Swing unless an MFG is on it with them. One request per counselor."
-answer = "REQUEST EACH_OF staff.counselors NOT DO activities.clinics.giant_swing WITHOUT ANY 1 staff.mfgs"
+answer = "REQUEST EACH staff.counselors NOT DO activities.clinics.giant_swing WITHOUT ANY 1 staff.mfgs"
 priority = "HIGH"
 hints = ["An MFG is any one of them: ANY 1 staff.mfgs."]
 wrong = [
-  "REQUEST EACH_OF staff.counselors NOT DO activities.clinics.giant_swing WITH ANY 1 staff.mfgs",
-  "REQUEST EACH_OF staff.counselors NOT DO activities.clinics.giant_swing WITHOUT ALL_OF staff.mfgs",
+  "REQUEST EACH staff.counselors NOT DO activities.clinics.giant_swing WITH ANY 1 staff.mfgs",
+  "REQUEST EACH staff.counselors NOT DO activities.clinics.giant_swing WITHOUT ALL staff.mfgs",
 ]
 
 [[problem]]
 id = "with-both-trainers"
 title = "Both trainers"
 prompt = "Rob only works ropes when both Vic and Charlton are on it with him."
-answer = "REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT ALL_OF {staff.vic + staff.charlton}"
+answer = "REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT ALL {staff.vic + staff.charlton}"
 priority = "MUST_HAPPEN"
-explain = "WITHOUT ALL_OF: if either of them is missing, Rob is off ropes."
+explain = "WITHOUT ALL: if either of them is missing, Rob is off ropes."
 wrong = ["REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT ANY 1 {staff.vic + staff.charlton}"]
 
 [[problem]]
@@ -129,5 +129,5 @@ id = "with-both-on-it"
 title = "Always as a pair"
 prompt = "Hailey and Alyce do 'horse shoeing' together during clinic 2 — write it with WITH."
 answer = "REQUEST staff.hailey DO 'horse shoeing' DURING blocks.clinic_2 WITH staff.alyce"
-alternatives = ["REQUEST ALL_OF {staff.hailey + staff.alyce} DO 'horse shoeing' DURING blocks.clinic_2"]
+alternatives = ["REQUEST ALL {staff.hailey + staff.alyce} DO 'horse shoeing' DURING blocks.clinic_2"]
 wrong = ["REQUEST staff.hailey DO 'horse shoeing' DURING blocks.clinic_2 WITH staff.alexis"]

@@ -7,56 +7,56 @@ PREFER <amount> <pattern>                        fewer misses is better
 PREFER <pattern> MAXIMIZE mappings.x(args)       more points is better
 PREFER <pattern> MINIMIZE mappings.x(args)       fewer points is better
 
-PREFER AT_MOST 2 EACH_OF staff.counselors DO ANY activities.clinics.all
-PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all
+PREFER AT_MOST 2 EACH staff.counselors DO ANY activities.clinics.all
+PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all
        MAXIMIZE mappings.preference(s, c)
 
 • REQUEST is met or not. PREFER is scored by how close it comes.
 • A PREFER is never MUST_HAPPEN
-• EACH_OF x IN <set> names the item, so a mapping can look it up
+• EACH x IN <set> names the item, so a mapping can look it up
 """
 
 [[problem]]
 id = "prefer-at-most-two"
 title = "Not too many clinics"
 prompt = "We'd like each counselor to run no more than two clinics today; three is worse than two, four is worse still."
-answer = "PREFER AT_MOST 2 EACH_OF staff.counselors DO ANY activities.clinics.all"
+answer = "PREFER AT_MOST 2 EACH staff.counselors DO ANY activities.clinics.all"
 priority = "MEDIUM"
 hints = ["'Worse and worse' means it's scored by how far off it is: that's PREFER."]
 explain = "A REQUEST would be simply missed at three; a PREFER counts how far over it went."
 wrong = [
-  "REQUEST AT_MOST 2 EACH_OF staff.counselors DO ANY activities.clinics.all",
-  "PREFER AT_MOST 3 EACH_OF staff.counselors DO ANY activities.clinics.all",
+  "REQUEST AT_MOST 2 EACH staff.counselors DO ANY activities.clinics.all",
+  "PREFER AT_MOST 3 EACH staff.counselors DO ANY activities.clinics.all",
 ]
 
 [[problem]]
 id = "prefer-maximize-preference"
 title = "Clinics people like"
 prompt = "Staff should run the clinics they prefer: score every staff member on every clinic by mappings.preference."
-answer = "PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)"
+answer = "PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)"
 priority = "MEDIUM"
-hints = ["Name each person and each clinic so the mapping can look them up: EACH_OF s IN staff.all … EACH_OF c IN activities.clinics.all.", "Then MAXIMIZE mappings.preference(s, c)."]
-alternatives = ["PREFER EACH_OF who IN staff.all DO EACH_OF what IN activities.clinics.all MAXIMIZE mappings.preference(who, what)"]
+hints = ["Name each person and each clinic so the mapping can look them up: EACH s IN staff.all … EACH c IN activities.clinics.all.", "Then MAXIMIZE mappings.preference(s, c)."]
+alternatives = ["PREFER EACH who IN staff.all DO EACH what IN activities.clinics.all MAXIMIZE mappings.preference(who, what)"]
 wrong = [
-  "PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MINIMIZE mappings.preference(s, c)",
-  "PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.performance(s, c)",
+  "PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all MINIMIZE mappings.preference(s, c)",
+  "PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all MAXIMIZE mappings.performance(s, c)",
 ]
 
 [[problem]]
 id = "prefer-performance"
 title = "Play to strengths"
 prompt = "Counselors should run arts clinics they perform well at: score them by mappings.performance."
-answer = "PREFER EACH_OF s IN staff.counselors DO EACH_OF c IN activities.clinics.arts MAXIMIZE mappings.performance(s, c)"
+answer = "PREFER EACH s IN staff.counselors DO EACH c IN activities.clinics.arts MAXIMIZE mappings.performance(s, c)"
 priority = "LOW"
-wrong = ["PREFER EACH_OF s IN staff.counselors DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.performance(s, c)"]
+wrong = ["PREFER EACH s IN staff.counselors DO EACH c IN activities.clinics.all MAXIMIZE mappings.performance(s, c)"]
 
 [[problem]]
 id = "prefer-minimize"
 title = "Avoid the dislikes"
 prompt = "Village heroes should avoid clinics they rate low. Use mappings.preference, the other way round: count it as a cost."
-answer = "PREFER EACH_OF s IN staff.village_heroes DO EACH_OF c IN activities.clinics.all MINIMIZE mappings.preference(s, c)"
+answer = "PREFER EACH s IN staff.village_heroes DO EACH c IN activities.clinics.all MINIMIZE mappings.preference(s, c)"
 priority = "LOW"
-wrong = ["PREFER EACH_OF s IN staff.village_heroes DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)"]
+wrong = ["PREFER EACH s IN staff.village_heroes DO EACH c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)"]
 
 [[problem]]
 id = "prefer-free-counselors-playstation"
@@ -71,10 +71,10 @@ wrong = ["REQUEST AT_LEAST 3 ANY staff.counselors FREE DURING blocks.playstation
 id = "prefer-at-most-one-break-at-once"
 title = "Stagger the breaks"
 prompt = "Ideally no more than one director is on 'break' in any block."
-answer = "PREFER AT_MOST 1 ANY staff.directors DO 'break' DURING EACH_OF blocks.all"
+answer = "PREFER AT_MOST 1 ANY staff.directors DO 'break' DURING EACH blocks.all"
 priority = "MEDIUM"
 wrong = [
-  "REQUEST AT_MOST 1 ANY staff.directors DO 'break' DURING EACH_OF blocks.all",
+  "REQUEST AT_MOST 1 ANY staff.directors DO 'break' DURING EACH blocks.all",
   "PREFER AT_MOST 1 ANY staff.directors DO 'break'",
 ]
 
@@ -82,7 +82,7 @@ wrong = [
 id = "prefer-two-hours-rest"
 title = "Plenty of rest"
 prompt = "We'd like each counselor to be free for at least two hours of clinic time today."
-answer = "PREFER AT_LEAST 2h EACH_OF staff.counselors FREE DURING ANY blocks.all_clinics"
+answer = "PREFER AT_LEAST 2h EACH staff.counselors FREE DURING ANY blocks.all_clinics"
 priority = "LOW"
 wrong = ["PREFER AT_LEAST 2h ANY staff.counselors FREE DURING ANY blocks.all_clinics"]
 
@@ -90,17 +90,17 @@ wrong = ["PREFER AT_LEAST 2h ANY staff.counselors FREE DURING ANY blocks.all_cli
 id = "prefer-not-three-in-a-row"
 title = "Short runs"
 prompt = "Nobody should ideally do more than one clinic in a row. Measure it person by person."
-answer = "PREFER AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"
+answer = "PREFER AT_MOST 1 EACH staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"
 priority = "MEDIUM"
-wrong = ["REQUEST AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"]
+wrong = ["REQUEST AT_MOST 1 EACH staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all"]
 
 [[problem]]
 id = "prefer-maximize-one-person"
 title = "Rob's favourites"
 prompt = "Rob should run the ropes clinics he prefers: score just Rob, over the ropes clinics."
-answer = "PREFER staff.rob DO EACH_OF c IN activities.clinics.ropes MAXIMIZE mappings.preference(staff.rob, c)"
+answer = "PREFER staff.rob DO EACH c IN activities.clinics.ropes MAXIMIZE mappings.preference(staff.rob, c)"
 priority = "LOW"
-wrong = ["PREFER staff.rob DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.preference(staff.rob, c)"]
+wrong = ["PREFER staff.rob DO EACH c IN activities.clinics.all MAXIMIZE mappings.preference(staff.rob, c)"]
 
 [[problem]]
 id = "prefer-with-request"
@@ -116,9 +116,9 @@ wrong = ["REQUEST staff.rob DO activities.clinics.gravity_zip_line AS_ROLE roles
 id = "prefer-heroes-few-breaks-at-meals"
 title = "Fewer meal breaks"
 prompt = "We'd like at most one village hero on 'break' at each meal."
-answer = "PREFER AT_MOST 1 ANY staff.village_heroes DO 'break' DURING EACH_OF blocks.meals"
+answer = "PREFER AT_MOST 1 ANY staff.village_heroes DO 'break' DURING EACH blocks.meals"
 priority = "LOW"
-wrong = ["PREFER AT_MOST 2 ANY staff.village_heroes DO 'break' DURING EACH_OF blocks.meals"]
+wrong = ["PREFER AT_MOST 2 ANY staff.village_heroes DO 'break' DURING EACH blocks.meals"]
 
 [[problem]]
 id = "prefer-exactly"
@@ -132,7 +132,7 @@ wrong = ["PREFER AT_LEAST 2 ANY staff.mfgs DO 'maintenance' DURING blocks.clinic
 id = "prefer-directors-free-hour"
 title = "An hour off"
 prompt = "We'd like each director to have at least an hour free between clinic 3 and clinic 4."
-answer = "PREFER AT_LEAST 1h EACH_OF staff.directors FREE DURING ANY {blocks.clinic_3 + blocks.clinic_4}"
+answer = "PREFER AT_LEAST 1h EACH staff.directors FREE DURING ANY {blocks.clinic_3 + blocks.clinic_4}"
 priority = "LOW"
 wrong = ["PREFER AT_LEAST 1h ANY staff.directors FREE DURING ANY {blocks.clinic_3 + blocks.clinic_4}"]
 
@@ -140,6 +140,6 @@ wrong = ["PREFER AT_LEAST 1h ANY staff.directors FREE DURING ANY {blocks.clinic_
 id = "prefer-weekly-balance"
 title = "Share the load"
 prompt = "Over the whole session, we'd like no counselor to run more than 8 clinics."
-answer = "PREFER AT_MOST 8 EACH_OF staff.counselors DO ANY activities.clinics.all ON ANY dates.session_6.all"
+answer = "PREFER AT_MOST 8 EACH staff.counselors DO ANY activities.clinics.all ON ANY dates.session_6.all"
 priority = "MEDIUM"
-wrong = ["PREFER AT_MOST 8 EACH_OF staff.counselors DO ANY activities.clinics.all"]
+wrong = ["PREFER AT_MOST 8 EACH staff.counselors DO ANY activities.clinics.all"]

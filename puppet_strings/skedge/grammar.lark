@@ -11,10 +11,10 @@
 start       : _NL* line (_NL+ line)* _NL*
 ?line       : binding | define | if_ | unless | labeled | request | prefer | gap | exclude
 
-binding     : (EACH_OF | any_n) NAME _IN set_
+binding     : (EACH | any_n) NAME _IN set_
 // A name for a set, written once and meaning the same wherever it is used. With ANY n or
-// EACH_OF in front it is a binding line spelled the other way round.
-define      : NAME ":" (ALL_OF | EACH_OF | any_n)? set_
+// EACH in front it is a binding line spelled the other way round.
+define      : NAME ":" (ALL | EACH | any_n)? set_
 if_         : _IF _NL* condition
 unless      : _UNLESS _NL* condition
 labeled     : NAME ":" request
@@ -68,16 +68,16 @@ during      : _DURING chooser CONSECUTIVE?
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
 for_        : _FOR DURATION
-// Who is alongside: one name, or several with ALL_OF or ANY n to say how many.
+// Who is alongside: one name, or several with ALL or ANY n to say how many.
 with_       : _WITH chooser
 without     : _WITHOUT chooser
 
 // ANY with no number matches rather than chooses: right of NOT, and in a pattern.
 // CONSECUTIVE is about blocks, after DURING: `ANY 2 CONSECUTIVE blocks.all` chooses two next
 // to each other, and `ANY CONSECUTIVE blocks.all` in a count measures it in runs.
-chooser     : (ALL_OF | any_n | ANY)? CONSECUTIVE? set_
-            | EACH_OF set_
-            | EACH_OF NAME _IN set_
+chooser     : (ALL | any_n | ANY)? CONSECUTIVE? set_
+            | EACH set_
+            | EACH NAME _IN set_
 any_n       : ANY INT
             | ANY_N_OF                 // the old spelling, parsed only to say the new one
 
@@ -88,7 +88,7 @@ any_n       : ANY INT
 ?primary    : date_atom OFFSET         -> date_offset
             | date_atom
             | "(" setexpr ")"
-            | "(" (ALL_OF | any_n) set_ ")"   -> group
+            | "(" (ALL | any_n) set_ ")"   -> group
 ?date_atom  : DATE | REF | NAME | call
 
 // Two more ways in, for the cells of the Mappings tab rather than for a request: what a
@@ -115,8 +115,9 @@ _FOR.5      : /FOR\b/i
 _WITH.5     : /WITH\b/i
 _WITHOUT.5  : /WITHOUT\b/i
 BOUND.5     : /AT_LEAST\b/i | /AT_MOST\b/i | /EXACTLY\b/i
-ALL_OF.5    : /ALL_OF\b/i
-EACH_OF.5   : /EACH_OF\b/i
+// ALL_OF and EACH_OF are the old spellings, read as the same words only to say the new ones.
+ALL.5       : /ALL(_OF)?\b/i
+EACH.5      : /EACH(_OF)?\b/i
 ANY.5       : /ANY\b/i
 ANY_N_OF.5  : /ANY_[0-9]+_OF\b/i
 FREE.5      : /FREE\b/i
@@ -138,10 +139,10 @@ COMMENT     : /#[^\n]*/
 
 // A statement may be written over as many lines as it reads well on. A new line starts a new
 // statement only where one can start: at REQUEST, PREFER, EXCLUDE, IF, UNLESS or GAP, at a
-// binding (`EACH_OF x IN`, `ANY n x IN`), or at a name and a colon. Anywhere else the
+// binding (`EACH x IN`, `ANY n x IN`), or at a name and a colon. Anywhere else the
 // newline before it is nothing, so the line carries on the statement above it. The
 // lookahead spells out how `binding`, `define` and `labeled` begin, so it changes with them.
-_CONTINUES  : /(\r?\n[ \t]*)+(?![ \t\r\n]|(?i:REQUEST|PREFER|EXCLUDE|IF|UNLESS|GAP)\b|(?i:EACH_OF|ANY[ \t]+\d+|ANY_\d+_OF)[ \t]+[a-z_][a-z0-9_]*[ \t]+(?i:IN)\b|[a-z_][a-z0-9_]*[ \t]*:|$)/
+_CONTINUES  : /(\r?\n[ \t]*)+(?![ \t\r\n]|(?i:REQUEST|PREFER|EXCLUDE|IF|UNLESS|GAP)\b|(?i:EACH(?:_OF)?|ANY[ \t]+\d+|ANY_\d+_OF)[ \t]+[a-z_][a-z0-9_]*[ \t]+(?i:IN)\b|[a-z_][a-z0-9_]*[ \t]*:|$)/
 _NL         : /(\r?\n[ \t]*)+/
 %import common.INT
 %import common.WS_INLINE

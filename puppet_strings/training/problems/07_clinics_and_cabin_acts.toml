@@ -6,8 +6,8 @@ teaches = """
 REQUEST activities.clinics.riflery DURING blocks.clinic_2
 REQUEST staff.dylan DO activities.clinics.archery_1_2 DURING blocks.clinic_2
 REQUEST staff.alan DO activities.clinics.climbing_wall AS_ROLE roles.first DURING blocks.clinic_1
-REQUEST EACH_OF activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
-REQUEST EACH_OF activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
+REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
+REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
 
 • An activity knows who may run it (its positions need skills), so it
   needs no DO: REQUEST <activity> DURING <block> asks for it, fully staffed
@@ -59,7 +59,7 @@ wrong = ["REQUEST staff.connor DO activities.clinics.climbing_wall AS_ROLE roles
 id = "clinic-candle-both-morning"
 title = "Candles all morning"
 prompt = "Candle Making runs in both clinic 1 and clinic 2, as one request."
-answer = "REQUEST activities.clinics.candle_making DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}"
+answer = "REQUEST activities.clinics.candle_making DURING ALL {blocks.clinic_1 + blocks.clinic_2}"
 wrong = ["REQUEST activities.clinics.candle_making DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}"]
 
 [[problem]]
@@ -122,23 +122,23 @@ wrong = ["REQUEST activities.cabin_acts.p2 DURING blocks.cabin_act"]
 id = "clinic-all-cabin-acts"
 title = "The whole board"
 prompt = "Every cabin act on today's board that isn't moved to rest hour runs during the cabin act block, each as its own request."
-answer = "REQUEST EACH_OF activities.cabin_acts.at_cabin_act DURING blocks.cabin_act"
+answer = "REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.cabin_act"
 priority = "HIGH"
 explain = "One line asks for that part of the board. Each act is met or missed on its own."
 wrong = [
-    "REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act",
-    "REQUEST EACH_OF activities.cabin_acts.at_cabin_act DURING blocks.rest_hour",
+    "REQUEST EACH activities.cabin_acts.all DURING blocks.cabin_act",
+    "REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.rest_hour",
 ]
 
 [[problem]]
 id = "clinic-rest-hour-acts"
 title = "The rest hour acts"
 prompt = "Every cabin act the board moved to rest hour runs then, each as its own request."
-answer = "REQUEST EACH_OF activities.cabin_acts.at_rest_hour DURING blocks.rest_hour"
+answer = "REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.rest_hour"
 priority = "HIGH"
 hints = ["The acts titled \"RH: …\" are activities.cabin_acts.at_rest_hour."]
 explain = "Today that's P2's act. The cabin rests during the cabin act block instead."
-wrong = ["REQUEST EACH_OF activities.cabin_acts.at_rest_hour DURING blocks.cabin_act"]
+wrong = ["REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.cabin_act"]
 
 [[problem]]
 id = "clinic-cabin-o4-rest"
@@ -151,17 +151,17 @@ wrong = ["REQUEST activities.cabin_acts.o4 DURING blocks.cabin_act"]
 id = "clinic-not-two-at-once"
 title = "One riflery, one person"
 prompt = "Gabe runs Riflery during clinic 2 and clinic 3 — both."
-answer = "REQUEST staff.gabe DO activities.clinics.riflery DURING ALL_OF {blocks.clinic_2 + blocks.clinic_3}"
-wrong = ["REQUEST staff.gabe DO activities.clinics.riflery DURING EACH_OF {blocks.clinic_2 + blocks.clinic_3}"]
+answer = "REQUEST staff.gabe DO activities.clinics.riflery DURING ALL {blocks.clinic_2 + blocks.clinic_3}"
+wrong = ["REQUEST staff.gabe DO activities.clinics.riflery DURING EACH {blocks.clinic_2 + blocks.clinic_3}"]
 priority = "MEDIUM"
 
 [[problem]]
 id = "clinic-each-weapons"
 title = "Some weapons each morning block"
 prompt = "Throwing Range runs in clinic 1 and in clinic 2, each block counting on its own."
-answer = "REQUEST activities.clinics.throwing_range DURING EACH_OF {blocks.clinic_1 + blocks.clinic_2}"
+answer = "REQUEST activities.clinics.throwing_range DURING EACH {blocks.clinic_1 + blocks.clinic_2}"
 priority = "CLINIC"
-wrong = ["REQUEST activities.clinics.throwing_range DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}"]
+wrong = ["REQUEST activities.clinics.throwing_range DURING ALL {blocks.clinic_1 + blocks.clinic_2}"]
 
 [[problem]]
 id = "clinic-tie-dye-by-a-counselor"
@@ -174,8 +174,8 @@ wrong = ["REQUEST activities.clinics.tie_dye DURING blocks.clinic_1"]
 id = "clinic-canopy-double"
 title = "A double"
 prompt = "The Canopy Tour is a double clinic: it spans clinic 1 and clinic 2 together. Ask for it to run across both."
-answer = "REQUEST activities.clinics.canopy_tour_dbl DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}"
-hints = ["A (DBL) clinic runs over two blocks: DURING ALL_OF the pair."]
+answer = "REQUEST activities.clinics.canopy_tour_dbl DURING ALL {blocks.clinic_1 + blocks.clinic_2}"
+hints = ["A (DBL) clinic runs over two blocks: DURING ALL the pair."]
 
 [[problem]]
 id = "clinic-embroidery-wednesday"

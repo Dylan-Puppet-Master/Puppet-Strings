@@ -17,12 +17,12 @@ teaches = """
 id = "sets-everyone-but-directors"
 title = "Everyone but the directors"
 prompt = "Everyone except the directors should be free during playstation — each person on their own."
-answer = "REQUEST EACH_OF {staff.all - staff.directors} FREE DURING blocks.playstation"
+answer = "REQUEST EACH {staff.all - staff.directors} FREE DURING blocks.playstation"
 priority = "HIGH"
 hints = ["{staff.all - staff.directors} is everyone who isn't a director."]
 wrong = [
-  "REQUEST EACH_OF staff.all FREE DURING blocks.playstation",
-  "REQUEST EACH_OF {staff.all - staff.directors - staff.mfgs} FREE DURING blocks.playstation",
+  "REQUEST EACH staff.all FREE DURING blocks.playstation",
+  "REQUEST EACH {staff.all - staff.directors - staff.mfgs} FREE DURING blocks.playstation",
 ]
 
 [[problem]]
@@ -52,44 +52,44 @@ wrong = ["REQUEST ANY 1 {staff.permanent_heroes + staff.eq_staff} DO 'trail ride
 id = "sets-non-counselor-breaks"
 title = "Non-counselor breaks"
 prompt = "Each staff member who is neither a director nor a counselor gets a 'break' in one of the clinic blocks."
-answer = "REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' DURING ANY 1 blocks.all_clinics"
+answer = "REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' DURING ANY 1 blocks.all_clinics"
 priority = "HIGH"
-alternatives = ["REQUEST EACH_OF {staff.all - (staff.directors + staff.counselors)} DO 'break' DURING ANY 1 blocks.all_clinics"]
-wrong = ["REQUEST EACH_OF {staff.all - staff.counselors} DO 'break' DURING ANY 1 blocks.all_clinics"]
+alternatives = ["REQUEST EACH {staff.all - (staff.directors + staff.counselors)} DO 'break' DURING ANY 1 blocks.all_clinics"]
+wrong = ["REQUEST EACH {staff.all - staff.counselors} DO 'break' DURING ANY 1 blocks.all_clinics"]
 
 [[problem]]
 id = "sets-parentheses"
 title = "Parentheses"
 prompt = "Everyone except the counselors who are also MFGs stays off 'pool duty' today. Use parentheses."
-answer = "REQUEST ALL_OF {staff.all - (staff.counselors & staff.mfgs)} NOT DO 'pool duty'"
+answer = "REQUEST ALL {staff.all - (staff.counselors & staff.mfgs)} NOT DO 'pool duty'"
 hints = ["{staff.all - (staff.counselors & staff.mfgs)}", "Mixing - and & needs parentheses, so there's no order of operations to remember."]
 explain = "Alan is the only counselor who is also an MFG, so this keeps everyone but Alan off pool duty."
-alternatives = ["REQUEST ALL_OF {staff.all - staff.alan} NOT DO 'pool duty'"]
-wrong = ["REQUEST ALL_OF {staff.all - staff.counselors} NOT DO 'pool duty'"]
+alternatives = ["REQUEST ALL {staff.all - staff.alan} NOT DO 'pool duty'"]
+wrong = ["REQUEST ALL {staff.all - staff.counselors} NOT DO 'pool duty'"]
 
 [[problem]]
 id = "sets-afternoon-clinics"
 title = "Afternoon clinic blocks"
 prompt = "Hailey is free during every clinic block except clinic 1."
-answer = "REQUEST staff.hailey FREE DURING ALL_OF {blocks.all_clinics - blocks.clinic_1}"
-alternatives = ["REQUEST staff.hailey FREE DURING ALL_OF {blocks.clinic_2 + blocks.clinic_3 + blocks.clinic_4}"]
-wrong = ["REQUEST staff.hailey FREE DURING ALL_OF blocks.all_clinics"]
+answer = "REQUEST staff.hailey FREE DURING ALL {blocks.all_clinics - blocks.clinic_1}"
+alternatives = ["REQUEST staff.hailey FREE DURING ALL {blocks.clinic_2 + blocks.clinic_3 + blocks.clinic_4}"]
+wrong = ["REQUEST staff.hailey FREE DURING ALL blocks.all_clinics"]
 
 [[problem]]
 id = "sets-leaders-minus-one"
 title = "All but one"
 prompt = "Every village leader except Tyson goes to 'leader training' during rest hour, together."
-answer = "REQUEST ALL_OF {staff.village_leaders - staff.tyson} DO 'leader training' DURING blocks.rest_hour"
-alternatives = ["REQUEST ALL_OF {staff.brian + staff.cam_vl + staff.dat + staff.hails + staff.tori} DO 'leader training' DURING blocks.rest_hour"]
-wrong = ["REQUEST ALL_OF staff.village_leaders DO 'leader training' DURING blocks.rest_hour"]
+answer = "REQUEST ALL {staff.village_leaders - staff.tyson} DO 'leader training' DURING blocks.rest_hour"
+alternatives = ["REQUEST ALL {staff.brian + staff.cam_vl + staff.dat + staff.hails + staff.tori} DO 'leader training' DURING blocks.rest_hour"]
+wrong = ["REQUEST ALL staff.village_leaders DO 'leader training' DURING blocks.rest_hour"]
 
 [[problem]]
 id = "sets-counselors-and-heroes"
 title = "Counselors and village heroes"
 prompt = "Each counselor and each village hero has something assigned during clinic 1."
-answer = "REQUEST EACH_OF {staff.counselors + staff.village_heroes} NOT FREE DURING blocks.clinic_1"
+answer = "REQUEST EACH {staff.counselors + staff.village_heroes} NOT FREE DURING blocks.clinic_1"
 priority = "HIGH"
-wrong = ["REQUEST EACH_OF staff.counselors NOT FREE DURING blocks.clinic_1"]
+wrong = ["REQUEST EACH staff.counselors NOT FREE DURING blocks.clinic_1"]
 
 [[problem]]
 id = "sets-no-clinics-except-weapons"
@@ -125,10 +125,10 @@ wrong = ["REQUEST staff.kara NOT DO ANY activities.clinics.arts"]
 id = "sets-dates-minus"
 title = "Every weekday but today"
 prompt = "Hailey does 'hay delivery' during setup on every weekday of the session except the day being scheduled, each day separately."
-answer = "REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH_OF {(2026-08-03 .. 2026-08-07) - dates.target}"
+answer = "REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH {(2026-08-03 .. 2026-08-07) - dates.target}"
 priority = "LOW"
-alternatives = ["REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH_OF {2026-08-03 + 2026-08-05 + 2026-08-06 + 2026-08-07}"]
-wrong = ["REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH_OF {2026-08-03 .. 2026-08-07}"]
+alternatives = ["REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH {2026-08-03 + 2026-08-05 + 2026-08-06 + 2026-08-07}"]
+wrong = ["REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH {2026-08-03 .. 2026-08-07}"]
 
 [[problem]]
 id = "sets-trainers-not-directors"
@@ -142,15 +142,15 @@ wrong = ["REQUEST ANY 1 staff.clinic_trainers DO 'skills workshop' DURING blocks
 id = "sets-meals-but-breakfast"
 title = "Later meals"
 prompt = "Leni does 'dish pit' at every meal except breakfast."
-answer = "REQUEST staff.leni DO 'dish pit' DURING ALL_OF {blocks.meals - blocks.breakfast}"
-alternatives = ["REQUEST staff.leni DO 'dish pit' DURING ALL_OF {blocks.lunch + blocks.dinner}"]
-wrong = ["REQUEST staff.leni DO 'dish pit' DURING ALL_OF blocks.meals"]
+answer = "REQUEST staff.leni DO 'dish pit' DURING ALL {blocks.meals - blocks.breakfast}"
+alternatives = ["REQUEST staff.leni DO 'dish pit' DURING ALL {blocks.lunch + blocks.dinner}"]
+wrong = ["REQUEST staff.leni DO 'dish pit' DURING ALL blocks.meals"]
 
 [[problem]]
 id = "sets-mfgs-not-counselors"
 title = "The other MFGs"
 prompt = "Each MFG who isn't also a counselor does 'woodpile' in one clinic block."
-answer = "REQUEST EACH_OF {staff.mfgs - staff.counselors} DO 'woodpile' DURING ANY 1 blocks.all_clinics"
+answer = "REQUEST EACH {staff.mfgs - staff.counselors} DO 'woodpile' DURING ANY 1 blocks.all_clinics"
 priority = "MEDIUM"
-alternatives = ["REQUEST EACH_OF {staff.charlton + staff.connor} DO 'woodpile' DURING ANY 1 blocks.all_clinics"]
-wrong = ["REQUEST EACH_OF staff.mfgs DO 'woodpile' DURING ANY 1 blocks.all_clinics"]
+alternatives = ["REQUEST EACH {staff.charlton + staff.connor} DO 'woodpile' DURING ANY 1 blocks.all_clinics"]
+wrong = ["REQUEST EACH staff.mfgs DO 'woodpile' DURING ANY 1 blocks.all_clinics"]

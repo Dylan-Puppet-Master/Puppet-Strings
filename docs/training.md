@@ -7,7 +7,7 @@ puppet-strings train
 opens **Skedge Training**, a practice window for new Puppet Masters. In the app, **Open
 trainer** in the **Configure** pane starts it too, before anybody has signed in. It holds a couple of
 hundred plain-English requests, in levels that each introduce one idea — a single task, sets
-of people, choosing, splitting with `EACH_OF`, dates, `FREE` and `NOT`, clinics and cabin
+of people, choosing, splitting with `EACH`, dates, `FREE` and `NOT`, clinics and cabin
 acts, set arithmetic, counting, `WITH`, `PREFER`, bindings and mappings, `IF` / `UNLESS` with
 `AND` / `OR`, `GAP` and `EXCLUDE` — and ends with requests that combine several of them.
 
@@ -38,7 +38,7 @@ ways, and any of them is right. It is marked by what it does.
    what your request says that you didn't mean.
 3. A few things no single day shows are compared directly: `PREFER` against `REQUEST`, the
    dates a request is about, how long a `FOR` task lasts, what a `MAXIMIZE` scores, what an
-   `EXCLUDE` takes out, and below `MUST_HAPPEN` how many separate requests `EACH_OF` makes.
+   `EXCLUDE` takes out, and below `MUST_HAPPEN` how many separate requests `EACH` makes.
 
 ## Adding problems
 

@@ -16,7 +16,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
     ("skedge", "priority", "message", "line", "column"),
     [
         (
-            "EACH_OF s IN staff.all",
+            "EACH s IN staff.all",
             Priority.HIGH,
             "a declaration needs at least one statement",
             1,
@@ -38,7 +38,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             35,
         ),
         (
-            "REQUEST staff.counselor DO AT_MOST 2 'break' DURING EACH_OF blocks.all",
+            "REQUEST staff.counselor DO AT_MOST 2 'break' DURING EACH blocks.all",
             Priority.HIGH,
             "an amount after DO counts one person's assignments",
             1,
@@ -47,7 +47,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (
             "REQUEST staff.counselor DO 'x' DURING blocks.clinic_1",
             Priority.HIGH,
-            "needs a quantifier: ALL_OF, ANY n or EACH_OF",
+            "needs a quantifier: ALL, ANY n or EACH",
             1,
             9,
         ),
@@ -59,7 +59,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             9,
         ),
         (
-            "REQUEST staff.dylan DO ALL_OF activities.clinics.all DURING blocks.clinic_1",
+            "REQUEST staff.dylan DO ALL activities.clinics.all DURING blocks.clinic_1",
             Priority.HIGH,
             "one activity at a time",
             1,
@@ -104,14 +104,14 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             24,
         ),
         (
-            f"EACH_OF s IN staff.all\nEACH_OF s IN staff.all\n{DO}",
+            f"EACH s IN staff.all\nEACH s IN staff.all\n{DO}",
             Priority.HIGH,
             "variable bound twice",
             2,
             1,
         ),
         (
-            "EACH_OF s IN staff.all\nREQUEST s DO 'x' DURING s",
+            "EACH s IN staff.all\nREQUEST s DO 'x' DURING s",
             Priority.HIGH,
             "expected a name from blocks, not 's'",
             2,
@@ -160,9 +160,9 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             43,
         ),
         (
-            "REQUEST staff.dylan NOT DO 'x' WITH EACH_OF staff.all",
+            "REQUEST staff.dylan NOT DO 'x' WITH EACH staff.all",
             Priority.HIGH,
-            "WITH counts who is alongside, so it takes ALL_OF or ANY n, not EACH_OF",
+            "WITH counts who is alongside, so it takes ALL or ANY n, not EACH",
             1,
             37,
         ),
@@ -176,7 +176,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         ("REQUEST AT_MOST 0 ANY staff.all DO 'x'", Priority.HIGH, "write NOT DO", 1, 9),
         ("PREFER EXACTLY 0m ANY staff.all DO 'x'", Priority.HIGH, "write NOT DO", 1, 8),
         (
-            "PREFER EACH_OF s IN staff.all DO ANY activities.clinics.all MAXIMIZE mappings.preference(s)",
+            "PREFER EACH s IN staff.all DO ANY activities.clinics.all MAXIMIZE mappings.preference(s)",
             Priority.HIGH,
             "wrong number of arguments: mappings.preference takes (staff, activities.clinics.all), not 1",
             1,
@@ -227,11 +227,11 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (f"a: {DO}\nGAP a TO b AT_LEAST 0m", Priority.HIGH, "undefined label 'b'", 2, 1),
         (f"a: {DO}\na: {DO}", Priority.HIGH, "label 'a' defined twice", 2, 4),
         (
-            f"{DO} ON ALL_OF {{2026-09-18 .. 2026-09-14}}",
+            f"{DO} ON ALL {{2026-09-18 .. 2026-09-14}}",
             Priority.HIGH,
             "date range ends before it starts",
             1,
-            62,
+            59,
         ),
         (
             f"{DO} ON {{dates.session_1.all - 1d}}",
@@ -258,7 +258,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (
             "ANY 1 p IN staff.all\nREQUEST ANY 2 {staff.dylan + p} DO 'x' DURING blocks.lunch",
             Priority.HIGH,
-            "taken with ALL_OF or not at all",
+            "taken with ALL or not at all",
             2,
             9,
         ),
@@ -270,7 +270,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             41,
         ),
         (
-            "REQUEST AT_MOST 2 staff.all DO 'break' DURING EACH_OF blocks.all",
+            "REQUEST AT_MOST 2 staff.all DO 'break' DURING EACH blocks.all",
             Priority.HIGH,
             "a set here is matched, so it takes ANY",
             1,
@@ -300,26 +300,26 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (
             "REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT ANY staff.mfg",
             Priority.HIGH,
-            "WITHOUT counts who is alongside, so it takes ALL_OF or ANY n, not ANY",
+            "WITHOUT counts who is alongside, so it takes ALL or ANY n, not ANY",
             1,
             63,
         ),
         (
-            "PREFER AT_MOST 8 EACH_OF staff.all DO ALL_OF activities.clinics.all",
+            "PREFER AT_MOST 8 EACH staff.all DO ALL activities.clinics.all",
             Priority.HIGH,
-            "a pattern matches one assignment at a time, so a set in it takes ANY or EACH_OF",
+            "a pattern matches one assignment at a time, so a set in it takes ANY or EACH",
             1,
-            39,
+            36,
         ),
         (
             "REQUEST staff.rob NOT DO 'x' DURING ANY 2 blocks.all_clinics",
             Priority.HIGH,
-            "right of NOT a set takes ANY, for any of these, or ALL_OF, for all of them together",
+            "right of NOT a set takes ANY, for any of these, or ALL, for all of them together",
             1,
             37,
         ),
         (
-            "REQUEST staff.rob NOT DO 'x' DURING ALL_OF blocks.clinic_1",
+            "REQUEST staff.rob NOT DO 'x' DURING ALL blocks.clinic_1",
             Priority.HIGH,
             "is one item and takes no quantifier",
             1,
@@ -351,7 +351,7 @@ def test_a_gap_may_be_zero(dataset):
     assert validate_request(request(text), dataset)
 
 
-EXCLUDE = "EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all ON dates.target"
+EXCLUDE = "EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all ON dates.target"
 
 
 def test_an_exclusion_validates(dataset):
@@ -393,7 +393,7 @@ def test_an_exclusion_validates(dataset):
         (
             "EXCLUDE staff.counselor DO 'offsite'",
             Priority.MUST_HAPPEN,
-            "needs a quantifier: ALL_OF, ANY n or EACH_OF",
+            "needs a quantifier: ALL, ANY n or EACH",
         ),
     ],
 )

@@ -686,9 +686,9 @@ Recorded so the outline matches the code.
   inside the solver: **Load offerings** (app button or `load-offerings` command) writes
   one `CLINIC` request per offering to the Requests sheet, tagged `generated`, with ids
   `offering:<date>:<activity>:<block>`. The request names every position of the clinic,
-  `AS_ROLE EACH_OF {roles.first + roles.second + …}` (facilitators then lifeguards), so the
+  `AS_ROLE EACH {roles.first + roles.second + …}` (facilitators then lifeguards), so the
   positions the clinic wants are written down rather than implied by the structural
-  constraints alone. `EACH_OF` gives each position its own choice of person and so its own
+  constraints alone. `EACH` gives each position its own choice of person and so its own
   copy; the copies cannot diverge, because filling one position of an instance fills them
   all. A `Result` lists an outcome per copy (`<request id>[<key>]`); `publish.views.report`
   collapses them to one row per request, keeping the failed copies' keys in the
@@ -739,8 +739,8 @@ Recorded so the outline matches the code.
 - **Conflicts are found without solving** (Puppet Master, 2026-09-18). `app/conflicts.py`
   reads the resolved copies the store already keeps and turns every *forced* statement into
   a claim on a slot — one staff member, one date, one block. A statement is forced when it
-  leaves the solver no choice: `who`, `ON` and `DURING` are all `ALL_OF` (or a single item,
-  or an `EACH_OF` copy) and a `DO` names one activity or task. Claims on a slot are then
+  leaves the solver no choice: `who`, `ON` and `DURING` are all `ALL` (or a single item,
+  or an `EACH` copy) and a `DO` names one activity or task. Claims on a slot are then
   compared: free against do, do against not-do, free against not-free, and do against do by
   minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
   leaves the solver room — `ANY n`, `PREFER`, an undated `DURING` — makes a claim, which
@@ -781,9 +781,9 @@ Recorded so the outline matches the code.
 - **Every set says how it is taken, and CONSECUTIVE is on the blocks** (Puppet Master,
   2026-09-23). A set right of `NOT` or in a pattern is matched rather than chosen, and was
   the one kind of set written with no word in front of it; it now takes `ANY`, with no
-  number, and a bare set there is an error. Right of `NOT`, `ALL_OF` means "not all of these
+  number, and a bare set there is an error. Right of `NOT`, `ALL` means "not all of these
   together", since `NOT` turns round the positive request to its right: `_forbid_together`
-  forbids, per person, the conjunction over every combination of the `ALL_OF` items, past
+  forbids, per person, the conjunction over every combination of the `ALL` items, past
   dates counting as facts. `ANY n` stays an error there, "not in two of them" being a count.
   `CONSECUTIVE` moved again, onto the blocks, which are what is in a row: `DURING ANY 2
   CONSECUTIVE blocks.all` chooses, and a count measured in runs says `DURING ANY
@@ -800,7 +800,7 @@ Recorded so the outline matches the code.
   the amount. The old place is still parsed, only to say where it goes now. The compiler
   keeps the block choice's literals and picks exactly one run of adjacent blocks
   (`_adjacent`), each block chosen when the run holding it is, so everything else a
-  requirement does with a choice (partners, deferral, `ALL_OF` staff together) is
+  requirement does with a choice (partners, deferral, `ALL` staff together) is
   unchanged; `_loose` leaves such a choice alone, since which blocks it picks matters.
 - **EXCLUDE takes somebody out of the day** (Puppet Master, 2026-09-22). A day off is not
   something to ask the solver for, so `EXCLUDE <who> DO '<label>' [DURING] [ON]` is applied
@@ -902,24 +902,24 @@ Recorded so the outline matches the code.
   compile. A newline is no longer the end of a statement when the next line begins with a
   word that continues one — `DO`, `DURING`, `ON`, `FOR`, a set operator, a closing brace —
   which keeps the grammar LALR by deciding it in the lexer: `_CONTINUES` matches those
-  newlines and is ignored, and `_NL` gets the rest. `EACH_OF`, `ANY n` and bare names are
+  newlines and is ignored, and `_NL` gets the rest. `EACH`, `ANY n` and bare names are
   deliberately not continuations, since each of them can begin a line of its own.
   `ANY 1 v IN {…}` could only be used as a whole selector, so "Charlton with either
   Dylan or Donny" had no natural wording; a bound name can now be added into a set with `+`,
   which resolves to a `Choice` carrying `parts` — the items named here, plus whatever each
   part chose. The solver already spoke in a dict of item to literal, so joining them is
   merging two dicts, and the binding's own literals are what keep it the same person
-  throughout. Only `+`, and only `ALL_OF`: `-` and `&` ask what a chosen name is not, and
+  throughout. Only `+`, and only `ALL`: `-` and `&` ask what a chosen name is not, and
   taking `n` of such a set is choosing out of something still being chosen.
 - **`ANY n`, groups, clauses in any order, and named sets** (2026-09-22). `ANY_n_OF` read
   like nothing else in a declarative language and not like its own `AT_LEAST n`, so it is
   now `ANY n`: an `ANY` keyword and an `INT`. The old spelling is still lexed, only to be
   told `write ANY 1, not ANY_1_OF`. A quantifier may now also go on a part of a set, in
-  parentheses: an `ast.Group`. Taken whole, a set's groups are flattened (`ALL_OF`) or
-  become `parts` (`ANY n`), so `ALL_OF {x + (ANY 1 s)}` compiles to exactly what the binding
+  parentheses: an `ast.Group`. Taken whole, a set's groups are flattened (`ALL`) or
+  become `parts` (`ANY n`), so `ALL {x + (ANY 1 s)}` compiles to exactly what the binding
   line did. Under `ANY n` each group is one unit of the choice, held in `Choice.units`: the
   solver gives each a literal alongside the plain items' and chooses the group's own members
-  under it. Under `EACH_OF` each group is a copy. Items reached twice are merged with an OR,
+  under it. Under `EACH` each group is a copy. Items reached twice are merged with an OR,
   where `parts` used to overwrite. Clauses may now sit anywhere around the subject, verb and
   object, which meant one `clauses` rule used at every gap and one clause rule for
   requirements and patterns alike; the pool-only quantifier rule moved from the grammar to
@@ -928,7 +928,7 @@ Recorded so the outline matches the code.
   `_CONTINUES` lists the few that can begin a line — a statement keyword, a binding, a name
   and a colon — and every other newline is nothing. `name: <set>` is an `ast.Definition`,
   written into the lines that use it by the parser, so nothing downstream knows it was
-  there; `name: ANY n <set>` and `name: EACH_OF <set>` are binding lines.
+  there; `name: ANY n <set>` and `name: EACH <set>` are binding lines.
 - **Requests live on the Puppet Master's computer; Google Sheets are cached by version**
   (Puppet Master, 2026-09-23). Nobody edits requests outside Puppet Strings and only one
   Puppet Master schedules at a time, so requests are one SQLite file, handed over with
@@ -948,3 +948,13 @@ Recorded so the outline matches the code.
   unique across the whole file, numbered per scope (`s4-3`, `s4w2-1`, `jun08-1`,
   `season-2`), and a save writes the one request it changed rather than rewriting lists.
   The file's format went from 1 to 2 with no conversion: it was a beta.
+- **`ALL` and `EACH`, and dates numbered in digits** (Puppet Master, 2026-09-23). Once
+  `ANY_n_OF` became `ANY n`, `ALL_OF` and `EACH_OF` were the only keywords left with an
+  `_OF`, so they are `ALL` and `EACH`. The lexer still reads the old spellings as the same
+  tokens, so the builder can say `write ALL, not ALL_OF` and `skedge/upgrade.py` can find
+  and rewrite them; saved requests are rewritten on their next load (syntax 4). `all` and
+  `each` are now keywords and so cannot be a name on their own, though `blocks.all` and
+  `all_staff` are untouched: a dotted name is one token, and a keyword ends at `\b`. With
+  the `dates` namespace flat, sessions and weeks are named by digit, `dates.session_4.week_2`
+  rather than `dates.session_four.week_two`, and a file written the old way is rewritten
+  when it is opened.

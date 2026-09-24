@@ -269,7 +269,7 @@ def test_a_mapping_is_declared_with_sets_it_can_read(row, message):
         (
             "Mappings",
             [MAPPINGS_HEADER, ["buddy", "staff.counselor", "staff.all", "", "", "staff.all"]],
-            "a default of more than one name needs ALL_OF or ANY n",
+            "a default of more than one name needs ALL or ANY n",
         ),
         (
             "Mappings",

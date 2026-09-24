@@ -116,9 +116,9 @@ def test_editor_validation_and_save(window):
     editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING blocks.nope")
     assert not editor.validate()
     assert "unknown name 'blocks.nope'" in editor.status.text()
-    editor.skedge_edit.setPlainText("REQUEST EACH_OF staff.counselor DO 'x' DURING blocks.clinic_1")
+    editor.skedge_edit.setPlainText("REQUEST EACH staff.counselor DO 'x' DURING blocks.clinic_1")
     assert editor.validate()
-    assert "3 EACH_OF copies" in editor.status.text()
+    assert "3 EACH copies" in editor.status.text()
     editor.tags_edit.setText("training, week 2")
     editor.save_button.click()
     assert window.model.rowCount() == 32
@@ -810,7 +810,7 @@ def test_saving_a_request_outside_the_date_asks_first(window, monkeypatch):
     )
     editor = write_request(
         window,
-        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL_OF dates.session_2.week_1.all",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL dates.session_2.week_1.all",
     )
     editor.save_button.click()
     assert asked and "does not cover 2026-09-16" in asked[0]
@@ -840,7 +840,7 @@ def test_saving_a_request_about_this_date_asks_nothing(window, monkeypatch):
     for skedge in (
         "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON dates.target",
         "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1",  # no ON: every day
-        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL_OF dates.session_1.week_1.all",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL dates.session_1.week_1.all",
     ):
         editor = write_request(window, skedge, description=f"ok {skedge[-6:]}")
         editor.save_button.click()
@@ -1143,7 +1143,7 @@ def test_a_save_that_is_called_off_leaves_the_editor_alone(window, monkeypatch):
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Cancel)
     editor = write_request(
         window,
-        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL_OF dates.session_2.week_1.all",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL dates.session_2.week_1.all",
     )
     editor.save_button.click()
     assert editor.save_button.text() == "Save" and editor.save_button.isEnabled()
@@ -1404,9 +1404,9 @@ def test_a_keyword_is_coloured_in_whichever_case_it_is_written_in(window):
     assert coloured(edit, "staff.dylan") == palette.NAME
     edit.setPlainText("REQUEST staff.dylan DO 'x' DURING blocks.clinic_1")
     assert coloured(edit, "REQUEST") == palette.KEYWORD
-    edit.setPlainText("EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all")
+    edit.setPlainText("EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all")
     assert coloured(edit, "EXCLUDE") == palette.KEYWORD
-    assert coloured(edit, "ALL_OF") == palette.KEYWORD
+    assert coloured(edit, "ALL") == palette.KEYWORD
     assert coloured(edit, "'offsite'") == palette.STRING
 
 

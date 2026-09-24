@@ -3,17 +3,17 @@ name = "Bindings and Mappings"
 blurb = "Binding lines name a choice so several statements share it; mappings look values up."
 day = "2026-08-04"
 teaches = """
-EACH_OF x IN <set>      on its own line: one copy of the request per item, called x
+EACH x IN <set>      on its own line: one copy of the request per item, called x
 ANY 1 x IN <set>     on its own line: one choice, the same everywhere x appears
 
 ANY 1 p IN staff.counselors
 REQUEST p DO 'campfire setup' DURING blocks.clinic_4
 REQUEST p DO 'campfire teardown' DURING blocks.evening_program
 
-EACH_OF c IN staff.counselors
+EACH c IN staff.counselors
 REQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.dinner
 
-• ALL_OF {staff.alesa + v} adds a chosen name into a set (only + works)
+• ALL {staff.alesa + v} adds a chosen name into a set (only + works)
 • mappings.buddy(c) is whatever the Mappings tab gives for c
 """
 
@@ -32,20 +32,20 @@ wrong = [
 id = "names-each-person-line"
 title = "A line per person"
 prompt = "Using a binding line: each director gets 'desk time' during rest hour, each on their own."
-answer = "EACH_OF d IN staff.directors\nREQUEST d DO 'desk time' DURING blocks.rest_hour"
+answer = "EACH d IN staff.directors\nREQUEST d DO 'desk time' DURING blocks.rest_hour"
 priority = "MEDIUM"
-alternatives = ["REQUEST EACH_OF staff.directors DO 'desk time' DURING blocks.rest_hour"]
-wrong = ["REQUEST ALL_OF staff.directors DO 'desk time' DURING blocks.rest_hour"]
+alternatives = ["REQUEST EACH staff.directors DO 'desk time' DURING blocks.rest_hour"]
+wrong = ["REQUEST ALL staff.directors DO 'desk time' DURING blocks.rest_hour"]
 
 [[problem]]
 id = "names-buddy-cover"
 title = "Buddies cover dinner"
 prompt = "Each counselor's buddy (from mappings.buddy) does 'cabin cover' during dinner."
-answer = "EACH_OF c IN staff.counselors\nREQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.dinner"
+answer = "EACH c IN staff.counselors\nREQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.dinner"
 priority = "HIGH"
-hints = ["mappings.buddy(c) gives c's buddy.", "Name each counselor first: EACH_OF c IN staff.counselors."]
+hints = ["mappings.buddy(c) gives c's buddy.", "Name each counselor first: EACH c IN staff.counselors."]
 explain = "A counselor with no buddy on the Mappings tab gets the mapping's default: one of the non-counselors, non-directors."
-wrong = ["EACH_OF c IN staff.counselors\nREQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.lunch"]
+wrong = ["EACH c IN staff.counselors\nREQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.lunch"]
 
 [[problem]]
 id = "names-one-buddy"
@@ -60,32 +60,32 @@ wrong = ["REQUEST mappings.buddy(staff.robyn) DO 'cabin cover' DURING blocks.emb
 id = "names-videographer"
 title = "Alesa and one of two"
 prompt = "Alesa, plus either Dylan or Cam VL, do a 'video shoot' together in one block today."
-answer = "ANY 1 v IN {staff.dylan + staff.cam_vl}\nREQUEST ALL_OF {staff.alesa + v} DO 'video shoot' DURING ANY 1 blocks.all"
-hints = ["Name the choice: ANY 1 v IN {staff.dylan + staff.cam_vl}.", "Then add it into a set: ALL_OF {staff.alesa + v}."]
-wrong = ["REQUEST ALL_OF {staff.alesa + staff.dylan} DO 'video shoot' DURING ANY 1 blocks.all"]
+answer = "ANY 1 v IN {staff.dylan + staff.cam_vl}\nREQUEST ALL {staff.alesa + v} DO 'video shoot' DURING ANY 1 blocks.all"
+hints = ["Name the choice: ANY 1 v IN {staff.dylan + staff.cam_vl}.", "Then add it into a set: ALL {staff.alesa + v}."]
+wrong = ["REQUEST ALL {staff.alesa + staff.dylan} DO 'video shoot' DURING ANY 1 blocks.all"]
 
 [[problem]]
 id = "names-free-after-clinic"
 title = "A person and their day"
 prompt = "Each counselor who runs a clinic in clinic 1 should be free in clinic 2. Name each counselor with a binding line, and use IF."
-answer = "EACH_OF s IN staff.counselors\nIF s DO ANY activities.clinics.all DURING blocks.clinic_1\nREQUEST s FREE DURING blocks.clinic_2"
+answer = "EACH s IN staff.counselors\nIF s DO ANY activities.clinics.all DURING blocks.clinic_1\nREQUEST s FREE DURING blocks.clinic_2"
 priority = "HIGH"
-wrong = ["EACH_OF s IN staff.counselors\nREQUEST s FREE DURING blocks.clinic_2"]
+wrong = ["EACH s IN staff.counselors\nREQUEST s FREE DURING blocks.clinic_2"]
 
 [[problem]]
 id = "names-pair-of-mfgs"
 title = "A pair, twice"
 prompt = "The same two MFGs do 'woodchopping' during clinic 1 and 'woodstacking' during clinic 2."
-answer = "ANY 2 m IN staff.mfgs\nREQUEST ALL_OF m DO 'woodchopping' DURING blocks.clinic_1\nREQUEST ALL_OF m DO 'woodstacking' DURING blocks.clinic_2"
+answer = "ANY 2 m IN staff.mfgs\nREQUEST ALL m DO 'woodchopping' DURING blocks.clinic_1\nREQUEST ALL m DO 'woodstacking' DURING blocks.clinic_2"
 wrong = ["REQUEST ANY 2 staff.mfgs DO 'woodchopping' DURING blocks.clinic_1\nREQUEST ANY 2 staff.mfgs DO 'woodstacking' DURING blocks.clinic_2"]
 
 [[problem]]
 id = "names-buddy-free"
 title = "Buddies stay free"
 prompt = "Each counselor's buddy is free during embers, so they can cover if needed."
-answer = "EACH_OF c IN staff.counselors\nREQUEST mappings.buddy(c) FREE DURING blocks.embers"
+answer = "EACH c IN staff.counselors\nREQUEST mappings.buddy(c) FREE DURING blocks.embers"
 priority = "LOW"
-wrong = ["EACH_OF c IN staff.counselors\nREQUEST c FREE DURING blocks.embers"]
+wrong = ["EACH c IN staff.counselors\nREQUEST c FREE DURING blocks.embers"]
 
 [[problem]]
 id = "names-director-and-buddy"
@@ -99,23 +99,23 @@ wrong = ["REQUEST staff.robyn NOT DO 'lifeguard' DURING blocks.rest_hour"]
 id = "names-office-minus-buddy"
 title = "Everyone but the buddy"
 prompt = "Every director stays off 'cabin cover' at dinner, but James's buddy is the one who does it."
-answer = "REQUEST mappings.buddy(staff.james) DO 'cabin cover' DURING blocks.dinner\nREQUEST ALL_OF staff.directors NOT DO 'cabin cover' DURING blocks.dinner"
-alternatives = ["REQUEST staff.julian DO 'cabin cover' DURING blocks.dinner\nREQUEST ALL_OF staff.directors NOT DO 'cabin cover' DURING blocks.dinner"]
+answer = "REQUEST mappings.buddy(staff.james) DO 'cabin cover' DURING blocks.dinner\nREQUEST ALL staff.directors NOT DO 'cabin cover' DURING blocks.dinner"
+alternatives = ["REQUEST staff.julian DO 'cabin cover' DURING blocks.dinner\nREQUEST ALL staff.directors NOT DO 'cabin cover' DURING blocks.dinner"]
 wrong = ["REQUEST mappings.buddy(staff.james) DO 'cabin cover' DURING blocks.dinner"]
 
 [[problem]]
 id = "names-each-with-two-statements"
 title = "Each gets both"
 prompt = "Each village leader does 'cabin check' during embers and is free during the evening program. The two go together for each leader."
-answer = "EACH_OF v IN staff.village_leaders\nREQUEST v DO 'cabin check' DURING blocks.embers\nREQUEST v FREE DURING blocks.evening_program"
+answer = "EACH v IN staff.village_leaders\nREQUEST v DO 'cabin check' DURING blocks.embers\nREQUEST v FREE DURING blocks.evening_program"
 priority = "MEDIUM"
-wrong = ["EACH_OF v IN staff.village_leaders\nREQUEST v DO 'cabin check' DURING blocks.embers"]
+wrong = ["EACH v IN staff.village_leaders\nREQUEST v DO 'cabin check' DURING blocks.embers"]
 
 [[problem]]
 id = "names-one-hero-all-meals"
 title = "One hero, every meal"
 prompt = "One village hero — the same one all day — does 'allergy table' at every meal."
-answer = "REQUEST ANY 1 staff.village_heroes DO 'allergy table' DURING ALL_OF blocks.meals"
+answer = "REQUEST ANY 1 staff.village_heroes DO 'allergy table' DURING ALL blocks.meals"
 explain = "ANY 1 chooses once, and the one chosen does it in every block chosen — no binding line needed."
-alternatives = ["ANY 1 h IN staff.village_heroes\nREQUEST h DO 'allergy table' DURING ALL_OF blocks.meals"]
-wrong = ["REQUEST ANY 1 staff.village_heroes DO 'allergy table' DURING EACH_OF blocks.meals"]
+alternatives = ["ANY 1 h IN staff.village_heroes\nREQUEST h DO 'allergy table' DURING ALL blocks.meals"]
+wrong = ["REQUEST ANY 1 staff.village_heroes DO 'allergy table' DURING EACH blocks.meals"]

@@ -17,7 +17,7 @@ request. After the last tier, the solver drops any assignment no request asked f
 
 | Statement | Contribution |
 |---|---|
-| `REQUEST` | `+1` if the declaration is met (each `EACH_OF` copy on its own) |
+| `REQUEST` | `+1` if the declaration is met (each `EACH` copy on its own) |
 | `PREFER <amount> …` | `−` how far the matches are from the amount, in assignments or hours |
 | `PREFER … MAXIMIZE mappings.x(…)` | `+` the mapping's value for each match |
 | `PREFER … MINIMIZE mappings.x(…)` | `−` the mapping's value for each match |
@@ -83,7 +83,7 @@ rest of a partly used block `DYOW/WPs` (the wording is `remainder` under `[views
 
 After each solve the report lists every soft request that was not satisfied, every
 deferrable request that was put off, and, if the hard requests conflict, their ids. A
-request that is inactive (its dates all past or all future, or an `EACH_OF` over nothing)
+request that is inactive (its dates all past or all future, or an `EACH` over nothing)
 is not listed.
 
 It also carries notes about the time limit. Each pass after the first starts from a

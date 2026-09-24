@@ -136,19 +136,19 @@ def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target) -> None:
         if isinstance(clause, ast.With | ast.Without):
             if what is None:
                 raise _error("FREE has no instance", clause.pos)
-            if clause.selector.quantifier in (ast.EACH_OF, ast.ANY):
+            if clause.selector.quantifier in (ast.EACH, ast.ANY):
                 name, q = CLAUSE_NAMES[type(clause)], clause.selector.quantifier
                 raise _error(
-                    f"{name} counts who is alongside, so it takes ALL_OF or ANY n, not {q}",
+                    f"{name} counts who is alongside, so it takes ALL or ANY n, not {q}",
                     clause.selector.pos,
                 )
 
 
 def _one_at_a_time(selector: ast.Selector | ast.Task | None) -> None:
-    """The activity and role of a requirement take an item, ANY 1 or EACH_OF, and no group."""
+    """The activity and role of a requirement take an item, ANY 1 or EACH, and no group."""
     if not isinstance(selector, ast.Selector):
         return
-    several = selector.quantifier == ast.ALL_OF or (
+    several = selector.quantifier == ast.ALL or (
         selector.quantifier == ast.ANY_OF and selector.n > 1
     )
     if several or any(ast.groups_in(selector.expr)):
@@ -182,7 +182,7 @@ def _check_labels(declaration: ast.Declaration) -> None:
 
 
 def _check_variables(declaration: ast.Declaration) -> None:
-    """A binding line is visible everywhere; an inline `EACH_OF x IN s` in its statement."""
+    """A binding line is visible everywhere; an inline `EACH x IN s` in its statement."""
     shared: dict[str, ast.Pos] = {}
     for binding in declaration.bindings:
         _bind(shared, binding.selector)

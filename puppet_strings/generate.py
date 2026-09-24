@@ -30,7 +30,7 @@ def generated_requests(dataset: Dataset) -> list[Request]:
     requests = []
     for offering in dataset.offerings:
         blocks = " + ".join(f"blocks.{b}" for b in offering.blocks)
-        during = f"ALL_OF {{{blocks}}}" if len(offering.blocks) > 1 else blocks
+        during = f"ALL {{{blocks}}}" if len(offering.blocks) > 1 else blocks
         name = dataset.activities[offering.activity].name
         skedge = f"REQUEST activities.clinics.{offering.activity} DURING {during} ON {target}"
         requests.append(

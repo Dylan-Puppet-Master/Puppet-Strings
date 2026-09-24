@@ -53,7 +53,7 @@ SUFFIX = ".sqlite"
 SCHEMA_VERSION = "2"
 # How Skedge is written now. A file whose requests were written before is rewritten on its
 # next load, which is when there is a dataset to tell a name for one thing from a set.
-SYNTAX_VERSION = 3
+SYNTAX_VERSION = 4
 DEFAULT_SCOPE = SESSION  # what a request written in the app is read over, unless it says
 OLD_IMPORT_TAG = "generated"  # what IMPORT_TAG was called before, renamed on open
 DATE_NAME = re.compile(r"\bdates\.[a-z0-9_.]*")

@@ -10,9 +10,9 @@ REQUEST <who> NOT DO <what> ...           never doing that
 REQUEST staff.dylan FREE DURING blocks.playstation
 REQUEST staff.rob NOT DO 'break' DURING ANY blocks.meals
 
-• Right of NOT, ANY <set> means "any of these", and ALL_OF <set> "all of these together"
+• Right of NOT, ANY <set> means "any of these", and ALL <set> "all of these together"
 • NOT DO can leave out DURING: then it's all day
-• The subject still chooses: ALL_OF {…} NOT DO means none of them does
+• The subject still chooses: ALL {…} NOT DO means none of them does
 """
 
 [[problem]]
@@ -31,10 +31,10 @@ wrong = [
 id = "free-day-off"
 title = "Clear all day"
 prompt = "Vic is on call all Thursday: at camp, but with nothing assigned in any block."
-answer = "REQUEST staff.vic FREE DURING ALL_OF blocks.all ON dates.session_6.week_1.thursday"
+answer = "REQUEST staff.vic FREE DURING ALL blocks.all ON dates.session_6.week_1.thursday"
 priority = "MUST_HAPPEN"
-hints = ["Free in every block: FREE DURING ALL_OF blocks.all."]
-alternatives = ["REQUEST staff.vic FREE DURING ALL_OF blocks.all ON 2026-08-06", "REQUEST staff.vic FREE DURING EACH_OF blocks.all ON 2026-08-06"]
+hints = ["Free in every block: FREE DURING ALL blocks.all."]
+alternatives = ["REQUEST staff.vic FREE DURING ALL blocks.all ON 2026-08-06", "REQUEST staff.vic FREE DURING EACH blocks.all ON 2026-08-06"]
 explain = "FREE is somebody at camp with nothing to do. Somebody away for the day is an EXCLUDE, which comes later."
 wrong = ["REQUEST staff.vic FREE DURING ANY 1 blocks.all ON 2026-08-06"]
 
@@ -42,10 +42,10 @@ wrong = ["REQUEST staff.vic FREE DURING ANY 1 blocks.all ON 2026-08-06"]
 id = "free-not-free"
 title = "Keep them busy"
 prompt = "Every counselor should have something to do during clinic 1. Each counselor counts on their own."
-answer = "REQUEST EACH_OF staff.counselors NOT FREE DURING blocks.clinic_1"
+answer = "REQUEST EACH staff.counselors NOT FREE DURING blocks.clinic_1"
 priority = "HIGH"
 explain = "NOT FREE means something is assigned. It doesn't say what — anything will do."
-wrong = ["REQUEST EACH_OF staff.counselors FREE DURING blocks.clinic_1"]
+wrong = ["REQUEST EACH staff.counselors FREE DURING blocks.clinic_1"]
 
 [[problem]]
 id = "free-no-breaks-at-meals"
@@ -70,20 +70,20 @@ wrong = ["REQUEST staff.rob NOT DO ANY activities.clinics.ropes DURING ANY {bloc
 id = "free-each-director"
 title = "Directors at playstation"
 prompt = "Each director should be free during playstation, each counting on their own."
-answer = "REQUEST EACH_OF staff.directors FREE DURING blocks.playstation"
+answer = "REQUEST EACH staff.directors FREE DURING blocks.playstation"
 priority = "HIGH"
 wrong = [
-  "REQUEST ALL_OF staff.directors FREE DURING blocks.playstation",
-  "REQUEST EACH_OF staff.directors FREE DURING blocks.rest_hour",
+  "REQUEST ALL staff.directors FREE DURING blocks.playstation",
+  "REQUEST EACH staff.directors FREE DURING blocks.rest_hour",
 ]
 
 [[problem]]
 id = "free-none-of-them"
 title = "Nobody on felting"
 prompt = "None of the directors runs Felting today."
-answer = "REQUEST ALL_OF staff.directors NOT DO activities.clinics.felting"
-explain = "The subject of NOT still chooses. ALL_OF staff.directors NOT DO … is 'none of them does it'."
-alternatives = ["REQUEST ALL_OF {staff.david + staff.lisa + staff.matthew} NOT DO activities.clinics.felting"]
+answer = "REQUEST ALL staff.directors NOT DO activities.clinics.felting"
+explain = "The subject of NOT still chooses. ALL staff.directors NOT DO … is 'none of them does it'."
+alternatives = ["REQUEST ALL {staff.david + staff.lisa + staff.matthew} NOT DO activities.clinics.felting"]
 wrong = ["REQUEST ANY 1 staff.directors NOT DO activities.clinics.felting"]
 
 [[problem]]
@@ -92,13 +92,13 @@ title = "At least one stays off"
 prompt = "At least one of Rob and Vic stays off the canopy tour today."
 answer = "REQUEST ANY 1 {staff.rob + staff.vic} NOT DO activities.clinics.canopy_tour_dbl"
 explain = "ANY 1 on the left of NOT is 'one of them doesn't' — the solver picks who."
-wrong = ["REQUEST ALL_OF {staff.rob + staff.vic} NOT DO activities.clinics.canopy_tour_dbl"]
+wrong = ["REQUEST ALL {staff.rob + staff.vic} NOT DO activities.clinics.canopy_tour_dbl"]
 
 [[problem]]
 id = "free-two-blocks"
 title = "Free for the afternoon"
 prompt = "Kara is free during both clinic 3 and clinic 4."
-answer = "REQUEST staff.kara FREE DURING ALL_OF {blocks.clinic_3 + blocks.clinic_4}"
+answer = "REQUEST staff.kara FREE DURING ALL {blocks.clinic_3 + blocks.clinic_4}"
 wrong = ["REQUEST staff.kara FREE DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}"]
 
 [[problem]]
@@ -106,7 +106,7 @@ id = "free-any-clinic-block"
 title = "One free clinic"
 prompt = "Mogee gets one clinic block free today — any of the four."
 answer = "REQUEST staff.mogee FREE DURING ANY 1 blocks.all_clinics"
-wrong = ["REQUEST staff.mogee FREE DURING ALL_OF blocks.all_clinics"]
+wrong = ["REQUEST staff.mogee FREE DURING ALL blocks.all_clinics"]
 
 [[problem]]
 id = "free-not-archery"
@@ -119,29 +119,29 @@ wrong = ["REQUEST staff.tyson NOT DO activities.clinics.archery_1_2 DURING block
 id = "free-no-weapons-evening"
 title = "No weapons for counselors"
 prompt = "No counselor runs any weapons clinic on Wednesday. (One request per counselor.)"
-answer = "REQUEST EACH_OF staff.counselors NOT DO ANY activities.clinics.weapons ON 2026-08-05"
+answer = "REQUEST EACH staff.counselors NOT DO ANY activities.clinics.weapons ON 2026-08-05"
 priority = "HIGH"
-alternatives = ["REQUEST EACH_OF staff.counselors NOT DO ANY activities.clinics.weapons ON dates.session_6.week_1.wednesday"]
-wrong = ["REQUEST EACH_OF staff.counselors NOT DO ANY activities.clinics.weapons"]
+alternatives = ["REQUEST EACH staff.counselors NOT DO ANY activities.clinics.weapons ON dates.session_6.week_1.wednesday"]
+wrong = ["REQUEST EACH staff.counselors NOT DO ANY activities.clinics.weapons"]
 
 [[problem]]
 id = "free-not-free-evening"
 title = "Someone on duty"
 prompt = "Each village leader has something to do during the evening program."
-answer = "REQUEST EACH_OF staff.village_leaders NOT FREE DURING blocks.evening_program"
+answer = "REQUEST EACH staff.village_leaders NOT FREE DURING blocks.evening_program"
 priority = "HIGH"
-wrong = ["REQUEST EACH_OF staff.village_leaders NOT FREE DURING blocks.embers"]
+wrong = ["REQUEST EACH staff.village_leaders NOT FREE DURING blocks.embers"]
 
 [[problem]]
 id = "free-avoid-meal-breaks-each"
 title = "Avoid, one meal at a time"
 prompt = "The office staff (the directors) should avoid taking a 'break' at meals. Make it count once per person per meal, so two meal-breaks are twice as bad as one."
-answer = "REQUEST EACH_OF staff.directors NOT DO 'break' DURING EACH_OF blocks.meals"
+answer = "REQUEST EACH staff.directors NOT DO 'break' DURING EACH blocks.meals"
 priority = "HIGH"
 explain = "Splitting small is how Skedge says 'avoid': each meal-break misses exactly one of the nine small requests."
 wrong = [
-  "REQUEST EACH_OF staff.directors NOT DO 'break' DURING ANY blocks.meals",
-  "REQUEST ALL_OF staff.directors NOT DO 'break' DURING ANY blocks.meals",
+  "REQUEST EACH staff.directors NOT DO 'break' DURING ANY blocks.meals",
+  "REQUEST ALL staff.directors NOT DO 'break' DURING ANY blocks.meals",
 ]
 
 [[problem]]
@@ -150,7 +150,7 @@ title = "A quiet morning"
 prompt = "Lisa doesn't run any clinic during clinic 1 or clinic 2."
 answer = "REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING ANY {blocks.clinic_1 + blocks.clinic_2}"
 alternatives = ["REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING ANY {blocks.clinic_2 + blocks.clinic_1}"]
-wrong = ["REQUEST staff.lisa FREE DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}"]
+wrong = ["REQUEST staff.lisa FREE DURING ALL {blocks.clinic_1 + blocks.clinic_2}"]
 
 [[problem]]
 id = "free-free-vs-no-task"

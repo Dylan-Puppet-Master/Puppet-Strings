@@ -173,15 +173,20 @@ def _quantifier(item) -> tuple[str, int | None]:
     """The quantifier a token or an `ANY n` stands for.
 
     A keyword may be written in either case, so what the token says is upper-cased before
-    anything is compared with it: `each_of` and `EACH_OF` are the same quantifier.
+    anything is compared with it: `each` and `EACH` are the same quantifier.
     """
     if isinstance(item, _Any):
         return ast.ANY_OF, item.n
-    return str(item).upper(), None
+    word = str(item).upper()
+    if word == "ALL_OF":  # the old spellings, parsed only to say the new ones
+        raise _error(f"write ALL, not {item}", _token_pos(item))
+    if word == "EACH_OF":
+        raise _error(f"write EACH, not {item}", _token_pos(item))
+    return word, None
 
 
 def _is_quantifier(item) -> bool:
-    return isinstance(item, _Any) or any(_is(item, k) for k in ("ALL_OF", "EACH_OF", "ANY"))
+    return isinstance(item, _Any) or any(_is(item, k) for k in ("ALL", "EACH", "ANY"))
 
 
 def _duration(token: Token) -> int:
@@ -213,10 +218,10 @@ class _Builder(Transformer):
         return ast.Binding(selector, _pos(meta))
 
     def define(self, meta, items):
-        """`x: <set>` names a set; `x: ANY n <set>` and `x: EACH_OF <set>` bind x."""
+        """`x: <set>` names a set; `x: ANY n <set>` and `x: EACH <set>` bind x."""
         name, *quantifier, expr = items
         kind, n = _quantifier(quantifier[0]) if quantifier else (None, None)
-        if kind in (ast.ANY_OF, ast.EACH_OF):
+        if kind in (ast.ANY_OF, ast.EACH):
             selector = ast.Selector(_atom(expr), kind, n, str(name), _pos(meta))
             return ast.Binding(selector, _pos(meta))
         return ast.Definition(str(name), _atom(expr), _pos(meta))
@@ -480,7 +485,7 @@ def _check_pools(declaration: ast.Declaration) -> None:
     """Right of NOT, and in a pattern, a set is matched rather than chosen.
 
     So a set there takes ANY, which says so, rather than ANY n, and holds no `(ANY n …)`
-    group. Right of NOT a set may also take ALL_OF: what must not happen is all of them
+    group. Right of NOT a set may also take ALL: what must not happen is all of them
     together. A pattern matches one assignment at a time, which cannot be all of anything,
     so it may not. Who is alongside is the exception: WITH and WITHOUT count company, and
     say how many. Checked once the definitions are written in, so a group that arrives by a
@@ -510,7 +515,7 @@ def _check_negated(line: ast.Requirement) -> None:
             continue
         if selector.quantifier == ast.ANY_OF or ast.picks(selector.expr):
             raise _error(
-                "right of NOT a set takes ANY, for any of these, or ALL_OF, for all of "
+                "right of NOT a set takes ANY, for any of these, or ALL, for all of "
                 "them together, not ANY n",
                 selector.pos,
             )
@@ -538,14 +543,14 @@ def _check_pattern(pattern: ast.Pattern, counted: bool, after_do: bool) -> None:
         if isinstance(selector, ast.Selector) and ast.chooses(selector):
             raise _error(
                 "a pattern matches one assignment at a time, so a set in it takes ANY or "
-                "EACH_OF, not ALL_OF or ANY n",
+                "EACH, not ALL or ANY n",
                 selector.pos,
             )
 
 
 AFTER_DO = (
     "an amount after DO counts one person's assignments, so the subject is one person or "
-    "EACH_OF; to count a set of people together, put the amount in front: "
+    "EACH; to count a set of people together, put the amount in front: "
     "AT_MOST 2 ANY staff.all DO …"
 )
 

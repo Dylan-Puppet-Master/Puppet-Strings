@@ -105,8 +105,8 @@ person it needs. It is not a request, so nothing has to be imported and there is
 to press. Two requests ask for all of them:
 
 ```skedge
-REQUEST EACH_OF activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
-REQUEST EACH_OF activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
+REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
+REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
 ```
 
 The Blocks tab must therefore have a `cabin_act` row and a `rest_hour` row.
@@ -320,7 +320,7 @@ kinds:
 
 - A **numeric** mapping gives a number, such as how much each staff member enjoys each
   clinic. A request scores assignments with it using `MAXIMIZE` or `MINIMIZE`:
-  `PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE
+  `PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all MAXIMIZE
   mappings.preference(s, c)`.
 - Any other mapping gives a **name**, such as each counselor's buddy HERO, who covers their
   cabin at dinner. A request can put the call anywhere a name goes:
@@ -388,7 +388,7 @@ counselor to someone who isn't one.
 
 For a mapping that gives a name, the `default` is a Skedge phrase: what a call stands for
 when its key has no row. `ANY 1 {…}` lets the solver pick anyone from that set. A
-single name such as `staff.alan` also works, and so does `ALL_OF {…}`. A default of more
+single name such as `staff.alan` also works, and so does `ALL {…}`. A default of more
 than one name needs its quantifier. Leave the `default` blank and every counselor needs a
 row: a request that asks about one without a row is an error.
 
@@ -504,7 +504,7 @@ These tabs are overwritten on every publish:
     order and wrap round if a day ever has more clinic blocks, or Clinic_Data more
     categories, than the list has colours.
 - **Report**: unsatisfied and deferred requests, conflicts, and solver notes. One row per
-  request, not per `EACH_OF` copy: the `request` column is the request's own id, and where only some copies of a request went wrong, they are listed after the
+  request, not per `EACH` copy: the `request` column is the request's own id, and where only some copies of a request went wrong, they are listed after the
   description — `no break at lunch (2026-09-18)`.
 - **Changes**: what a same-day re-solve moved, written only when the day was already
   published. See [Same-day changes](same-day.md).

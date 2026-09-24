@@ -48,8 +48,8 @@ KEYWORD_WORDS = (
     "WITH",
     "WITHOUT",
     "IN",
-    "ALL_OF",
-    "EACH_OF",
+    "ALL",
+    "EACH",
     "ANY",
     "AT_LEAST",
     "AT_MOST",
@@ -402,7 +402,7 @@ class RequestEditor(QWidget):
         except SkedgeError as e:
             return self._report(str(e), ok=False)
         keys = {c.key for c in copies if c.key}
-        return self._report(f"Valid ({len(keys)} EACH_OF copies)" if keys else "Valid", ok=True)
+        return self._report(f"Valid ({len(keys)} EACH copies)" if keys else "Valid", ok=True)
 
     def insert_name(self, text: str) -> None:
         """Insert a name at the cursor (from the names panel)."""

@@ -73,7 +73,7 @@ def find_errors(
 
 
 def _distinct(found: list[Problem]) -> list[Problem]:
-    """Each problem once, in date order. `EACH_OF` makes the same copy again and again."""
+    """Each problem once, in date order. `EACH` makes the same copy again and again."""
     seen = dict.fromkeys(found)
     return sorted(seen, key=lambda p: (p.day or date.min, p.staff or "", p.request))
 

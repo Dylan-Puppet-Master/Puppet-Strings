@@ -17,7 +17,7 @@ def test_generated_requests_cover_every_offering(dataset):
     assert double.id == "offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1"
     assert double.skedge == (
         "REQUEST activities.clinics.pole_course_explore_level_1_2_dbl "
-        "DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2} ON 2026-09-16"
+        "DURING ALL {blocks.clinic_1 + blocks.clinic_2} ON 2026-09-16"
     )
     assert double.priority is Priority.CLINIC and double.tags == ("clinic_import",)
     assert double.created == date(2026, 9, 16)

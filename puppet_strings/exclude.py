@@ -1,6 +1,6 @@
 """Take the people an EXCLUDE names out of the days it names.
 
-    EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all ON 2026-08-26
+    EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all ON 2026-08-26
 
 Dylan is not at camp that day. Nothing may be assigned to him in those blocks, nothing is
 asked of him there, and the schedule says `offsite` where his assignments would have been.

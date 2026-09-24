@@ -124,7 +124,7 @@ def _forbid_claims(statement: Forbid, request: Request, dataset: Dataset):
         return
     parts = (pattern.what, pattern.during, pattern.on, pattern.role)
     if any(isinstance(p, Choice) and p.kind == ALL and len(p.items) > 1 for p in parts):
-        return  # NOT … ALL_OF forbids them together, so no one slot on its own
+        return  # NOT … ALL forbids them together, so no one slot on its own
     if pattern.busy:  # REQUEST … NOT FREE: something must happen here
         claim = Claim(request.id, BUSY)
     else:

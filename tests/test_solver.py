@@ -35,7 +35,7 @@ ZIP = clinic(
 CRAFT = clinic("Craft Fairy", (None, 1), (None, 1))
 SOLO = clinic("Candle Making", (None, 1))
 
-DAY_OFF = "REQUEST staff.dylan FREE DURING ALL_OF blocks.all"
+DAY_OFF = "REQUEST staff.dylan FREE DURING ALL blocks.all"
 PIN = "REQUEST staff.{who} DO activities.clinics.{what} AS_ROLE roles.{role} DURING blocks.{block}"
 
 
@@ -54,7 +54,7 @@ def ids(outcomes):
 def requests_of(outcomes):
     """The requests behind the outcomes, once each.
 
-    A generated clinic request asks for each position separately (`AS_ROLE EACH_OF`), so
+    A generated clinic request asks for each position separately (`AS_ROLE EACH`), so
     an unstaffable clinic is reported once per position, as `<id>[first]`, `<id>[second]`.
     These tests are about which clinic could not be staffed, not about how many positions
     it has.
@@ -182,7 +182,7 @@ def test_a_clinic_runs_only_where_a_request_names_it():
             ),
             request(
                 "wish",
-                "PREFER AT_LEAST 3 staff.dylan DO activities.clinics.archery_1_2 DURING EACH_OF blocks.all",
+                "PREFER AT_LEAST 3 staff.dylan DO activities.clinics.archery_1_2 DURING EACH blocks.all",
             ),
         ],
     )
@@ -284,7 +284,7 @@ def test_trainees_are_additional_and_scaffolds_need_a_trainer():
 # -- quoted tasks, FOR and GAP ---------------------------------------------------------------
 
 COUNSELOR_HOURS = (
-    "EACH_OF c IN staff.counselor\n"
+    "EACH c IN staff.counselor\n"
     "morning:   REQUEST c DO 'counselor hour' FOR 1h DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}\n"
     "afternoon: REQUEST c DO 'counselor hour' FOR 1h DURING ANY 1 {blocks.clinic_3 + blocks.clinic_4}\n"
     "GAP morning TO afternoon AT_MOST 5h"
@@ -389,7 +389,7 @@ def test_a_bound_name_can_be_added_into_a_set():
     """ "Charlton needs to do something with either Dylan or Donny" is one request."""
     text = (
         "ANY 1 videographer IN {staff.dylan + staff.donny}\n"
-        "REQUEST ALL_OF {staff.charlton + videographer}\n"
+        "REQUEST ALL {staff.charlton + videographer}\n"
         "DO 'Video KM Rope Swing' FOR 30m DURING blocks.clinic_1"
     )
     ds = dataset(
@@ -408,7 +408,7 @@ def test_a_bound_name_added_into_a_set_is_the_same_person_throughout():
     """The binding is one choice for the whole request, wherever the name turns up."""
     text = (
         "ANY 1 videographer IN {staff.dylan + staff.donny}\n"
-        "morning: REQUEST ALL_OF {staff.charlton + videographer}\n"
+        "morning: REQUEST ALL {staff.charlton + videographer}\n"
         "  DO 'film' FOR 30m DURING blocks.clinic_1\n"
         "after: REQUEST videographer DO 'edit' FOR 30m DURING blocks.clinic_3"
     )
@@ -426,7 +426,7 @@ def test_a_bound_name_added_into_a_set_is_the_same_person_throughout():
 def test_a_group_chosen_in_place_is_the_same_as_a_binding_line():
     """`(ANY 1 …)` added into a set brings one of its members, as a bound name would."""
     text = (
-        "REQUEST ALL_OF {staff.charlton + (ANY 1 {staff.dylan + staff.donny})}\n"
+        "REQUEST ALL {staff.charlton + (ANY 1 {staff.dylan + staff.donny})}\n"
         "DO 'Video KM Rope Swing' FOR 30m DURING blocks.clinic_1"
     )
     ds = dataset(
@@ -443,9 +443,9 @@ def test_a_group_chosen_in_place_is_the_same_as_a_binding_line():
 
 @pytest.mark.parametrize("dylan_is_away", [False, True])
 def test_a_group_inside_any_is_chosen_as_one(dylan_is_away):
-    """`ANY 1 {x + (ALL_OF {y + z})}` is x alone, or else y and z together."""
+    """`ANY 1 {x + (ALL {y + z})}` is x alone, or else y and z together."""
     text = (
-        "REQUEST ANY 1 {staff.dylan + (ALL_OF {staff.donny + staff.vic})}\n"
+        "REQUEST ANY 1 {staff.dylan + (ALL {staff.donny + staff.vic})}\n"
         "DO 'garbage' FOR 30m DURING blocks.clinic_1"
     )
     requests = [request("garbage", text, Priority.MUST_HAPPEN)]
@@ -460,7 +460,7 @@ def test_a_group_inside_any_is_chosen_as_one(dylan_is_away):
 
 def test_each_of_a_group_is_one_request_for_the_group():
     text = (
-        "REQUEST EACH_OF {staff.dylan + (ALL_OF {staff.donny + staff.vic})}\n"
+        "REQUEST EACH {staff.dylan + (ALL {staff.donny + staff.vic})}\n"
         "DO 'meeting' FOR 30m DURING ANY 1 {blocks.clinic_1 + blocks.clinic_3}"
     )
     ds = dataset([staff("Dylan"), staff("Donny"), staff("Vic")], [], requests=[request("m", text)])
@@ -511,7 +511,7 @@ def test_a_partial_task_blocks_a_clinic_in_the_same_block():
 
 
 def test_three_breaks_in_three_distinct_blocks():
-    text = "REQUEST EACH_OF {staff.all - staff.director} DO 'break' FOR 30m DURING ANY 3 blocks.all"
+    text = "REQUEST EACH {staff.all - staff.director} DO 'break' FOR 30m DURING ANY 3 blocks.all"
     ds = dataset(
         [staff("Sarah"), staff("David")],
         [],
@@ -564,7 +564,7 @@ def blocks_with_meals(count):
 
 THREE_BREAKS = request(
     "breaks",
-    "REQUEST EACH_OF staff.all DO 'break' FOR 30m DURING ANY 3 blocks.all",
+    "REQUEST EACH staff.all DO 'break' FOR 30m DURING ANY 3 blocks.all",
     Priority.MUST_HAPPEN,
 )
 
@@ -573,7 +573,7 @@ THREE_BREAKS = request(
 def test_avoid_is_one_small_request_per_person_and_block(meals):
     avoid = request(
         "at-meals",
-        "REQUEST EACH_OF staff.all NOT DO 'break' DURING EACH_OF {blocks.all - blocks.meals}",
+        "REQUEST EACH staff.all NOT DO 'break' DURING EACH {blocks.all - blocks.meals}",
         Priority.HIGH,
         2,
     )
@@ -636,7 +636,7 @@ def test_free_requests_outrank_a_lower_tier_task():
         requests=[
             request(
                 "playstation",
-                "REQUEST EACH_OF staff.all FREE DURING blocks.playstation",
+                "REQUEST EACH staff.all FREE DURING blocks.playstation",
                 Priority.HIGH,
             ),
             request(
@@ -699,8 +699,8 @@ def test_weights_trade_within_a_tier():
 
 # -- amounts, mappings and past dates --------------------------------------------------------
 
-PREFERENCE = "PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)"
-VARIETY = "PREFER AT_MOST 1 EACH_OF staff.all DO EACH_OF activities.clinics.all ON ANY {(dates.target - 6d) .. dates.target}"
+PREFERENCE = "PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)"
+VARIETY = "PREFER AT_MOST 1 EACH staff.all DO EACH activities.clinics.all ON ANY {(dates.target - 6d) .. dates.target}"
 
 
 @pytest.mark.parametrize(
@@ -823,12 +823,12 @@ def test_a_count_request_is_met_or_not():
     offerings = [("Archery 1 & 2", ["clinic_1"]), ("Candle Making", ["clinic_3"])]
     cap = request(
         "cap",
-        "REQUEST AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all",
+        "REQUEST AT_MOST 1 EACH staff.all DO ANY activities.clinics.all",
         Priority.MUST_HAPPEN,
     )
     both = request(
         "both",
-        "REQUEST staff.dylan DO ANY 1 activities.clinics.all DURING ALL_OF {blocks.clinic_1 + blocks.clinic_3}",
+        "REQUEST staff.dylan DO ANY 1 activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_3}",
     )
     ds = dataset(members, [ARCHERY, CANDLE], offerings=offerings, requests=[cap, both])
     result = run(ds)
@@ -870,9 +870,7 @@ def test_a_duration_amount_sums_lengths_and_past_dates_count():
         published=published(yesterday, ("James", "'dance practice'", None, "clinic_1", 75)),
         requests=[
             request("dance", text, Priority.MUST_HAPPEN),
-            request(
-                "free", "REQUEST EACH_OF staff.all FREE DURING EACH_OF blocks.all", Priority.HIGH
-            ),
+            request("free", "REQUEST EACH staff.all FREE DURING EACH blocks.all", Priority.HIGH),
         ],
     )
     (today,) = where(run(ds), activity="dance practice")
@@ -892,9 +890,7 @@ def test_consecutive_needs_adjacent_blocks():
                 text.format(blocks="blocks.clinic_2 + blocks.lunch + blocks.clinic_3"),
                 Priority.MUST_HAPPEN,
             ),
-            request(
-                "free", "REQUEST EACH_OF staff.all FREE DURING EACH_OF blocks.all", Priority.HIGH
-            ),
+            request("free", "REQUEST EACH staff.all FREE DURING EACH blocks.all", Priority.HIGH),
         ],
     )
     rows = sorted(where(run(adjacent), activity="training"), key=lambda a: a.start)
@@ -912,10 +908,12 @@ def test_consecutive_needs_adjacent_blocks():
 
 def test_any_n_of_blocks_consecutive_chooses_blocks_next_to_each_other():
     """Clinic 2 and 3 are the two James is free to give, but lunch sits between them."""
-    text = "REQUEST ALL_OF {{staff.james + staff.lucy}} DO 'training' DURING ANY 2 {}blocks.all_clinics"
+    text = (
+        "REQUEST ALL {{staff.james + staff.lucy}} DO 'training' DURING ANY 2 {}blocks.all_clinics"
+    )
     keep_free = request(
         "free",
-        "REQUEST staff.james FREE DURING EACH_OF {blocks.clinic_1 + blocks.clinic_4}",
+        "REQUEST staff.james FREE DURING EACH {blocks.clinic_1 + blocks.clinic_4}",
         Priority.HIGH,
     )
     members = [staff("James"), staff("Lucy")]
@@ -958,12 +956,12 @@ def test_at_most_consecutive_breaks_up_a_run():
         requests=[
             request(
                 "dylan",
-                "REQUEST staff.dylan DO ANY 1 activities.clinics.all DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}",
+                "REQUEST staff.dylan DO ANY 1 activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_2}",
                 Priority.MEDIUM,
             ),
             request(
                 "row",
-                "REQUEST AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all",
+                "REQUEST AT_MOST 1 EACH staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all",
                 Priority.HIGH,
             ),
         ],
@@ -985,12 +983,12 @@ def test_prefer_at_most_consecutive_weighs_a_run():
         requests=[
             request(
                 "dylan",
-                "REQUEST staff.dylan DO ANY 1 activities.clinics.all DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}",
+                "REQUEST staff.dylan DO ANY 1 activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_2}",
                 Priority.MEDIUM,
             ),
             request(
                 "row",
-                "PREFER AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all",
+                "PREFER AT_MOST 1 EACH staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all",
                 Priority.HIGH,
             ),
         ],
@@ -1043,7 +1041,7 @@ def test_at_most_consecutive_caps_a_run_of_three_adjacent_blocks():
     offerings = [(f"C{i}", [f"clinic_{i + 1}"]) for i in range(3)]
     cap = request(
         "row",
-        "REQUEST AT_MOST 2 EACH_OF staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all",
+        "REQUEST AT_MOST 2 EACH staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all",
         Priority.MUST_HAPPEN,
     )
     blocks = blocks_with_meals(0)
@@ -1059,7 +1057,7 @@ def test_at_most_consecutive_caps_a_run_of_three_adjacent_blocks():
     assert len(where(run(without_cap), staff="dylan")) == 3
     loose = request(
         "row",
-        "REQUEST AT_MOST 3 EACH_OF staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all",
+        "REQUEST AT_MOST 3 EACH staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all",
         Priority.MUST_HAPPEN,
     )
     only_dylan = [staff("Dylan", archery_1_2=OK)]
@@ -1081,12 +1079,12 @@ def test_prefer_at_most_pays_per_assignment_over_the_amount():
         requests=[
             request(
                 "balance",
-                "PREFER AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all",
+                "PREFER AT_MOST 1 EACH staff.all DO ANY activities.clinics.all",
                 Priority.MEDIUM,
             ),
             request(
                 "dylan",
-                "REQUEST staff.dylan DO activities.clinics.archery_1_2 DURING ALL_OF {blocks.clinic_1 + blocks.clinic_3}",
+                "REQUEST staff.dylan DO activities.clinics.archery_1_2 DURING ALL {blocks.clinic_1 + blocks.clinic_3}",
                 Priority.MEDIUM,
                 3,
             ),
@@ -1102,7 +1100,7 @@ def test_prefer_at_most_pays_per_assignment_over_the_amount():
 
 def test_not_do_with_keeps_two_staff_off_the_same_clinic():
     members = [staff("James"), staff("Paul"), staff("Sarah")]
-    feud = "REQUEST staff.james NOT DO ANY activities.clinics.all WITH staff.paul DURING EACH_OF blocks.all"
+    feud = "REQUEST staff.james NOT DO ANY activities.clinics.all WITH staff.paul DURING EACH blocks.all"
     ds = dataset(
         members,
         [CRAFT],
@@ -1205,7 +1203,7 @@ def test_not_do_without_means_only_together():
         ("ANY 1", ["sarah"], True),
         ("ANY 2", ["sarah"], False),
         ("ANY 2", ["sarah", "vic"], True),
-        ("ALL_OF", ["sarah", "vic"], False),
+        ("ALL", ["sarah", "vic"], False),
     ],
 )
 def test_without_counts_how_many_of_the_set_are_there(company, partners, done):
@@ -1255,7 +1253,7 @@ def test_with_on_a_quoted_task_means_the_same_start():
 def test_if_reads_a_published_fact():
     yesterday = TARGET - timedelta(days=1)
     text = (
-        "EACH_OF s IN staff.all\n"
+        "EACH s IN staff.all\n"
         "IF s NOT FREE DURING blocks.playstation ON {dates.target - 1d}\n"
         "REQUEST s FREE DURING blocks.clinic_1"
     )
@@ -1302,7 +1300,7 @@ def test_unless_applies_only_when_the_pattern_has_no_match():
 
 def test_if_with_an_amount_over_a_run():
     text = (
-        "EACH_OF s IN staff.all\n"
+        "EACH s IN staff.all\n"
         "IF AT_LEAST 2 s DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all\n"
         "REQUEST s FREE DURING blocks.clinic_3"
     )
@@ -1357,7 +1355,7 @@ def test_and_or_join_conditions():
 
 MAINTENANCE = "REQUEST staff.dylan DO 'archery maintenance' DURING ANY 1 blocks.all ON ANY 1 {2026-09-16 .. 2026-09-17}"
 KEEP_FREE = request(
-    "free", "REQUEST EACH_OF staff.all FREE DURING EACH_OF blocks.all", Priority.HIGH, 0.5
+    "free", "REQUEST EACH staff.all FREE DURING EACH blocks.all", Priority.HIGH, 0.5
 )
 
 
@@ -1411,8 +1409,8 @@ def test_a_deferrable_amount_stays_reachable():
 
 # -- EXCLUDE ---------------------------------------------------------------------------------
 
-OFFSITE = "EXCLUDE staff.dylan DO 'offsite' DURING ALL_OF blocks.all"
-BREAKS = "REQUEST EACH_OF staff.all DO 'break' FOR 30m DURING ANY 1 blocks.all"
+OFFSITE = "EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all"
+BREAKS = "REQUEST EACH staff.all DO 'break' FOR 30m DURING ANY 1 blocks.all"
 
 
 def with_breaks(*exclusions):
@@ -1457,7 +1455,7 @@ def test_nothing_may_be_put_in_a_block_somebody_is_excluded_from():
 
 def test_a_morning_off_still_owes_them_their_afternoon_break():
     """Somebody back after lunch is at camp, so the day's MUST_HAPPEN rules still reach them."""
-    morning = "EXCLUDE staff.dylan DO 'dentist' DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}"
+    morning = "EXCLUDE staff.dylan DO 'dentist' DURING ALL {blocks.clinic_1 + blocks.clinic_2}"
     result = run(with_breaks(morning))
     assert result.feasible
     (dylan,) = where(result, staff="dylan", activity="break")
@@ -1481,7 +1479,7 @@ def test_past_and_future_requests_are_inactive():
             ),
             request("future", "REQUEST staff.dylan NOT DO 'x' ON {dates.target + 1d}"),
             request(
-                "empty", "REQUEST EACH_OF {staff.all - staff.dylan} DO 'x' DURING blocks.clinic_1"
+                "empty", "REQUEST EACH {staff.all - staff.dylan} DO 'x' DURING blocks.clinic_1"
             ),
             request("today", "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"),
         ],
@@ -1493,7 +1491,7 @@ def test_past_and_future_requests_are_inactive():
 
 def test_all_of_dates_are_enforced_every_day():
     yesterday = TARGET - timedelta(days=1)
-    text = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL_OF {(dates.target - 1d) .. dates.target}"
+    text = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL {(dates.target - 1d) .. dates.target}"
     done = dataset(
         [staff("Dylan")],
         [],
@@ -1612,7 +1610,7 @@ def test_each_of_still_expands_the_whole_block():
         requests=[
             request(
                 "each-one",
-                "EACH_OF s IN staff.all\n"
+                "EACH s IN staff.all\n"
                 "REQUEST s DO activities.clinics.candle_making DURING ANY 1 blocks.all_clinics\n"
                 "PREFER AT_MOST 1 s DO activities.clinics.candle_making",
                 Priority.MEDIUM,
@@ -1683,10 +1681,10 @@ def test_a_target_session_request_is_skipped_on_a_date_in_no_session(dataset):
 
 
 def test_not_all_of_forbids_them_together_and_allows_either():
-    """`NOT DO … DURING ALL_OF {a + b}` is not both; either one on its own is fine."""
+    """`NOT DO … DURING ALL {a + b}` is not both; either one on its own is fine."""
     forbid = request(
         "not-both",
-        "REQUEST staff.lisa NOT DO 'desk' DURING ALL_OF {blocks.clinic_1 + blocks.clinic_2}",
+        "REQUEST staff.lisa NOT DO 'desk' DURING ALL {blocks.clinic_1 + blocks.clinic_2}",
         Priority.MUST_HAPPEN,
     )
 

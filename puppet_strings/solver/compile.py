@@ -241,7 +241,7 @@ class Compiler:
         """The literal a copy's satisfaction already is, when the model holds one.
 
         A copy that does nothing but imply a single literal is met exactly when that
-        literal is true, which is most of what `EACH_OF` splits a declaration into. Scoring
+        literal is true, which is most of what `EACH` splits a declaration into. Scoring
         that literal rather than a fresh boolean standing behind an implication lets the
         solver weigh the request against the assignments it is really about; the boolean is
         then unused and presolve drops it, along with the implication.
@@ -529,10 +529,10 @@ class Compiler:
             )
 
     def _forbid_together(self, st: Forbid, who: dict, active, name: str) -> None:
-        """`NOT DO … DURING ALL_OF {…}`: not every one of them together; any on its own is fine.
+        """`NOT DO … DURING ALL {…}`: not every one of them together; any on its own is fine.
 
         What must not happen is the positive request the words to the right of NOT make: for
-        every combination of the ALL_OF items, an assignment matching it, where a part taken
+        every combination of the ALL items, an assignment matching it, where a part taken
         ANY is matched by any of its items. A combination nothing could ever match means
         the whole cannot happen, so nothing is forbidden. The past counts, since yesterday's
         half of "not on both days" is already settled.
@@ -1186,7 +1186,7 @@ def _is_negated(literal) -> bool:
 
 
 def _together(pattern: Pattern) -> list[tuple[str, tuple]]:
-    """The parts of a NOT's pattern written ALL_OF, as the Match field each one fills."""
+    """The parts of a NOT's pattern written ALL, as the Match field each one fills."""
     parts = (("activity", pattern.what), ("block", pattern.during), ("date", pattern.on))
     parts += (("role", pattern.role),)
     return [

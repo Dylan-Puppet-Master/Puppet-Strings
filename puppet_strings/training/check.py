@@ -1,7 +1,7 @@
 """Whether an answer to a training problem asks for the same thing as the problem's own.
 
 There is more than one way to write most requests — a category or its members named one by
-one, a binding line or an `EACH_OF` in place, `ON dates.target` or no `ON` at all — so an
+one, a binding line or an `EACH` in place, `ON dates.target` or no `ON` at all — so an
 answer is never compared with the expected text. It is compared by what it does.
 
 1. **Shape.** Both are resolved against the session's data, which is what turns every
@@ -20,7 +20,7 @@ answer is never compared with the expected text. It is compared by what it does.
    A few things the samples cannot see are checked directly: whether one is a `PREFER` and
    the other a `REQUEST`, what a `PREFER … MAXIMIZE` scores and what an `EXCLUDE` takes out
    of the day, which dates each is about, and — below `MUST_HAPPEN`, where each copy is
-   weighed on its own — how many separate requests `EACH_OF` splits each into.
+   weighed on its own — how many separate requests `EACH` splits each into.
 
 Sampling can miss a difference that only a rare day shows, so "the same" here means that no
 day the solver could find told them apart. Every problem's answer and alternatives are run
@@ -220,9 +220,9 @@ def _shape_difference(
     if not priority.hard and len(answer) != len(expected):
         return (
             f"It splits into {_copies(len(answer))}, and this one needs "
-            f"{_copies(len(expected))}. Below MUST_HAPPEN, each EACH_OF copy is met or missed "
+            f"{_copies(len(expected))}. Below MUST_HAPPEN, each EACH copy is met or missed "
             "on its own, so how a request is split changes what it asks for — look again at "
-            "whether each item should count separately (EACH_OF) or all together (ALL_OF)."
+            "whether each item should count separately (EACH) or all together (ALL)."
         )
     return None
 
@@ -386,7 +386,7 @@ def _tell_apart(dataset: Dataset, answer, expected, priority: Priority, rng: ran
 def _meetable(dataset: Dataset, copies, universe, rng) -> tuple[Resolved, ...]:
     """The copies, or when they cannot all be met today, as many as can be met together.
 
-    Below MUST_HAPPEN a request split with EACH_OF is met a copy at a time, and one copy
+    Below MUST_HAPPEN a request split with EACH is met a copy at a time, and one copy
     nobody can staff — a cabin act asking for a skill nobody here has — leaves the rest
     still worth meeting. Held all at once, it would make every day look the same.
     """

@@ -303,7 +303,7 @@ def report(result: Result) -> Table:
     Inactive requests are left out: a request about other dates doing nothing today is
     what it should be doing, and a row for each of them buried the ones that matter.
 
-    One row per request, not per copy. `EACH_OF` splits a request into a copy per date,
+    One row per request, not per copy. `EACH` splits a request into a copy per date,
     per block or per clinic position, and a clinic nobody can staff fails every one of its
     positions at once; three rows saying the same thing bury the rest of the report. The
     `request` column names the request by its own id, so it can be looked up, and the keys
@@ -359,7 +359,7 @@ def _per_request_id(ids: tuple[str, ...]) -> list[tuple[str, list[str]]]:
 def _split(copy_id: str) -> tuple[str, str]:
     """A copy's id as the request it came from and the key of the copy, if it has one.
 
-    A copy is named `<request id>[<key>]`, and a key is the `EACH_OF` items that made it,
+    A copy is named `<request id>[<key>]`, and a key is the `EACH` items that made it,
     which can itself hold a comma: `weekly[2026-09-18, clinic_1]`.
     """
     if not copy_id.endswith("]") or "[" not in copy_id:
