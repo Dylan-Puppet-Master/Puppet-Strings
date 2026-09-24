@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.5", "mkdocs-material>=9.5", "pyinstaller>=6.10"]
+dev = ["pytest>=8", "pytest-xdist>=3.6", "ruff>=0.5", "mkdocs-material>=9.5", "pyinstaller>=6.10"]
 
 [project.scripts]
 puppet-strings = "puppet_strings.cli:main"
@@ -46,3 +46,5 @@ ignore = ["D100", "D104", "D105", "D107", "D203", "D213", "D401"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = '-n 4 --dist loadgroup -m "not training"'
+markers = ["training: the trainer's problems run through the checker (slow; pytest -m training)"]

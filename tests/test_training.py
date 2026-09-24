@@ -3,6 +3,9 @@
 Every problem is held to three things: its answer is valid Skedge that some day of the
 session can meet, every alternative it lists is marked right, and every near miss it lists
 is marked wrong. That is as much a test of the checker as of the problems.
+
+Those three take a couple of minutes, so they are marked `training` and left out of a plain
+`pytest`. Run them with `pytest -m training` after changing Skedge, the solver or the trainer.
 """
 
 import random
@@ -21,6 +24,11 @@ LEVELS = load_levels()
 PROBLEMS = [p for level in LEVELS for p in level.problems]
 TUESDAY = date(2026, 8, 4)
 
+# Each check's samples have a fixed wall-clock budget and use most of the cores. Two checks
+# side by side would each get less done in it, and a near miss could pass, so under xdist
+# these all run in turn on one worker while the rest of the suite shares the others.
+pytestmark = pytest.mark.xdist_group("training")
+
 
 def test_there_are_hundreds_of_problems_with_unique_ids():
     assert len(PROBLEMS) >= 200
@@ -34,6 +42,7 @@ def test_every_problem_is_on_a_day_of_the_session():
     assert all(p.day in span.dates for p in PROBLEMS)
 
 
+@pytest.mark.training
 @pytest.mark.parametrize("problem", PROBLEMS, ids=lambda p: p.id)
 def test_the_answer_is_valid_and_can_be_met(problem):
     ds = dataset(problem.day)
@@ -50,6 +59,7 @@ def test_the_answer_is_valid_and_can_be_met(problem):
     assert check._sample(built, solver) is not None
 
 
+@pytest.mark.training
 @pytest.mark.parametrize(
     ("problem", "text"),
     [(p, a) for p in PROBLEMS for a in p.alternatives],
@@ -60,6 +70,7 @@ def test_every_alternative_is_marked_right(problem, text):
     assert verdict.correct, f"{verdict.headline}: {verdict.detail}"
 
 
+@pytest.mark.training
 @pytest.mark.parametrize(
     ("problem", "text"),
     [(p, w) for p in PROBLEMS for w in p.wrong],
