@@ -51,7 +51,7 @@ Skedge has two statements and two ways of talking about assignments.
 | Element | Form |
 |---|---|
 | Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `AND`, `OR`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL_OF`, `ANY`, `EACH_OF`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
-| Quantifier | `ALL_OF`, `EACH_OF`, and `ANY n` for any whole `n` from 1: `ANY 1`, `ANY 3` |
+| Quantifier | `ALL_OF`, `EACH_OF`, `ANY n` for any whole `n` from 1 (`ANY 1`, `ANY 3`), and `ANY` with no number |
 | Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session_four.week_two.monday` |
 | Variable, label | A bare identifier: `s`, `morning`. A label or a definition is followed by a colon. |
 | Quoted task | Single quotes, any text but a quote: `'archery maintenance'` |
@@ -143,7 +143,8 @@ for_        : _FOR DURATION
 with_       : _WITH chooser
 without     : _WITHOUT chooser
 
-chooser     : (ALL_OF | any_n)? set_
+// ANY with no number matches rather than chooses: right of NOT, and in a pattern.
+chooser     : (ALL_OF | any_n | ANY)? set_
             | EACH_OF set_
             | EACH_OF NAME _IN set_
 any_n       : ANY INT
@@ -328,7 +329,8 @@ just `s`; `(ANY n s)` may not, since what it holds is not known until the solver
 
 ### 6.2 Quantifiers in a requirement
 
-In a requirement every set must carry a quantifier. An item takes none.
+In a requirement every set must carry a quantifier. An item takes none. `ANY` with no
+number matches rather than chooses (§6.3), so it is an error here.
 
 | Quantifier | Meaning |
 |---|---|
@@ -364,9 +366,14 @@ the same run of blocks. It takes `ANY n` with `n` of 2 or more, and cannot hold 
 ### 6.3 Sets in a pattern
 
 In a pattern a set is a **pool**: the pattern matches an assignment whose field is any
-member. The only quantifier a pattern takes is `EACH_OF`, which splits the declaration
-exactly as above. `ALL_OF`, `ANY n` and a `(ANY n …)` group are errors in a pattern, except
-after `WITH` and `WITHOUT`, which count company rather than choose it (§8).
+member. A pool says so with `ANY`, with no number: `ANY staff.counselor`. A set with no
+quantifier is an error in a pattern, as in a requirement; an item still takes none, and
+whether a name is an item is a question about the name, not the day, so a cabin's act all
+season, `activities.cabin_acts.p4`, takes `ANY` even on a day it comes to one act.
+
+`EACH_OF` splits the declaration exactly as above. `ALL_OF`, `ANY n` and a `(ANY n …)`
+group are errors in a pattern, except after `WITH` and `WITHOUT`, which count company
+rather than choose it (§8), and take `ALL_OF` or `ANY n` but not `ANY`.
 
 ### 6.4 Variables
 
@@ -409,9 +416,9 @@ do is `FREE`, and something to do is `NOT FREE`.
 `DURING` is required in the positive forms. A missing `ON` is `ON dates.target`, everywhere
 in the language; it is the only default.
 
-Everything to the right of `NOT` is a pattern (§8): sets there are pools, `DURING` may be
-left out to mean every block, and only `EACH_OF` may quantify, apart from `WITH` and
-`WITHOUT` (§8). The subject to the left of
+Everything to the right of `NOT` is a pattern (§8): sets there are pools and take `ANY`,
+`DURING` may be left out to mean every block, and `EACH_OF` splits as anywhere, apart from
+`WITH` and `WITHOUT` (§8). The subject to the left of
 `NOT` still chooses, so `ANY 1 {staff.lucy + staff.tom} NOT DO 'break'` is "one of them
 takes no break" and `ALL_OF {…} NOT DO` is "none of them does".
 
@@ -684,16 +691,18 @@ after the amount`. The parser, the validator and the solver report:
 | `a declaration needs at least one statement` | Only bindings, definitions, conditions or `GAP` lines. |
 | `write ANY` | The old spelling `ANY_1_OF`; the message gives the new one, `ANY 1`. |
 | `ANY needs a number of 1 or more` | `ANY 0`. |
-| `a set here is matched, not chosen, so it takes no ALL_OF or ANY n` | `ALL_OF`, `ANY n` or an `(ANY n …)` group inside a pattern or to the right of `NOT`, other than after `WITH` or `WITHOUT`. |
+| `a set here is matched, not chosen, so it takes ANY or EACH_OF` | `ALL_OF`, `ANY n` or an `(ANY n …)` group inside a pattern or to the right of `NOT`, other than after `WITH` or `WITHOUT`. |
+| `a set here is matched, so it takes ANY` | A set with no quantifier in a pattern or to the right of `NOT`. |
+| `ANY with no number matches rather than chooses` | `ANY` in a requirement, a subject left of `NOT`, or an `EXCLUDE`. |
 | `is defined twice` | Two definitions of one name, or a definition sharing its name with a variable or label. |
 | `is defined in terms of itself` | `a: {staff.x + b}` and `b: {staff.y + a}`. |
 | `names one item at a time, and` | `EACH_OF x IN` a set holding a group. |
 | `CONSECUTIVE chooses blocks one at a time, so no groups` | A group in `DURING ANY n … CONSECUTIVE`. |
 | `right of NOT there are no blocks to choose, so no CONSECUTIVE` | `NOT DO … DURING … CONSECUTIVE`; the message gives the amount that limits a run instead. |
 | `needs a quantifier: ALL_OF, ANY n or EACH_OF` | A set with no quantifier in a requirement. |
-| `is one item and takes no quantifier` | `ANY 1 staff.rob`. |
+| `is one item and takes no quantifier` | `ANY 1 staff.rob`, or `ANY staff.rob` in a pattern. |
 | `needs a quantifier: ALL_OF or ANY n` | `WITH` or `WITHOUT` a set of several, with no quantifier. |
-| `takes ALL_OF or ANY n, not EACH_OF` | `WITH EACH_OF staff.mfgs`; likewise `WITHOUT`. |
+| `counts who is alongside, so it takes ALL_OF or ANY n` | `WITH EACH_OF staff.mfgs` or `WITH ANY staff.mfgs`; likewise `WITHOUT`. |
 | `one activity at a time` | `ALL_OF`, `ANY 2` or a group on a requirement's activity or `AS_ROLE`. |
 | `needs DURING` | A positive requirement with no `DURING`. |
 | `CONSECUTIVE after DURING chooses blocks next to each other` | `CONSECUTIVE` after `DURING` a single block, `ALL_OF`, `EACH_OF` or `ANY 1`. |

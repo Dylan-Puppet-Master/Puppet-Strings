@@ -71,7 +71,7 @@ def test_being_asked_to_do_something_and_not_to(dataset):
     (conflict,) = found(dataset, req("pin", PIN), req("off", off))
     assert conflict.reasons == ("must do riflery, and must not do it",)
     assert conflict.block == "clinic_1"  # NOT DO with no DURING reaches every block
-    weapons = "REQUEST staff.dylan NOT DO activities.clinics.weapons ON dates.target"
+    weapons = "REQUEST staff.dylan NOT DO ANY activities.clinics.weapons ON dates.target"
     (through_category,) = found(dataset, req("pin", PIN), req("off", weapons))
     assert through_category.reasons == ("must do riflery, and must not do it",)
 

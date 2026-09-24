@@ -283,6 +283,11 @@ class _Names:
         return f"; did you mean '{namespace}.{close[0]}'?" if close else ""
 
 
+def name_spaces(dataset: Dataset) -> dict[str, dict[str, Named]]:
+    """Every valid name per namespace, with what it stands for."""
+    return _names(dataset).spaces
+
+
 def _names(dataset: Dataset) -> _Names:
     """The dataset's names, built once for it: every request resolved against it shares them."""
     return dataset.memo(_Names, lambda: _Names(dataset))
@@ -866,8 +871,11 @@ class Domains:
         many; and a set of several names with no quantifier to say how they are taken.
         """
         selector = _default(text)
-        if selector.quantifier == ast.EACH_OF:
-            raise _error("a default is one choice, so it takes no EACH_OF", selector.pos)
+        if selector.quantifier in (ast.EACH_OF, ast.ANY):
+            raise _error(
+                f"a default is one choice, so it takes ALL_OF or ANY n, not {selector.quantifier}",
+                selector.pos,
+            )
         if _needs_request(selector.expr):
             raise _error("a default names names, not variables or mappings", selector.pos)
         namespace = _namespace_of(selector.expr, None)
@@ -924,6 +932,7 @@ def _choice(
         _expect(namespace, bound, expr)
         return replace(choice, kind=POOL if pool else ANY, pos=selector.pos)
     items, single = _evaluate(expr, namespace, scope)
+    one = single or isinstance(expr, ast.Call)  # before a season's cabin act comes to a day's
     if namespace == DATES:
         items = frozenset(d for d in items if d in scope.dataset.calendar)
     if namespace == ACTIVITIES:
@@ -931,7 +940,10 @@ def _choice(
         if not items and isinstance(expr, ast.Var):
             raise _AnotherDay  # a name EACH_OF bound to an act on another day
     if pool:
+        _matched(selector, one)
         return Choice(_sorted(items), POOL, pos=selector.pos)
+    if selector.quantifier == ast.ANY:
+        raise _error(_CHOSEN, selector.pos)
     if selector.quantifier is None:
         if not single:
             raise _error("needs a quantifier: ALL_OF, ANY n or EACH_OF", selector.pos)
@@ -940,6 +952,27 @@ def _choice(
     if selector.quantifier == ast.ALL_OF:
         return Choice(_sorted(items), ALL, pos=selector.pos)
     return Choice(_sorted(items), ANY, selector.n, pos=selector.pos)
+
+
+_CHOSEN = (
+    "ANY with no number matches rather than chooses, so it goes right of NOT or in a "
+    "pattern; here say how the set is taken: ALL_OF, ANY n or EACH_OF"
+)
+
+
+def _matched(selector: ast.Selector, one: bool) -> None:
+    """A set that is matched says so with ANY; one thing is written on its own.
+
+    Whether a name is one thing is asked of the name, not of the day: a cabin's act all
+    season, `activities.cabin_acts.p4`, is a set even on a day it comes to one act, so a
+    request says the same about it whichever day it is read on.
+    """
+    if selector.quantifier is None and not one:
+        raise _error(
+            "a set here is matched, so it takes ANY: write ANY in front of it", selector.pos
+        )
+    if selector.quantifier == ast.ANY and one:
+        raise _error("is one item and takes no quantifier", selector.pos)
 
 
 def _no_quantifier_on_one(expr: ast.SetExpr, single: bool, pos: ast.Pos) -> None:
@@ -991,7 +1024,11 @@ def _with_bound(
     choosing it again here would be choosing out of something still being chosen.
     """
     variables = [x for x in bound if isinstance(x, ast.Var)]
-    if selector.quantifier not in (None, ast.ALL_OF) and variables:
+    if pool:
+        _matched(selector, False)
+    elif selector.quantifier == ast.ANY:
+        raise _error(_CHOSEN, selector.pos)
+    if selector.quantifier not in (None, ast.ALL_OF, ast.ANY) and variables:
         raise _error(
             "a set holding a name the solver chooses is taken with ALL_OF or not at all",
             selector.pos,

@@ -29,8 +29,8 @@ wrong = [
 id = "sets-non-meal-blocks"
 title = "Not at meals"
 prompt = "Rob doesn't take a 'break' in any block other than a meal."
-answer = "REQUEST staff.rob NOT DO 'break' DURING {blocks.all - blocks.meals}"
-wrong = ["REQUEST staff.rob NOT DO 'break' DURING blocks.meals"]
+answer = "REQUEST staff.rob NOT DO 'break' DURING ANY {blocks.all - blocks.meals}"
+wrong = ["REQUEST staff.rob NOT DO 'break' DURING ANY blocks.meals"]
 
 [[problem]]
 id = "sets-heroes-not-counselors"
@@ -95,16 +95,16 @@ wrong = ["REQUEST EACH_OF staff.counselors NOT FREE DURING blocks.clinic_1"]
 id = "sets-no-clinics-except-weapons"
 title = "Weapons only"
 prompt = "Gabe runs no clinics today except weapons clinics."
-answer = "REQUEST staff.gabe NOT DO {activities.clinics.all - activities.clinics.weapons}"
-wrong = ["REQUEST staff.gabe NOT DO activities.clinics.weapons"]
+answer = "REQUEST staff.gabe NOT DO ANY {activities.clinics.all - activities.clinics.weapons}"
+wrong = ["REQUEST staff.gabe NOT DO ANY activities.clinics.weapons"]
 
 [[problem]]
 id = "sets-daytime-blocks"
 title = "Daytime only"
 prompt = "Dat takes no 'break' in the evening blocks or at setup."
-answer = "REQUEST staff.dat NOT DO 'break' DURING {blocks.evening + blocks.setup}"
-alternatives = ["REQUEST staff.dat NOT DO 'break' DURING {blocks.embers + blocks.evening_program + blocks.setup}"]
-wrong = ["REQUEST staff.dat NOT DO 'break' DURING blocks.evening"]
+answer = "REQUEST staff.dat NOT DO 'break' DURING ANY {blocks.evening + blocks.setup}"
+alternatives = ["REQUEST staff.dat NOT DO 'break' DURING ANY {blocks.embers + blocks.evening_program + blocks.setup}"]
+wrong = ["REQUEST staff.dat NOT DO 'break' DURING ANY blocks.evening"]
 
 [[problem]]
 id = "sets-two-of-non-directors"
@@ -118,8 +118,8 @@ wrong = ["REQUEST ANY 2 {staff.permanent_heroes - staff.directors} DO 'canteen' 
 id = "sets-arts-but-not-ceramics"
 title = "Arts, not the wheel"
 prompt = "Kara runs no arts clinic other than Ceramics Wheel today."
-answer = "REQUEST staff.kara NOT DO {activities.clinics.arts - activities.clinics.ceramics_wheel}"
-wrong = ["REQUEST staff.kara NOT DO activities.clinics.arts"]
+answer = "REQUEST staff.kara NOT DO ANY {activities.clinics.arts - activities.clinics.ceramics_wheel}"
+wrong = ["REQUEST staff.kara NOT DO ANY activities.clinics.arts"]
 
 [[problem]]
 id = "sets-dates-minus"

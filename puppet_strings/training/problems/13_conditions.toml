@@ -35,54 +35,54 @@ wrong = ["IF staff.lisa FREE DURING blocks.clinic_1\nREQUEST ANY 1 staff.permane
 id = "if-busy-then-cover"
 title = "Covering for a busy director"
 prompt = "If David runs any clinic during clinic 2, Lisa does 'office cover' then."
-answer = "IF staff.david DO activities.clinics.all DURING blocks.clinic_2\nREQUEST staff.lisa DO 'office cover' DURING blocks.clinic_2"
+answer = "IF staff.david DO ANY activities.clinics.all DURING blocks.clinic_2\nREQUEST staff.lisa DO 'office cover' DURING blocks.clinic_2"
 wrong = ["REQUEST staff.lisa DO 'office cover' DURING blocks.clinic_2"]
 
 [[problem]]
 id = "if-two-on-break"
 title = "When two are out"
 prompt = "If at least two counselors are on 'break' at lunch, Dylan does 'cabin cover' at lunch."
-answer = "IF AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"
+answer = "IF AT_LEAST 2 ANY staff.counselors DO 'break' DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"
 wrong = ["REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"]
 
 [[problem]]
 id = "if-and"
 title = "Both at once"
 prompt = "If at least two counselors are on 'break' at lunch AND Dylan is free at lunch, Dylan does 'cabin cover' at lunch. Put each condition on its own line."
-answer = "IF\nAT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch\nAND\nstaff.dylan FREE DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"
+answer = "IF\nAT_LEAST 2 ANY staff.counselors DO 'break' DURING blocks.lunch\nAND\nstaff.dylan FREE DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"
 hints = ["IF can end a line; so can AND. The condition carries on below."]
-alternatives = ["IF AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch AND staff.dylan FREE DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"]
-wrong = ["IF AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch OR staff.dylan FREE DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"]
+alternatives = ["IF AT_LEAST 2 ANY staff.counselors DO 'break' DURING blocks.lunch AND staff.dylan FREE DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"]
+wrong = ["IF AT_LEAST 2 ANY staff.counselors DO 'break' DURING blocks.lunch OR staff.dylan FREE DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"]
 
 [[problem]]
 id = "if-or"
 title = "Either will do"
 prompt = "If Rob or Vic runs the Gravity Zip Line during clinic 2, Donny does 'zip line spotting' then."
 answer = "IF staff.rob DO activities.clinics.gravity_zip_line DURING blocks.clinic_2 OR staff.vic DO activities.clinics.gravity_zip_line DURING blocks.clinic_2\nREQUEST staff.donny DO 'zip line spotting' DURING blocks.clinic_2"
-alternatives = ["IF {staff.rob + staff.vic} DO activities.clinics.gravity_zip_line DURING blocks.clinic_2\nREQUEST staff.donny DO 'zip line spotting' DURING blocks.clinic_2"]
+alternatives = ["IF ANY {staff.rob + staff.vic} DO activities.clinics.gravity_zip_line DURING blocks.clinic_2\nREQUEST staff.donny DO 'zip line spotting' DURING blocks.clinic_2"]
 wrong = ["IF staff.rob DO activities.clinics.gravity_zip_line DURING blocks.clinic_2 AND staff.vic DO activities.clinics.gravity_zip_line DURING blocks.clinic_2\nREQUEST staff.donny DO 'zip line spotting' DURING blocks.clinic_2"]
 
 [[problem]]
 id = "if-each-after-clinics"
 title = "After two in a row"
 prompt = "For each village leader: if they run two clinics back to back, they get a free block somewhere today."
-answer = "EACH_OF s IN staff.village_leaders\nIF AT_LEAST 2 CONSECUTIVE s DO activities.clinics.all\nREQUEST s FREE DURING ANY 1 blocks.all"
+answer = "EACH_OF s IN staff.village_leaders\nIF AT_LEAST 2 CONSECUTIVE s DO ANY activities.clinics.all\nREQUEST s FREE DURING ANY 1 blocks.all"
 priority = "HIGH"
 
 [[problem]]
 id = "if-unless-any-director"
 title = "Unless a director is free"
 prompt = "Unless some director is free during clinic 3, Brian does 'front desk' during clinic 3."
-answer = "UNLESS staff.directors FREE DURING blocks.clinic_3\nREQUEST staff.brian DO 'front desk' DURING blocks.clinic_3"
-explain = "In a pattern a set means 'any of these', so staff.directors FREE is true when at least one of them is free."
-wrong = ["UNLESS AT_LEAST 2 staff.directors FREE DURING blocks.clinic_3\nREQUEST staff.brian DO 'front desk' DURING blocks.clinic_3"]
+answer = "UNLESS ANY staff.directors FREE DURING blocks.clinic_3\nREQUEST staff.brian DO 'front desk' DURING blocks.clinic_3"
+explain = "In a pattern a set is matched, and ANY says so: ANY staff.directors FREE is true when at least one of them is free."
+wrong = ["UNLESS AT_LEAST 2 ANY staff.directors FREE DURING blocks.clinic_3\nREQUEST staff.brian DO 'front desk' DURING blocks.clinic_3"]
 
 [[problem]]
 id = "if-or-unless"
 title = "Neither"
 prompt = "Unless Hailey or Alyce is free during clinic 1, Alexis does 'barn check' then."
 answer = "UNLESS staff.hailey FREE DURING blocks.clinic_1 OR staff.alyce FREE DURING blocks.clinic_1\nREQUEST staff.alexis DO 'barn check' DURING blocks.clinic_1"
-alternatives = ["UNLESS {staff.hailey + staff.alyce} FREE DURING blocks.clinic_1\nREQUEST staff.alexis DO 'barn check' DURING blocks.clinic_1"]
+alternatives = ["UNLESS ANY {staff.hailey + staff.alyce} FREE DURING blocks.clinic_1\nREQUEST staff.alexis DO 'barn check' DURING blocks.clinic_1"]
 wrong = ["UNLESS staff.hailey FREE DURING blocks.clinic_1 AND staff.alyce FREE DURING blocks.clinic_1\nREQUEST staff.alexis DO 'barn check' DURING blocks.clinic_1"]
 
 [[problem]]
@@ -120,7 +120,7 @@ wrong = ["EACH_OF c IN staff.counselors\nREQUEST mappings.buddy(c) DO 'cabin cov
 id = "if-busy-evening"
 title = "A busy evening"
 prompt = "If Tori has something assigned in either evening block, she is free during clinic 4."
-answer = "IF staff.tori NOT FREE DURING blocks.evening\nREQUEST staff.tori FREE DURING blocks.clinic_4"
+answer = "IF staff.tori NOT FREE DURING ANY blocks.evening\nREQUEST staff.tori FREE DURING blocks.clinic_4"
 explain = "In a condition, a set of blocks means any of them: one busy evening block is enough."
 alternatives = ["IF staff.tori NOT FREE DURING blocks.embers OR staff.tori NOT FREE DURING blocks.evening_program\nREQUEST staff.tori FREE DURING blocks.clinic_4"]
 wrong = ["IF staff.tori NOT FREE DURING blocks.embers AND staff.tori NOT FREE DURING blocks.evening_program\nREQUEST staff.tori FREE DURING blocks.clinic_4"]
@@ -129,6 +129,6 @@ wrong = ["IF staff.tori NOT FREE DURING blocks.embers AND staff.tori NOT FREE DU
 id = "if-or-many-clinic"
 title = "Plenty of archery"
 prompt = "If Archery 1 & 2 runs in clinic 2 or in clinic 3, Gabe does 'target repair' during clinic 4."
-answer = "IF staff.all DO activities.clinics.archery_1_2 DURING {blocks.clinic_2 + blocks.clinic_3}\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"
-alternatives = ["IF staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_2 OR staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_3\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"]
-wrong = ["IF staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_2\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"]
+answer = "IF ANY staff.all DO activities.clinics.archery_1_2 DURING ANY {blocks.clinic_2 + blocks.clinic_3}\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"
+alternatives = ["IF ANY staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_2 OR ANY staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_3\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"]
+wrong = ["IF ANY staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_2\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"]

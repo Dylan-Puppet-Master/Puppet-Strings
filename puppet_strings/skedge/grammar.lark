@@ -67,7 +67,8 @@ for_        : _FOR DURATION
 with_       : _WITH chooser
 without     : _WITHOUT chooser
 
-chooser     : (ALL_OF | any_n)? set_
+// ANY with no number matches rather than chooses: right of NOT, and in a pattern.
+chooser     : (ALL_OF | any_n | ANY)? set_
             | EACH_OF set_
             | EACH_OF NAME _IN set_
 any_n       : ANY INT

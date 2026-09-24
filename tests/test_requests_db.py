@@ -268,3 +268,20 @@ def test_old_nested_date_names_are_rewritten_on_open(fixtures_copy):
     assert (
         renamed == "REQUEST staff.dylan DO 'x' ON {dates.session_one.week_two.all + dates.camp.all}"
     )
+
+
+def test_requests_written_in_an_older_skedge_are_rewritten_once(fixtures_copy, dataset):
+    """A set matched right of NOT takes ANY now; a file from before is rewritten on its load."""
+    old = "REQUEST staff.dylan NOT DO activities.clinics.ropes DURING blocks.all_clinics"
+    with sqlite3.connect(fixtures_copy / FIXTURE_FILE) as db:
+        db.execute("UPDATE requests SET skedge = ? WHERE id = 'dylan-off-ropes'", (old,))
+        db.execute("DELETE FROM meta WHERE key = 'syntax'")
+    book = RequestDb(fixtures_copy / FIXTURE_FILE)
+    assert book.upgrade(dataset)
+    (rewritten,) = [r.skedge for r in book.every() if r.id == "dylan-off-ropes"]
+    assert rewritten == (
+        "REQUEST staff.dylan NOT DO ANY activities.clinics.ropes DURING ANY blocks.all_clinics"
+    )
+    with sqlite3.connect(fixtures_copy / FIXTURE_FILE) as db:
+        db.execute("UPDATE requests SET skedge = ? WHERE id = 'dylan-off-ropes'", (old,))
+    assert not book.upgrade(dataset)  # once: the file says it is done

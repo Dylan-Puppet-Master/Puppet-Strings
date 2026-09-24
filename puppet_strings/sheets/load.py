@@ -276,6 +276,8 @@ def _build(
         away=frozenset(away),
         warnings=tuple(warnings),
     )
+    if book.upgrade(dataset):  # written in an older Skedge, and now as it is written today
+        dataset = replace(dataset, requests=book.read(target))
     # Last, because who is away for a day is written in the requests and the requests are
     # read here: every reader of a Dataset then sees one day, with the people an EXCLUDE
     # takes out of it already out of it. The mappings are checked against that day, since

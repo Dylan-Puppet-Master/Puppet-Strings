@@ -49,10 +49,10 @@ def test_negation_and_free():
 
 
 def test_amount_statements():
-    (count,) = parse("REQUEST AT_MOST 2 staff.all DO 'break' DURING EACH_OF blocks.all").lines
+    (count,) = parse("REQUEST AT_MOST 2 ANY staff.all DO 'break' DURING EACH_OF blocks.all").lines
     assert isinstance(count, ast.Count) and not count.prefer and not count.consecutive
     assert count.amount == ast.Amount(ast.AT_MOST, 2, False, ast.Pos(1, 9))
-    assert count.pattern.who.quantifier is None and count.pattern.what == ast.Task("break")
+    assert count.pattern.who.quantifier == ast.ANY and count.pattern.what == ast.Task("break")
     (hours,) = parse(
         "PREFER AT_LEAST 2h CONSECUTIVE staff.cam_vl DO activities.clinics.candle_making "
         "AS_ROLE roles.trainee ON {2026-09-14 .. 2026-09-18}"
@@ -102,7 +102,7 @@ def test_mapping_cells_parse_on_their_own():
 def test_bindings_conditions_labels_and_gaps():
     lines = parse(
         "ANY 2 p IN staff.counselor\n"
-        "UNLESS AT_LEAST 3 CONSECUTIVE p DO activities.clinics.all\n"
+        "UNLESS AT_LEAST 3 CONSECUTIVE p DO ANY activities.clinics.all\n"
         "first: REQUEST p DO 'campfire setup' DURING blocks.clinic_4\n"
         "last:  REQUEST p DO 'campfire teardown' DURING blocks.evening\n"
         "GAP first TO last AT_LEAST 0m\n"
@@ -136,7 +136,7 @@ def test_conditions_join_with_and_and_or_over_several_lines():
     first, second = if_.test.parts
     assert first.consecutive and first.amount.value == 2 and second.pattern.what is None
     (unless, _) = parse(
-        "UNLESS (staff.a FREE and staff.b FREE)\n"
+        "UNLESS (ANY staff.a FREE and ANY staff.b FREE)\n"
         "OR staff.c FREE\n"
         "REQUEST staff.rob DO 'x' DURING blocks.lunch"
     ).lines
@@ -147,7 +147,9 @@ def test_conditions_join_with_and_and_or_over_several_lines():
 
 def test_mixing_and_with_or_needs_parentheses():
     with pytest.raises(ast.SkedgeError, match="mixed AND and OR need parentheses"):
-        parse("IF staff.a FREE AND staff.b FREE OR staff.c FREE\nREQUEST staff.rob FREE")
+        parse(
+            "IF ANY staff.a FREE AND ANY staff.b FREE OR ANY staff.c FREE\nREQUEST staff.rob FREE"
+        )
 
 
 def test_set_expressions():
@@ -237,8 +239,8 @@ def test_consecutive_follows_what_it_constrains():
 
 def test_consecutive_after_the_pattern_says_where_it_goes_now():
     for text in (
-        "REQUEST AT_LEAST 2 staff.dylan DO 'x' DURING blocks.all CONSECUTIVE",
-        "IF AT_LEAST 2 s DO 'x' DURING blocks.all CONSECUTIVE\nREQUEST s FREE DURING blocks.lunch",
+        "REQUEST AT_LEAST 2 staff.dylan DO 'x' DURING ANY blocks.all CONSECUTIVE",
+        "IF AT_LEAST 2 s DO 'x' DURING ANY blocks.all CONSECUTIVE\nREQUEST s FREE DURING blocks.lunch",
     ):
         with pytest.raises(ast.SkedgeError) as e:
             parse(text)
@@ -276,7 +278,7 @@ def test_a_day_offset_is_still_an_offset_and_not_a_duration():
         # a PREFER with no amount is a score, so what is missing is the goal
         ("PREFER staff.rob DO 'x' DURING blocks.a", "expected one of", 1, 40),
         ("REQUEST staff.rob NOT DO ANY 1 activities.clinics.all", "matched, not chosen", 1, 26),
-        ("morning: PREFER AT_MOST 1 staff.all DO 'x'", "expected one of", 1, 10),
+        ("morning: PREFER AT_MOST 1 ANY staff.all DO 'x'", "expected one of", 1, 10),
         ("REQUEST AT_MOST 1 staff.all CONSECUTIVE", "expected one of", 1, 29),
         ("PREFER staff.all DO 'x' MAXIMIZE", "expected one of", 1, 33),
         (
@@ -309,10 +311,10 @@ def test_clauses_go_anywhere_in_a_statement():
     assert written.who.quantifier == ast.ALL_OF and written.what == ast.Task("video")
     between = parse("REQUEST staff.rob DURING blocks.a DO 'x' ON dates.target").lines[0]
     assert [type(c) for c in between.clauses] == [ast.During, ast.On]
-    (count,) = parse("REQUEST DURING blocks.lunch AT_MOST 2 staff.all DO 'break'").lines
+    (count,) = parse("REQUEST DURING blocks.lunch AT_MOST 2 ANY staff.all DO 'break'").lines
     assert ast.clause(count.pattern.clauses, ast.During) is not None
     (score,) = parse(
-        "PREFER staff.all DO activities.clinics.all MAXIMIZE mappings.pref(s) DURING blocks.a"
+        "PREFER ANY staff.all DO ANY activities.clinics.all MAXIMIZE mappings.pref(s) DURING ANY blocks.a"
     ).lines
     assert ast.clause(score.pattern.clauses, ast.During) is not None
 

@@ -108,7 +108,8 @@ def test_an_any_binding_is_one_choice_shared_by_the_declaration(dataset):
 
 def test_negation_makes_a_pattern_of_pools(dataset):
     (copy,) = resolve(
-        dataset, "REQUEST ALL_OF staff.counselor NOT DO activities.clinics.ropes WITHOUT staff.vic"
+        dataset,
+        "REQUEST ALL_OF staff.counselor NOT DO ANY activities.clinics.ropes WITHOUT staff.vic",
     )
     (st,) = copy.statements
     assert isinstance(st, Forbid) and st.who.kind == ALL
@@ -122,7 +123,7 @@ def test_negation_makes_a_pattern_of_pools(dataset):
 
 
 def test_with_takes_one_name_or_a_quantified_set(dataset):
-    base = "REQUEST staff.rob NOT DO activities.clinics.ropes "
+    base = "REQUEST staff.rob NOT DO ANY activities.clinics.ropes "
     (copy,) = resolve(dataset, base + "WITH ANY 2 {staff.vic + staff.dylan + staff.randy}")
     assert copy.statements[0].pattern.with_ == Company(frozenset({"vic", "dylan", "randy"}), 2)
     (copy,) = resolve(dataset, base + "WITHOUT ALL_OF {staff.vic + staff.dylan}")
@@ -137,7 +138,7 @@ def test_patterns_conditions_and_mappings(dataset):
     (copy,) = resolve(
         dataset,
         "EACH_OF s IN staff.director\n"
-        "IF AT_LEAST 3 CONSECUTIVE s DO activities.clinics.all\n"
+        "IF AT_LEAST 3 CONSECUTIVE s DO ANY activities.clinics.all\n"
         "REQUEST s FREE DURING ANY 1 blocks.all",
     )[:1]
     assert copy.condition.test.amount.value == 3 and copy.condition.test.consecutive
@@ -236,7 +237,7 @@ def test_roles(dataset):
     assert copy.statements[0].role.items == ("trainee",)
     (copy,) = resolve(
         dataset,
-        "PREFER AT_MOST 3 staff.rob DO activities.clinics.ropes AS_ROLE EACH_OF {roles.first + roles.second}",
+        "PREFER AT_MOST 3 staff.rob DO ANY activities.clinics.ropes AS_ROLE EACH_OF {roles.first + roles.second}",
     )[:1]
     assert copy.key == "first" and copy.statements[0].pattern.role.kind == POOL
 
@@ -302,7 +303,7 @@ def test_a_mapping_is_a_set_among_sets(dataset):
             "expected a name from activities, but mappings.buddy gives one from staff",
         ),
         (
-            "PREFER staff.all DO activities.clinics.all MAXIMIZE mappings.buddy(staff.dylan)",
+            "PREFER ANY staff.all DO ANY activities.clinics.all MAXIMIZE mappings.buddy(staff.dylan)",
             "not a number, so there is nothing to maximize or minimize",
         ),
         (

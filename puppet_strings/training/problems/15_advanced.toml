@@ -16,7 +16,7 @@ Checklist:
 id = "big-breaks-policy"
 title = "The break policy"
 prompt = "Every staff member who isn't a director or counselor gets three 30-minute 'break's in three different blocks — and never more than ten people on break in the same block."
-answer = "REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' FOR 30m DURING ANY 3 blocks.all\nREQUEST AT_MOST 10 staff.all DO 'break' DURING EACH_OF blocks.all"
+answer = "REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' FOR 30m DURING ANY 3 blocks.all\nREQUEST AT_MOST 10 ANY staff.all DO 'break' DURING EACH_OF blocks.all"
 priority = "MUST_HAPPEN"
 wrong = ["REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} DO 'break' FOR 30m DURING ANY 3 blocks.all"]
 
@@ -42,13 +42,13 @@ title = "Breaks at meal times"
 prompt = "Staff who aren't directors or counselors shouldn't take a 'break' outside meal times — one small request per person per non-meal block."
 answer = "REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} NOT DO 'break' DURING EACH_OF {blocks.all - blocks.meals}"
 priority = "HIGH"
-wrong = ["REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} NOT DO 'break' DURING {blocks.all - blocks.meals}"]
+wrong = ["REQUEST EACH_OF {staff.all - staff.directors - staff.counselors} NOT DO 'break' DURING ANY {blocks.all - blocks.meals}"]
 
 [[problem]]
 id = "big-cabin-acts-and-cover"
 title = "Cabin act day"
 prompt = "Every cabin act on today's board runs in the cabin act block, each on its own, and at least one director stays free then to handle problems."
-answer = "REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act\nPREFER AT_LEAST 1 staff.directors FREE DURING blocks.cabin_act"
+answer = "REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act\nPREFER AT_LEAST 1 ANY staff.directors FREE DURING blocks.cabin_act"
 priority = "HIGH"
 hints = ["The REQUEST lines of a request stand or fall together, and EACH_OF copies all of them. Should a busy director count against every cabin act?"]
 explain = "A PREFER is weighed on its own. As a second REQUEST, a director being busy would miss all of the cabin acts along with it."
@@ -58,30 +58,30 @@ wrong = ["REQUEST EACH_OF activities.cabin_acts.all DURING blocks.cabin_act\nREQ
 id = "big-ropes-rotation"
 title = "Rotating ropes"
 prompt = "Over the session, we'd like nobody to be first on the Climbing Wall more than 3 times."
-answer = "PREFER AT_MOST 3 EACH_OF staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first ON dates.session_six.all"
+answer = "PREFER AT_MOST 3 EACH_OF staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first ON ANY dates.session_six.all"
 priority = "LOW"
-wrong = ["REQUEST AT_MOST 3 EACH_OF staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first ON dates.session_six.all"]
+wrong = ["REQUEST AT_MOST 3 EACH_OF staff.all DO activities.clinics.climbing_wall AS_ROLE roles.first ON ANY dates.session_six.all"]
 
 [[problem]]
 id = "big-new-archer"
 title = "A new archer"
 prompt = "Gabe trains on Archery 1 & 2 as a trainee for at least two hours sometime between today and Friday."
-answer = "REQUEST AT_LEAST 2h staff.gabe DO activities.clinics.archery_1_2 AS_ROLE roles.trainee ON {dates.target .. 2026-08-07}"
+answer = "REQUEST AT_LEAST 2h staff.gabe DO activities.clinics.archery_1_2 AS_ROLE roles.trainee ON ANY {dates.target .. 2026-08-07}"
 wrong = ["REQUEST AT_LEAST 2h staff.gabe DO activities.clinics.archery_1_2 AS_ROLE roles.trainee"]
 
 [[problem]]
 id = "big-leaders-evening"
 title = "Evening coverage"
 prompt = "In each evening block, exactly one village leader is on 'night patrol', and each leader does no more than one patrol today."
-answer = "REQUEST EXACTLY 1 staff.village_leaders DO 'night patrol' DURING EACH_OF blocks.evening\nREQUEST AT_MOST 1 EACH_OF staff.village_leaders DO 'night patrol'"
+answer = "REQUEST EXACTLY 1 ANY staff.village_leaders DO 'night patrol' DURING EACH_OF blocks.evening\nREQUEST AT_MOST 1 EACH_OF staff.village_leaders DO 'night patrol'"
 priority = "MUST_HAPPEN"
-wrong = ["REQUEST EXACTLY 1 staff.village_leaders DO 'night patrol' DURING EACH_OF blocks.evening"]
+wrong = ["REQUEST EXACTLY 1 ANY staff.village_leaders DO 'night patrol' DURING EACH_OF blocks.evening"]
 
 [[problem]]
 id = "big-front-desk"
 title = "The front desk"
 prompt = "Unless a director is free during clinic 1, one permanent hero who isn't a director covers the 'front desk' then — and it's never Rob."
-answer = "UNLESS staff.directors FREE DURING blocks.clinic_1\nREQUEST ANY 1 {staff.permanent_heroes - staff.directors - staff.rob} DO 'front desk' DURING blocks.clinic_1"
+answer = "UNLESS ANY staff.directors FREE DURING blocks.clinic_1\nREQUEST ANY 1 {staff.permanent_heroes - staff.directors - staff.rob} DO 'front desk' DURING blocks.clinic_1"
 wrong = ["REQUEST ANY 1 {staff.permanent_heroes - staff.directors - staff.rob} DO 'front desk' DURING blocks.clinic_1"]
 
 [[problem]]
@@ -96,9 +96,9 @@ wrong = ["REQUEST activities.clinics.gravity_zip_line DURING blocks.clinic_2"]
 id = "big-directors-rotation"
 title = "Directors on duty"
 prompt = "In each clinic block, exactly one director is 'on duty', and no director is on duty twice in a row."
-answer = "REQUEST EXACTLY 1 staff.directors DO 'on duty' DURING EACH_OF blocks.all_clinics\nREQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.directors DO 'on duty'"
+answer = "REQUEST EXACTLY 1 ANY staff.directors DO 'on duty' DURING EACH_OF blocks.all_clinics\nREQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.directors DO 'on duty'"
 priority = "MUST_HAPPEN"
-wrong = ["REQUEST EXACTLY 1 staff.directors DO 'on duty' DURING EACH_OF blocks.all_clinics"]
+wrong = ["REQUEST EXACTLY 1 ANY staff.directors DO 'on duty' DURING EACH_OF blocks.all_clinics"]
 
 [[problem]]
 id = "big-video-day"
@@ -114,7 +114,7 @@ prompt = "For each village leader: if they're busy in both clinic 1 and clinic 2
 answer = "EACH_OF c IN staff.village_leaders\nIF c NOT FREE DURING blocks.clinic_1 AND c NOT FREE DURING blocks.clinic_2\nREQUEST c FREE DURING blocks.rest_hour"
 priority = "HIGH"
 hints = ["In a condition, NOT FREE DURING {a + b} means busy in either one. For both, join two tests with AND."]
-wrong = ["EACH_OF c IN staff.village_leaders\nIF c NOT FREE DURING {blocks.clinic_1 + blocks.clinic_2}\nREQUEST c FREE DURING blocks.rest_hour"]
+wrong = ["EACH_OF c IN staff.village_leaders\nIF c NOT FREE DURING ANY {blocks.clinic_1 + blocks.clinic_2}\nREQUEST c FREE DURING blocks.rest_hour"]
 
 [[problem]]
 id = "big-unbroken-training"
@@ -123,7 +123,7 @@ prompt = "Tori trains on Candle Making, as a trainee, for two clinic blocks in a
 answer = "REQUEST staff.tori DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY 2 blocks.all_clinics CONSECUTIVE ON ANY 1 {dates.target .. 2026-08-07}"
 hints = ["ANY 2 blocks.all_clinics CONSECUTIVE chooses two clinic blocks next to each other; ANY 1 the dates chooses the day."]
 explain = "The clinic blocks here are an hour each, so AT_LEAST 2h CONSECUTIVE … says the same thing by counting."
-alternatives = ["REQUEST AT_LEAST 2h CONSECUTIVE staff.tori DO activities.clinics.candle_making AS_ROLE roles.trainee ON {dates.target .. 2026-08-07}"]
+alternatives = ["REQUEST AT_LEAST 2h CONSECUTIVE staff.tori DO activities.clinics.candle_making AS_ROLE roles.trainee ON ANY {dates.target .. 2026-08-07}"]
 wrong = [
   "REQUEST staff.tori DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY 2 blocks.all_clinics ON ANY 1 {dates.target .. 2026-08-07}",
   "REQUEST staff.tori DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY 2 blocks.all_clinics CONSECUTIVE",
@@ -141,6 +141,6 @@ wrong = ["REQUEST staff.caroline DO activities.clinics.climbing_wall AS_ROLE rol
 id = "big-the-original"
 title = "Where AND began"
 prompt = "If two counselors are on 'break' in the same block — any block — and Dylan is free during lunch, Dylan does 'cabin cover' during lunch. Put each condition on its own line, joined by AND."
-answer = "IF\nAT_LEAST 2 staff.counselors DO 'break' DURING EACH_OF blocks.all\nAND\nstaff.dylan FREE DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"
+answer = "IF\nAT_LEAST 2 ANY staff.counselors DO 'break' DURING EACH_OF blocks.all\nAND\nstaff.dylan FREE DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"
 hints = ["AT_LEAST 2 … DURING EACH_OF blocks.all holds when some block has two on break."]
-wrong = ["IF\nAT_LEAST 2 staff.counselors DO 'break'\nAND\nstaff.dylan FREE DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"]
+wrong = ["IF\nAT_LEAST 2 ANY staff.counselors DO 'break'\nAND\nstaff.dylan FREE DURING blocks.lunch\nREQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"]

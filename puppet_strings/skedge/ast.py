@@ -8,6 +8,7 @@ from puppet_strings.skedge.namespaces import ACTIVITIES, BLOCKS, DATES, ROLES, S
 
 ALL_OF = "ALL_OF"
 ANY_OF = "ANY_OF"
+ANY = "ANY"  # with no number: any of these match, where a set is matched rather than chosen
 EACH_OF = "EACH_OF"
 
 AT_LEAST = "AT_LEAST"
@@ -125,8 +126,8 @@ SetExpr = Ref | Var | DateLiteral | DateOffset | DateRange | SetOp | Call | Grou
 class Selector:
     """A set with the quantifier written in front of it.
 
-    `quantifier` is ALL_OF, ANY_OF (with `n`) or EACH_OF, or None for a bare set. `var` is
-    the `x` of `EACH_OF x IN s`.
+    `quantifier` is ALL_OF, ANY_OF (with `n`), ANY (no `n`: matched, not chosen) or EACH_OF,
+    or None for one thing written on its own. `var` is the `x` of `EACH_OF x IN s`.
     """
 
     expr: SetExpr

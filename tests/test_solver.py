@@ -160,7 +160,7 @@ def test_pin_and_not_do():
             ),
             request(
                 "off-ropes",
-                "REQUEST staff.dylan NOT DO activities.clinics.ropes",
+                "REQUEST staff.dylan NOT DO ANY activities.clinics.ropes",
                 Priority.MUST_HAPPEN,
             ),
         ],
@@ -700,7 +700,7 @@ def test_weights_trade_within_a_tier():
 # -- amounts, mappings and past dates --------------------------------------------------------
 
 PREFERENCE = "PREFER EACH_OF s IN staff.all DO EACH_OF c IN activities.clinics.all MAXIMIZE mappings.preference(s, c)"
-VARIETY = "PREFER AT_MOST 1 EACH_OF staff.all DO EACH_OF activities.clinics.all ON {(dates.target - 6d) .. dates.target}"
+VARIETY = "PREFER AT_MOST 1 EACH_OF staff.all DO EACH_OF activities.clinics.all ON ANY {(dates.target - 6d) .. dates.target}"
 
 
 @pytest.mark.parametrize(
@@ -823,7 +823,7 @@ def test_a_count_request_is_met_or_not():
     offerings = [("Archery 1 & 2", ["clinic_1"]), ("Candle Making", ["clinic_3"])]
     cap = request(
         "cap",
-        "REQUEST AT_MOST 1 EACH_OF staff.all DO activities.clinics.all",
+        "REQUEST AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all",
         Priority.MUST_HAPPEN,
     )
     both = request(
@@ -835,7 +835,7 @@ def test_a_count_request_is_met_or_not():
     assert len({a.staff for a in result.assignments}) == 2
     assert ids(result.unsatisfied) == ["both"]
     exact = request(
-        "two", "REQUEST EXACTLY 2 staff.dylan DO activities.clinics.all", Priority.MUST_HAPPEN
+        "two", "REQUEST EXACTLY 2 staff.dylan DO ANY activities.clinics.all", Priority.MUST_HAPPEN
     )
     result = run(dataset(members, [ARCHERY, CANDLE], offerings=offerings, requests=[exact]))
     assert {a.staff for a in result.assignments} == {"dylan"}
@@ -849,7 +849,7 @@ def test_a_counted_pattern_measures_clinics_without_starting_one():
     ]
     offerings = [("Archery 1 & 2", ["clinic_1"]), ("Candle Making", ["clinic_3"])]
     exact = request(
-        "two", "REQUEST EXACTLY 2 staff.dylan DO activities.clinics.all", Priority.MUST_HAPPEN
+        "two", "REQUEST EXACTLY 2 staff.dylan DO ANY activities.clinics.all", Priority.MUST_HAPPEN
     )
     result = run(dataset(members, [ARCHERY, CANDLE], offerings=offerings, requests=[exact]))
     assert result.feasible
@@ -863,7 +863,7 @@ def test_a_counted_pattern_measures_clinics_without_starting_one():
 
 def test_a_duration_amount_sums_lengths_and_past_dates_count():
     yesterday = TARGET - timedelta(days=1)
-    text = "REQUEST AT_LEAST 2h staff.james DO 'dance practice' DURING blocks.all_clinics ON {(dates.target - 1d) .. dates.target}"
+    text = "REQUEST AT_LEAST 2h staff.james DO 'dance practice' DURING ANY blocks.all_clinics ON ANY {(dates.target - 1d) .. dates.target}"
     ds = dataset(
         [staff("James")],
         [],
@@ -882,7 +882,7 @@ def test_a_duration_amount_sums_lengths_and_past_dates_count():
 
 
 def test_consecutive_needs_adjacent_blocks():
-    text = "REQUEST AT_LEAST 1.5h CONSECUTIVE staff.james DO 'training' DURING {{{blocks}}}"
+    text = "REQUEST AT_LEAST 1.5h CONSECUTIVE staff.james DO 'training' DURING ANY {{{blocks}}}"
     adjacent = dataset(
         [staff("James")],
         [],
@@ -962,7 +962,7 @@ def test_at_most_consecutive_breaks_up_a_run():
             ),
             request(
                 "row",
-                "REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all",
+                "REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all",
                 Priority.HIGH,
             ),
         ],
@@ -989,7 +989,7 @@ def test_prefer_at_most_consecutive_weighs_a_run():
             ),
             request(
                 "row",
-                "PREFER AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all",
+                "PREFER AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all",
                 Priority.HIGH,
             ),
         ],
@@ -1011,7 +1011,7 @@ def test_prefer_at_least_consecutive_rewards_a_run():
         requests=[
             request(
                 "row",
-                "PREFER AT_LEAST 2 CONSECUTIVE staff.dylan DO activities.clinics.all",
+                "PREFER AT_LEAST 2 CONSECUTIVE staff.dylan DO ANY activities.clinics.all",
                 Priority.HIGH,
             ),
         ],
@@ -1042,13 +1042,13 @@ def test_at_most_consecutive_caps_a_run_of_three_adjacent_blocks():
     offerings = [(f"C{i}", [f"clinic_{i + 1}"]) for i in range(3)]
     cap = request(
         "row",
-        "REQUEST AT_MOST 2 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all",
+        "REQUEST AT_MOST 2 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all",
         Priority.MUST_HAPPEN,
     )
     blocks = blocks_with_meals(0)
     # nothing but the cap keeps Dylan off all three
     greedy = request(
-        "dylan", "REQUEST AT_LEAST 3 staff.dylan DO activities.clinics.all", Priority.MEDIUM
+        "dylan", "REQUEST AT_LEAST 3 staff.dylan DO ANY activities.clinics.all", Priority.MEDIUM
     )
     ds = dataset(members, clinics, offerings=offerings, requests=[cap, greedy], blocks=blocks)
     result = run(ds)
@@ -1058,7 +1058,7 @@ def test_at_most_consecutive_caps_a_run_of_three_adjacent_blocks():
     assert len(where(run(without_cap), staff="dylan")) == 3
     loose = request(
         "row",
-        "REQUEST AT_MOST 3 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all",
+        "REQUEST AT_MOST 3 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all",
         Priority.MUST_HAPPEN,
     )
     only_dylan = [staff("Dylan", archery_1_2=OK)]
@@ -1080,7 +1080,7 @@ def test_prefer_at_most_pays_per_assignment_over_the_amount():
         requests=[
             request(
                 "balance",
-                "PREFER AT_MOST 1 EACH_OF staff.all DO activities.clinics.all",
+                "PREFER AT_MOST 1 EACH_OF staff.all DO ANY activities.clinics.all",
                 Priority.MEDIUM,
             ),
             request(
@@ -1101,7 +1101,7 @@ def test_prefer_at_most_pays_per_assignment_over_the_amount():
 
 def test_not_do_with_keeps_two_staff_off_the_same_clinic():
     members = [staff("James"), staff("Paul"), staff("Sarah")]
-    feud = "REQUEST staff.james NOT DO activities.clinics.all WITH staff.paul DURING EACH_OF blocks.all"
+    feud = "REQUEST staff.james NOT DO ANY activities.clinics.all WITH staff.paul DURING EACH_OF blocks.all"
     ds = dataset(
         members,
         [CRAFT],
@@ -1130,7 +1130,7 @@ def test_a_forbidden_pair_may_still_work_in_different_blocks():
         requests=[
             request(
                 "feud",
-                "REQUEST staff.james NOT DO activities.clinics.all WITH staff.paul",
+                "REQUEST staff.james NOT DO ANY activities.clinics.all WITH staff.paul",
                 Priority.MUST_HAPPEN,
             ),
             request(
@@ -1183,7 +1183,7 @@ def test_not_do_without_means_only_together():
         requests=[
             request(
                 "rob-vic",
-                "REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT staff.vic",
+                "REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT staff.vic",
                 Priority.MUST_HAPPEN,
             ),
             request(
@@ -1280,7 +1280,7 @@ def test_if_reads_a_published_fact():
 
 def test_unless_applies_only_when_the_pattern_has_no_match():
     text = (
-        "UNLESS staff.director FREE DURING blocks.clinic_1\n"
+        "UNLESS ANY staff.director FREE DURING blocks.clinic_1\n"
         "REQUEST ANY 1 staff.office DO 'front desk' DURING blocks.clinic_1"
     )
     members = [staff("David", archery_1_2=OK), staff("Lisa")]
@@ -1302,7 +1302,7 @@ def test_unless_applies_only_when_the_pattern_has_no_match():
 def test_if_with_an_amount_over_a_run():
     text = (
         "EACH_OF s IN staff.all\n"
-        "IF AT_LEAST 2 CONSECUTIVE s DO activities.clinics.all\n"
+        "IF AT_LEAST 2 CONSECUTIVE s DO ANY activities.clinics.all\n"
         "REQUEST s FREE DURING blocks.clinic_3"
     )
     ds = dataset(
@@ -1330,7 +1330,7 @@ def test_and_or_join_conditions():
 
     def desk(joined):
         text = (
-            f"IF staff.director FREE DURING blocks.clinic_1\n{joined} staff.lisa FREE DURING blocks.clinic_2\n"
+            f"IF ANY staff.director FREE DURING blocks.clinic_1\n{joined} staff.lisa FREE DURING blocks.clinic_2\n"
             "REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1"
         )
         ds = dataset(members, [ARCHERY], categories=categories, requests=[request("desk", text)])
@@ -1339,7 +1339,7 @@ def test_and_or_join_conditions():
     # Lisa is free in clinic 2 whatever happens, so OR holds and AND holds too.
     assert desk("AND") and desk("OR")
     busy = (
-        "IF staff.director NOT FREE DURING blocks.clinic_1\n{} staff.lisa FREE DURING blocks.clinic_2\n"
+        "IF ANY staff.director NOT FREE DURING blocks.clinic_1\n{} staff.lisa FREE DURING blocks.clinic_2\n"
         "REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1"
     )
     for joined, expected in (("AND", False), ("OR", True)):
@@ -1390,7 +1390,7 @@ def test_a_later_date_holds_nothing_for_someone_resting_through_it():
 
 
 def test_a_deferrable_amount_stays_reachable():
-    text = "REQUEST AT_LEAST 2 staff.dylan DO 'inventory' ON {2026-09-16 .. 2026-09-17}"
+    text = "REQUEST AT_LEAST 2 staff.dylan DO 'inventory' ON ANY {2026-09-16 .. 2026-09-17}"
     tomorrow = TARGET + timedelta(days=1)
     ds = dataset(
         [staff("Dylan")], [], requests=[request("stock", text, Priority.MUST_HAPPEN), KEEP_FREE]

@@ -10,8 +10,8 @@ teaches = """
 
 One name stands alone; a set of several says how many of it with ALL_OF or ANY n.
 
-REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT staff.vic
-REQUEST staff.jack NOT DO activities.clinics.all WITH staff.lucy
+REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT staff.vic
+REQUEST staff.jack NOT DO ANY activities.clinics.all WITH staff.lucy
 
 "X only if Y is there too" is always:  X NOT DO it WITHOUT Y
 """
@@ -20,23 +20,23 @@ REQUEST staff.jack NOT DO activities.clinics.all WITH staff.lucy
 id = "with-rob-needs-vic"
 title = "Only with Vic"
 prompt = "If Rob is on a ropes clinic, Vic must be on it with him."
-answer = "REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT staff.vic"
+answer = "REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT staff.vic"
 priority = "MUST_HAPPEN"
 hints = ["'X only if Y is there' is written X NOT DO it WITHOUT Y."]
 explain = "Rob may not do ropes without Vic: so either he isn't on ropes, or Vic is there too."
 wrong = [
-  "REQUEST staff.rob NOT DO activities.clinics.ropes WITH staff.vic",
-  "REQUEST staff.vic NOT DO activities.clinics.ropes WITHOUT staff.rob",
+  "REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITH staff.vic",
+  "REQUEST staff.vic NOT DO ANY activities.clinics.ropes WITHOUT staff.rob",
 ]
 
 [[problem]]
 id = "with-never-together"
 title = "Keep them apart"
 prompt = "Gabe and Julian never run the same clinic together."
-answer = "REQUEST staff.gabe NOT DO activities.clinics.all WITH staff.julian"
+answer = "REQUEST staff.gabe NOT DO ANY activities.clinics.all WITH staff.julian"
 priority = "MUST_HAPPEN"
-alternatives = ["REQUEST staff.julian NOT DO activities.clinics.all WITH staff.gabe"]
-wrong = ["REQUEST staff.gabe NOT DO activities.clinics.all WITHOUT staff.julian"]
+alternatives = ["REQUEST staff.julian NOT DO ANY activities.clinics.all WITH staff.gabe"]
+wrong = ["REQUEST staff.gabe NOT DO ANY activities.clinics.all WITHOUT staff.julian"]
 
 [[problem]]
 id = "with-store-pair"
@@ -68,9 +68,9 @@ wrong = ["REQUEST staff.charlton NOT DO 'trail work' WITH staff.alan"]
 id = "with-shared-clinic-each-block"
 title = "One point per clinic"
 prompt = "Gabe and Peyton shouldn't share a clinic. Make it one small request per block, so each shared clinic costs a point."
-answer = "REQUEST staff.gabe NOT DO activities.clinics.all WITH staff.peyton DURING EACH_OF blocks.all"
+answer = "REQUEST staff.gabe NOT DO ANY activities.clinics.all WITH staff.peyton DURING EACH_OF blocks.all"
 priority = "HIGH"
-wrong = ["REQUEST staff.gabe NOT DO activities.clinics.all WITH staff.peyton"]
+wrong = ["REQUEST staff.gabe NOT DO ANY activities.clinics.all WITH staff.peyton"]
 
 [[problem]]
 id = "with-trainer-present"
@@ -99,7 +99,7 @@ wrong = ["REQUEST EACH_OF staff.village_heroes NOT DO 'front desk' WITHOUT ANY 1
 id = "with-apart-at-meals"
 title = "Apart at meals"
 prompt = "Diya and Audrey never do 'kitchen help' together at a meal."
-answer = "REQUEST staff.diya NOT DO 'kitchen help' WITH staff.audrey DURING blocks.meals"
+answer = "REQUEST staff.diya NOT DO 'kitchen help' WITH staff.audrey DURING ANY blocks.meals"
 priority = "MUST_HAPPEN"
 wrong = ["REQUEST staff.diya NOT DO 'kitchen help' WITH staff.audrey DURING blocks.lunch"]
 
@@ -119,10 +119,10 @@ wrong = [
 id = "with-both-trainers"
 title = "Both trainers"
 prompt = "Rob only works ropes when both Vic and Charlton are on it with him."
-answer = "REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT ALL_OF {staff.vic + staff.charlton}"
+answer = "REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT ALL_OF {staff.vic + staff.charlton}"
 priority = "MUST_HAPPEN"
 explain = "WITHOUT ALL_OF: if either of them is missing, Rob is off ropes."
-wrong = ["REQUEST staff.rob NOT DO activities.clinics.ropes WITHOUT ANY 1 {staff.vic + staff.charlton}"]
+wrong = ["REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT ANY 1 {staff.vic + staff.charlton}"]
 
 [[problem]]
 id = "with-both-on-it"

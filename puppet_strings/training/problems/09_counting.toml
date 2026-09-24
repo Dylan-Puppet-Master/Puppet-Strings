@@ -5,13 +5,13 @@ day = "2026-08-04"
 teaches = """
 REQUEST <amount> [CONSECUTIVE] <pattern>
 
-REQUEST AT_MOST 2 staff.counselors DO 'break' DURING EACH_OF blocks.all
+REQUEST AT_MOST 2 ANY staff.counselors DO 'break' DURING EACH_OF blocks.all
 REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing'
-REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all
+REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all
 REQUEST staff.rob DO 'break' FOR 30m DURING blocks.clinic_1
 
 • An amount is AT_LEAST, AT_MOST or EXACTLY, then a count (3) or a length (90m, 2h)
-• In a pattern, sets mean "any of these"; EACH_OF splits it to count per item
+• In a pattern, ANY <set> means "any of these"; EACH_OF splits it to count per item
 • CONSECUTIVE after the amount counts back-to-back blocks on one day
 • FOR sets how long a quoted task lasts inside its block
 """
@@ -20,33 +20,33 @@ REQUEST staff.rob DO 'break' FOR 30m DURING blocks.clinic_1
 id = "count-two-on-break"
 title = "Two at a time"
 prompt = "Never more than two counselors on 'break' in the same block."
-answer = "REQUEST AT_MOST 2 staff.counselors DO 'break' DURING EACH_OF blocks.all"
+answer = "REQUEST AT_MOST 2 ANY staff.counselors DO 'break' DURING EACH_OF blocks.all"
 priority = "MUST_HAPPEN"
 hints = ["Start with the amount: REQUEST AT_MOST 2 …", "EACH_OF blocks.all makes it count block by block rather than over the whole day."]
 explain = "Without EACH_OF on the blocks, it would count breaks over the whole day instead of at once."
 wrong = [
-  "REQUEST AT_MOST 3 staff.counselors DO 'break' DURING EACH_OF blocks.all",
-  "REQUEST AT_MOST 2 staff.counselors DO 'break'",
+  "REQUEST AT_MOST 3 ANY staff.counselors DO 'break' DURING EACH_OF blocks.all",
+  "REQUEST AT_MOST 2 ANY staff.counselors DO 'break'",
 ]
 
 [[problem]]
 id = "count-lifeguards"
 title = "Enough lifeguards"
 prompt = "At least three village heroes do 'lifeguard' during rest hour."
-answer = "REQUEST AT_LEAST 3 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"
+answer = "REQUEST AT_LEAST 3 ANY staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"
 explain = "A positive AT_LEAST asks for things to happen, just like REQUEST … DO does."
 alternatives = ["REQUEST ANY 3 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"]
-wrong = ["REQUEST AT_LEAST 2 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"]
+wrong = ["REQUEST AT_LEAST 2 ANY staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour"]
 
 [[problem]]
 id = "count-exactly-one-on-call"
 title = "Exactly one on call"
 prompt = "Exactly one director is 'on call' during each evening block."
-answer = "REQUEST EXACTLY 1 staff.directors DO 'on call' DURING EACH_OF blocks.evening"
+answer = "REQUEST EXACTLY 1 ANY staff.directors DO 'on call' DURING EACH_OF blocks.evening"
 priority = "MUST_HAPPEN"
 wrong = [
-  "REQUEST AT_LEAST 1 staff.directors DO 'on call' DURING EACH_OF blocks.evening",
-  "REQUEST EXACTLY 1 staff.directors DO 'on call' DURING blocks.evening",
+  "REQUEST AT_LEAST 1 ANY staff.directors DO 'on call' DURING EACH_OF blocks.evening",
+  "REQUEST EXACTLY 1 ANY staff.directors DO 'on call' DURING ANY blocks.evening",
 ]
 
 [[problem]]
@@ -72,20 +72,20 @@ wrong = ["REQUEST AT_LEAST 1h staff.cam_vl DO 'video editing'"]
 id = "count-no-two-in-a-row"
 title = "Never two in a row"
 prompt = "Nobody runs two clinics back to back. Count it per person."
-answer = "REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all"
+answer = "REQUEST AT_MOST 1 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all"
 priority = "MUST_HAPPEN"
 hints = ["EACH_OF staff.all counts person by person.", "CONSECUTIVE after the amount counts back-to-back blocks."]
-wrong = ["REQUEST AT_MOST 2 CONSECUTIVE EACH_OF staff.all DO activities.clinics.all"]
+wrong = ["REQUEST AT_MOST 2 CONSECUTIVE EACH_OF staff.all DO ANY activities.clinics.all"]
 
 [[problem]]
 id = "count-each-at-most-two-clinics"
 title = "Two clinics each"
 prompt = "No counselor runs more than two clinics today."
-answer = "REQUEST AT_MOST 2 EACH_OF staff.counselors DO activities.clinics.all"
+answer = "REQUEST AT_MOST 2 EACH_OF staff.counselors DO ANY activities.clinics.all"
 priority = "HIGH"
 wrong = [
-  "REQUEST AT_MOST 2 staff.counselors DO activities.clinics.all",
-  "REQUEST AT_MOST 3 EACH_OF staff.counselors DO activities.clinics.all",
+  "REQUEST AT_MOST 2 ANY staff.counselors DO ANY activities.clinics.all",
+  "REQUEST AT_MOST 3 EACH_OF staff.counselors DO ANY activities.clinics.all",
 ]
 
 [[problem]]
@@ -94,7 +94,7 @@ title = "Three breaks"
 prompt = "Every village hero gets exactly three 'break' blocks today, each hero counted on their own."
 answer = "REQUEST EXACTLY 3 EACH_OF staff.village_heroes DO 'break'"
 priority = "HIGH"
-wrong = ["REQUEST EXACTLY 3 staff.village_heroes DO 'break'"]
+wrong = ["REQUEST EXACTLY 3 ANY staff.village_heroes DO 'break'"]
 
 [[problem]]
 id = "count-three-breaks-for"
@@ -116,33 +116,33 @@ wrong = ["REQUEST AT_MOST 2 staff.tyson DO activities.clinics.archery_1_2"]
 id = "count-at-least-one-free-clinic"
 title = "One free clinic block"
 prompt = "Each counselor is free for at least one of the four clinic blocks today."
-answer = "REQUEST AT_LEAST 1 EACH_OF staff.counselors FREE DURING blocks.all_clinics"
+answer = "REQUEST AT_LEAST 1 EACH_OF staff.counselors FREE DURING ANY blocks.all_clinics"
 priority = "HIGH"
 alternatives = ["REQUEST EACH_OF staff.counselors FREE DURING ANY 1 blocks.all_clinics"]
-wrong = ["REQUEST AT_LEAST 2 EACH_OF staff.counselors FREE DURING blocks.all_clinics"]
+wrong = ["REQUEST AT_LEAST 2 EACH_OF staff.counselors FREE DURING ANY blocks.all_clinics"]
 
 [[problem]]
 id = "count-hour-of-kitchen"
 title = "An hour in the kitchen"
 prompt = "Between them, the MFGs spend at least an hour on 'kitchen repair' today."
-answer = "REQUEST AT_LEAST 1h staff.mfgs DO 'kitchen repair'"
-alternatives = ["REQUEST AT_LEAST 60m staff.mfgs DO 'kitchen repair'"]
+answer = "REQUEST AT_LEAST 1h ANY staff.mfgs DO 'kitchen repair'"
+alternatives = ["REQUEST AT_LEAST 60m ANY staff.mfgs DO 'kitchen repair'"]
 wrong = ["REQUEST AT_LEAST 1h EACH_OF staff.mfgs DO 'kitchen repair'"]
 
 [[problem]]
 id = "count-at-most-one-in-office"
 title = "Not a crowd"
 prompt = "At most one director is in the 'office' during each clinic block."
-answer = "REQUEST AT_MOST 1 staff.directors DO 'office' DURING EACH_OF blocks.all_clinics"
+answer = "REQUEST AT_MOST 1 ANY staff.directors DO 'office' DURING EACH_OF blocks.all_clinics"
 priority = "MUST_HAPPEN"
-wrong = ["REQUEST AT_MOST 1 staff.directors DO 'office' DURING blocks.all_clinics"]
+wrong = ["REQUEST AT_MOST 1 ANY staff.directors DO 'office' DURING ANY blocks.all_clinics"]
 
 [[problem]]
 id = "count-two-busy-blocks-in-a-row"
 title = "Two in a row"
 prompt = "Charlton works on 'fence building' for two back-to-back blocks today."
 answer = "REQUEST AT_LEAST 2 CONSECUTIVE staff.charlton DO 'fence building'"
-alternatives = ["REQUEST AT_LEAST 2 CONSECUTIVE staff.charlton DO 'fence building' DURING blocks.all"]
+alternatives = ["REQUEST AT_LEAST 2 CONSECUTIVE staff.charlton DO 'fence building' DURING ANY blocks.all"]
 wrong = ["REQUEST AT_LEAST 2 staff.charlton DO 'fence building'"]
 
 [[problem]]
@@ -166,12 +166,12 @@ title = "Room to breathe"
 prompt = "Each director has at most four blocks with anything assigned today."
 answer = "REQUEST AT_MOST 4 EACH_OF staff.directors NOT FREE"
 priority = "HIGH"
-wrong = ["REQUEST AT_MOST 4 staff.directors NOT FREE"]
+wrong = ["REQUEST AT_MOST 4 ANY staff.directors NOT FREE"]
 
 [[problem]]
 id = "count-exactly-two-lifeguards-each-meal"
 title = "Two at every meal"
 prompt = "Exactly two village heroes do 'dining hall duty' at each meal."
-answer = "REQUEST EXACTLY 2 staff.village_heroes DO 'dining hall duty' DURING EACH_OF blocks.meals"
+answer = "REQUEST EXACTLY 2 ANY staff.village_heroes DO 'dining hall duty' DURING EACH_OF blocks.meals"
 priority = "MUST_HAPPEN"
-wrong = ["REQUEST AT_LEAST 2 staff.village_heroes DO 'dining hall duty' DURING EACH_OF blocks.meals"]
+wrong = ["REQUEST AT_LEAST 2 ANY staff.village_heroes DO 'dining hall duty' DURING EACH_OF blocks.meals"]

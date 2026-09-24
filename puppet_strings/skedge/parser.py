@@ -52,6 +52,19 @@ def parse_default(text: str) -> ast.Selector:
     return _parse(text, "mapping_default")
 
 
+def parse_tree(text: str):
+    """The Lark tree for a request, before anything is built from it or refused.
+
+    Only a rewrite of an old spelling wants it: the tree still holds what the builder would
+    turn away, with where it was written.
+    """
+    try:
+        return _parser.parse(text, start="start")
+    except UnexpectedInput as e:
+        line, column = _position(e, text)
+        raise ast.SkedgeError(_describe(e), line, column) from e
+
+
 @lru_cache(maxsize=4096)
 def _parse(text: str, start: str):
     """The tree for some text, kept: a tree is immutable, and the same text is parsed often.
@@ -103,7 +116,7 @@ _TERMINAL_NAMES = {
     "_NL": "a new line",
     "$END": "end of text",
     "BOUND": "AT_LEAST, AT_MOST or EXACTLY",
-    "ANY": "ANY n",
+    "ANY": "ANY or ANY n",
     "ANY_N_OF": "ANY n",
     "SETOP": "+, - or &",
     "OFFSET": "a day offset such as - 6d",
@@ -168,7 +181,7 @@ def _quantifier(item) -> tuple[str, int | None]:
 
 
 def _is_quantifier(item) -> bool:
-    return isinstance(item, _Any) or _is(item, "ALL_OF") or _is(item, "EACH_OF")
+    return isinstance(item, _Any) or any(_is(item, k) for k in ("ALL_OF", "EACH_OF", "ANY"))
 
 
 def _duration(token: Token) -> int:
@@ -409,10 +422,11 @@ def _with_clauses(items) -> ast.Pattern:
 def _check_pools(declaration: ast.Declaration) -> None:
     """Right of NOT, and in a pattern, a set is matched rather than chosen.
 
-    So nothing there takes ALL_OF or ANY n, nor holds an `(ANY n …)` group, and no DURING
-    there chooses blocks in a row. Who is alongside is the exception: WITH and WITHOUT count
-    company, and say how many. Checked once the definitions are written in, so a group that
-    arrives by a name is caught the same as one written out.
+    So a set there takes ANY, which says so, rather than ALL_OF or ANY n, and holds no
+    `(ANY n …)` group; and no DURING there chooses blocks in a row. Who is alongside is
+    the exception: WITH and WITHOUT count company, and say how many. Checked once the
+    definitions are written in, so a group that arrives by a name is caught the same as one
+    written out.
     """
     for line in declaration.lines:
         negated = []
@@ -438,7 +452,8 @@ def _check_pools(declaration: ast.Declaration) -> None:
             selector = getattr(part, "selector", part)
             if isinstance(selector, ast.Selector) and ast.chooses(selector):
                 raise _error(
-                    "a set here is matched, not chosen, so it takes no ALL_OF or ANY n",
+                    "a set here is matched, not chosen, so it takes ANY or EACH_OF, "
+                    "not ALL_OF or ANY n",
                     selector.pos,
                 )
 

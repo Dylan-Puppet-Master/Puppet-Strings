@@ -45,11 +45,15 @@ from puppet_strings.model import (
 )
 from puppet_strings.names import normalize
 from puppet_strings.sheets.source import FIXTURE_FILE, LoadError, Source, split_list
+from puppet_strings.skedge.upgrade import upgrade as rewritten
 
 __all__ = ["FIXTURE_FILE", "RequestDb", "open_requests"]
 
 SUFFIX = ".sqlite"
 SCHEMA_VERSION = "2"
+# How Skedge is written now. A file whose requests were written before is rewritten on its
+# next load, which is when there is a dataset to tell a name for one thing from a set.
+SYNTAX_VERSION = 2
 DEFAULT_SCOPE = SESSION  # what a request written in the app is read over, unless it says
 OLD_IMPORT_TAG = "generated"  # what IMPORT_TAG was called before, renamed on open
 # A date name from before `dates.session.four.week.two` became `dates.session_four.week_two`
@@ -153,6 +157,26 @@ class RequestDb(LocalDb):
         db.executescript(_TABLES)
         _retag_imports(db)
         _rename_dates(db)
+        if not _count(db):  # nothing written yet, so nothing written the old way
+            _mark_syntax(db)
+
+    def upgrade(self, dataset: Dataset) -> bool:
+        """Rewrite the requests written in an older Skedge, once. Returns whether any changed.
+
+        Every request in the file is rewritten, not only the day's: the file is marked as
+        done, and a request left behind would stay the old way until somebody opened it.
+        """
+        if not self.exists:
+            return False
+        with self._open() as db:
+            done = db.execute("SELECT value FROM meta WHERE key = 'syntax'").fetchone()
+            if done and int(done[0]) >= SYNTAX_VERSION:
+                return False
+            rows = db.execute('SELECT "id", "skedge" FROM requests').fetchall()
+            changed = [(new, id) for id, old in rows if (new := rewritten(old, dataset)) != old]
+            db.executemany('UPDATE requests SET "skedge" = ? WHERE "id" = ?', changed)
+            _mark_syntax(db)
+        return bool(changed)
 
     def read(self, day: date) -> tuple[Request, ...]:
         """Every request whose scope covers `day`, broadest scope first.
@@ -236,6 +260,7 @@ class RequestDb(LocalDb):
             db.executemany(_PUT, rows)
             _retag_imports(db)
             _rename_dates(db)
+            db.execute("DELETE FROM meta WHERE key = 'syntax'")  # rewritten on the next load
         return len(rows), kept
 
 
@@ -264,6 +289,12 @@ def _retag_imports(db: sqlite3.Connection) -> None:
         db.execute('UPDATE requests SET "tags" = ? WHERE "id" = ?', (", ".join(renamed), id))
     if rows:
         db.commit()
+
+
+def _mark_syntax(db: sqlite3.Connection) -> None:
+    db.execute(
+        "INSERT OR REPLACE INTO meta (key, value) VALUES ('syntax', ?)", (str(SYNTAX_VERSION),)
+    )
 
 
 def _rename_dates(db: sqlite3.Connection) -> None:

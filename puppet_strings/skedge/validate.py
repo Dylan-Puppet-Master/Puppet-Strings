@@ -134,9 +134,10 @@ def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target) -> None:
         if isinstance(clause, ast.With | ast.Without):
             if what is None:
                 raise _error("FREE has no instance", clause.pos)
-            if clause.selector.quantifier == ast.EACH_OF:
+            if clause.selector.quantifier in (ast.EACH_OF, ast.ANY):
+                name, q = CLAUSE_NAMES[type(clause)], clause.selector.quantifier
                 raise _error(
-                    f"{CLAUSE_NAMES[type(clause)]} takes ALL_OF or ANY n, not EACH_OF",
+                    f"{name} counts who is alongside, so it takes ALL_OF or ANY n, not {q}",
                     clause.selector.pos,
                 )
 

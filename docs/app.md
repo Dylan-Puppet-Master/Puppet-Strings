@@ -163,7 +163,7 @@ things that cannot both be true.
 | What it catches | Example |
 |---|---|
 | Asked to work and to be free | `REQUEST staff.dylan DO activities.clinics.riflery DURING blocks.clinic_1` beside `REQUEST staff.dylan FREE DURING blocks.clinic_1` |
-| Asked to do something and told not to | the same, beside `REQUEST staff.dylan NOT DO activities.clinics.weapons` |
+| Asked to do something and told not to | the same, beside `REQUEST staff.dylan NOT DO ANY activities.clinics.weapons` |
 | Asked to be free and to be busy | `FREE` beside `NOT FREE` in one block |
 | Two things at once that do not fit | two `FOR` tasks whose minutes exceed the block, or two clinics in one block |
 
