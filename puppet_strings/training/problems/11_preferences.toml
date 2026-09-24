@@ -110,8 +110,8 @@ title = "A must and a wish"
 prompt = "In one request: Rob runs the Gravity Zip Line as first during clinic 2, and we'd rather he were free during playstation."
 answer = "REQUEST staff.rob DO activities.clinics.gravity_zip_line AS_ROLE roles.first DURING blocks.clinic_2\nPREFER staff.rob FREE DURING AT_LEAST 1 blocks.playstation"
 priority = "HIGH"
-hints = ["One request can hold several statements, a line each."]
-explain = "The REQUEST lines stand or fall together; each PREFER is weighed on its own."
+hints = ["One request can hold several statements, a line each.", "A PREFER needs something to come close to; one block of one is AT_LEAST 1 blocks.playstation."]
+explain = "The REQUEST lines stand or fall together; each PREFER is weighed on its own. On its own line, a REQUEST at a soft priority would say the same as the PREFER — met or missed. Beside another REQUEST it would fall with it, which is why the wish is a PREFER here."
 wrong = ["REQUEST staff.rob DO activities.clinics.gravity_zip_line AS_ROLE roles.first DURING blocks.clinic_2\nREQUEST staff.rob FREE DURING blocks.playstation"]
 
 [[problem]]
@@ -147,16 +147,6 @@ priority = "MEDIUM"
 hints = ["Count the clinic blocks, over any day of the session."]
 explain = "Over dates pooled with ANY, a count of blocks counts each block on each date, so this is eight clinic blocks across the whole session."
 wrong = ["PREFER EACH staff.counselors DO ANY activities.clinics.all DURING AT_MOST 8 blocks.all"]
-
-[[problem]]
-id = "prefer-one-thing"
-title = "If it can be managed"
-prompt = "We'd like Dylan to spend clinic 2 on 'archery maintenance', if it can be managed."
-answer = "PREFER staff.dylan DO 'archery maintenance' DURING AT_LEAST 1 blocks.clinic_2"
-priority = "MEDIUM"
-hints = ["A PREFER needs something to come close to. One block of one is AT_LEAST 1 blocks.clinic_2."]
-explain = "A count of 1 on one block is that block: met or missed by one. A REQUEST at a soft priority says nearly the same, but a PREFER can sit beside requirements without falling with them."
-wrong = ["PREFER staff.dylan DO 'archery maintenance' DURING AT_LEAST 1 blocks.clinic_3"]
 
 [[problem]]
 id = "prefer-outermost"
