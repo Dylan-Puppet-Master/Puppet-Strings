@@ -424,7 +424,8 @@ do is `FREE`, and something to do is `NOT FREE`.
 `DURING` is required in the positive forms. A missing `ON` is `ON dates.target`, everywhere
 in the language; it is the only default.
 
-Everything to the right of `NOT` is a pattern (§8): sets there are pools and take `ANY`,
+Everything to the right of `NOT` describes the situation that must not happen. It is a
+pattern (§8): sets there are pools and take `ANY`,
 `DURING` may be left out to mean every block, and `EACH` splits as anywhere, apart from
 `WITH` and `WITHOUT` (§8). A set there may also take `ALL`, of plain names with no group
 or chosen name in it: what is forbidden is then the positive request the words to the right

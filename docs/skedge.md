@@ -291,8 +291,8 @@ something assigned. Someone resting is neither. There is no word for "anything":
 do is `FREE`, something to do is `NOT FREE`.
 
 The subject of a `NOT` still chooses: `ALL {…} NOT DO` is "none of them does",
-`ANY 1 {…} NOT DO` is "one of them doesn't". Everything to the right of `NOT` describes what
-must not happen, so a set there is matched rather than chosen, and says so with `ANY`:
+`ANY 1 {…} NOT DO` is "one of them doesn't". Everything to the right of `NOT` describes the
+situation that must not happen, so a set there is matched rather than chosen, and says so with `ANY`:
 `REQUEST staff.rob NOT DO 'break' DURING ANY blocks.meals` is no break at any meal.
 `DURING` can be left out to mean all day. `EACH` splits the request, as it does
 anywhere; `WITH` and `WITHOUT` count company instead (below).
