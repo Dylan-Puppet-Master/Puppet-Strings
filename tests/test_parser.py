@@ -420,7 +420,10 @@ def test_a_definition_with_a_quantifier_is_a_binding():
         ("REQUEST EXACTLY 0 staff.all DO 'x' DURING blocks.a", "write NOT DO"),
         ("ANY 1 x IN staff.all\nREQUEST x FREE", "write EXACTLY 1, not ANY 1"),
         ("AT_LEAST 1 x IN staff.all\nREQUEST x FREE", "takes EXACTLY 1, not AT_LEAST 1"),
-        ("REQUEST ALL {staff.x + (EXACTLY 1 staff.all)} FREE", "a group takes ALL or AT_LEAST n"),
+        (
+            "REQUEST ALL {staff.x + (AT_MOST 1 staff.all)} FREE",
+            "a group takes ALL, AT_LEAST n or EXACTLY n",
+        ),
         ("a: staff.x\na: staff.y\nREQUEST a DO 'x' DURING blocks.a", "'a' is defined twice"),
         ("c: staff.x\nREQUEST EACH c IN staff.all DO 'x' DURING blocks.a", "defined twice"),
         ("a: {b + staff.x}\nb: {a}\nREQUEST a DO 'x' DURING blocks.a", "in terms of itself"),
@@ -505,3 +508,13 @@ def test_a_task_may_be_named_and_used_after_do():
 def test_a_task_name_stands_only_where_a_task_can(text, message):
     with pytest.raises(ast.SkedgeError, match=message):
         parse(text)
+
+
+def test_a_group_needs_no_parentheses():
+    bare = parse("REQUEST ALL {staff.a + EXACTLY 1 {staff.b + staff.c}} FREE").lines[0]
+    wrapped = parse("REQUEST ALL {staff.a + (EXACTLY 1 {staff.b + staff.c})} FREE").lines[0]
+    group = bare.who.expr.right
+    assert isinstance(group, ast.Group) and (group.bound, group.n) == (ast.EXACTLY, 1)
+    assert ast.spoken(group.expr) == ast.spoken(wrapped.who.expr.right.expr)
+    with pytest.raises(ast.SkedgeError, match="not AT_MOST"):
+        parse("REQUEST ALL {staff.a + AT_MOST 1 {staff.b + staff.c}} FREE")

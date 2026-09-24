@@ -625,10 +625,18 @@ def _copy(declaration: ast.Declaration, scope: _Scope) -> Resolved:
     return Resolved(
         key=", ".join(str(item) for item in scope.each.values()),
         bindings={name: choice for name, (choice, _) in scope.anys.items()},
-        statements=tuple(_statement(s, scope) for s in declaration.statements),
+        statements=tuple(x for s in declaration.statements for x in _statements(s, scope)),
         condition=_condition(conditions[0], scope) if conditions else None,
         gaps=declaration.gaps,
     )
+
+
+def _statements(statement: ast.Statement, scope: _Scope) -> tuple[Statement, ...]:
+    """A statement resolved, with the caps an EXACTLY group in it brings alongside."""
+    resolved = _statement(statement, scope)
+    if not isinstance(resolved, Requirement | Tally):
+        return (resolved,)
+    return (resolved, *_none_beyond(resolved))
 
 
 def _statement(statement: ast.Statement, scope: _Scope) -> Statement:
@@ -725,6 +733,43 @@ def _phrase(
     runs = during is not None and during.consecutive and during.kind == POOL
     pattern = Pattern(busy=busy, pos=pos, **chosen)
     return Tally(prefer, levels, pattern, measure, runs, pos)
+
+
+def _none_beyond(statement: Requirement | Tally) -> tuple[Tally, ...]:
+    """The cap each EXACTLY group in a statement brings: no more of its set than it chose.
+
+    `{staff.alesa + EXACTLY 1 {staff.dylan + staff.cam_vl}}` chooses one of the two as a
+    group chosen AT_LEAST would, and the other does not do it: at most 1 of the two, in a
+    statement of its own that is otherwise the same.
+    """
+    part = statement if isinstance(statement, Requirement) else statement.pattern
+    levels = statement.levels if isinstance(statement, Tally) else ()
+    prefer = isinstance(statement, Tally) and statement.prefer
+    measure = statement.measure if isinstance(statement, Tally) else None
+    caps = []
+    for name, key in FIELDS:
+        choice = getattr(part, key)
+        if not isinstance(choice, Choice):
+            continue
+        groups = [choice] if choice.bound == ast.EXACTLY and choice.kind == ANY else []
+        groups += [g for g in choice.parts if g.bound == ast.EXACTLY]
+        for group in groups:
+            cap = Choice(group.items, COUNT, group.n, pos=group.pos, bound=ast.AT_MOST)
+            others = tuple(level for level in levels if level.field != name)
+            fields = {k: getattr(part, k) for k in ("on", "during", "role", "with_", "without")}
+            fields.update(
+                who=part.who,
+                what=part.what,
+                minutes=part.minutes,
+                length_bound=part.length_bound,
+            )
+            fields[key] = cap
+            pattern = Pattern(busy=part.busy, pos=part.pos, **fields)
+            order = [f for f, _ in FIELDS]
+            ranked = tuple(sorted((*others, Level(name, cap)), key=lambda x: order.index(x.field)))
+            runs = isinstance(statement, Tally) and statement.runs
+            caps.append(Tally(prefer, ranked, pattern, measure, runs, part.pos))
+    return tuple(caps)
 
 
 def _chosen_once(levels: tuple[Level, ...]) -> bool:
@@ -888,7 +933,13 @@ def _test(test: ast.Test, scope: _Scope) -> Predicate | Junction:
     if isinstance(test, ast.Junction):
         return Junction(test.all, tuple(_test(part, scope) for part in test.parts))
     p = test.pattern
-    return Predicate(_phrase(p.who, p.what, p.busy, p.clauses, scope, test.pos, test=True))
+    tally = _phrase(p.who, p.what, p.busy, p.clauses, scope, test.pos, test=True)
+    if _none_beyond(tally):
+        raise _error(
+            "EXACTLY in a group says who does not, which a test does not ask; use AT_LEAST",
+            test.pos,
+        )
+    return Predicate(tally)
 
 
 def _score(statement: ast.Score, scope: _Scope) -> Score:
@@ -1295,7 +1346,10 @@ def _group(
     choice = _choice(selector, namespace, scope, pool, when)
     if pool:
         return replace(choice, kind=POOL)
-    return replace(choice, kind=ANY, bound=None) if choice.kind == COUNT else choice
+    if choice.kind != COUNT:
+        return choice
+    # chosen once; an EXACTLY group keeps its bound, for the cap it brings alongside
+    return replace(choice, kind=ANY, bound=ast.EXACTLY if group.bound == ast.EXACTLY else None)
 
 
 def _on_those_days(

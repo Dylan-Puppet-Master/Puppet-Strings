@@ -97,6 +97,7 @@ any_n       : ANY INT
             | date_atom
             | "(" setexpr ")"
             | "(" (ALL | amount | any_n) set_ ")"   -> group
+            | (ALL | amount | any_n) set_           -> group
 ?date_atom  : DATE | REF | NAME | call
 
 // Two more ways in, for the cells of the Mappings tab rather than for a request: what a

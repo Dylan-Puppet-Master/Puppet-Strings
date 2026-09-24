@@ -176,6 +176,7 @@ any_n       : ANY INT
             | date_atom
             | "(" setexpr ")"
             | "(" (ALL | amount | any_n) set_ ")"   -> group
+            | (ALL | amount | any_n) set_           -> group
 ?date_atom  : DATE | REF | NAME | call
 
 // Two more ways in, for the cells of the Mappings tab rather than for a request: what a
@@ -329,15 +330,17 @@ without parentheses is an error, so there is no precedence to remember. `a .. b`
 inclusive date range, and a single date may be offset by whole days. An offset or range
 endpoint that is not a single date is an error.
 
-A **group** is a set in parentheses with a quantifier in front of it, inside braces:
-`{staff.charlton + (AT_LEAST 1 {staff.dylan + staff.donny})}`. It is one part of the set it
-stands in, taken `ALL` or `AT_LEAST n`:
+A **group** is a set with a quantifier in front of it, inside braces:
+`{staff.charlton + AT_LEAST 1 {staff.dylan + staff.donny}}`, parentheses around it optional.
+It is one part of the set it stands in, taken `ALL`, `AT_LEAST n` or `EXACTLY n`:
 
 - In a set taken whole (`ALL`, or with no quantifier), `(ALL s)` adds every member
   of `s`, and `(AT_LEAST n s)` adds `n` members of `s`, chosen. So
   `ALL {staff.charlton + (AT_LEAST 1 {staff.dylan + staff.donny})}` is Charlton and one of
   the other two, the same as a binding line `EXACTLY 1 x IN {staff.dylan + staff.donny}`
-  and `ALL {staff.charlton + x}`.
+  and `ALL {staff.charlton + x}`. `(EXACTLY n s)` chooses the same way, and the rest of
+  `s` does not do it: the statement comes with a second, the same but for `AT_MOST n s`
+  in the group's place.
 - In a count, each group is one of the things counted, taken whole, so it takes `ALL`:
   `AT_LEAST 1 {staff.lucy + (ALL {staff.tom + staff.charles})}` is Lucy, or else Tom and
   Charles together.
@@ -773,7 +776,8 @@ parser, the validator and the solver report:
 | `EACH splits the request, so its set is not what is counted` | `AT_LEAST 3 EACH staff.x`, the old spelling. |
 | `a set takes one quantifier` | Two quantifiers on one set: `AT_LEAST 2 ALL …`. |
 | `a count counts the members of a set, and` | A count of 2 or more on one item: `AT_LEAST 2 staff.charlton`. |
-| `a group takes ALL or AT_LEAST n` | `(EXACTLY 1 …)` or `(AT_MOST 1 …)` as a group. |
+| `a group takes ALL, AT_LEAST n or EXACTLY n` | `AT_MOST 1 {…}` as a group. |
+| `EXACTLY in a group says who does not` | An `EXACTLY` group in the test of a condition. |
 | `a group in a count is taken whole, so it takes ALL` | An `(AT_LEAST n …)` group inside a count. |
 | `a count of blocks over pooled dates counts each block on each date` | `DURING AT_MOST 3 {blocks.a + (ALL …)} ON ANY …`. |
 | `a binding names exactly which, so it takes EXACTLY` | `AT_LEAST 1 x IN s`. |

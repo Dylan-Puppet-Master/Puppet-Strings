@@ -457,9 +457,10 @@ class _Builder(Transformer):
     def group(self, meta, items):
         quantifier, expr = items
         kind, n, bound = _quantifier(quantifier)
-        if kind == ast.COUNT and bound != ast.AT_LEAST:
+        if bound == ast.AT_MOST:
             raise _error(
-                f"a group takes ALL or AT_LEAST n, not {bound}: (AT_LEAST {n} …)", _pos(meta)
+                "a group takes ALL, AT_LEAST n or EXACTLY n, not AT_MOST: it is who is in",
+                _pos(meta),
             )
         return ast.Group(kind, n, _atom(expr), _pos(meta), bound)
 

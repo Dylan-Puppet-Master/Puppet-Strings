@@ -157,12 +157,13 @@ mixing different operators requires them, so there is no precedence to remember:
 
 ### Choosing inside a set
 
-A quantifier can also go inside a set, on a part of it in parentheses. That part is a
-**group**, taken `ALL` or `AT_LEAST n`. In a set taken whole, `(AT_LEAST 1 …)` adds
-whichever one the solver picks — "Alesa and one of these two":
+A quantifier can also go inside a set, on a part of it. That part is a **group**, taken
+`ALL`, `AT_LEAST n` or `EXACTLY n`, with parentheses around it if they help. In a set taken
+whole, `AT_LEAST 1 {…}` adds whichever one the solver picks — "Alesa and one of these two",
+the other free to join in — and `EXACTLY 1 {…}` adds one and keeps the other out of it:
 
 ```skedge
-REQUEST ALL {staff.alesa + (AT_LEAST 1 {staff.dylan + staff.cam_vl})}
+REQUEST ALL {staff.alesa + EXACTLY 1 {staff.dylan + staff.cam_vl}}
 DO 'Video KM Rope Swing' FOR EXACTLY 30m
 DURING AT_LEAST 1 blocks.all
 ```

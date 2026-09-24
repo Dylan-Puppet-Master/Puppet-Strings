@@ -311,3 +311,33 @@ def test_a_run_of_blocks_over_pooled_dates_stays_within_a_date():
         ],
     )
     assert blocks(run(ds), "x", "dylan") == {"clinic_1"}  # yesterday's last block is no neighbour
+
+
+def test_exactly_in_a_group_chooses_one_and_keeps_the_other_out():
+    text = (
+        "REQUEST ALL {staff.alesa + EXACTLY 1 {staff.dylan + staff.cam}} DO 'video' "
+        "DURING AT_LEAST 1 blocks.all_clinics"
+    )
+    members = [staff("Alesa"), staff("Dylan"), staff("Cam")]
+    ds = dataset(
+        members,
+        [],
+        requests=[
+            request("video", text, MUST),
+            request("dylan", "REQUEST staff.dylan DO 'video' DURING blocks.clinic_1", Priority.LOW),
+            request("cam", "REQUEST staff.cam DO 'video' DURING blocks.clinic_2", Priority.LOW),
+        ],
+    )
+    result = run(ds)
+    filming = {a.staff for a in rows(result, "video")}
+    assert "alesa" in filming and len(filming & {"dylan", "cam"}) == 1
+    loose = replace_text(ds, text.replace("EXACTLY 1", "AT_LEAST 1"))
+    assert {"dylan", "cam"} <= {a.staff for a in rows(run(loose), "video")}
+
+
+def replace_text(ds, text):
+    from dataclasses import replace
+
+    return replace(
+        ds, requests=tuple(replace(r, skedge=text) if r.id == "video" else r for r in ds.requests)
+    )
