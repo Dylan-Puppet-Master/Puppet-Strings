@@ -32,7 +32,7 @@ As interesting as implementing a new declarative programming language sounds, it
 | Tomorrow's clinics | The Offerings tab of that day's spreadsheet |
 | The grid a new day starts from | Offerings tab of Clinic_Schedule |
 | Blocks, calendar, mappings, adjustments | The config spreadsheet |
-| Requests | A file on the Puppet Master's computer, handed over with [Export and Import](sheets.md#requests-on-this-computer) |
+| Requests | A file on the Puppet Master's computer, [backed up to Drive](sheets.md#requests-on-this-computer) and handed over with Export and Import |
 | Published schedules | One spreadsheet per day, in the [schedules tree](sheets.md#the-schedules-tree) |
 | The code | This repository, one Python package |
 

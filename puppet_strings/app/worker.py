@@ -9,6 +9,7 @@ import traceback
 
 from PySide6.QtCore import QThread, Signal
 
+from puppet_strings.drive import DriveError
 from puppet_strings.sheets.source import LoadError
 from puppet_strings.update import UpdateError
 
@@ -27,7 +28,7 @@ class Worker(QThread):
         """Do the job and report what it returned, or the error text."""
         try:
             result = self.job()
-        except (LoadError, UpdateError) as e:
+        except (LoadError, UpdateError, DriveError) as e:
             self.failed.emit(str(e))  # these say what went wrong; a traceback would not
         except Exception:  # noqa: BLE001 - shown to the user, never swallowed
             self.failed.emit(traceback.format_exc())

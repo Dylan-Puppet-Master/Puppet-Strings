@@ -12,8 +12,8 @@ the token, and the next start asks again.
 
 The requests live on this computer rather than in a sheet, so this is also where they are
 handed over: Export writes them to a file for the next Puppet Master, and Import takes one
-in. And the Google Sheets cache can be emptied here, for the rare edit Drive is slow to
-count.
+in. Back up puts a copy on Drive, which the window also does once a run. And the Google
+Sheets cache can be emptied here, for the rare edit Drive is slow to count.
 
 The pane also opens the trainer, since it is the one window a new Puppet Master is sure to
 see: on a first run it comes up before anything else, and the trainer needs no account.
@@ -42,11 +42,13 @@ from PySide6.QtWidgets import (
 
 from puppet_strings import __version__, google_auth
 from puppet_strings.app.drive_browser import DriveBrowser
+from puppet_strings.backup import FOLDER, back_up_to
 from puppet_strings.config import Config
 from puppet_strings.drive import Drive
 from puppet_strings.requests_db import SUFFIX, RequestDb
 from puppet_strings.settings import FOLDERS, Chosen, load_settings, save_settings
 from puppet_strings.sheets.cache import SheetCache
+from puppet_strings.sheets.schedules import ROOT
 from puppet_strings.sheets.source import LoadError
 from puppet_strings.update import UpdateError, download, install, latest_release
 
@@ -108,6 +110,7 @@ class ConfigureDialog(QDialog):
         self.worker: _AccountWorker | None = None
         self.updater: _Job | None = None
         self.installer: _Job | None = None
+        self.backup: _Job | None = None
         self.rows: dict[tuple[str, str], QLabel] = {}  # (kind, name) -> the label showing it
         self.setWindowTitle("Configure Puppet Strings")
         self.resize(760, 560)
@@ -154,11 +157,15 @@ class ConfigureDialog(QDialog):
         self.requests_label = QLabel()
         self.requests_label.setToolTip(str(self.book.path))
         self.requests_label.setWordWrap(True)
+        self.backup_button = QPushButton("Back up")
+        self.backup_button.setToolTip(f"Copy them to {FOLDER} in the Puppet Strings folder")
+        self.backup_button.clicked.connect(self.back_up_requests)
         export = QPushButton("Export…")
         export.clicked.connect(self.export_requests)
         take = QPushButton("Import…")
         take.clicked.connect(self.import_requests)
         row.addWidget(self.requests_label, stretch=1)
+        row.addWidget(self.backup_button)
         row.addWidget(export)
         row.addWidget(take)
         self._count_requests()
@@ -235,6 +242,38 @@ class ConfigureDialog(QDialog):
         self.saved = True  # the window reads them in when this closes
         before = f" The ones they replaced are in {kept.name}." if kept else ""
         self._count_requests(f"Imported {count} from {Path(picked).name}.{before}")
+
+    def back_up_requests(self) -> None:
+        """Copy the requests to Drive, where a dead computer cannot take them.
+
+        The folder chosen in this pane is the one used, saved or not: somebody who has just
+        pointed Puppet Strings at another folder means that one.
+        """
+        if self.backup is not None:
+            return
+        chosen = self.settings.folders.get(ROOT)
+        if self.credentials is None or chosen is None:
+            QMessageBox.information(
+                self,
+                "Back up requests",
+                "Sign in to Google and choose the Puppet Strings folder first.",
+            )
+            return
+        self.backup_button.setEnabled(False)
+        self._count_requests("Backing up…")
+        self.backup = _Job(lambda: back_up_to(Drive(self.credentials), chosen.id, self.book))
+        self.backup.done.connect(lambda name: self._count_requests(f"Backed up as {name}."))
+        self.backup.failed.connect(self._backup_failed)
+        self.backup.finished.connect(self._backup_finished)
+        self.backup.start()
+
+    def _backup_failed(self, why: str) -> None:
+        self._count_requests()
+        QMessageBox.warning(self, "Back up requests", why)
+
+    def _backup_finished(self) -> None:
+        self.backup = None
+        self.backup_button.setEnabled(True)
 
     def clear_cache(self) -> None:
         """Empty the cache, so the next load reads every sheet from Google."""

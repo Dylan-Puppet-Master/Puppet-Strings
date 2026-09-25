@@ -187,6 +187,7 @@ class MainWindow(QMainWindow):
         self.history_wanted = False
         self.updater: Worker | None = None
         self.installer: Worker | None = None
+        self.backup: Worker | None = None  # the requests, copied to Drive when they change
         self.checked_for_updates = False
         self.reload_requested = False
         # The date whose load last failed: said once, and read again only on Reload.
@@ -326,6 +327,38 @@ class MainWindow(QMainWindow):
         self.start_progress(f"Downloading {release.version}…")
         self.installer.finished.connect(self.end_progress)
         self.installer.start()
+
+    def back_up_requests(self) -> None:
+        """Copy the requests to Drive, if they have changed since the last copy went.
+
+        The requests are the one thing Puppet Strings keeps that no sheet holds, so a copy of
+        them goes where the sheets are. On each load rather than on each save: a snapshot is
+        the whole file, and what makes one worth having is that there is a recent one, not
+        that it holds the last keystroke. A day that writes no requests sends nothing at all,
+        and **Configure → Requests → Back up** takes one whenever it is asked.
+
+        A folder of fixtures carries its own requests and has no Drive to put them on, so it
+        takes no backup.
+        """
+        if self.backup is not None or self.store.fixtures:
+            return
+        self.backup = Worker(self.store.back_up)
+        self.backup.failed.connect(self._backup_failed)
+        self.backup.finished.connect(self._backup_finished)
+        self.backup.start()
+
+    def _backup_finished(self) -> None:
+        self.backup = None
+
+    def _backup_failed(self, why: str) -> None:
+        """Say so where the rest of the load's news is, and interrupt nobody.
+
+        Nobody asked for this backup, so a box in front of the day's schedule is the wrong
+        way to report it — but it is worth saying, because a Puppet Master who believes there
+        are copies on Drive and has none is worse off than one who knows there are none.
+        """
+        said = self.status_label.text().strip()
+        self._say(f"{said} Could not back up the requests: {why.strip().splitlines()[-1]}")
 
     def configure(self) -> None:
         """Choose the Google account and the sheets, then read everything again."""
@@ -589,6 +622,7 @@ class MainWindow(QMainWindow):
             # every time anybody opens the window to no possible end.
             self.checked_for_updates = True
             self.check_for_updates(quietly=True)
+        self.back_up_requests()
         dataset = self.store.dataset
         if self.editor.original_id and self.model.request(self.editor.original_id) is None:
             self.new_request()  # the request shown was deleted on the sheet

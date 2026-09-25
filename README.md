@@ -16,6 +16,7 @@ Full documentation: the `docs/` folder, published with MkDocs to GitHub Pages.
 | `puppet_strings/sheets/` | Reads every sheet into a Dataset, cached by Drive version; writes published schedules |
 | `puppet_strings/requests_db.py` | The requests, kept on this computer in one SQLite file, each scoped to a day, week, session or season |
 | `puppet_strings/drive.py`, `google_auth.py`, `settings.py` | Signing in to Google, browsing Drive, and which sheets were chosen |
+| `puppet_strings/backup.py` | A snapshot of the requests, copied to `Database Backups` on Drive |
 | `puppet_strings/skedge/` | The Skedge language: grammar, parser, name resolution, validation |
 | `puppet_strings/solver/` | Compiles requests to CP-SAT and solves tier by tier |
 | `puppet_strings/publish/` | Renders the staff view, clinic view and report |
@@ -46,6 +47,7 @@ puppet-strings --date 2026-06-15 load-offerings   # Offerings tab -> requests ta
 puppet-strings --date 2026-06-15 solve   # print tomorrow's schedule
 puppet-strings solve --publish           # and write it to the day's own sheet
 puppet-strings solve --same-day          # re-solve a published day, moving as few people as it can
+puppet-strings backup-requests           # copy the requests to Database Backups on Drive
 puppet-strings app                       # open the request manager
 puppet-strings train                     # practise writing Skedge, offline
 ```

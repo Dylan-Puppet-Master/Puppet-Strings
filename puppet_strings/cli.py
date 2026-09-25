@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from puppet_strings import __version__
+from puppet_strings.backup import FOLDER, back_up
 from puppet_strings.config import Config, load_config
 from puppet_strings.generate import (
     generated_requests,
@@ -57,6 +58,9 @@ def main(argv: list[str] | None = None) -> int:
         "import-requests", help="replace the requests with a file another Puppet Master exported"
     )
     import_requests.add_argument("file", type=Path)
+    commands.add_parser(
+        "backup-requests", help=f"copy the requests to {FOLDER} in the Puppet Strings folder"
+    )
     solve_parser = commands.add_parser("solve", help="build the schedule for the target date")
     solve_parser.add_argument("--publish", action="store_true", help="write to Published Schedules")
     solve_parser.add_argument(
@@ -106,6 +110,8 @@ def _run(args, config: Config, target: date) -> int:
             return _export_requests(book, args.file)
         return _import_requests(book, args.file)
     source = open_source(config, args.fixtures)
+    if args.command == "backup-requests":
+        return _backup_requests(source, open_requests(config, source))
     if args.command == "export-fixtures":
         return _export(source, open_requests(config, source), args.folder)
     dataset = load_dataset(source, config, target)
@@ -140,6 +146,12 @@ def _import_requests(book: RequestDb, file: Path) -> int:
     print(f"imported {count} requests from {file}")
     if kept is not None:
         print(f"the requests they replaced are in {kept}")
+    return 0
+
+
+def _backup_requests(source: Source, book: RequestDb) -> int:
+    name = back_up(source, book)
+    print(f"backed up {book.count()} requests to {FOLDER}/{name}")
     return 0
 
 

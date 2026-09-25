@@ -221,6 +221,49 @@ def test_the_pane_exports_and_imports_the_requests(app, config, tmp_path, monkey
     assert RequestDb(config.requests).count() == 31
 
 
+def test_backing_up_asks_for_an_account_and_a_folder_first(app, config, monkeypatch):
+    """Nothing to sign in with, or nowhere to put it, is said rather than attempted."""
+    said = []
+    monkeypatch.setattr(configure.QMessageBox, "information", lambda *a: said.append(a[2]))
+    dialog = ConfigureDialog(config, credentials=None)
+
+    dialog.back_up_requests()
+
+    assert dialog.backup is None and said and "Sign in" in said[0]
+
+
+def test_the_pane_backs_the_requests_up_to_drive(app, config, monkeypatch):
+    """The pane's own button, for the day a season of requests has just been rewritten."""
+    import shutil
+
+    from tests.conftest import FIXTURES
+
+    shutil.copyfile(FIXTURES / "requests.sqlite", config.requests)
+    uploaded = []
+
+    class Uploading:
+        def folder(self, parent, name):
+            return DriveFile(f"{parent}/{name}", name, FOLDER_MIME)
+
+        def upload(self, parent, name, path, mime):
+            uploaded.append((parent, name, path.read_bytes()))
+            return DriveFile("f9", name, mime)
+
+    monkeypatch.setattr(configure, "Drive", lambda credentials: Uploading())
+    dialog = ConfigureDialog(config, credentials=object())
+    dialog.choose("folders", "root", Chosen("abc", "Puppet Strings"))
+
+    dialog.back_up_requests()
+    dialog.backup.wait()
+    QApplication.processEvents()
+
+    parent, name, held = uploaded[0]
+    assert parent == f"abc/{configure.FOLDER}" and name.startswith("requests-")
+    assert held.startswith(b"SQLite format 3")
+    assert f"Backed up as {name}." in dialog.requests_label.text()
+    assert dialog.backup is None and dialog.backup_button.isEnabled()
+
+
 def test_the_pane_empties_the_sheets_cache(app, config):
     from puppet_strings.sheets.cache import SheetCache
 

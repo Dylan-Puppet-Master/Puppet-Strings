@@ -255,6 +255,18 @@ one Puppet Master schedules at a time, so they live in one file on the Puppet Ma
 computer, `~/.config/puppet_strings/requests.sqlite`. Saving a request is instant and
 costs no Google requests.
 
+**Backups on Drive.** The requests are the one thing Puppet Strings keeps that no sheet
+holds, so a copy of them goes where the sheets are: a **Database Backups** folder in the
+Puppet Strings folder, one file per snapshot, named for the moment it was taken
+(`requests-2026-09-24-143207.sqlite`). The window takes one on each load, and skips it when
+no request has changed since the last one went, so a day that writes nothing sends nothing.
+**Configure → Requests → Back up** takes one whenever you ask, and
+`puppet-strings backup-requests` does the same from the command line.
+
+Nothing older is ever deleted or overwritten: several snapshots is the point, since the
+newest is no use if what went wrong was a request rewritten three days ago. To put one back,
+download it from Drive and **Import…** it, which is the handover path below.
+
 **Handing over.** When another Puppet Master takes over, **Configure → Requests → Export…**
 writes the requests to a file, and they **Import…** it on their computer. An import
 replaces every request there with the file's; the ones it replaced are kept beside the
@@ -413,6 +425,7 @@ else is configured: the folder is walked and things are recognised by their name
 
 ```
 Puppet Strings/
+  Database Backups         a copy of the requests, one file per snapshot
   2027/
     Clinic_Data            the season's reference sheets, found by name
     Clinic_Schedule

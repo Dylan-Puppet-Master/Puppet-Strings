@@ -1,16 +1,27 @@
 """Listing Google Drive, so the Configure pane can browse it and the import can read a folder.
 
-Everything here is the Drive v3 `files.list` endpoint with the flags that make shared
-drives visible; there is no client library because one endpoint does not need one. Every
-listing is of one place — a folder, the root of My Drive, what has been shared with the
-person, or the shared drives themselves — and returns folders and spreadsheets only, which
-is all either caller can use.
+Almost everything here is the Drive v3 `files.list` endpoint with the flags that make shared
+drives visible; there is no client library because a handful of endpoints do not need one.
+Every listing is of one place — a folder, the root of My Drive, what has been shared with
+the person, or the shared drives themselves — and returns folders and spreadsheets only,
+which is all any caller browsing Drive can use.
+
+`upload` is the one thing here that puts a file of its own on Drive rather than reading or
+making a folder: the backup of the requests, which is neither a folder nor a spreadsheet and
+so appears in none of the listings above.
 """
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 
 FILES = "https://www.googleapis.com/drive/v3/files"
+UPLOAD = "https://www.googleapis.com/upload/drive/v3/files"
 DRIVES = "https://www.googleapis.com/drive/v3/drives"
+
+# One boundary for every upload: it only has to be a string the file's own bytes do not
+# hold, and a requests file holds no such line.
+BOUNDARY = "puppet-strings-1f8b2c4e"
 
 FOLDER_MIME = "application/vnd.google-apps.folder"
 SHEET_MIME = "application/vnd.google-apps.spreadsheet"
@@ -95,6 +106,40 @@ class Drive:
         )
         if not response.ok:
             raise DriveError(f"Drive: could not make '{name}': {response.text[:200]}")
+        return _file(response.json())
+
+    def upload(self, parent: str, name: str, path: Path, mime: str) -> DriveFile:
+        """Put a file from this computer into a folder, as a new file of its own.
+
+        The metadata and the bytes go in one request, which is what Drive asks for when the
+        file is small enough to send in one go; the requests file is tens of kilobytes. A
+        name already in the folder is not looked for and nothing is replaced: Drive allows
+        two files of one name, and a backup is one more snapshot rather than a file to keep
+        up to date.
+        """
+        metadata = json.dumps({"name": name, "parents": [parent]})
+        body = b"".join(
+            (
+                f"--{BOUNDARY}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n".encode(),
+                metadata.encode(),
+                f"\r\n--{BOUNDARY}\r\nContent-Type: {mime}\r\n\r\n".encode(),
+                path.read_bytes(),
+                f"\r\n--{BOUNDARY}--\r\n".encode(),
+            )
+        )
+        response = self.session.post(
+            UPLOAD,
+            params={
+                "uploadType": "multipart",
+                "fields": "id, name, mimeType",
+                "supportsAllDrives": "true",
+            },
+            data=body,
+            headers={"Content-Type": f"multipart/related; boundary={BOUNDARY}"},
+            timeout=60,  # a whole file, on whatever camp's connection is doing today
+        )
+        if not response.ok:
+            raise DriveError(f"Drive: could not upload '{name}': {response.text[:200]}")
         return _file(response.json())
 
     def file(self, file_id: str) -> DriveFile | None:

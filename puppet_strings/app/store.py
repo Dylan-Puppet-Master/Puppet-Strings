@@ -3,6 +3,7 @@
 from dataclasses import replace
 from datetime import date
 
+from puppet_strings import backup
 from puppet_strings.app.conflicts import Conflict, find_conflicts
 from puppet_strings.app.errors import Problem, find_errors
 from puppet_strings.app.facets import Facets, resolve_request
@@ -63,6 +64,15 @@ class RequestStore:
         """Read different sheets from now on, the Configure pane having changed which."""
         self.source, self.config = source, config
         self.book = open_requests(config, source)
+
+    def back_up(self) -> str | None:
+        """Copy the requests to Drive unless what is there is already of these requests.
+
+        Returns the name of the snapshot, or None if nothing needed sending. Raises LoadError.
+        """
+        if backup.already_backed_up(self.book):
+            return None
+        return backup.back_up(self.source, self.book)
 
     def calendar(self, target: date) -> dict:
         """The Calendar sheet on its own: every camp day, its span, session and week.

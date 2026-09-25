@@ -66,6 +66,11 @@ def test_nothing_but_the_calendar_is_read_until_reload(app, fixtures_copy):
     assert window.store.dataset.target == date(2026, 9, 16)
 
 
+def test_a_folder_of_fixtures_is_not_backed_up_to_drive(window):
+    """It carries its own requests and has no account to put a copy anywhere."""
+    assert window.store.fixtures and window.backup is None
+
+
 def visible_ids(window):
     return {window.proxy.data(window.proxy.index(r, 0)) for r in range(window.proxy.rowCount())}
 
