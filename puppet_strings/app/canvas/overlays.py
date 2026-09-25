@@ -78,7 +78,7 @@ class ZoomBar(QFrame):
 
 
 class NewButton(QPushButton):
-    """The New request button in the canvas's corner."""
+    """The New request button, beside the zoom controls."""
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__("+  New request", parent)

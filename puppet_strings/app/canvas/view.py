@@ -1165,21 +1165,22 @@ class Canvas(QGraphicsView):
         self._place_overlays()
 
     def _place_overlays(self) -> None:
+        """The controls along the bottom, clear of the frames' own headers at the top."""
         view = self.viewport().rect()
         margin = 16
         self.zoom_bar.adjustSize()
         self.zoom_bar.move(margin, view.height() - self.zoom_bar.height() - margin)
-        self.hint.adjustSize()
-        self.hint.move(
-            self.zoom_bar.geometry().right() + 14,
-            self.zoom_bar.geometry().center().y() - self.hint.height() // 2,
+        middle = self.zoom_bar.geometry().center().y()
+        self.new_button.adjustSize()
+        self.new_button.move(
+            self.zoom_bar.geometry().right() + 10, middle - self.new_button.height() // 2
         )
+        self.hint.adjustSize()
+        self.hint.move(self.new_button.geometry().right() + 14, middle - self.hint.height() // 2)
         self.minimap.move(
             view.width() - self.minimap.width() - margin,
             view.height() - self.minimap.height() - margin,
         )
-        self.new_button.adjustSize()
-        self.new_button.move(view.width() - self.new_button.width() - margin, margin)
         room = self.hint.geometry().right() < self.minimap.x() - 10
         self.hint.setVisible(room and not self.hinted)
 

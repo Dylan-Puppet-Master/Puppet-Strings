@@ -5,13 +5,16 @@
 Each is taken offscreen from a scratch copy of tests/fixtures, with a throwaway settings
 file, so nothing on this computer is read or changed: the request manager on 2026-09-16
 (app.png), name completion (completer.png), the errors pane with two clashes in it
-(conflicts.png) and the sleep agreement dialog on a published day (same-day.png).
+(conflicts.png), the sleep agreement dialog on a published day (same-day.png) and the
+canvas, with a group of its own moved beside the others and a card open (canvas.png).
 """
 
 import os
 import shutil
 import sys
 import tempfile
+from dataclasses import replace
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -22,8 +25,8 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["PUPPET_STRINGS_SETTINGS"] = str(WORK / "settings.json")
 os.environ["PUPPET_STRINGS_CONFIG"] = str(WORK / "config.toml")
 
-from PySide6.QtCore import QDate, QItemSelectionModel, QPoint, QRect, Qt  # noqa: E402
-from PySide6.QtGui import QPainter  # noqa: E402
+from PySide6.QtCore import QDate, QItemSelectionModel, QPoint, QPointF, QRect, Qt  # noqa: E402
+from PySide6.QtGui import QPainter, QTextCursor  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
@@ -34,6 +37,7 @@ from puppet_strings.app.store import RequestStore  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
 from puppet_strings.model import Priority, Request  # noqa: E402
 from puppet_strings.publish.writer import publish  # noqa: E402
+from puppet_strings.settings import CANVAS  # noqa: E402
 from puppet_strings.sheets.source import CsvSource  # noqa: E402
 from puppet_strings.solver.solve import solve  # noqa: E402
 
@@ -158,5 +162,66 @@ sleep.show()
 sleep.move(w.mapToGlobal(QPoint(430, 110)))
 settle()
 composite(w, sleep).copy(QRect(0, 0, 1010, 620)).save(str(OUT / "same-day.png"))
+
+# 4. the canvas, with a group of requests for this session moved in beside the others
+w = window_on(WORK / "canvas")
+w.resize(1760, 990)
+SESSION = "Session 1 specials"
+for id, priority, description, skedge, tags, requester in (
+    (
+        "s1-1",
+        Priority.HIGH,
+        "Rob leads the zip line in clinic 1",
+        "REQUEST staff.rob DO activities.clinics.gravity_zip_line AS_ROLE roles.first\n"
+        "    DURING blocks.clinic_1 ON 2026-09-16",
+        ("clinics", "ropes"),
+        "lucy",
+    ),
+    (
+        "s1-2",
+        Priority.MEDIUM,
+        "Counselors get two free hours in clinics",
+        "PREFER EACH staff.counselor FREE FOR AT_LEAST 2h\n    DURING ANY blocks.all_clinics",
+        ("counselors",),
+        "lucy",
+    ),
+    (
+        "s1-3",
+        Priority.LOW,
+        "Rob gets the playstation block off",
+        "PREFER staff.rob FREE DURING AT_LEAST 1 blocks.playstation",
+        ("time off",),
+        "rob",
+    ),
+    (
+        "s1-4",
+        Priority.MUST_HAPPEN,
+        "Dylan's day off",
+        "EXCLUDE staff.dylan DO 'day off' ON 2026-09-16",
+        ("away",),
+        "dylan",
+    ),
+):
+    request = Request(id, description, skedge, priority, tags=tags, group=SESSION)
+    w.store.save(replace(request, requester=requester, created=date(2026, 9, 12)), None)
+w._requests_changed()
+w.show_view(CANVAS)
+settle()
+w.resizeDocks([w.errors_dock], [90], Qt.Vertical)
+settle()
+canvas = w.canvas
+daily = canvas.frames["Special daily requests"]
+canvas.placed = {SESSION: (daily.pos().x(), daily.pos().y() + daily.size.height() + 90)}
+canvas._save_placed()
+canvas.relayout(animate=False)
+canvas.activate(canvas.cards["s1-1"], "description")
+settle()
+canvas.editor.description_edit.moveCursor(QTextCursor.End)
+canvas.look(QPointF(2050, 560), 0.7)
+for _ in range(20):
+    QTest.qWait(20)
+    settle()
+w.grab().save(str(OUT / "canvas.png"))
+
 shutil.rmtree(WORK, ignore_errors=True)
 print(f"wrote {OUT}")

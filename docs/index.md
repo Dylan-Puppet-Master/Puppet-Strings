@@ -2,7 +2,7 @@
 
 Puppet Strings builds the daily staff schedule for Camp Augusta. The Puppet Master keeps camp data in Google Sheets, writes scheduling rules as **requests** in a small declarative language called **Skedge**, and presses Solve. The solver assigns staff to the clinics on the Offerings sheet, fits in breaks, counselor hours, and other tasks specifided by the Puppet Master. It then can publish two printable views back to Google Sheets.
 
-![The request manager](img/app.png)
+![The request manager's canvas](img/canvas.png)
 
 ## The Daily Loop
 

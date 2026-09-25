@@ -6,7 +6,7 @@ solver (Google OR-Tools CP-SAT) produces and publishes the day's schedule.
 
 Full documentation: the `docs/` folder, published with MkDocs to GitHub Pages.
 
-![The request manager](docs/img/app.png)
+![The request manager's canvas](docs/img/canvas.png)
 
 ## Code layout
 

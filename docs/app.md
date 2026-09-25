@@ -84,6 +84,8 @@ shown. The window remembers which one you used last. On the canvas, every reques
 the filters is a card, and each group is a frame of cards. Everything else stays where it
 is: the groups pane, the filters, the Namespaces and Calendar panes and the errors pane.
 
+![The canvas](img/canvas.png)
+
 - **Moving around.** Scroll to zoom at the pointer. Drag the empty canvas to pan (or drag
   with the middle button, or with Space held). Click or drag the minimap to jump somewhere.
   **F** shows everything, **Ctrl+1** is actual size, and **+** and **−** zoom. Picking a
@@ -93,7 +95,7 @@ is: the groups pane, the filters, the Namespaces and Calendar panes and the erro
   Clicking away saves it, and so does **Ctrl+S**. If the card does not validate, it keeps
   your changes, is marked unsaved, and waits for you. **Escape** puts it back to how it was
   saved.
-- **New requests.** Press **New request** in the corner or in a frame's header,
+- **New requests.** Press **New request** beside the zoom controls or in a frame's header,
   double-click inside a frame, or press **N** for the group nearest the middle of the view.
   A new card left empty is thrown away.
 - **Moving and deleting.** Drag a card onto another frame, or onto a group in the groups
