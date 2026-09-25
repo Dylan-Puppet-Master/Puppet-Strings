@@ -8,7 +8,9 @@
 // Each keyword is a terminal of its own at a priority above NAME, and ends in `\b` so that
 // it only ever takes a whole word: `format` is a name, not `FOR` and then `mat`.
 
-start       : _NL* line (_NL+ line)* _NL*
+// An ON on the first line is every statement's: written once, where they would each repeat it.
+// Only the first, since an ON starting any later line carries on the statement above it.
+start       : _NL* (on _NL+)? line (_NL+ line)* _NL*
 ?line       : binding | define | define_task | if_ | unless | labeled | request | prefer | gap
             | exclude
 

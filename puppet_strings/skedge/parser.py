@@ -233,6 +233,8 @@ class _Builder(Transformer):
     """Turns the Lark tree into ast nodes."""
 
     def start(self, meta, lines):
+        if isinstance(lines[0], ast.On):
+            lines = _on_every_statement(lines[0], lines[1:])
         _no_namespace_names(lines)
         declaration = _define(ast.Declaration(tuple(lines)))
         _check_pools(declaration)
@@ -768,6 +770,30 @@ def _name_tasks(declaration: ast.Declaration) -> ast.Declaration:
                         f"'{var.name}' names a task, which goes after DO, not in a set", var.pos
                     )
     return ast.Declaration(lines)
+
+
+def _on_every_statement(on: ast.On, lines: list) -> list:
+    """Give an ON written above the statements to each of them, which then has none of its own.
+
+    It is the same ON in each, so an EACH in it splits the request once, with every statement
+    on the same date in each copy; an ANY n is chosen by each statement for itself, as it would
+    be written out in each.
+    """
+    placed, given = [], False
+    for line in lines:
+        preferred = isinstance(line, ast.Preference | ast.Score)
+        statement = line.pattern if preferred else line
+        if isinstance(statement, ast.Requirement | ast.Pattern | ast.Exclude):
+            own = ast.clause(statement.clauses, ast.On)
+            if own is not None:
+                raise _error("the ON on the first line gives this its dates already", own.pos)
+            statement = replace(statement, clauses=(*statement.clauses, on))
+            line = replace(line, pattern=statement) if preferred else statement
+            given = True
+        placed.append(line)
+    if not given:
+        raise _error("an ON on the first line needs a REQUEST, PREFER or EXCLUDE to go on", on.pos)
+    return placed
 
 
 def _no_namespace_names(lines) -> None:

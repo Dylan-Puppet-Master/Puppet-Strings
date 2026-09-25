@@ -286,12 +286,15 @@ def resolve(declaration: ast.Declaration, dataset: Dataset) -> tuple[Resolved, .
     for binding in declaration.bindings:
         if binding.selector.quantifier == ast.ANY_OF:
             scope = scope.with_any(binding.selector)
-    each = [
-        (namespace, selector)
-        for line in declaration.lines
-        for namespace, selector in ast.selectors(line)
-        if selector.quantifier == ast.EACH
-    ]
+    # an ON written once for every statement is one EACH, however many statements hold it
+    each = list(
+        {
+            selector.pos: (namespace, selector)
+            for line in declaration.lines
+            for namespace, selector in ast.selectors(line)
+            if selector.quantifier == ast.EACH
+        }.values()
+    )
     return tuple(_expand(declaration, each, scope))
 
 

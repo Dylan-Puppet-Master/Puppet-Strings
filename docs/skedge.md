@@ -731,6 +731,24 @@ REQUEST staff.rob DO activities.clinics.pole_course_explore_level_1_2_dbl AS_ROL
 PREFER staff.rob FREE DURING AT_LEAST 1 blocks.playstation
 ```
 
+When every statement is on the same dates, say so once: an `ON` on the **first line** of
+the request goes on every `REQUEST`, `PREFER` and `EXCLUDE` in it. A statement that has an
+`ON` of its own is then refused, rather than one of the two quietly winning. An `IF` or
+`UNLESS` keeps its own dates, since what it tests is often another day.
+
+```skedge
+# All session 1: Rob opens the pole course, and we would rather he were free at playstation.
+ON EACH dates.session_1
+REQUEST staff.rob DO activities.clinics.pole_course_explore_level_1_2_dbl AS_ROLE roles.first DURING ALL {blocks.clinic_1 + blocks.clinic_2}
+PREFER staff.rob FREE DURING AT_LEAST 1 blocks.playstation
+```
+
+It is the same `ON` in every statement, so an `EACH` in it splits the request once, and in
+each copy every statement is on the same date. An `ANY 1` is chosen by each statement for
+itself, as it would be if written out in each; to have them all on one chosen date, bind
+it first, `ANY 1 d IN dates.session_1`, and write `ON d` in each. Only the first line
+works this way: an `ON` starting a later line carries on the statement above it.
+
 The `REQUEST` statements stand or fall together: the request is met when every one of them
 is, and that is what the report names. Each `PREFER` is weighed on its own in the request's
 tier, met or not, whether or not the requirements are.

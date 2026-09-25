@@ -96,6 +96,25 @@ def test_a_binding_line_is_visible_on_every_line(dataset):
     assert dylan.gaps[0].amount.value == 300
 
 
+def test_an_on_on_the_first_line_is_every_statements(dataset):
+    """An EACH there splits the request once, with every statement on the same date."""
+    copies = resolve(
+        dataset,
+        "ON EACH dates.session_1.week_2\n"
+        "REQUEST staff.dylan DO 'a' DURING blocks.clinic_1\n"
+        "PREFER staff.rob FREE DURING AT_LEAST 1 blocks.clinic_2",
+    )
+    assert len(copies) == 7
+    for copy in copies:
+        requested, preferred = copy.statements
+        assert len(requested.on.items) == 1 and requested.on.items == preferred.pattern.on.items
+    with pytest.raises(SkedgeError, match="gives this its dates already"):
+        resolve(
+            dataset,
+            "ON dates.target\nREQUEST staff.dylan DO 'a' DURING blocks.clinic_1 ON dates.target",
+        )
+
+
 def test_an_any_binding_is_one_choice_shared_by_the_declaration(dataset):
     (copy,) = resolve(
         dataset,
