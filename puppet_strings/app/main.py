@@ -72,7 +72,7 @@ def run_app(config: Config, fixtures: Path | None) -> int:
             return 1
         store = RequestStore(source, config)
     window = MainWindow(store)
-    window.show()  # nothing is read until Reload: the day wanted is often not the default
+    window.show()  # only the calendar is read until Reload: the day wanted is often not the default
     return app.exec()
 
 
@@ -183,6 +183,7 @@ class MainWindow(QMainWindow):
         self.loader: LoadWorker | None = None
         self.offerings: Worker | None = None
         self.history: Worker | None = None  # the past days, read while the day is read over
+        self.calendar_reader: Worker | None = None  # the Calendar sheet, read on opening
         self.history_wanted = False
         self.updater: Worker | None = None
         self.installer: Worker | None = None
@@ -248,6 +249,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.BottomDockWidgetArea, self.errors_dock)
         self._say("Pick a target date and press Reload.")
         self._list_file()
+        self.read_calendar()
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Main")
@@ -546,6 +548,33 @@ class MainWindow(QMainWindow):
         if self.reload_requested:
             self.reload_requested = False
             self.reload()
+
+    def read_calendar(self) -> None:
+        """Shade and number the calendar on opening, before anything has been loaded.
+
+        The rest waits for Reload, since the day wanted is often not the default, but the
+        Calendar sheet is the same whichever day it is and is what you pick the day from.
+        A failure says nothing: the first load reads it again and reports properly.
+        """
+        target = self.target
+        self.calendar_reader = Worker(lambda: self.store.calendar(target))
+        self.calendar_reader.done.connect(self._calendar_opened)
+        self.calendar_reader.finished.connect(self._calendar_reader_finished)
+        self.calendar_reader.start()
+
+    def _calendar_opened(self, calendar: dict) -> None:
+        """Show it, unless a load has got there first with the day it is about."""
+        if self.store.dataset is None and self.loader is None:
+            self.calendar.show_calendar(calendar, self.target)
+
+    def _calendar_reader_finished(self) -> None:
+        self.calendar_reader = None
+
+    def wait_for_calendar(self) -> None:
+        """Block until the calendar read on opening is in (used by tests)."""
+        while self.calendar_reader is not None:
+            self.calendar_reader.wait()
+            QApplication.processEvents()
 
     def _calendar_read(self, calendar: dict) -> None:
         """Number and shade the calendar as soon as the Calendar sheet itself is read."""

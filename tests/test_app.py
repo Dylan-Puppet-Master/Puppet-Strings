@@ -40,6 +40,7 @@ def make_window(path, loaded=True):
     """A window on a copy of the fixtures, kept alive for the run."""
     window = MainWindow(RequestStore(CsvSource(path), Config(time_limit_seconds=10)))
     OPEN_WINDOWS.append(window)
+    window.wait_for_calendar()
     window.date_edit.setDate(QDate(2026, 9, 16))
     if loaded:
         window.reload()
@@ -52,8 +53,9 @@ def window(app, fixtures_copy):
     return make_window(fixtures_copy)
 
 
-def test_nothing_is_read_until_reload(app, fixtures_copy):
-    """The day wanted is often not the default one, so opening the window reads nothing."""
+def test_nothing_but_the_calendar_is_read_until_reload(app, fixtures_copy):
+    """The day wanted is often not the default one, so opening the window reads only the
+    Calendar sheet, which is what the day is picked from."""
     window = make_window(fixtures_copy, loaded=False)
     assert window.loader is None and window.store.dataset is None
     assert window.status_label.text().strip() == "Pick a target date and press Reload."
@@ -978,6 +980,16 @@ def test_the_calendar_starts_its_weeks_where_camp_does(window):
     window.calendar.show_dataset(window.store.dataset)
     assert window.calendar.firstDayOfWeek() == Qt.Sunday  # session 1 starts Sunday 2026-09-13
     assert window.calendar.row_start(3).toString("yyyy-MM-dd") == "2026-09-13"
+
+
+def test_the_calendar_is_shaded_as_soon_as_the_window_opens(app, fixtures_copy):
+    window = make_window(fixtures_copy, loaded=False)
+    assert window.store.dataset is None
+    shaded = window.calendar.dateTextFormat(QDate(2026, 9, 13)).background().color().name()
+    assert shaded == palette.CAMP_DAY
+    window.calendar.setCurrentPage(2026, 9)
+    labelled = {window.calendar.week_of_row(r) for r in ROWS}
+    assert (1, 1) in labelled
 
 
 def test_the_calendar_starts_on_sunday_before_a_sheet_has_been_read(app):

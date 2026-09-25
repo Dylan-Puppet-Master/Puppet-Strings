@@ -6,8 +6,8 @@ puppet-strings app
 
 ![The request manager](img/app.png)
 
-**Toolbar.** Pick the target date (tomorrow by default). Nothing is read when the window
-opens; **Reload** reads every sheet for the date shown, and again whenever it is pressed.
+**Toolbar.** Pick the target date (tomorrow by default). Only the Calendar is read when the
+window opens, so the calendar panel is shaded and numbered from the start; **Reload** reads every sheet for the date shown, and again whenever it is pressed.
 After the first Reload, changing the date reads the new day by itself.
 Right-clicking a day in the calendar panel and choosing **Set as target** does both at once:
 it makes that day the target and reads it.
