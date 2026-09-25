@@ -21,9 +21,10 @@ from puppet_strings.app import palette  # noqa: E402
 from puppet_strings.app.calendar_pane import ROWS  # noqa: E402
 from puppet_strings.app.groups import ALL, DEFAULT_GROUPS, UNGROUPED  # noqa: E402
 from puppet_strings.app.main import MainWindow  # noqa: E402
+from puppet_strings.app.requests_model import COLUMNS  # noqa: E402
 from puppet_strings.app.store import RequestStore  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
-from puppet_strings.model import Rest  # noqa: E402
+from puppet_strings.model import Priority, Rest  # noqa: E402
 from puppet_strings.sheets.source import CsvSource, LoadError  # noqa: E402
 from tests.conftest import FIXTURES, delete_requests, family_camp, saved_requests  # noqa: E402
 
@@ -1827,3 +1828,14 @@ def test_only_resting_all_day_resolves_the_requests_again(window):
     assert store.unresolved
     store.errors  # noqa: B018 - asking is what resolves them
     assert not store.unresolved and store.resolved
+
+
+def test_sorting_by_priority_goes_by_rank_not_name(window):
+    window.table.sortByColumn(COLUMNS.index("priority"), Qt.AscendingOrder)
+    shown = [
+        window.proxy.data(window.proxy.index(r, COLUMNS.index("priority")))
+        for r in range(window.proxy.rowCount())
+    ]
+    ranks = [list(Priority).index(Priority(p)) for p in shown]
+    assert len(set(ranks)) > 2  # enough priorities to tell rank from name
+    assert ranks == sorted(ranks)

@@ -6,10 +6,12 @@ from PySide6.QtCore import QAbstractTableModel, QMimeData, QSortFilterProxyModel
 
 from puppet_strings.app.groups import ALL, UNGROUPED, same_group
 from puppet_strings.app.store import RequestStore
-from puppet_strings.model import Request
+from puppet_strings.model import Priority, Request
 
 COLUMNS = ("id", "priority", "group", "tags", "requester", "description")
 REQUEST_IDS = "application/x-puppet-strings-requests"  # what a dragged row carries
+SORT_ROLE = Qt.UserRole + 1  # what the table sorts on: the text, but a priority by its rank
+RANKS = {p: i for i, p in enumerate(Priority)}  # highest first
 
 
 def request_ids(data: QMimeData) -> list[str]:
@@ -56,11 +58,13 @@ class RequestsModel(QAbstractTableModel):
         return None
 
     def data(self, index, role=Qt.DisplayRole):
-        """Cell text, or the Request itself for UserRole."""
+        """Cell text, the Request itself for UserRole, or what SORT_ROLE sorts the cell by."""
         row = index.row()
         if role == Qt.UserRole:
             return self.rows[row]
-        if role != Qt.DisplayRole:
+        if role == SORT_ROLE and COLUMNS[index.column()] == "priority":
+            return RANKS[self.rows[row].priority]
+        if role not in (Qt.DisplayRole, SORT_ROLE):
             return None
         if row not in self.cells:
             request = self.rows[row]
@@ -99,6 +103,7 @@ class RequestFilter(QSortFilterProxyModel):
 
     def __init__(self, store: RequestStore) -> None:
         super().__init__()
+        self.setSortRole(SORT_ROLE)
         self.store = store
         self.text = ""
         self.group = ALL
