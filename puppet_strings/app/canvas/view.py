@@ -1,9 +1,9 @@
 """The canvas: every request as a card, in its group's frame, on a surface to zoom and pan.
 
 It is the table and the editor at once. The filters decide which cards are out; a card is
-edited by clicking it and typing, and saved when you click away (or press Ctrl+S). A card
-that will not validate is not lost when you click away: it keeps its changes, says it is
-unsaved, and waits. Escape puts a card back the way it was saved.
+edited by clicking it and typing, and saved when you click away (or press Ctrl+S), whether
+it validates or not: one that does not says so, and a solve leaves it out. Escape puts a
+card back the way it was saved.
 
 Getting about:
 
@@ -277,11 +277,13 @@ class Canvas(QGraphicsView):
         card.request = saved
         card.set_draft(None)
 
-    def saved_as(self, request: Request, note: str = "") -> None:
+    def saved_as(self, request: Request, note: str = "", problem: str = "") -> None:
         """The save went through: say so on the card, as the editor says it."""
         card, self.saving = self.saving, None
         if card is not None and card is self.active:
-            self.editor.saved_as(request, note)
+            self.editor.saved_as(request, note, problem)
+        elif card is not None and problem:
+            card.set_status(Status(BAD, problem))
         elif card is not None:
             stamp = f"Saved at {datetime.now():%H:%M:%S}{note}"
             card.set_status(Status(WARNING if note else OK, stamp))
@@ -544,14 +546,14 @@ class Canvas(QGraphicsView):
     def deactivate(self, commit: bool = True) -> None:
         """Take the form off the card it is on, saving the card's changes if it has any.
 
-        A card that will not validate keeps its changes and says it is unsaved; Escape
-        (`commit` False) throws the changes away instead. A new card with nothing written
-        on it just goes.
+        It is saved whether it validates or not, and says so if not; only a box the window
+        puts up on saving (a scope that misses its dates, say) can call the save off, which
+        leaves the card holding its changes, marked unsaved. Escape (`commit` False) throws
+        the changes away instead. A new card with nothing written on it just goes.
         """
         card = self.active
         if card is None:
             return
-        self.editor.timer.stop()
         draft = self.editor.current()
         if card.request is not None:
             draft = replace(draft, id=card.request.id)
@@ -564,8 +566,7 @@ class Canvas(QGraphicsView):
         changed = card.request is None or draft != card.request
         if changed and commit:
             card.set_draft(draft)
-            if self.editor.validate():
-                self.editor._save()  # the window saves it, and calls back before this returns
+            self.editor._save()  # the window saves it, and calls back before this returns
         elif not commit:
             card.set_draft(None)
         if self.active is card:

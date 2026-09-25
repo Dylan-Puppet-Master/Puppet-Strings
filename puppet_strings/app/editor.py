@@ -273,14 +273,11 @@ class RequestEditor(QWidget):
         self.new_button = QPushButton("New")
         self._lay_out()
 
-        self.timer = QTimer(self)
-        self.timer.setSingleShot(True)
-        self.timer.setInterval(300)
-        self.timer.timeout.connect(self.validate)
-        self.skedge_edit.textChanged.connect(self.timer.start)
+        # Nothing is checked as it is typed: half a Skedge is always wrong, and saying so at
+        # every pause was more noise than help. It is checked when it is saved, and saved
+        # whatever the check finds, with the line under the editor saying what that was;
+        # a request that does not validate is left out of solving until it is fixed.
         self.priority_box.currentTextChanged.connect(self._priority_changed)
-        self.weight_box.valueChanged.connect(self.timer.start)
-        self.requester_edit.textChanged.connect(self.timer.start)
         # A request just put in the fields is checked straight after they are shown rather
         # than before, so a click on a row or a card opens it at once; see `_check_soon`.
         self.soon = QTimer(self)
@@ -405,13 +402,11 @@ class RequestEditor(QWidget):
         self._check_soon()
 
     def _check_soon(self) -> None:
-        """Check the request in the fields once they have been drawn.
+        """Check the request in the fields once they have been drawn, to say how it stands.
 
         Resolving a request can take a good fraction of a second, and done first it held
-        the fields back until it was over. Filling them also sets off the check that waits
-        for typing to stop, which would have done it all again: one check is enough.
+        the fields back until it was over.
         """
-        self.timer.stop()
         self.follow_on = self.scope_picked = False  # a request just shown keeps its scope
         self._report("", ok=None)
         self.soon.start()
@@ -420,9 +415,8 @@ class RequestEditor(QWidget):
         self.follow_on = True
 
     def _scope_picked(self) -> None:
-        """A scope chosen by hand stays, whatever the ON says; the check says if it misses."""
+        """A scope chosen by hand stays, whatever the ON says; saving says if it misses."""
         self.scope_picked = True
-        self.timer.start()
 
     def _follow(self, days) -> str:
         """Scope the request to the narrowest scope holding the ON's dates; say if it moved."""
@@ -463,7 +457,6 @@ class RequestEditor(QWidget):
             copies = self._validated(request)
         except NoSession as e:  # right on a session's dates, so it can still be saved
             self._report(str(e), ok=None)
-            self.save_button.setEnabled(True)
             return True
         except SkedgeError as e:
             return self._report(str(e), ok=False)
@@ -479,7 +472,6 @@ class RequestEditor(QWidget):
                 "saving will offer one that is",
                 ok=None,
             )
-            self.save_button.setEnabled(True)
             return True
         valid = f"Valid ({len(keys)} EACH copies)" if keys else "Valid"
         return self._report(valid + note, ok=True)
@@ -516,16 +508,13 @@ class RequestEditor(QWidget):
     }
 
     def _report(self, message: str, ok: bool | None) -> bool:
-        """Say how the request stands. `ok` of None is neither: a note, with Save left alone."""
+        """Say how the request stands. `ok` of None is neither: a note."""
         self.status.setText(message)
         self.status.setStyleSheet(self.COLORS[ok])
-        if ok is not None:
-            self.save_button.setEnabled(ok)
         return bool(ok)
 
     def _priority_changed(self, text: str) -> None:
         self.weight_box.setEnabled(not Priority(text).hard)
-        self.timer.start()
 
     def saving(self) -> None:
         """Say that the write is under way; the sheet is not always quick."""
@@ -534,17 +523,21 @@ class RequestEditor(QWidget):
         self._report("Saving…", ok=None)
         QApplication.processEvents()  # so the button changes before the write, not after
 
-    def saved_as(self, request: Request, note: str = "") -> None:
+    def saved_as(self, request: Request, note: str = "", problem: str = "") -> None:
         """Show the id the store gave the request just saved, and that it is written.
 
         The confirmation names the time, so a second save of the same request still shows
-        that something happened, and stays until the next edit re-validates the request.
+        that something happened, and stays until the request is next saved or opened.
+        `problem` is what is wrong with it, if it does not validate: it is saved all the
+        same, and said in red.
         """
         self.original_id = request.id
         self.id_label.setText(request.id)
         self.delete_button.setEnabled(True)
         self.save_button.setText("Save")
-        self._report(f"✓ Saved {request.id} at {datetime.now():%H:%M:%S}{note}", ok=True)
+        self.save_button.setEnabled(True)
+        saved = f"✓ Saved {request.id} at {datetime.now():%H:%M:%S}{note}"
+        self._report(f"{saved}. {problem}" if problem else saved, ok=not problem)
 
     def not_saved(self, why: str) -> None:
         """Put the editor back the way it was, the save having been called off.
@@ -556,8 +549,11 @@ class RequestEditor(QWidget):
         self._report(why, ok=None)
 
     def _save(self) -> None:
-        if not self.validate():
+        """Save the request, whether it validates or not; see `saved_as`."""
+        if self.dataset is None:
+            self._report("No data loaded", ok=False)
             return
+        self.validate()  # which is when the scope follows the ON
         self.saving()
         self.saved.emit(self.current(), self.original_id)
 

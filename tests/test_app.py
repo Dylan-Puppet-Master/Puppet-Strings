@@ -1030,6 +1030,18 @@ def test_opening_a_request_leaves_its_scope_as_saved(window, monkeypatch):
     assert window.editor.current().scope == request.scope  # nothing to save on leaving it
 
 
+def test_the_editor_saves_a_request_that_does_not_validate_and_says_so(window):
+    editor = window.editor
+    editor.clear()
+    editor.description_edit.setText("Half written")
+    editor.skedge_edit.setPlainText("REQUEST staff.dylan DO")
+    assert editor.save_button.isEnabled()
+    editor.save_button.click()
+    saved = window.model.request(editor.original_id)
+    assert saved is not None and saved.skedge == "REQUEST staff.dylan DO"
+    assert "does not validate, so a solve leaves it out" in editor.status.text()
+
+
 def test_saving_a_request_about_this_date_asks_nothing(window, monkeypatch):
     monkeypatch.setattr(
         QMessageBox, "question", lambda *a, **k: pytest.fail("should not have asked")

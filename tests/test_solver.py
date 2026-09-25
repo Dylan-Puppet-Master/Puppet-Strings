@@ -5,7 +5,7 @@ import pytest
 
 from puppet_strings.config import Config
 from puppet_strings.model import Priority, Request
-from puppet_strings.solver.solve import RequestError, Resolutions, solve
+from puppet_strings.solver.solve import Resolutions, solve
 from tests.build import (
     BLOCKS,
     OK,
@@ -539,16 +539,23 @@ def test_a_quoted_task_happens_only_where_a_request_asks_for_it():
     breaks = [a for a in run(dataset([staff("Sarah")], [], requests=[three, wish])).assignments]
     assert len(breaks) == 3  # a preference cannot buy a fourth break
     typo = request("w", "PREFER staff.sarah DO 'breaks' DURING AT_MOST 1 blocks", Priority.HIGH)
-    with pytest.raises(RequestError, match="no request asks for 'breaks'"):
-        run(dataset([staff("Sarah")], [], requests=[three, typo]))
-    with pytest.raises(RequestError, match="no request asks for 'teatime'"):
-        run(
-            dataset(
-                [staff("Sarah")],
-                [],
-                requests=[request("t", "REQUEST staff.sarah NOT DO 'teatime'")],
-            )
-        )
+    result = run(dataset([staff("Sarah")], [], requests=[three, typo]))
+    assert list(left_out(result)) == ["w"]  # and the rest is solved
+    assert "no request asks for 'breaks'" in left_out(result)["w"]
+    assert len(result.assignments) == 3
+    alone = [request("t", "REQUEST staff.sarah NOT DO 'teatime'")]
+    why = left_out(run(dataset([staff("Sarah")], [], requests=alone)))["t"]
+    assert "no request asks for 'teatime'" in why
+
+
+def left_out(result) -> dict[str, str]:
+    """The requests a solve left out as invalid, with why."""
+    found = {}
+    for note in result.notes:
+        if note.startswith("Left out "):
+            request_id, why = note.removeprefix("Left out ").split(", which does not validate: ")
+            found[request_id] = why
+    return found
 
 
 MEAL_TIMES = [("08:00", "09:00"), ("12:00", "13:00"), ("17:30", "18:30"), ("10:30", "10:45")]
@@ -1541,11 +1548,14 @@ def test_all_of_dates_are_enforced_every_day():
     assert ids(run(missed).unsatisfied) == ["x"]
 
 
-def test_invalid_request_raises():
+def test_an_invalid_request_is_left_out_of_the_solve_and_said_so():
     bad = "REQUEST staff.dylan DO 'x' DURING AT_LEAST 2 blocks"
-    ds = dataset([staff("Dylan")], [], requests=[request("bad", bad)])
-    with pytest.raises(RequestError, match="request 'bad'.*to pick 2, write ANY 2"):
-        run(ds)
+    good = "REQUEST staff.dylan DO 'y' DURING blocks.clinic_1"
+    ds = dataset([staff("Dylan")], [], requests=[request("bad", bad), request("good", good)])
+    result = run(ds)
+    assert "bad" in left_out(result) and "to pick 2, write ANY 2" in left_out(result)["bad"]
+    assert result.feasible and where(result, activity="y")
+    assert "bad" not in ids(result.inactive)  # a note says why, not "does nothing today"
 
 
 def test_fixture_dataset_solves(dataset):
@@ -1676,8 +1686,7 @@ def test_a_preference_cannot_ride_along_on_a_hard_request():
             )
         ],
     )
-    with pytest.raises(RequestError, match="PREFER needs a priority it can be weighed at"):
-        run(ds)
+    assert "PREFER needs a priority it can be weighed at" in left_out(run(ds))["both"]
 
 
 def test_a_position_may_name_one_person():
@@ -1782,12 +1791,11 @@ def test_a_request_edited_since_or_a_day_changed_since_is_resolved_again(monkeyp
     assert checked == ["x", "x"]
 
 
-def test_an_invalid_request_is_still_refused_with_copies_resolved_beforehand():
+def test_an_invalid_request_is_still_left_out_with_copies_resolved_beforehand():
     bad = request("bad", "REQUEST staff.dylan DO 'x' DURING AT_LEAST 2 blocks")
     ds = dataset([staff("Dylan")], [], requests=[bad])
     known = Resolutions(ds, {"bad": (bad, ())})  # what the window keeps for an invalid one
-    with pytest.raises(RequestError, match="to pick 2, write ANY 2"):
-        solve(ds, CONFIG, known=known)
+    assert "to pick 2, write ANY 2" in left_out(solve(ds, CONFIG, known=known))["bad"]
 
 
 def test_with_in_a_role_counts_the_partner_only_in_that_role():

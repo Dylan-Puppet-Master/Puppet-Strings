@@ -654,7 +654,8 @@ Recorded so the outline matches the code.
   `PREFER` over a set stopped matching `AVOID` over its complement. Clinics keep the old
   rule, because two offerings of one clinic in different blocks must coexist. A filter
   verb naming a quoted task that no `TASK` asks for is now a `RequestError`, since it
-  would otherwise be a silent no-op.
+  would otherwise be a silent no-op. (Since 2026-09-25 that request, like any that does
+  not validate, is left out of the solve with a note in the report instead.)
 - **Same-day changes** (Puppet Master, 2026-09-16). Rests and RAL penalties are per-date
   data on a new optional `Adjustments` tab, applied to `Staff` at load time as
   `resting_blocks` and a reduced `ral`; `resting` is `all day`, `morning` or `afternoon`,

@@ -18,7 +18,7 @@ from puppet_strings.solver.tiers import Cancel, Cancelled, solve_tiers
 from puppet_strings.solver.variables import Slot, Variables
 
 # Cancel and Cancelled live in tiers
-__all__ = ["Cancel", "Cancelled", "RequestError", "Resolutions", "build_model", "solve"]
+__all__ = ["Cancel", "Cancelled", "Resolutions", "build_model", "solve"]
 
 
 @dataclass(frozen=True)
@@ -48,15 +48,6 @@ RESOLVED_AGAINST = (
 )
 
 
-class RequestError(Exception):
-    """A request on the sheet failed validation. Fix it and run again."""
-
-    def __init__(self, request: Request, error: SkedgeError) -> None:
-        super().__init__(f"request '{request.id}': {error}")
-        self.request = request
-        self.error = error
-
-
 def solve(
     dataset: Dataset,
     config: Config | None = None,
@@ -69,6 +60,8 @@ def solve(
     With `same_day`, the schedule already published for that date is held together: keeping
     it matters more than anything but staffing the clinics, and the result lists what moved.
     Passing a `Cancel` lets another thread stop the solve, which raises `Cancelled`.
+    A request that does not validate is left out, and the result's notes say so: the
+    requests file may hold one half written, and the day is still to be solved.
     `known` are copies already resolved, used for each request that is still as it was
     when they were made, against names that are still the same.
 
@@ -83,6 +76,7 @@ def solve(
     dataset = apply_exclusions(dataset)
     reuse = known.copies if known is not None and _same_names(known.dataset, dataset) else {}
     copies = []
+    left_out: dict[str, str] = {}  # request id -> why
     for request in dataset.requests:
         cached = reuse.get(request.id)
         if cached is not None and cached[0] == request and cached[1]:
@@ -93,9 +87,12 @@ def solve(
         except NoSession:
             continue  # about the session being scheduled, and this date is in none
         except SkedgeError as e:
-            raise RequestError(request, e) from e
+            left_out[request.id] = str(e)
+            continue
         copies += [(request, copy) for copy in resolved]
-    _check_adhoc_tasks(copies)
+    left_out |= _unasked_tasks(copies)
+    copies = [(r, copy) for r, copy in copies if r.id not in left_out]
+    notes = tuple(f"Left out {i}, which does not validate: {why}" for i, why in left_out.items())
     model, variables, compiler, active = build_model(dataset, copies, cancel)
     baseline = dataset.baseline if same_day else None
     hints: dict[int, tuple[cp_model.IntVar, int]] = {}
@@ -115,7 +112,7 @@ def solve(
             compiler.compiled[i].id
             for i in _assumption_positions(outcome.conflicts, compiler.compiled)
         )
-        return Result(feasible=False, conflicts=conflicts)
+        return Result(feasible=False, conflicts=conflicts, notes=notes)
     missed = [c for c in compiler.compiled if not _true(outcome, c.sat)]
     deferred = [
         c for c in compiler.compiled if _true(outcome, c.sat) and _true(outcome, c.deferred)
@@ -129,9 +126,9 @@ def solve(
         inactive=tuple(
             RequestOutcome(r.id, r.priority, r.description)
             for r in dataset.requests
-            if r.id not in active
+            if r.id not in active and r.id not in left_out
         ),
-        notes=outcome.notes,
+        notes=notes + outcome.notes,
         changes=_changes(baseline, assignments),
         tier_scores=outcome.scores or {},
     )
@@ -165,21 +162,22 @@ def _same_names(a: Dataset, b: Dataset) -> bool:
     return a is b or all(getattr(a, f) == getattr(b, f) for f in RESOLVED_AGAINST)
 
 
-def _check_adhoc_tasks(copies: list[tuple[Request, Resolved]]) -> None:
-    """A quoted task means nothing unless some positive REQUEST asks for it.
+def _unasked_tasks(copies: list[tuple[Request, Resolved]]) -> dict[str, str]:
+    """The requests about a quoted task nobody asks for, by id, with why: to be left out.
 
-    A `REQUEST … DO` asks for it, unless all it says is how much there may be at most.
+    A quoted task means nothing unless some positive REQUEST asks for it. A `REQUEST … DO`
+    asks for it, unless all it says is how much there may be at most.
     """
     asked = {_task(st) for _, copy in copies for st in copy.statements if asks(st)}
+    unasked: dict[str, str] = {}
     for request, copy in copies:
         for st in copy.statements:
             text = _task(st)
-            if text is None or text in asked or asks(st):
+            if text is None or text in asked or asks(st) or request.id in unasked:
                 continue
-            raise RequestError(
-                request,
-                SkedgeError(f"no request asks for '{text}'", st.pos.line, st.pos.column),
-            )
+            error = SkedgeError(f"no request asks for '{text}'", st.pos.line, st.pos.column)
+            unasked[request.id] = str(error)
+    return unasked
 
 
 def _task(statement) -> str | None:

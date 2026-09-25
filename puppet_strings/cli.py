@@ -21,7 +21,7 @@ from puppet_strings.skedge.ast import NoSession, SkedgeError
 from puppet_strings.skedge.namespaces import written
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
-from puppet_strings.solver.solve import RequestError, solve
+from puppet_strings.solver.solve import solve
 
 SHEETS = ("clinic_data", "clinic_schedule", "skills", "config")
 
@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     target = args.date or default
     try:
         return _run(args, config, target)
-    except (LoadError, RequestError, AuthError) as e:
+    except (LoadError, AuthError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 

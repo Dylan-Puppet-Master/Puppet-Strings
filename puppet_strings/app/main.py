@@ -164,7 +164,7 @@ class SolveWorker(QThread):
         solve, where there is already a panel up saying what is happening.
         """
         # already imported by run_solve
-        from puppet_strings.solver.solve import Cancelled, RequestError, solve
+        from puppet_strings.solver.solve import Cancelled, solve
 
         try:
             self.dataset = self.store.for_solving()
@@ -172,7 +172,7 @@ class SolveWorker(QThread):
             result = solve(self.dataset, self.store.config, self.same_day, self.cancel, known)
         except Cancelled:
             self.stopped.emit()
-        except (RequestError, LoadError) as e:
+        except LoadError as e:
             self.failed.emit(str(e))
         except Exception:  # noqa: BLE001 - shown to the user, never swallowed
             self.failed.emit(traceback.format_exc())
@@ -1059,7 +1059,11 @@ class MainWindow(QMainWindow):
         wrong = [e for e in errors if e.request == saved.id]
         note = f"; it conflicts with {len(clashes)} other request(s)" if clashes else ""
         note += f"; {len(wrong)} error(s) in it" if wrong else ""
-        editor.saved_as(saved, note)  # last, so nothing else overwrites the confirmation
+        facet = self.store.facet(saved)
+        problem = (
+            "" if facet.valid else f"It does not validate, so a solve leaves it out: {facet.error}"
+        )
+        editor.saved_as(saved, note, problem)  # last, so nothing overwrites the confirmation
         self._say(f"Saved {saved.id}{note}")
 
     def _scope_holds_its_dates(self, request, editor):

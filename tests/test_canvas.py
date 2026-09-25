@@ -179,17 +179,44 @@ def test_clicking_a_card_and_typing_edits_it_and_clicking_away_saves_it(window, 
     assert canvas.cards["breaks"].draft is None
 
 
-def test_a_card_that_will_not_validate_keeps_its_changes_unsaved(window, fixtures_copy):
+def test_a_card_is_not_checked_as_it_is_typed_and_is_saved_even_if_it_does_not_validate(
+    window, fixtures_copy
+):
+    canvas = window.canvas
+    card = show_card(canvas, "breaks")
+    canvas.activate(card, "skedge")
+    settle(100)
+    said = canvas.editor.status.text()
+    canvas.editor.skedge_edit.setPlainText("REQUEST nobody.at_all DO")
+    settle(500)
+    assert canvas.editor.status.text() == said  # nothing said while typing
+    QTest.keyClick(canvas.editor.skedge_edit, Qt.Key_S, Qt.ControlModifier)
+    assert saved_requests(fixtures_copy)["breaks"].skedge == "REQUEST nobody.at_all DO"
+    assert "does not validate, so a solve leaves it out" in canvas.editor.status.text()
+    canvas.deactivate()
+    assert card.draft is None and card.status.kind == BAD  # saved, and the card says why
+
+
+def test_a_card_whose_save_is_called_off_keeps_its_changes_unsaved(
+    window, fixtures_copy, monkeypatch
+):
+    def keep_editing(box):
+        next(b for b in box.buttons() if b.text() == "Keep editing").click()
+
+    monkeypatch.setattr(QMessageBox, "exec", keep_editing)  # the scope misses its ON
     canvas = window.canvas
     card = show_card(canvas, "breaks")
     before = saved_requests(fixtures_copy)["breaks"]
     canvas.activate(card, "skedge")
-    canvas.editor.skedge_edit.setPlainText("REQUEST nobody.at_all DO")
+    written = "REQUEST staff.dylan FREE DURING blocks.clinic_1 ON 2026-09-24"
+    canvas.editor.skedge_edit.setPlainText(written)
+    canvas.editor.show_scope(window.store.dataset.scope("day"))
+    canvas.editor._scope_picked()
     canvas.deactivate()
     assert saved_requests(fixtures_copy)["breaks"] == before
     assert card.draft is not None and card.status.kind == UNSAVED
     canvas.activate(card)  # it comes back as it was left
-    assert canvas.editor.skedge_edit.toPlainText() == "REQUEST nobody.at_all DO"
+    assert canvas.editor.skedge_edit.toPlainText() == written
     QTest.keyClick(canvas.viewport(), Qt.Key_Escape)  # and Escape puts it back as saved
     assert canvas.active is None and card.draft is None
     assert card.shown == before

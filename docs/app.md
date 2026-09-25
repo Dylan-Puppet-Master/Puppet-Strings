@@ -91,9 +91,9 @@ pane, the filters, the Namespaces and Calendar panes, and the Errors and Message
   its frame. Until you move the camera, it keeps everything in view as the requests change.
 - **Editing.** Click a card and type. The card turns into the editor, with the cursor in
   the field you clicked. A card clicked from far away is brought up to full size first.
-  Clicking away saves it, and so does **Ctrl+S**. If the card does not validate, it keeps
-  your changes, is marked unsaved, and waits for you. **Escape** puts it back to how it was
-  saved.
+  Clicking away saves it, and so does **Ctrl+S**. Nothing is checked while you type; a card
+  that does not validate is saved all the same and says why on its bottom line, and a solve
+  leaves it out until it is fixed. **Escape** puts it back to how it was saved.
 - **New requests.** Press **New request** beside the zoom controls or in a frame's header,
   double-click inside a frame, or press **N** for the group nearest the middle of the view.
   A new card left empty is thrown away. New cards go at the front of their frame, and
@@ -258,19 +258,21 @@ finds the rest and names the requests it could not meet.
 **group** says which shelf the request is on and is not a field you fill in — the pane is
 where that is decided. **requester** records who asked for it — type a staff name and it
 completes, the same names `staff.` gives you in the Skedge box. A requester who is not on
-the Skills sheet makes the request invalid, so a misremembered name is caught here rather
-than saved and forgotten. **description** is for people and may be left empty.
+the Skills sheet makes the request invalid, which saving says, so a misremembered name is
+caught rather than forgotten. **description** is for people and may be left empty.
 
 The id is given on the first save and never changes afterwards; it is what the solver's
 report refers to. It is the next free number on the tab the request is written to — `s4-1`,
 `s4-2`, `season-1` — and is **not** made out of the description, so rewording a request
-does not rename it and a request needs no description at all. The
-line under the editor says whether the request is valid, or shows the first error with its
-line and column. Save is enabled only for a valid request. Ctrl+S saves. While the write
-is going out to the sheet the button reads **Saving…**; when it lands, the line turns green
-and says `✓ Saved s1-12 at 14:32:05`, with the time, so a second save of the same
-request still visibly does something. The confirmation stays until the next edit, which
-validates the request again. **New** starts a
+does not rename it and a request needs no description at all.
+
+**Nothing is checked while you type**: half-written Skedge is always wrong, and being told
+so at every pause is noise. The request is checked when you save it (Save, or Ctrl+S) and
+saved whatever the check finds. The line under the editor then says
+`✓ Saved s1-12 at 14:32:05`, in green, with the time, so a second save of the same request
+still visibly does something; or, in red, what is wrong with it and where: a request that
+does not validate is kept, and a solve leaves it out and says so in its report until it is
+fixed. Opening a request says how it stands. **New** starts a
 fresh request; **Delete** removes the one being edited. To delete several, select their
 rows in the table and press the Delete key; a popup lists them and asks first. Saving is
 instant: requests are kept on this computer, not in a sheet. The **scope** box chooses the
