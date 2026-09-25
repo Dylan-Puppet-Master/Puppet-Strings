@@ -305,13 +305,17 @@ class MainWindow(QMainWindow):
         self.sickness_action = toolbar.addAction(SICKNESS, lambda: self.open_same_day(SICKNESS))
         for action in (self.sleep_action, self.sickness_action):
             action.setVisible(False)  # only while changing a day that is already out
+        # What the window has to say goes along the bottom, where it has the width of the
+        # window: it can run to a paragraph of warnings, which no gap in the toolbar holds.
+        # It is a label rather than the status bar's own message, which a hover wipes.
         self.status_label = QLabel("")
-        # It can run to a paragraph of warnings, and a label that insists on its full width
-        # pushes everything after it -- Configure included -- into the overflow menu. Its
-        # width is set instead, to whatever puts Table and Canvas in the middle of the bar.
-        self.status_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
-        self.status_label.setFixedWidth(0)
-        toolbar.addWidget(self.status_label)
+        self.status_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.statusBar().addWidget(self.status_label, 1)
+        # Blank, and as wide as puts Table and Canvas in the middle of the bar.
+        self.centring = QWidget()
+        self.centring.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        self.centring.setFixedWidth(0)
+        toolbar.addWidget(self.centring)
         views = QActionGroup(self)
         self.table_action = toolbar.addAction("Table", lambda: self.show_view(TABLE, True))
         self.canvas_action = toolbar.addAction("Canvas", lambda: self.show_view(CANVAS, True))
@@ -334,13 +338,13 @@ class MainWindow(QMainWindow):
         return super().eventFilter(watched, event)
 
     def _center_views(self) -> None:
-        """Size the status label so that Table and Canvas sit in the middle of the toolbar.
+        """Size the gap before Table and Canvas so that they sit in the middle of the toolbar.
 
         Worked out from what is either side of it, none of which its own width moves. It
         never takes the room Configure needs, so a narrow window keeps Configure on the bar
         and lets Table and Canvas sit a little off centre instead.
         """
-        bar, label = self.toolbar, self.status_label
+        bar, label = self.toolbar, self.centring
         widgets = [bar.widgetForAction(a) for a in bar.actions()]
         widgets = [w for w in widgets if w is not None and not w.isHidden()]
         first, last = (bar.widgetForAction(a) for a in (self.table_action, self.canvas_action))
