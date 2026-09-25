@@ -172,9 +172,8 @@ The staff and activity filters use the names a request resolves to, so filtering
 
 Along the bottom are two tabs, **Errors** and **Messages**.
 
-**Messages** keeps everything the window has said in the bar at its foot, which holds only
-the latest and runs it together on one line. Each message is kept with the time it was
-said, and each part on a line of its own: after a load, the requests read, whether the day
+**Messages** is everything the window has to say, each message with the time it was said
+and each part on a line of its own: after a load, the requests read, whether the day
 is published, the conflicts, the errors and each warning about the sheets.
 
 **The errors pane.** Along the bottom, everything wrong with the requests that can be seen

@@ -1,8 +1,7 @@
-"""The messages pane: everything the window has said along its bottom edge, kept.
+"""The messages pane: everything the window has to say, kept.
 
-The status bar holds one message at a time, run together into a line, and the next one
-wipes it. Here each is kept, with the time it was said, and each part of it — requests
-loaded, whether the day is published, the conflicts, each warning — on a line of its own.
+Each message is kept with the time it was said, and each part of it — requests loaded,
+whether the day is published, the conflicts, each warning — on a line of its own.
 """
 
 from datetime import datetime

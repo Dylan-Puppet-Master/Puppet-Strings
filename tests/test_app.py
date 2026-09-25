@@ -68,7 +68,7 @@ def test_nothing_but_the_calendar_is_read_until_reload(app, fixtures_copy):
     Calendar sheet, which is what the day is picked from."""
     window = make_window(fixtures_copy, loaded=False)
     assert window.loader is None and window.store.dataset is None
-    assert window.status_label.text().strip() == "Pick a target date and press Reload."
+    assert said(window).endswith("Pick a target date and press Reload.")
     window.run_solve()
     assert window.worker is None  # nothing to solve against yet
     window.reload()
@@ -79,6 +79,11 @@ def test_nothing_but_the_calendar_is_read_until_reload(app, fixtures_copy):
 def test_a_folder_of_fixtures_is_not_backed_up_to_drive(window):
     """It carries its own requests and has no account to put a copy anywhere."""
     assert window.store.fixtures and window.backup is None
+
+
+def said(window) -> str:
+    """Everything the messages pane holds, a line each."""
+    return "\n".join(window.messages.lines())
 
 
 def visible_ids(window):
@@ -493,7 +498,7 @@ def test_a_publish_that_fails_can_be_tried_again(window, monkeypatch):
 def test_same_day_is_offered_only_for_a_published_day(window, tmp_path):
     assert not window.same_day_action.isEnabled()
     assert not window.sleep_action.isVisible() and not window.sickness_action.isVisible()
-    assert "not published" in window.status_label.text()
+    assert "not published" in said(window)
 
     from puppet_strings.publish.writer import publish
     from puppet_strings.solver.solve import solve
@@ -506,7 +511,7 @@ def test_same_day_is_offered_only_for_a_published_day(window, tmp_path):
     )
     window.reload()
     window.wait_for_load()
-    assert window.same_day_action.isEnabled() and "is published" in window.status_label.text()
+    assert window.same_day_action.isEnabled() and "is published" in said(window)
     window.same_day_action.setChecked(True)
     assert window.same_day
     assert window.sleep_action.isVisible() and window.sickness_action.isVisible()
@@ -567,7 +572,7 @@ def test_closing_the_dialog_writes_in_the_background_without_a_reload(window, mo
 
     monkeypatch.setattr(SameDayDialog, "exec", record)
     window.open_same_day(SLEEP)
-    assert window.loader is None and "Vic is down 1 RAL today" in window.status_label.text()
+    assert window.loader is None and "Vic is down 1 RAL today" in said(window)
     window.wait_for_adjustments()
     assert [row[1] for row in window.store.source.read("config", "Adjustments")[1:]] == ["Vic"]
 
@@ -680,7 +685,6 @@ def test_groups_pane_lists_defaults_with_counts(window):
 def test_picking_a_group_filters_the_table(window):
     pick_group(window, "Special weekly requests")
     assert visible_ids(window) == {"clinic-preference", "clinic-variety", "dylan-off-ropes"}
-    assert "3 requests in Special weekly requests" in window.status_label.text()
     window.priority_filter.setCurrentText("MEDIUM")  # filters narrow within the group
     assert visible_ids(window) == {"clinic-preference", "clinic-variety"}
     window.priority_filter.setCurrentIndex(0)
@@ -906,7 +910,7 @@ def test_saving_a_request_outside_the_date_asks_first(window, monkeypatch):
     assert "2026-09-27, 2026-09-28, 2026-09-29 and 4 more" in asked[0]
     assert window.model.rowCount() == 8  # cancelled: nothing saved, still editing
     assert window.editor.original_id is None
-    assert "Not saved" in window.status_label.text()
+    assert "Not saved" in said(window)
 
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Save)
     editor.save_button.click()
@@ -1209,8 +1213,8 @@ def tree_rows(pane):
 def test_the_conflicts_pane_starts_empty(window):
     assert window.errors.topLevelItemCount() == 0
     assert window.errors_dock.windowTitle() == "Errors"
-    assert "No conflicts" in window.status_label.text()
-    assert "No errors" in window.status_label.text()
+    assert "No conflicts" in said(window)
+    assert "No errors" in said(window)
 
 
 def test_the_messages_pane_keeps_each_part_of_what_was_said_on_a_line(window):
@@ -1231,7 +1235,7 @@ def test_saving_a_contradiction_groups_it_in_the_pane(window):
     riflery = save_request(window, "Dylan on archery", PIN_ARCHERY)
     assert window.errors.topLevelItemCount() == 0
     free = save_request(window, "Dylan is free", DYLAN_FREE)
-    assert "it conflicts with 1 other request(s)" in window.status_label.text()
+    assert "it conflicts with 1 other request(s)" in said(window)
     (heading, children) = tree_rows(window.errors)[0]
     assert heading == "dylan · Wed 2026-09-16 · clinic_1"
     assert children[:2] == [riflery, free]  # grouped under the collision
@@ -1257,15 +1261,15 @@ BAD_RIFLERY = (
 def test_the_pane_holds_errors_beside_the_conflicts(window):
     """One request asking for the impossible belongs on the same list as two that disagree."""
     saved = save_request(window, "Dylan on riflery", BAD_RIFLERY, priority="HIGH")
-    assert "2 error(s) in it" in window.status_label.text()
+    assert "2 error(s) in it" in said(window)
     rows = tree_rows(window.errors)
     assert [children for _, children in rows] == [[saved], [saved]]
     headings = [heading for heading, _ in rows]
     assert "dylan" in headings[0] and "clinic_2" in headings[1]
     assert window.errors_dock.windowTitle() == "Errors (2)"
-    said = [window.errors.topLevelItem(i).text(2) for i in range(2)]
-    assert "not checked off on 'riflery' (Skills sheet)" in said[0]
-    assert "Riflery is not offered in clinic_2" in said[1]
+    shown = [window.errors.topLevelItem(i).text(2) for i in range(2)]
+    assert "not checked off on 'riflery' (Skills sheet)" in shown[0]
+    assert "Riflery is not offered in clinic_2" in shown[1]
     window.editor.clear()
     window.errors.itemDoubleClicked.emit(window.errors.topLevelItem(0).child(0), 0)
     assert window.editor.original_id == saved  # the row under an error opens it
@@ -1455,13 +1459,13 @@ def test_a_date_off_the_calendar_asks_for_another_one(window, monkeypatch):
     assert warned and "2026-12-25 is not a camp day" in warned[0]
     assert "nearest camp day is 2026-10-03" in warned[0]
     assert not critical  # it is the date that is wrong, not the sheets
-    assert "not a camp day" in window.status_label.text()
+    assert "not a camp day" in said(window)
     assert window.progress is None
     # and picking a camp day loads as usual
     window.date_edit.setDate(QDate(2026, 9, 16))
     window.reload()
     window.wait_for_load()
-    assert "Loaded" in window.status_label.text()
+    assert "Loaded" in said(window)
 
 
 def test_a_date_that_fails_to_load_says_so_once(window, monkeypatch):
@@ -1647,7 +1651,7 @@ def test_selected_requests_are_deleted_once_confirmed(window, monkeypatch):
     assert window.model.rowCount() == before - 3
     kept = {r.id for r in window.store.book.every()}
     assert not kept & set(chosen)
-    assert "Deleted 3 requests" in window.status_label.text()
+    assert "Deleted 3 requests" in said(window)
 
 
 def test_nothing_is_deleted_when_the_popup_is_cancelled(window, monkeypatch):

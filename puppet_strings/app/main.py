@@ -318,12 +318,6 @@ class MainWindow(QMainWindow):
         self.sickness_action = toolbar.addAction(SICKNESS, lambda: self.open_same_day(SICKNESS))
         for action in (self.sleep_action, self.sickness_action):
             action.setVisible(False)  # only while changing a day that is already out
-        # What the window has to say goes along the bottom, where it has the width of the
-        # window: it can run to a paragraph of warnings, which no gap in the toolbar holds.
-        # It is a label rather than the status bar's own message, which a hover wipes.
-        self.status_label = QLabel("")
-        self.status_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
-        self.statusBar().addWidget(self.status_label, 1)
         # Blank, and as wide as puts Table and Canvas in the middle of the bar.
         self.centring = QWidget()
         self.centring.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
@@ -478,11 +472,8 @@ class MainWindow(QMainWindow):
         way to report it — but it is worth saying, because a Puppet Master who believes there
         are copies on Drive and has none is worse off than one who knows there are none.
         """
-        said = self.status_label.text().strip()
         failed = f"Could not back up the requests: {why.strip().splitlines()[-1]}"
-        self.status_label.setText(f"  {said} {failed}")
-        self.status_label.setToolTip(f"{said} {failed}")
-        self.messages.add([failed])  # what was said before it is kept already
+        self.messages.add([failed])
 
     def configure(self) -> None:
         """Choose the Google account and the sheets, then read everything again."""
@@ -588,8 +579,6 @@ class MainWindow(QMainWindow):
         self.proxy.set_filters(group=group)
         if self.on_canvas:
             self.canvas.focus_group(group)
-        chosen = "" if group == ALL else f" in {group}"
-        self.status_label.setText(f"  {self.proxy.rowCount()} requests{chosen}")
 
     def _requests(self, ids: list[str]) -> list:
         """The requests with these ids."""
@@ -825,14 +814,7 @@ class MainWindow(QMainWindow):
             QApplication.processEvents()
 
     def _say(self, *parts: str) -> None:
-        """Put a message along the bottom, and keep it in the messages pane.
-
-        A message of several parts — what a load found, say — runs together on the one
-        line, and is kept with each part on a line of its own.
-        """
-        message = ". ".join(p for p in parts if p)
-        self.status_label.setText(f"  {message}")
-        self.status_label.setToolTip(message)
+        """Say something in the messages pane, each part on a line of its own."""
         self.messages.add(list(parts))
 
     def _list_file(self) -> None:
@@ -852,7 +834,6 @@ class MainWindow(QMainWindow):
     def _load_failed(self, message: str) -> None:
         self.failed_target = self.loader.target  # before the box, which takes the focus
         self.end_progress()
-        self.status_label.setText("")
         QMessageBox.critical(self, "Could not load", message)
 
     def _not_a_camp_day(self, message: str) -> None:
@@ -1011,7 +992,6 @@ class MainWindow(QMainWindow):
 
     def _solved(self, result) -> None:
         self._close_busy()
-        self.status_label.setText("")
         solved = self.worker.dataset if self.worker is not None else self.store.current
         ScheduleDialog(self.store.source, self.store.config, solved, result, self).exec()
 
@@ -1021,7 +1001,6 @@ class MainWindow(QMainWindow):
 
     def _solve_failed(self, message: str) -> None:
         self._close_busy()
-        self.status_label.setText("")
         QMessageBox.critical(self, "Solve failed", message)
 
     def _select(self, current, previous) -> None:
