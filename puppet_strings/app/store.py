@@ -11,13 +11,7 @@ from puppet_strings.app.group_scopes import GroupScopes
 from puppet_strings.app.groups import DEFAULT_GROUPS, clean, same_group
 from puppet_strings.config import Config
 from puppet_strings.exclude import apply_exclusions
-from puppet_strings.generate import (
-    generated_requests,
-    has_offerings_loaded,
-    import_if_missing,
-    is_generated,
-    merge,
-)
+from puppet_strings.generate import is_generated
 from puppet_strings.model import Adjustment, Dataset, Request, Rest
 from puppet_strings.publish.writer import day_sheet
 from puppet_strings.requests_db import id_prefix, open_requests, scope_for
@@ -38,7 +32,6 @@ class RequestStore:
         self.config = config
         self.book = open_requests(config, source)
         self.dataset: Dataset | None = None
-        self.imported = 0  # clinics the last load imported from the Offerings tab
         self.requests: list[Request] = []  # the ones read on the target date, and so solved
         # Everything else in the file, scoped to other dates: listed, never solved. Their
         # facets are worked out when a filter first asks, since a season holds hundreds.
@@ -92,11 +85,11 @@ class RequestStore:
         business, nothing in the window asks, and there is a spreadsheet of them per day of
         the season so far. `for_solving` reads them when something is about to want them.
 
-        A date with no clinics imported yet has its Offerings tab imported on the way in;
-        `imported` says how many, for the window to report.
+        The day's clinics come with it, made from its Offerings tab (`generate`).
         """
-        dataset = load_dataset(self.source, self.config, target, history=False, requests=self.book)
-        self.dataset, self.imported = import_if_missing(dataset, self.book)
+        self.dataset = load_dataset(
+            self.source, self.config, target, history=False, requests=self.book
+        )
         self.requests = list(self.dataset.requests)
         here = {r.id for r in self.requests}
         self.elsewhere = [r for r in self.book.every() if r.id not in here]
@@ -111,7 +104,7 @@ class RequestStore:
         or after a date camp is not running, the table can still show everything there is.
         Raises LoadError for a file this version cannot read.
         """
-        self.dataset, self.imported = None, 0
+        self.dataset = None
         self.requests, self.elsewhere = [], list(self.book.every())
         self.facets, self.resolved = {}, {}
 
@@ -173,30 +166,17 @@ class RequestStore:
         self.book.put([request])
         return request
 
-    def load_offerings(self) -> int:
-        """Replace the date's generated requests with the Offerings tab's. Returns how many.
+    def load_offerings(self) -> None:
+        """Make the date's clinics the Offerings tab's again, for a load to read. Raises LoadError.
 
-        The day's spreadsheet is made first if it is not there yet, with the Offerings grid
-        to fill in and the views a solve will write, so a new day is one click from being
+        The edited ones saved in place of those made from the tab are thrown away. The
+        day's spreadsheet is made first if it is not there yet, with the Offerings grid to
+        fill in and the views a solve will write, so a new day is one click from being
         ready rather than a folder to go and build by hand.
         """
         target = self.dataset.target
         day_sheet(self.source, self.config, self.dataset.this_span, target)
-        generated = generated_requests(self.dataset)
-        old = [r.id for r in self.requests if is_generated(r, target)]
-        self.requests = merge(self.requests, generated, target)
-        self._reindex(generated)
-        self.book.delete(old)
-        self.book.put(generated)
-        return len(generated)
-
-    def _reindex(self, added: list[Request]) -> None:
-        """Forget what the requests just dropped meant, and work out what the new ones do."""
-        kept = {r.id for r in self.requests}
-        self.facets = {i: f for i, f in self.facets.items() if i in kept}
-        self.resolved = {i: c for i, c in self.resolved.items() if i in kept}
-        for request in added:
-            self._index(request)
+        self.book.delete([r.id for r in self.requests if is_generated(r, target)])
 
     @property
     def current(self) -> Dataset:
@@ -242,11 +222,6 @@ class RequestStore:
             return False
         self.dataset = filled
         return True
-
-    @property
-    def offerings_loaded(self) -> bool:
-        """Whether generated requests exist for the target date."""
-        return has_offerings_loaded(tuple(self.requests), self.dataset.target)
 
     def set_adjustment(
         self,

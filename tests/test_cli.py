@@ -1,5 +1,4 @@
 import re
-from datetime import date
 
 from puppet_strings.cli import main
 from tests.conftest import FIXTURES, saved_requests
@@ -38,20 +37,17 @@ def test_solve_publishes_to_fixture_copy(tmp_path, capsys):
     assert main(args + ["--force"]) == 0
 
 
-def test_solve_imports_the_clinics_once(tmp_path, capsys):
+def test_the_clinics_are_made_on_every_load_and_never_saved(tmp_path, capsys):
     import shutil
 
     copy = tmp_path / "fixtures"
     shutil.copytree(FIXTURES, copy)
-    assert main(["--fixtures", str(copy), "--date", "2026-09-17", "solve"]) == 0
-    assert "imported 24 clinics for 2026-09-17" in capsys.readouterr().out
-    offering = saved_requests(copy)["offering:2026-09-17:riflery:clinic_3"]
-    assert "clinic_import" in offering.tags and offering.scope.kind == "day"
-    assert offering.scope.first == offering.scope.last == date(2026, 9, 17)
-    assert main(["--fixtures", str(copy), "--date", "2026-09-17", "solve"]) == 0
-    assert "imported" not in capsys.readouterr().out
+    assert main(["--fixtures", str(copy), "--date", "2026-09-17", "validate"]) == 0
+    out = capsys.readouterr().out
+    assert "offering:2026-09-17:riflery:clinic_3" not in out  # valid, so nothing said
+    assert not any(i.startswith("offering:2026-09-17:") for i in saved_requests(copy))
     assert main(["--fixtures", str(copy), "--date", "2026-09-17", "load-offerings"]) == 0
-    assert "loaded 24 offerings for 2026-09-17" in capsys.readouterr().out
+    assert "24 offerings for 2026-09-17" in capsys.readouterr().out
 
 
 def test_missing_calendar_date_is_an_error(capsys):
@@ -110,11 +106,11 @@ def test_requests_are_handed_over_as_a_file(tmp_path, capsys):
     shutil.copytree(FIXTURES, copy)
     handed = tmp_path / "handed.sqlite"
     assert main(["--fixtures", str(copy), "export-requests", str(handed)]) == 0
-    assert "exported 31 requests" in capsys.readouterr().out
+    assert "exported 7 requests" in capsys.readouterr().out
     delete_requests(copy, "scope = ?", "season")
     assert main(["--fixtures", str(copy), "import-requests", str(handed)]) == 0
     said = capsys.readouterr().out
-    assert "imported 31 requests" in said and "requests.before-import.sqlite" in said
+    assert "imported 7 requests" in said and "requests.before-import.sqlite" in said
     assert "breaks" in saved_requests(copy)
     (tmp_path / "notes.txt").write_text("not requests")
     assert main(["--fixtures", str(copy), "import-requests", str(tmp_path / "notes.txt")]) == 1

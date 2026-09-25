@@ -1,11 +1,6 @@
 from datetime import date
 
-from puppet_strings.generate import (
-    generated_requests,
-    has_offerings_loaded,
-    import_if_missing,
-    merge,
-)
+from puppet_strings.generate import generated_requests, is_generated, is_imported, with_offerings
 from puppet_strings.model import Priority, Request
 from puppet_strings.skedge.validate import validate_request
 
@@ -63,51 +58,21 @@ def test_every_generated_request_validates(dataset):
         validate_request(request, dataset)
 
 
-def test_merge_drops_the_dates_old_generated_requests_and_keeps_the_rest():
-    tag = ("clinic_import",)
-    old = Request("offering:2026-09-16:riflery:clinic_3", "old", "x", Priority.CLINIC, tags=tag)
-    gone = Request("offering:2026-09-16:salsa:clinic_4", "", "x", Priority.CLINIC, tags=tag)
-    other_day = Request("offering:2026-09-15:salsa:clinic_4", "", "x", Priority.CLINIC, tags=tag)
+def test_a_saved_clinic_is_read_in_place_of_the_one_made(dataset):
+    from dataclasses import replace
+
+    built = dataset
+    made = generated_requests(built)
+    edited = replace(made[0], description="edited")
     mine = Request("mine", "", "x", Priority.HIGH)
-    new = Request("offering:2026-09-16:riflery:clinic_3", "new", "y", Priority.CLINIC, tags=tag)
-    merged = merge([old, gone, other_day, mine], [new], date(2026, 9, 16))
-    assert [r.id for r in merged] == [other_day.id, "mine", new.id]
-    assert merged[-1].description == "new"
+    requests = with_offerings(replace(built, requests=(edited, mine)))
+    assert [r.id for r in requests].count(made[0].id) == 1
+    assert requests[0].description == "edited" and len(requests) == len(made) + 1
 
 
-def test_has_offerings_loaded(dataset):
-    assert has_offerings_loaded(dataset.requests, date(2026, 9, 16))
-    assert not has_offerings_loaded(dataset.requests, date(2026, 9, 17))
-
-
-class _Book:
-    def __init__(self):
-        self.put_calls = []
-
-    def put(self, requests):
-        self.put_calls.append(list(requests))
-
-
-def test_import_if_missing_imports_a_day_with_none(dataset):
-    from dataclasses import replace
-
-    bare = replace(
-        dataset, requests=tuple(r for r in dataset.requests if "clinic_import" not in r.tags)
-    )
-    book = _Book()
-    imported, count = import_if_missing(bare, book)
-    assert count == len(dataset.offerings) == len(book.put_calls[0])
-    assert has_offerings_loaded(imported.requests, dataset.target)
-
-
-def test_import_if_missing_leaves_a_day_that_has_some(dataset):
-    book = _Book()
-    assert import_if_missing(dataset, book) == (dataset, 0) and not book.put_calls
-
-
-def test_import_if_missing_skips_an_empty_offerings_tab(dataset):
-    from dataclasses import replace
-
-    empty = replace(dataset, requests=(), offerings=())
-    book = _Book()
-    assert import_if_missing(empty, book) == (empty, 0) and not book.put_calls
+def test_which_requests_are_imported():
+    tag = ("clinic_import",)
+    clinic = Request("offering:2026-09-16:riflery:clinic_3", "", "x", Priority.CLINIC, tags=tag)
+    assert is_imported(clinic) and is_generated(clinic, date(2026, 9, 16))
+    assert not is_generated(clinic, date(2026, 9, 17))
+    assert not is_imported(Request("mine", "", "x", Priority.HIGH, tags=tag))

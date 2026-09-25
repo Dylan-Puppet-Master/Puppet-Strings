@@ -53,6 +53,7 @@ from puppet_strings.app.store import RequestStore
 from puppet_strings.app.worker import Worker
 from puppet_strings.config import Config, load_config
 from puppet_strings.exclude import mentions_exclusion
+from puppet_strings.generate import is_imported
 from puppet_strings.google_auth import AuthError
 from puppet_strings.model import WRITABLE_PRIORITIES, Dataset
 from puppet_strings.session import open_source
@@ -716,7 +717,6 @@ class MainWindow(QMainWindow):
         state = "published" if dataset.baseline is not None else "not published"
         parts = [
             f"Loaded {len(self.store.requests)} requests",
-            *([f"imported {self.store.imported} clinics"] if self.store.imported else []),
             f"{dataset.target} is {state}",
             summary(conflicts),
             error_summary(errors),
@@ -880,10 +880,10 @@ class MainWindow(QMainWindow):
             self.reload()
 
     def load_offerings(self) -> None:
-        """Add the Offerings tab's clinics to the day's requests, in the background.
+        """Make the day's clinics the Offerings tab's again, edits thrown away, and reload.
 
-        It reads and may make the day's spreadsheet, so it runs on a worker like the other
-        slow jobs: on the UI thread the progress panel would sit there unpainted.
+        It may make the day's spreadsheet, so it runs on a worker like the other slow jobs:
+        on the UI thread the progress panel would sit there unpainted.
         """
         if self.store.dataset is None or self.offerings is not None:
             return
@@ -900,10 +900,9 @@ class MainWindow(QMainWindow):
             self.offerings.wait()
             QApplication.processEvents()
 
-    def _offerings_loaded(self, count: int) -> None:
+    def _offerings_loaded(self, _=None) -> None:
         self.end_progress()
-        self._requests_changed()
-        self.status_label.setText(f"  Loaded {count} offerings for {self.target}")
+        self.reload()
 
     def _offerings_failed(self, message: str) -> None:
         self.end_progress()
@@ -936,9 +935,9 @@ class MainWindow(QMainWindow):
         """Solve the target date in the background, then show the schedule dialog."""
         if self.store.dataset is None or self.worker is not None:
             return
-        if not self.store.offerings_loaded:
+        if not self.store.dataset.offerings:
             answer = QMessageBox.question(
-                self, "No clinics", f"No clinics imported for {self.target}. Solve anyway?"
+                self, "No clinics", f"No clinics offered on {self.target}. Solve anyway?"
             )
             if answer != QMessageBox.Yes:
                 return
@@ -1047,8 +1046,25 @@ class MainWindow(QMainWindow):
 
     def _deleted(self, request_id: str) -> None:
         request = self.model.request(request_id)
-        if request is not None:
+        if request is not None and not self._refuse_imported([request]):
             self._delete([request])
+
+    def _refuse_imported(self, requests: list) -> bool:
+        """Say why a clinic from the Offerings tab cannot be deleted here, if one is among them.
+
+        The next load would make it again: the Offerings tab is where it is taken off.
+        """
+        clinics = [r for r in requests if is_imported(r)]
+        if not clinics:
+            return False
+        which = "These clinics come" if len(clinics) > 1 else "This clinic comes"
+        QMessageBox.information(
+            self,
+            "Imported clinic",
+            f"{which} from the Offerings tab. Remove {'them' if len(clinics) > 1 else 'it'} "
+            "there, then reload.",
+        )
+        return True
 
     def selected_requests(self) -> list:
         """The requests on the selected rows, top to bottom."""
@@ -1062,7 +1078,7 @@ class MainWindow(QMainWindow):
 
     def delete_requests(self, chosen: list) -> None:
         """Delete these requests, once the Puppet Master has said yes."""
-        if not chosen:
+        if not chosen or self._refuse_imported(chosen):
             return
         shown = "\n".join(r.id for r in chosen[:10])
         if len(chosen) > 10:

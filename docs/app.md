@@ -19,10 +19,10 @@ Reading the sheets and loading the offerings both put up a progress panel, the o
 solver uses, without a Cancel button: neither can usefully be stopped part-way, but both
 take long enough over Google Sheets to be worth saying so. Both run off the window's own
 thread, so the panel keeps painting and the window stays alive while they work.
-Loading a date imports its Offerings tab as one `CLINIC` request per offered clinic,
-tagged `clinic_import`, and saves them to the session's `Clinics` tab. Such a request names every
-position on Clinic_Data, so a clinic wanting a facilitator, a second and a lifeguard
-reads:
+Loading a date makes one `CLINIC` request per clinic on its Offerings tab, tagged
+`clinic_import`. They are made afresh on every load and not saved: the Offerings tab is
+where they live. Such a request names every position on Clinic_Data, so a clinic wanting
+a facilitator, a second and a lifeguard reads:
 
 ```skedge
 REQUEST ANY 1 staff DO activities.clinics.canoe_1_2 AS_ROLE EACH {roles.first + roles.second + roles.lifeguard} DURING blocks.clinic_1 ON 2026-09-17
@@ -39,17 +39,15 @@ Offerings grid copied from the Clinic Schedule template and its other tabs empty
 nobody has set up is one click from being ready, and the click after that reads what you
 put in the grid.
 
-A load imports the clinics only when the date has no `clinic_import` requests yet, so once
-a day's clinics are in, reloading leaves them as they are, edits and deletions included. A
-day whose Offerings tab is still empty imports nothing, and the next load tries again.
-
-**Load offerings** imports them again on purpose. It first removes every imported request
-for the target date, so the requests mirror that day's Offerings tab: a clinic you removed
-there disappears here. The imported requests are that day's alone, filed in its own Clinics
-list, so no other day shows them. Hand-written requests are never touched. You can delete
-an imported request to drop that clinic, or edit it, for example to replace `ANY 1
-staff` with a category to limit who runs it; **Load offerings** undoes such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
-clinic view and the report; it asks first if the date has no clinics imported.
+Since every load makes them from the Offerings tab, a clinic you add or remove there is
+added or removed here on the next **Reload**. An imported clinic cannot be deleted in the
+app, since the next load would make it again: take it off the Offerings tab instead. It
+can be edited, for example to limit who runs it; the edited one is saved, and read in
+place of the one made from the tab from then on. **Load offerings** throws such edits
+away and reloads, so the day's clinics are the Offerings tab's again. A day's clinics
+are that day's alone, so no other day shows them. **Solve** builds the schedule and opens
+it in a window with the staff view, the clinic view and the report; it asks first if the
+date has no clinics offered.
 **Publish** in that window writes the day's own spreadsheet in the
 [schedules tree](sheets.md#the-schedules-tree), asking first if the date is already
 published.

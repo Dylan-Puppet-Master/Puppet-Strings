@@ -7,6 +7,7 @@ from datetime import date, time
 
 from puppet_strings.config import Config
 from puppet_strings.exclude import apply_exclusions
+from puppet_strings.generate import with_offerings
 from puppet_strings.model import CalendarDay, Dataset, Span, block_runs_on
 from puppet_strings.requests_db import RequestDb, open_requests
 from puppet_strings.sheets import mappings as mappings_sheet
@@ -298,6 +299,7 @@ def _build(
     # read here: every reader of a Dataset then sees one day, with the people an EXCLUDE
     # takes out of it already out of it. The mappings are checked against that day, since
     # whether a row belongs to its set is a question about the day's own categories.
+    dataset = replace(dataset, requests=with_offerings(dataset))
     dataset = apply_exclusions(with_standing(dataset, config.midday))
     mappings_sheet.check_mappings(dataset)
     return dataset

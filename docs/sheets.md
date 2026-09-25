@@ -285,7 +285,7 @@ exactly the days of its scope and the rest of the season never sees it.
 
 | Scope | Read on | For |
 |---|---|---|
-| Day | That one date | The clinics imported from the Offerings tab, which are the day's alone, and anything asked of one day. |
+| Day | That one date | Clinics from the Offerings tab you have edited, which are the day's alone, and anything asked of one day. |
 | Week | Every date of its week of the session | A week's arrangements. |
 | Session | Every date of its session | What was asked of one session in particular. A new request is scoped to its session unless you say otherwise. |
 | Season | Every date of the year's season | What holds all season: the legal limits, the standing agreements. |
@@ -296,9 +296,9 @@ manager offers the day, week, session and season of the date being scheduled. A 
 Skedge can still narrow the days it is about, with `ON`: its scope says when it is read,
 and its Skedge what it asks for once it is.
 
-A load imports a day's clinics only when it has none tagged `clinic_import`, so edits to
-them last until **Load offerings** is pressed, which throws the day's imported requests away
-and makes them again.
+A day's clinics are made from its Offerings tab on every load and are not saved. One you
+edit is saved, and read in place of the one made, until **Load offerings** is pressed,
+which throws the day's edited clinics away.
 
 Each request has these fields, all edited in the request manager:
 

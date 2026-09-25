@@ -86,6 +86,14 @@ def window(app, fixtures_copy):
     return window
 
 
+@pytest.fixture(autouse=True)
+def informed(monkeypatch):
+    """What information popups said, recorded instead of shown: a real one waits for a click."""
+    said = []
+    monkeypatch.setattr(QMessageBox, "information", lambda _w, _t, text, *a: said.append(text))
+    return said
+
+
 def settle(ms: int = 450) -> None:
     """Let the refresh run and the cards glide to where they are going."""
     QApplication.processEvents()

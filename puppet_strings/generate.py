@@ -1,19 +1,20 @@
 """Turn the Offerings tab into requests, each scoped to the day it is for.
 
-Each offered clinic instance becomes a CLINIC request tagged IMPORT_TAG, so the Puppet
-Master can see, edit or delete it before solving. The request names the clinic and when,
-and nothing else: `REQUEST activities.clinics.archery_1_2 DURING blocks.clinic_2`. Who may
-run it is already written down, as the skill each of its positions needs, so a request that
-said `ANY 1 staff` as well would be saying it twice. The clinic runs fully staffed or
-not at all, because filling one position of an instance fills them all
-(`solver.structural`), which is what lets the request stop at naming it.
+Each offered clinic instance becomes a CLINIC request tagged IMPORT_TAG. The request names
+the clinic and when, and nothing else: `REQUEST activities.clinics.archery_1_2 DURING
+blocks.clinic_2`. Who may run it is already written down, as the skill each of its
+positions needs, so a request that said `ANY 1 staff` as well would be saying it twice.
+The clinic runs fully staffed or not at all, because filling one position of an instance
+fills them all (`solver.structural`), which is what lets the request stop at naming it.
 
-Loading a date imports its clinics on the way in when none carry IMPORT_TAG for it yet.
-Load offerings imports them again, first removing every imported request for that date, so
-the day's requests mirror its Offerings tab.
+They are made afresh on every load and never saved as they are: the Offerings tab is where
+they live, and a season of them is most of the requests there would be. One that is edited
+is saved like any other request, under its own id, and from then on the saved one is read
+in place of the one made. One cannot be deleted, since the next load would make it again:
+it is taken off the Offerings tab instead. Load offerings throws the saved ones away, so
+the day's clinics are the Offerings tab's again.
 """
 
-from dataclasses import replace
 from datetime import date
 
 from puppet_strings.model import DAY, Dataset, Priority, Request
@@ -47,34 +48,18 @@ def generated_requests(dataset: Dataset) -> list[Request]:
     return requests
 
 
-def merge(existing: list[Request], generated: list[Request], target: date) -> list[Request]:
-    """Existing requests minus the date's old generated ones, plus the new generated ones."""
-    kept = [r for r in existing if not is_generated(r, target)]
-    return kept + list(generated)
+def with_offerings(dataset: Dataset) -> tuple[Request, ...]:
+    """The dataset's requests, and a clinic request for each offering none of them replaces."""
+    saved = {r.id for r in dataset.requests}
+    made = (r for r in generated_requests(dataset) if r.id not in saved)
+    return dataset.requests + tuple(made)
+
+
+def is_imported(request: Request) -> bool:
+    """Whether a request is a clinic made from an Offerings tab, whichever day's."""
+    return request.id.startswith("offering:") and IMPORT_TAG in request.tags
 
 
 def is_generated(request: Request, target: date) -> bool:
-    """Whether a request was generated from the Offerings tab for this date."""
-    prefix = f"offering:{target.isoformat()}:"
-    return request.id.startswith(prefix) and IMPORT_TAG in request.tags
-
-
-def has_offerings_loaded(requests: tuple[Request, ...], target: date) -> bool:
-    """Whether any request imported from the Offerings tab exists for the date."""
-    return any(is_generated(r, target) for r in requests)
-
-
-def import_if_missing(dataset: Dataset, book) -> tuple[Dataset, int]:
-    """The dataset with its date's clinics imported and saved, if none were yet.
-
-    Returns it and how many were imported. A day that already has some keeps them as they
-    are, edits and deletions included: only Load offerings imports a day's clinics again.
-    A day whose Offerings tab is still empty imports nothing, so the next load tries again.
-    """
-    if has_offerings_loaded(dataset.requests, dataset.target):
-        return dataset, 0
-    imported = generated_requests(dataset)
-    if not imported:
-        return dataset, 0
-    book.put(imported)
-    return replace(dataset, requests=dataset.requests + tuple(imported)), len(imported)
+    """Whether a request is a clinic made from the Offerings tab for this date."""
+    return is_imported(request) and request.id.startswith(f"offering:{target.isoformat()}:")

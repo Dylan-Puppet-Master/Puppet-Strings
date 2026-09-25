@@ -9,12 +9,7 @@ from pathlib import Path
 from puppet_strings import __version__
 from puppet_strings.backup import FOLDER, back_up
 from puppet_strings.config import Config, load_config
-from puppet_strings.generate import (
-    generated_requests,
-    has_offerings_loaded,
-    import_if_missing,
-    is_generated,
-)
+from puppet_strings.generate import is_generated
 from puppet_strings.google_auth import AuthError
 from puppet_strings.model import Dataset
 from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
@@ -126,11 +121,8 @@ def _run(args, config: Config, target: date) -> int:
     if args.same_day and dataset.baseline is None:
         print(f"error: {dataset.target} has no published schedule to change", file=sys.stderr)
         return 1
-    dataset, imported = import_if_missing(dataset, open_requests(config, source))
-    if imported:
-        print(f"imported {imported} clinics for {dataset.target}")
-    elif not has_offerings_loaded(dataset.requests, dataset.target):
-        print(f"warning: no clinics imported for {dataset.target}; its Offerings tab is empty")
+    if not dataset.offerings:
+        print(f"warning: no clinics offered on {dataset.target}; its Offerings tab is empty")
     for adjustment in dataset.today_adjustments:
         print(f"today: {adjustment.describe(dataset.staff[adjustment.staff].name)}")
     return _solve(source, config, dataset, args)
@@ -175,12 +167,15 @@ def _names(dataset: Dataset) -> int:
 
 
 def _load_offerings(source: Source, config: Config, dataset: Dataset) -> int:
-    day_sheet(source, config, dataset.this_span, dataset.target)  # made if it is not there yet
-    generated = generated_requests(dataset)
-    book = open_requests(config, source)
-    book.delete(r.id for r in dataset.requests if is_generated(r, dataset.target))
-    book.put(generated)
-    print(f"loaded {len(generated)} offerings for {dataset.target}")
+    """Make the day's spreadsheet if it is not there yet, and throw away edited clinics.
+
+    The clinics themselves are made from the Offerings tab on every load, so this is what
+    makes them the tab's again.
+    """
+    day_sheet(source, config, dataset.this_span, dataset.target)
+    edited = [r.id for r in dataset.requests if is_generated(r, dataset.target)]
+    open_requests(config, source).delete(edited)
+    print(f"{len(dataset.offerings)} offerings for {dataset.target}")
     return 0
 
 
