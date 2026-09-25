@@ -24,6 +24,7 @@ from puppet_strings.solver.result import RequestOutcome, Result
 
 AVAILABLE = "Available"
 FREE = "free"
+RESTING = "resting"  # sick, or short of sleep with nothing to do: not spare
 PLAYSTATION = "playstation"
 ALL_CLINICS = "all_clinics"
 HEADINGS_ROW = 1  # row 0 is the title; row 1 names the blocks
@@ -91,11 +92,10 @@ def _staff_fills(rows: int, blocks: int) -> tuple[Fill, ...]:
 def _cell(
     dataset: Dataset, staff_id: str, block: Block, here: list[Assignment], remainder: str
 ) -> str:
-    excused = dataset.excused(staff_id, block.id)
-    if excused:
-        return excused  # an EXCLUDE: they are not at camp for this block, and it says so
     if not here:
-        return AVAILABLE if block.id == PLAYSTATION else ""
+        # an EXCLUDE or a rest says so, rather than leaving them looking spare
+        idle = _idle(dataset, staff_id, block.id)
+        return idle or (AVAILABLE if block.id == PLAYSTATION else "")
     segments = []
     cursor = block.start_minute
     for a in here:
@@ -193,16 +193,17 @@ def clinic_view(
         rows.append([])
 
     here = sorted(dataset.at_camp, key=lambda s: names[s])
-    for label, people in _excused(dataset, here, blocks).items():
+    busy = {(a.staff, a.block) for a in assignments}
+    for label, people in _excused(dataset, here, blocks, busy).items():
         bold.append(len(rows))
         rows += _stack(label, people, blocks)
 
     bold.append(len(rows))
-    busy = {(a.staff, a.block) for a in assignments}
     # Free means free and here: somebody this span does not have is not spare, and somebody
-    # an EXCLUDE took out of the block is not spare either -- they are already accounted for.
+    # an EXCLUDE or a rest took out of the block is not spare either -- they are already
+    # accounted for.
     free = {
-        b: [names[s] for s in here if (s, b) not in busy and not dataset.excused(s, b)]
+        b: [names[s] for s in here if (s, b) not in busy and not _idle(dataset, s, b)]
         for b in blocks
     }
     rows += _stack(remainder, free, blocks)
@@ -215,20 +216,37 @@ def clinic_view(
     )
 
 
-def _excused(dataset: Dataset, here: list[str], blocks: list[str]) -> dict[str, dict[str, list]]:
-    """The people an EXCLUDE took out of these blocks, a row per label it wrote.
+def _excused(
+    dataset: Dataset, here: list[str], blocks: list[str], busy: set[tuple[str, str]]
+) -> dict[str, dict[str, list]]:
+    """The people an EXCLUDE or a rest took out of these blocks, a row per label.
 
     They are neither on a clinic nor free, so they are their own group: `offsite` reads
     beside the clinics the way `DYOW/WPs` does, and somebody looking for a name finds it.
     """
     names = {s: dataset.staff[s].name for s in dataset.staff}
-    labels = dict.fromkeys(
-        dataset.excused(s, b) for b in blocks for s in here if dataset.excused(s, b)
-    )
+    idle = {(s, b): _idle(dataset, s, b) for b in blocks for s in here if (s, b) not in busy}
+    labels = dict.fromkeys(label for label in idle.values() if label)
     return {
-        label: {b: [names[s] for s in here if dataset.excused(s, b) == label] for b in blocks}
+        label: {b: [names[s] for s in here if idle.get((s, b)) == label] for b in blocks}
         for label in labels
     }
+
+
+def _idle(dataset: Dataset, staff_id: str, block: str) -> str:
+    """What to write for somebody who holds nothing in a block today, or "" if they are free.
+
+    An EXCLUDE writes its own words. A sickness from the Adjustments sheet rests them
+    through the block, and a short night leaves them to rest through any block it did not
+    fill: they may still run a clinic they are fit for, but they are not spare.
+    """
+    excused = dataset.excused(staff_id, block)
+    if excused:
+        return excused
+    if block in dataset.staff[staff_id].resting_blocks:
+        return RESTING
+    tired = any(a.staff == staff_id and a.ral_penalty for a in dataset.today_adjustments)
+    return RESTING if tired else ""
 
 
 def _block_fills(rows: Table, count: int) -> tuple[Fill, ...]:
@@ -274,19 +292,20 @@ def changes_view(dataset: Dataset, result: Result) -> Table:
     """One row per staff member and block that a same-day re-solve moved."""
     rows: Table = [["Staff", "Block", "Was", "Now"]]
     for change in result.changes:
+        left = _idle(dataset, change.staff, change.block) or FREE
         rows.append(
             [
                 dataset.staff[change.staff].name,
                 _label(change.block),
-                _held(dataset, change.before),
-                _held(dataset, change.after),
+                _held(dataset, change.before, FREE),
+                _held(dataset, change.after, left),
             ]
         )
     return rows
 
 
-def _held(dataset: Dataset, assignments: tuple[Assignment, ...]) -> str:
-    return ", ".join(_timed(dataset, a) for a in assignments) or FREE
+def _held(dataset: Dataset, assignments: tuple[Assignment, ...], empty: str) -> str:
+    return ", ".join(_timed(dataset, a) for a in assignments) or empty
 
 
 def _timed(dataset: Dataset, a: Assignment) -> str:

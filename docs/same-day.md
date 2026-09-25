@@ -102,6 +102,12 @@ The **Changes** tab has one row per staff member and block that is not what was 
 | Alesa | Clinic 2 | break 10:45-11:15 | free |
 | Vic | Clinic 3 | Secret Pool (1st) | free |
 
+A block somebody is left with nothing in says `resting` instead of `free` when they are
+resting through it, or when they are short of sleep: a sleep agreement may still move them
+to a clinic their lower RAL allows, but any block it leaves empty is rest. The staff and
+clinic views say the same, with the resting grouped in their own row rather than under
+DYOW/WPs.
+
 A half-day rest, or a mandatory request the rest makes impossible, is worth knowing about:
 if a counselor rests all morning and a `MUST_HAPPEN` request gives every counselor a
 morning counselor hour, the two cannot both hold. The solve stops and the report names

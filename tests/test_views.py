@@ -1,6 +1,6 @@
 from datetime import time
 
-from puppet_strings.model import Assignment, Priority
+from puppet_strings.model import Adjustment, Assignment, Priority, Rest
 from puppet_strings.publish.palette import (
     BANDING,
     BLOCK_COLOURS,
@@ -8,10 +8,10 @@ from puppet_strings.publish.palette import (
     NAME_COLUMN,
     colour,
 )
-from puppet_strings.publish.views import clinic_view, report, staff_view
+from puppet_strings.publish.views import changes_view, clinic_view, report, staff_view
 from puppet_strings.publish.writer import day_sheet, is_published, publish
 from puppet_strings.sheets.source import CsvSource
-from puppet_strings.solver.result import RequestOutcome, Result
+from puppet_strings.solver.result import Change, RequestOutcome, Result
 from tests.conftest import CONFIG
 
 
@@ -165,6 +165,66 @@ def test_the_clinic_view_groups_the_people_who_are_away(dataset):
     assert "Dylan" not in columns[1] and "Dylan" not in columns[2]
     assert "Sarah" not in columns[1] and "Sarah" in columns[2]
     assert set(view.bold_rows) >= {labels.index("offsite"), labels.index("at the dentist")}
+
+
+def sick(dataset):
+    """The fixture day with Dylan resting through clinic 1, and Sarah short of sleep."""
+    from dataclasses import replace
+
+    dylan = replace(dataset.staff["dylan"], resting_blocks=frozenset({"clinic_1"}))
+    return replace(
+        dataset,
+        staff={**dataset.staff, "dylan": dylan},
+        adjustments=(
+            Adjustment(dataset.target, "dylan", Rest.MORNING),
+            Adjustment(dataset.target, "sarah", ral_penalty=1),
+        ),
+    )
+
+
+def test_somebody_resting_is_resting_and_not_free(dataset):
+    view = staff_view(sick(dataset), ())
+    by_name = {row[0]: dict(zip(view.rows[1], row, strict=True)) for row in view.rows[2:]}
+    assert by_name["Dylan"]["Clinic 1"] == "resting"
+    assert by_name["Dylan"]["Clinic 2"] == ""
+    clinics = clinic_view(sick(dataset), ())
+    labels = [row[0] if row else "" for row in clinics.rows]
+    resting = labels.index("resting")
+    assert clinics.rows[resting][:2] == ["resting", "Dylan"]
+    assert "Dylan" not in clinics.rows[resting][2:]
+    free = labels.index("DYOW/WPs")
+    assert "Dylan" not in [row[1] for row in clinics.rows[free:] if len(row) > 1]
+
+
+def test_somebody_short_of_sleep_rests_only_where_they_have_nothing(dataset):
+    view = staff_view(sick(dataset), rows(dataset))
+    by_name = {row[0]: dict(zip(view.rows[1], row, strict=True)) for row in view.rows[2:]}
+    assert "break" in by_name["Sarah"]["Clinic 1"]  # still working what they were given
+    assert by_name["Sarah"]["Clinic 2"] == "resting"
+    clinics = clinic_view(sick(dataset), rows(dataset))
+    labels = [row[0] if row else "" for row in clinics.rows]
+    resting = [row for row in clinics.rows[labels.index("resting") :] if "Sarah" in row]
+    assert resting and resting[0].index("Sarah") != 1  # not in clinic 1, where they work
+
+
+def test_the_changes_say_resting_for_the_sick_and_the_short_of_sleep(dataset):
+    day = sick(dataset)
+    held = rows(dataset)
+    rob, sarah = held[4], held[-1]
+    result = Result(
+        feasible=True,
+        changes=(
+            Change("dylan", "clinic_1", (rob,), ()),
+            Change("sarah", "playstation", (sarah,), ()),
+            Change("rob", "clinic_1", (rob,), ()),
+            Change("james", "clinic_2", (), (rob,)),
+        ),
+    )
+    now = {row[0]: (row[2], row[3]) for row in changes_view(day, result)[1:]}
+    assert now["Dylan"][1] == "resting"
+    assert now["Sarah"][1] == "resting"
+    assert now["Rob"][1] == "free"
+    assert now["James"][0] == "free"
 
 
 def test_clinic_view(dataset):
