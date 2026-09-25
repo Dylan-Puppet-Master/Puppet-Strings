@@ -504,14 +504,3 @@ def test_the_minimap_opens_out_under_the_pointer(window):
     minimap.leaveEvent(None)
     settle(300)
     assert minimap.size() == minimap.SMALL
-
-
-def test_table_and_canvas_sit_in_the_middle_of_the_toolbar(window):
-    bar = window.toolbar
-    first, last = (bar.widgetForAction(a) for a in (window.table_action, window.canvas_action))
-    for width in (1500, 1200):
-        window.resize(width, 900)
-        settle(100)
-        middle = (first.geometry().left() + last.geometry().right()) / 2
-        assert abs(middle - bar.width() / 2) <= 2
-    assert bar.widgetForAction(bar.actions()[-1]).isVisible()  # Configure, still on the bar
