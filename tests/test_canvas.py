@@ -564,3 +564,15 @@ def test_a_new_card_stays_where_it_was_written_until_the_canvas_is_zoomed_out(wi
     assert card.kept is None and not first(card)  # zoomed out: it goes to LOW's place
     canvas.look(canvas.center(), 1.0)
     assert not first(card)  # and stays there
+
+
+def test_ctrl_f_goes_to_the_search_box(window):
+    window.text_filter.setText("ropes")
+    window.activateWindow()  # a shortcut is for the window in front
+    assert QTest.qWaitForWindowActive(window)
+    window.canvas.setFocus()
+    zoom = window.canvas.zoom
+    QTest.keyClick(window.canvas.viewport(), Qt.Key_F, Qt.ControlModifier)
+    assert window.focusWidget() is window.text_filter
+    assert window.text_filter.selectedText() == "ropes"
+    assert window.canvas.zoom == zoom  # not taken for F, which shows everything

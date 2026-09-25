@@ -1165,7 +1165,7 @@ class Canvas(QGraphicsView):
                 self.delete_requested.emit(picked)
         elif key == Qt.Key_N and not control:
             self.new_card(self.nearest_group())
-        elif key == Qt.Key_F or (control and key == Qt.Key_0):
+        elif (key == Qt.Key_F and not control) or (control and key == Qt.Key_0):
             self.fit()
         elif control and key == Qt.Key_1:
             self.fly_to(self.center(), 1.0)

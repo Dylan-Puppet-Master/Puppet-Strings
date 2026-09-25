@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from PySide6.QtCore import QDate, QEvent, Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QActionGroup
+from PySide6.QtGui import QActionGroup, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
     QApplication,
@@ -501,10 +501,17 @@ class MainWindow(QMainWindow):
         self.store.reconnect(source, config)
         self.reload()
 
+    def _search(self) -> None:
+        """Ctrl+F: into the search box, with what is in it picked to type over."""
+        self.text_filter.setFocus(Qt.ShortcutFocusReason)
+        self.text_filter.selectAll()
+
     def _build_filters(self) -> QHBoxLayout:
         layout = QHBoxLayout()
         self.text_filter = QLineEdit()
         self.text_filter.setPlaceholderText("search id, description, skedge")
+        self.text_filter.setToolTip("Search (Ctrl+F)")
+        QShortcut(QKeySequence.Find, self, self._search)
         self.priority_filter = _combo(["any priority"] + [p.value for p in WRITABLE_PRIORITIES])
         self.tag_filter = _combo(["any tag"])
         self.staff_filter = _combo(["any staff"])
