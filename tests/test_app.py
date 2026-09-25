@@ -947,10 +947,87 @@ def test_saving_a_request_outside_the_date_asks_first(window, monkeypatch):
     assert window.date_check.isChecked()  # it does nothing on the date being scheduled
     window.date_filter.setDate(QDate(2026, 9, 16))
     assert saved not in visible_ids(window)
-    window.date_filter.setDate(QDate(2026, 9, 28))  # about it, but scoped to session 1
-    assert saved not in visible_ids(window)
-    window.date_check.setChecked(False)
+    window.date_filter.setDate(QDate(2026, 9, 28))  # its scope followed its ON to that week
     assert saved in visible_ids(window)
+    scope = window.model.request(saved).scope
+    assert (scope.kind, scope.first, scope.last) == ("week", date(2026, 9, 27), date(2026, 10, 3))
+
+
+FRIDAY_NEXT_WEEK = "REQUEST staff.dylan FREE DURING blocks.clinic_1 ON 2026-09-24"
+
+
+def scope_of(editor) -> tuple:
+    scope = editor.scope_box.currentData()
+    return scope.kind, scope.first, scope.last
+
+
+def answer_scope_box(monkeypatch, pick: str) -> list:
+    """Have the scope box, when it comes up, pressed on the button starting `pick`."""
+    shown = []
+
+    def press(box):
+        shown.append(box.text())
+        next(b for b in box.buttons() if b.text().startswith(pick)).click()
+
+    monkeypatch.setattr(QMessageBox, "exec", press)
+    return shown
+
+
+def test_the_scope_follows_the_dates_the_on_names(window):
+    editor = write_request(window, FRIDAY_NEXT_WEEK)
+    assert scope_of(editor) == ("day", date(2026, 9, 24), date(2026, 9, 24))
+    assert "scope set to Day: Thu Sep 24" in editor.status.text()
+    editor.skedge_edit.setPlainText(
+        "REQUEST staff.dylan FREE DURING blocks.clinic_1 ON ANY {2026-09-14 .. 2026-09-18}"
+    )
+    editor.validate()
+    assert scope_of(editor) == ("week", date(2026, 9, 13), date(2026, 9, 19))
+    editor.skedge_edit.setPlainText(
+        "REQUEST staff.dylan FREE DURING blocks.clinic_1 ON ANY {2026-09-14 .. 2026-09-24}"
+    )
+    editor.validate()
+    assert scope_of(editor) == ("session", date(2026, 9, 13), date(2026, 9, 26))
+
+
+def test_an_on_that_moves_with_the_date_leaves_the_scope_alone(window):
+    editor = write_request(
+        window,
+        "REQUEST staff.dylan FREE DURING blocks.clinic_1 ON ANY {dates.target - 6d .. dates.target}",
+    )
+    assert scope_of(editor) == ("session", date(2026, 9, 13), date(2026, 9, 26))  # the default
+
+
+def test_a_scope_picked_by_hand_stays_and_saving_offers_one_that_fits(window, monkeypatch):
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Save)  # not today
+    editor = write_request(window, FRIDAY_NEXT_WEEK)
+    editor.show_scope(window.store.dataset.scope("day"))  # Wed Sep 16, picked by hand
+    editor._scope_picked()
+    editor.skedge_edit.insertPlainText(" ")
+    editor.validate()
+    assert scope_of(editor)[1] == date(2026, 9, 16)  # the ON does not move it now
+    assert "is not read on Thu Sep 24" in editor.status.text()
+    count = window.model.rowCount()
+
+    shown = answer_scope_box(monkeypatch, "Keep editing")
+    editor.save_button.click()
+    assert "is about Thu Sep 24" in shown[0] and "Day: Wed Sep 16" in shown[0]
+    assert window.model.rowCount() == count and editor.original_id is None  # not saved
+
+    answer_scope_box(monkeypatch, "Use Day: Thu Sep 24")
+    editor.save_button.click()
+    saved = window.model.request(editor.original_id)
+    assert saved.scope.first == saved.scope.last == date(2026, 9, 24)
+    assert scope_of(editor)[1] == date(2026, 9, 24)  # the editor shows what was saved
+
+
+def test_opening_a_request_leaves_its_scope_as_saved(window, monkeypatch):
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Save)
+    answer_scope_box(monkeypatch, "Keep editing")
+    saved = save_request(window, "Sessions", FRIDAY_NEXT_WEEK, scope="session")
+    request = window.model.request(saved)
+    window.editor.show_request(request)
+    window.editor.validate()
+    assert window.editor.current().scope == request.scope  # nothing to save on leaving it
 
 
 def test_saving_a_request_about_this_date_asks_nothing(window, monkeypatch):
@@ -1109,10 +1186,16 @@ PIN_ARCHERY = (
 DYLAN_FREE = "REQUEST staff.dylan FREE DURING blocks.clinic_1 ON dates.target"
 
 
-def save_request(window, description, skedge, priority="MUST_HAPPEN"):
-    """Write a request in the editor and save it. Returns the id it was saved under."""
+def save_request(window, description, skedge, priority="MUST_HAPPEN", scope=None):
+    """Write a request in the editor and save it. Returns the id it was saved under.
+
+    `scope` is a kind to pick by hand in the scope box, over what the Skedge's ON implies.
+    """
     editor = write_request(window, skedge, description)
     editor.priority_box.setCurrentText(priority)
+    if scope:
+        editor.show_scope(window.store.dataset.scope(scope))
+        editor._scope_picked()
     editor.validate()
     editor.save_button.click()
     return editor.original_id
@@ -1212,8 +1295,16 @@ def test_a_request_appears_under_every_collision_it_is_in(window, monkeypatch):
         save_request(window, "Dylan on archery", PIN_ARCHERY),
     ]
     friday = [
-        save_request(window, "Friday archery", PIN_ARCHERY.replace("dates.target", "2026-09-18")),
-        save_request(window, "Friday free", DYLAN_FREE.replace("dates.target", "2026-09-18")),
+        # scoped by hand to the session, so they are read on the Wednesday being scheduled
+        save_request(
+            window,
+            "Friday archery",
+            PIN_ARCHERY.replace("dates.target", "2026-09-18"),
+            scope="session",
+        ),
+        save_request(
+            window, "Friday free", DYLAN_FREE.replace("dates.target", "2026-09-18"), scope="session"
+        ),
     ]
     rows = tree_rows(window.errors)
     assert [heading for heading, _ in rows] == [

@@ -277,6 +277,16 @@ instant: requests are kept on this computer, not in a sheet. The **scope** box c
 days a request is read on: this date, its week, its session (the default for a new one), or
 the season.
 
+**The scope follows the `ON`.** As you write a Skedge whose `ON` names particular dates, the
+scope box moves to the narrowest scope that holds them all: `ON 2026-09-24` scopes the
+request to that day, `ON ANY {2026-09-14 .. 2026-09-18}` to that week, a range across weeks
+to the session. The line under the editor says when it does. An `ON` that moves with the
+date being scheduled, such as `dates.target - 6d .. dates.target`, asks the same of every
+day, so it leaves the scope alone; so does opening a request, and so does picking a scope
+yourself, which then stays for that request. A request is only read on its scope's days,
+so it cannot be saved with a scope that misses a date its `ON` names: a box says which
+days, and offers the scope that holds them. **Keep editing** goes back to the request.
+
 **Name completion.** Start typing any part of a name in the Skedge box and a list of names
 appears and narrows as you keep typing. The namespace is optional: `dyl` finds
 `staff.dylan`, `clinic_3` finds `blocks.clinic_3`, and `riflery` finds

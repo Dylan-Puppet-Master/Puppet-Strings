@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from puppet_strings.app import palette
+from puppet_strings.app.facets import named_dates, written_dates
 from puppet_strings.model import SCOPES, WRITABLE_PRIORITIES, Dataset, Priority, Request, Scope
 from puppet_strings.names import normalize
 from puppet_strings.requests_db import DEFAULT_SCOPE, describe
@@ -288,6 +289,12 @@ class RequestEditor(QWidget):
         self.soon.timeout.connect(self.validate)
         self.checked: dict[Request, object] = {}  # see `_validated`
         self.checked_for: Dataset | None = None
+        # The scope follows the dates the Skedge's ON names as it is written, unless it has
+        # been picked by hand for this request. Opening a request leaves its scope alone.
+        self.follow_on = False  # the Skedge was edited since the last check
+        self.scope_picked = False
+        self.skedge_edit.textChanged.connect(self._skedge_edited)
+        self.scope_box.activated.connect(self._scope_picked)
         self.save_button.clicked.connect(self._save)
         self.delete_button.clicked.connect(self._delete)
         self.new_button.clicked.connect(self.new_requested.emit)
@@ -319,10 +326,16 @@ class RequestEditor(QWidget):
         layout.addLayout(buttons)
 
     def set_dataset(self, dataset: Dataset | None, groups: list[str] | None = None) -> None:
-        """Names are validated and suggested against this dataset."""
-        self.dataset = dataset
+        """Names are validated and suggested against this dataset.
+
+        A scope that was the old day's own — its week, its session — becomes the new day's
+        of the same kind. One about other dates, a request's own or one its ON called for,
+        stays as it is: the same day loaded again after a save must not move it.
+        """
+        was, self.dataset = self.dataset, dataset
         chosen = self.scope_box.currentData()
-        self._offer_scopes(chosen.kind if chosen else None)  # the same kind, on the new day
+        own = chosen is not None and was is not None and chosen == was.scope(chosen.kind)
+        self._offer_scopes(chosen.kind if own else chosen)
         self.groups = list(groups or [])
         self.requester_names.setStringList(sorted(dataset.staff) if dataset else [])
         self.skedge_edit.set_dataset(dataset)
@@ -399,8 +412,29 @@ class RequestEditor(QWidget):
         for typing to stop, which would have done it all again: one check is enough.
         """
         self.timer.stop()
+        self.follow_on = self.scope_picked = False  # a request just shown keeps its scope
         self._report("", ok=None)
         self.soon.start()
+
+    def _skedge_edited(self) -> None:
+        self.follow_on = True
+
+    def _scope_picked(self) -> None:
+        """A scope chosen by hand stays, whatever the ON says; the check says if it misses."""
+        self.scope_picked = True
+        self.timer.start()
+
+    def _follow(self, days) -> str:
+        """Scope the request to the narrowest scope holding the ON's dates; say if it moved."""
+        fit = self.dataset.fitting_scope(days)
+        if fit is None or fit == self.scope_box.currentData():
+            return ""
+        self._offer_scopes(fit)
+        return f"; scope set to {describe(fit)} for its ON"
+
+    def show_scope(self, scope: Scope) -> None:
+        """Choose a scope, as the window does when it is asked to fix one on saving."""
+        self._offer_scopes(scope)
 
     def current(self) -> Request:
         """The request as the fields describe it."""
@@ -434,7 +468,21 @@ class RequestEditor(QWidget):
         except SkedgeError as e:
             return self._report(str(e), ok=False)
         keys = {c.key for c in copies if c.key}
-        return self._report(f"Valid ({len(keys)} EACH copies)" if keys else "Valid", ok=True)
+        days = named_dates(request, self.dataset, copies)
+        note = self._follow(days) if self.follow_on and not self.scope_picked else ""
+        self.follow_on = False
+        scope = self.scope_box.currentData()
+        missed = [d for d in days if scope is not None and not scope.covers(d)]
+        if missed:
+            self._report(
+                f"Its scope, {describe(scope)}, is not read on {written_dates(missed)}; "
+                "saving will offer one that is",
+                ok=None,
+            )
+            self.save_button.setEnabled(True)
+            return True
+        valid = f"Valid ({len(keys)} EACH copies)" if keys else "Valid"
+        return self._report(valid + note, ok=True)
 
     def _validated(self, request: Request) -> tuple:
         """`validate_request`, remembered for the day loaded.

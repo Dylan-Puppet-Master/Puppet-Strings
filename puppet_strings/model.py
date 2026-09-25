@@ -587,15 +587,38 @@ class Dataset:
         """Dates of the span containing the target, in order."""
         return self.span_dates(self.this_span)
 
-    def scope(self, kind: str) -> Scope:
-        """The scope of this kind around the target: its day, week, session or season."""
+    def scope(self, kind: str, day: date | None = None) -> Scope:
+        """The scope of this kind around a day, the target unless another is given.
+
+        That day, its week, its session (the span it falls in) or its season; a week or a
+        session needs a day on the calendar.
+        """
+        day = day or self.target
         if kind == DAY:
-            return Scope(DAY, self.target, self.target)
+            return Scope(DAY, day, day)
         if kind == SEASON:
-            year = self.target.year
-            return Scope(SEASON, date(year, 1, 1), date(year, 12, 31))
-        days = self.week_dates if kind == WEEK else self.session_dates
+            return Scope(SEASON, date(day.year, 1, 1), date(day.year, 12, 31))
+        entry = self.calendar[day]
+        span = self.span(entry.span)
+        days = self.span_weeks(span)[entry.week] if kind == WEEK else self.span_dates(span)
         return Scope(kind, days[0], days[-1])
+
+    def fitting_scope(self, days) -> Scope | None:
+        """The narrowest scope that holds every one of `days`: a day, a week, a session, a season.
+
+        None if there are no days, or no one scope holds them all: they run into another
+        year, or one is off the calendar and they are more than a day in one year.
+        """
+        if not days:
+            return None
+        first = min(days)
+        for kind in SCOPES:
+            if kind in (WEEK, SESSION) and first not in self.calendar:
+                continue
+            scope = self.scope(kind, first)
+            if all(scope.covers(day) for day in days):
+                return scope
+        return None
 
     @property
     def week_dates(self) -> tuple[date, ...]:

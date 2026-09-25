@@ -42,7 +42,7 @@ from puppet_strings.app.details_dialog import DetailsDialog, MappingDialog
 from puppet_strings.app.editor import RequestEditor
 from puppet_strings.app.errors import summary as error_summary
 from puppet_strings.app.errors_panel import ErrorsPane
-from puppet_strings.app.facets import facets
+from puppet_strings.app.facets import facets, named_dates, written_dates
 from puppet_strings.app.groups import ALL, UNGROUPED
 from puppet_strings.app.groups_panel import GroupsPane
 from puppet_strings.app.messages_pane import MessagesPane
@@ -58,6 +58,7 @@ from puppet_strings.exclude import mentions_exclusion
 from puppet_strings.generate import is_imported
 from puppet_strings.google_auth import AuthError
 from puppet_strings.model import WRITABLE_PRIORITIES, Dataset
+from puppet_strings.requests_db import describe, scope_for
 from puppet_strings.session import open_source
 from puppet_strings.settings import CANVAS, TABLE, load_settings, save_settings
 from puppet_strings.sheets.source import CsvSource, LoadError, NotACampDay
@@ -1036,7 +1037,8 @@ class MainWindow(QMainWindow):
         `editor` is whichever asked: the request editor, or the canvas for a card.
         """
         editor = editor or self.editor
-        if not self._covers_or_agreed(request):
+        request = self._scope_holds_its_dates(request, editor)
+        if request is None or not self._covers_or_agreed(request):
             editor.not_saved("Not saved; still editing")
             self._say("Not saved; still editing")
             return
@@ -1059,6 +1061,46 @@ class MainWindow(QMainWindow):
         note += f"; {len(wrong)} error(s) in it" if wrong else ""
         editor.saved_as(saved, note)  # last, so nothing else overwrites the confirmation
         self._say(f"Saved {saved.id}{note}")
+
+    def _scope_holds_its_dates(self, request, editor):
+        """The request to save, or None if it is not to be: its scope must hold its ON dates.
+
+        A request is only read on the days of its scope, so one whose ON names a day outside
+        it would do nothing there, and nothing would say so. It is not saved like that: a
+        box says which days it misses and offers the narrowest scope that holds them all,
+        which is what the editor sets by itself unless a scope was picked by hand.
+        """
+        dataset = self.store.dataset
+        if dataset is None:
+            return request
+        days = named_dates(request, dataset)
+        scope = scope_for(request, dataset)
+        missed = [d for d in days if not scope.covers(d)]
+        if not missed:
+            return request
+        fit = dataset.fitting_scope(days)
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Warning)
+        box.setWindowTitle("Scope misses its dates")
+        text = (
+            f"This request is about {written_dates(missed)}, but its scope, {describe(scope)}, "
+            "is not read on "
+            + ("that day" if len(missed) == 1 else "those days")
+            + ". It would never be loaded there, so it would do nothing."
+        )
+        use = None
+        if fit is not None:
+            text += f"\n\n{describe(fit)} holds every date its ON names."
+            use = box.addButton(f"Use {describe(fit)}", QMessageBox.AcceptRole)
+        else:
+            text += "\n\nNo one scope holds them all: split it into a request per year."
+        box.setText(text)
+        box.addButton("Keep editing", QMessageBox.RejectRole)
+        box.exec()
+        if use is None or box.clickedButton() is not use:
+            return None
+        (self.canvas.editor if editor is self.canvas else editor).show_scope(fit)
+        return replace(request, scope=fit)
 
     def _covers_or_agreed(self, request) -> bool:
         """Warn before saving a request that says nothing about the date being scheduled.
