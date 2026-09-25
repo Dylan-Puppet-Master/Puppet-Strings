@@ -26,7 +26,10 @@ from math import floor, log
 
 from PySide6.QtCore import (
     QEasingCurve,
+    QEvent,
+    QMimeData,
     QParallelAnimationGroup,
+    QPoint,
     QPointF,
     QPropertyAnimation,
     QRectF,
@@ -36,7 +39,7 @@ from PySide6.QtCore import (
     QVariantAnimation,
     Signal,
 )
-from PySide6.QtGui import QColor, QPainter, QTransform
+from PySide6.QtGui import QColor, QDrag, QPainter, QTransform
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsProxyWidget,
@@ -62,6 +65,8 @@ from puppet_strings.app.canvas.layout import CARD_WIDTH, Arrangement, arrange
 from puppet_strings.app.canvas.overlays import Minimap, NewButton, ZoomBar
 from puppet_strings.app.facets import resolve_request
 from puppet_strings.app.groups import ALL, UNGROUPED, clean, same_group
+from puppet_strings.app.request_table import BESIDE, drag_token
+from puppet_strings.app.requests_model import REQUEST_IDS, request_ids
 from puppet_strings.model import Dataset, Priority, Request
 
 LEAST, MOST = 0.04, 2.5  # how far out and in the canvas zooms
@@ -115,6 +120,7 @@ class Canvas(QGraphicsView):
         self.setFrameShape(QFrame.NoFrame)
         self.setFocusPolicy(Qt.StrongFocus)
         self.setMouseTracking(True)
+        self.setAcceptDrops(True)
         self.setBackgroundBrush(BACKGROUND)
         self.canvas_scene.setSceneRect(-60000, -60000, 120000, 120000)
 
@@ -122,6 +128,14 @@ class Canvas(QGraphicsView):
         self.editor.saved.connect(self._editor_saved)
         self.editor.deleted.connect(self._editor_deleted)
         self.editor.grown.connect(self._editor_grown)
+        # The suggestions under the Skedge and the requester are windows of their own, which
+        # Qt puts where it thinks the box is; on a card on a zoomed canvas, it is not there.
+        self.suggestions = {
+            self.editor.skedge_edit.completer.popup(): self._under_skedge_cursor,
+            self.editor.requester_completer.popup(): self._under_requester,
+        }
+        for popup in self.suggestions:
+            popup.installEventFilter(self)
         self.proxy = QGraphicsProxyWidget()
         self.proxy.setWidget(self.editor)
         self.proxy.setZValue(5)
@@ -550,6 +564,30 @@ class Canvas(QGraphicsView):
         self.deactivate(commit=False)
         self.deleted.emit(card.request.id)
 
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802
+        """Keep the suggestion lists under the text they suggest for, wherever Qt puts them."""
+        place = self.suggestions.get(watched) if hasattr(self, "suggestions") else None
+        if place is not None and event.type() in (QEvent.Show, QEvent.Move):
+            spot = self._to_screen(place())
+            if watched.pos() != spot:
+                watched.move(spot)
+        return super().eventFilter(watched, event)
+
+    def _under_skedge_cursor(self) -> QPoint:
+        """Just under the text cursor in the Skedge, in the form's coordinates."""
+        edit = self.editor.skedge_edit
+        return edit.viewport().mapTo(self.editor, edit.cursorRect().bottomLeft())
+
+    def _under_requester(self) -> QPoint:
+        """Just under the requester box, in the form's coordinates."""
+        edit = self.editor.requester_edit
+        return edit.mapTo(self.editor, edit.rect().bottomLeft())
+
+    def _to_screen(self, point: QPoint) -> QPoint:
+        """A point on the form, as a point on the screen: through the card and the zoom."""
+        scene = self.proxy.mapToScene(QPointF(point))
+        return self.viewport().mapToGlobal(self.mapFromScene(scene)) + QPoint(0, 3)
+
     def _editor_grown(self) -> None:
         """The form changed height: so does the card, and the cards below it move."""
         card = self.active
@@ -754,7 +792,10 @@ class Canvas(QGraphicsView):
         if press["kind"] == "card":
             if first:
                 self._lift(press["item"])
-            self._carry(pos)
+            if self.viewport().rect().contains(pos):
+                self._carry(pos)
+            else:
+                self._drag_out()
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         """Finish whatever the press started."""
@@ -835,26 +876,102 @@ class Canvas(QGraphicsView):
         found = (f for f in self.frames.values() if f.sceneBoundingRect().contains(point))
         return next(found, None)
 
-    def _set_down(self, pos) -> None:
-        """Drop the cards carried: onto another group's frame moves them there."""
+    def _put_down(self) -> list[CardItem]:
+        """Stop carrying the cards picked up, and return them."""
         cards, self.dragging = self.dragging, []
-        frame = self._frame_at(self.mapToScene(pos))
-        for f in self.frames.values():
-            f.set_target(False)
+        for frame in self.frames.values():
+            frame.set_target(False)
         for card in cards:
             card.lifted = False
             card.setZValue(2 if card is self.active else 0)
+        return cards
+
+    def _set_down(self, pos) -> None:
+        """Drop the cards carried: onto another group's frame moves them there."""
+        frame = self._frame_at(self.mapToScene(pos))
+        cards = self._put_down()
         if frame is not None:
-            group = "" if frame.group == UNGROUPED else frame.group
-            moving = [c for c in cards if not same_group(c.shown.group, group)]
-            for card in [c for c in moving if c.request is None or c.draft is not None]:
-                card.set_draft(replace(card.shown, group=group))
-                if card is self.active:
-                    self.editor.show_group(group)
-            saved = [c.request_id for c in moving if c.request is not None and c.draft is None]
-            if saved:
-                self.moved.emit(saved, frame.group)  # the window's refresh lays them out
+            self._move_to(cards, frame.group)
         self.relayout(animate=True)
+
+    def _move_to(self, cards: list[CardItem], group: str) -> None:
+        """Put cards in a group: the saved ones by the window, a new one on the card itself."""
+        into = "" if group == UNGROUPED else group
+        moving = [c for c in cards if not same_group(c.shown.group, into)]
+        for card in [c for c in moving if c.request is None]:
+            card.set_draft(replace(card.shown, group=into))
+            if card is self.active:
+                self.editor.show_group(into)
+        saved = [c.request_id for c in moving if c.request is not None]
+        if saved:
+            self.moved.emit(saved, group)  # the window's refresh lays them out
+
+    def _drag_out(self) -> None:
+        """The cards were carried off the canvas: hand them on as a drag the groups pane takes.
+
+        Inside the canvas a card is moved by hand, which is what lets it glide and the
+        frames light up; past its edge, the rest of the window only understands a drag.
+        So the cards go back to their places and a drag of their ids carries on from the
+        pointer: the same drag a table row makes, dropped on a group the same way. A card
+        never saved has no id for a drag to carry, and just goes back.
+        """
+        cards = self._put_down()
+        self.press = None
+        self.relayout(animate=True)
+        ids = [c.request_id for c in cards if c.request is not None]
+        if not ids:
+            return
+        data = QMimeData()
+        data.setData(REQUEST_IDS, "\n".join(ids).encode())
+        drag = QDrag(self)
+        drag.setMimeData(data)
+        drag.setPixmap(drag_token(ids, self.font(), self.devicePixelRatioF()))
+        drag.setHotSpot(BESIDE)
+        drag.exec(Qt.MoveAction)
+        self.viewport().unsetCursor()
+
+    # A drag coming in — cards brought back from outside, or table rows — lands on a frame.
+
+    def dragEnterEvent(self, event) -> None:  # noqa: N802
+        """Take a drag of requests."""
+        if event.mimeData().hasFormat(REQUEST_IDS):
+            event.setDropAction(Qt.MoveAction)
+            event.accept()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event) -> None:  # noqa: N802
+        """Light the frame a drop would land in; refuse anywhere else."""
+        under = self._frame_at(self.mapToScene(event.position().toPoint()))
+        for frame in self.frames.values():
+            frame.set_target(frame is under)
+        if under is None:
+            event.ignore()
+            return
+        event.setDropAction(Qt.MoveAction)
+        event.accept()
+
+    def dragLeaveEvent(self, event) -> None:  # noqa: N802
+        """Nothing is aimed at any more."""
+        for frame in self.frames.values():
+            frame.set_target(False)
+
+    def dropEvent(self, event) -> None:  # noqa: N802
+        """Move the requests dropped into the frame they were let go over."""
+        frame = self._frame_at(self.mapToScene(event.position().toPoint()))
+        self.dragLeaveEvent(event)
+        if frame is None:
+            event.ignore()
+            return
+        event.setDropAction(Qt.MoveAction)
+        event.accept()
+        ids = request_ids(event.mimeData())
+        cards = [c for c in self.cards.values() if c.request_id in ids]
+        known = {c.request_id for c in cards}
+        self._move_to(cards, frame.group)
+        others = [i for i in ids if i not in known]  # rows the filters keep off the canvas
+        if others:
+            self.moved.emit(others, frame.group)
 
     def wheelEvent(self, event) -> None:  # noqa: N802
         """Scroll to zoom at the pointer; a sideways scroll pans."""

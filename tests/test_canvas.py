@@ -8,7 +8,8 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QDate, QPoint, Qt  # noqa: E402
+from PySide6.QtCore import QDate, QMimeData, QPoint, QPointF, Qt  # noqa: E402
+from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent, QTextCursor  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
@@ -16,6 +17,7 @@ from puppet_strings.app.canvas.card import BAD, UNSAVED  # noqa: E402
 from puppet_strings.app.canvas.layout import CARD_WIDTH, arrange, columns  # noqa: E402
 from puppet_strings.app.groups import UNGROUPED  # noqa: E402
 from puppet_strings.app.main import MainWindow  # noqa: E402
+from puppet_strings.app.requests_model import REQUEST_IDS  # noqa: E402
 from puppet_strings.app.store import RequestStore  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
 from puppet_strings.settings import CANVAS, TABLE, load_settings  # noqa: E402
@@ -207,7 +209,7 @@ def test_a_frames_button_starts_a_request_and_an_empty_one_just_goes(window, fix
 def test_dragging_a_card_onto_another_frame_moves_it_to_that_group(window, fixtures_copy):
     canvas = window.canvas
     card = show_card(canvas, "breaks")
-    canvas.look(canvas.arrangement_bounds().center(), 0.3)
+    canvas.fit(animate=False)
     settle(50)
     start = at(canvas, card)
     target = at(canvas, canvas.frames[WEEKLY], dy=0.5)
@@ -271,3 +273,84 @@ def test_a_broken_request_says_so_on_its_card(window):
     window.store.save(replace(breaks, skedge="REQUEST staff.nobody FREE"), "breaks")
     window._requests_changed()
     assert canvas.cards["breaks"].status.kind == BAD
+
+
+def test_suggestions_open_under_the_text_cursor_on_the_card(window):
+    canvas = window.canvas
+    card = show_card(canvas, "breaks")
+    canvas.look(card.sceneBoundingRect().center(), 1.4)
+    canvas.activate(card, "skedge")
+    edit = canvas.editor.skedge_edit
+    edit.moveCursor(QTextCursor.End)
+    QTest.keyClicks(edit, " dyl")
+    popup = edit.completer.popup()
+    assert popup.isVisible()
+    cursor = edit.viewport().mapTo(canvas.editor, edit.cursorRect().bottomLeft())
+    under = canvas.viewport().mapToGlobal(
+        canvas.mapFromScene(canvas.proxy.mapToScene(QPointF(cursor)))
+    )
+    assert (popup.pos() - under).manhattanLength() <= 4
+    popup.hide()
+
+
+class Dropped:
+    """Stands in for QDrag: rather than wait on the platform, drops at once on one spot."""
+
+    def __init__(self, source):
+        self.data = None
+
+    def setMimeData(self, data):  # noqa: N802
+        self.data = data
+
+    def setPixmap(self, pixmap):  # noqa: N802
+        pass
+
+    def setHotSpot(self, point):  # noqa: N802
+        pass
+
+    def exec(self, *actions):
+        widget, point = Dropped.onto
+        drop(widget, point, self.data)
+        return Qt.MoveAction
+
+
+def drop(widget, point, data) -> bool:
+    """Drag data in over a point of a widget and let go, as the platform would."""
+    args = (point, Qt.MoveAction, data, Qt.LeftButton, Qt.NoModifier)
+    for event in (QDragEnterEvent(*args), QDragMoveEvent(*args)):
+        QApplication.sendEvent(widget, event)
+    let_go = QDropEvent(QPointF(point), *args[1:])
+    QApplication.sendEvent(widget, let_go)
+    return let_go.isAccepted()
+
+
+def test_a_card_dragged_off_the_canvas_onto_the_groups_pane_moves_to_that_group(
+    window, fixtures_copy, monkeypatch
+):
+    canvas = window.canvas
+    groups = window.groups.list
+    row = next(
+        groups.item(i) for i in range(groups.count()) if groups.item(i).data(Qt.UserRole) == WEEKLY
+    )
+    Dropped.onto = (groups.viewport(), groups.visualItemRect(row).center())
+    monkeypatch.setattr("puppet_strings.app.canvas.view.QDrag", Dropped)
+    card = show_card(canvas, "breaks")
+    start = at(canvas, card)
+    QTest.mousePress(canvas.viewport(), Qt.LeftButton, pos=start)
+    QTest.mouseMove(canvas.viewport(), start + QPoint(20, 0))
+    QTest.mouseMove(canvas.viewport(), QPoint(-30, start.y()))  # past the canvas's left edge
+    settle()
+    assert saved_requests(fixtures_copy)["breaks"].group == WEEKLY
+    assert canvas.frames[WEEKLY].sceneBoundingRect().contains(canvas.cards["breaks"].pos())
+    assert canvas.press is None and not canvas.dragging
+
+
+def test_a_request_dragged_in_lands_in_the_frame_it_is_dropped_on(window, fixtures_copy):
+    canvas = window.canvas
+    canvas.fit(animate=False)
+    settle(50)
+    data = QMimeData()
+    data.setData(REQUEST_IDS, b"breaks")
+    assert drop(canvas.viewport(), at(canvas, canvas.frames[WEEKLY], dy=0.6), data)
+    settle()
+    assert saved_requests(fixtures_copy)["breaks"].group == WEEKLY
