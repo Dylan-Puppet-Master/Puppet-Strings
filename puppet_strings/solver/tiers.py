@@ -150,8 +150,7 @@ def _unproven(tier: Priority, score: int, bound: float, config: Config) -> str:
     """
     limit = f"{config.tier_seconds_limit:.0f}s"
     head = (
-        f"tier {tier.value}: could not prove this schedule optimal within its "
-        f"{limit}; it is kept"
+        f"tier {tier.value}: could not prove this schedule optimal within its {limit}; it is kept"
     )
     if bound in (float("inf"), float("-inf")) or bound < score:
         return f"{head}, and nothing better was ruled out"

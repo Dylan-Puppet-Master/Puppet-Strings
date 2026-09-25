@@ -545,6 +545,11 @@ class Dataset:
     # are here another session are nothing to do with this day: they hold no assignment,
     # and nothing published says their name. An empty set is everybody being here.
     away: frozenset[str] = frozenset()
+    # The staff as the Skills sheet has them and the categories as the sheets name them,
+    # before the day's adjustments and who is away are applied: what `with_standing` starts
+    # from, so an adjustment made in the app is applied without reading anything again.
+    usual_staff: Mapping[str, Staff] = field(default_factory=dict)
+    named_categories: Mapping[str, frozenset[str]] = field(default_factory=dict)
     warnings: tuple[str, ...] = ()
 
     @property

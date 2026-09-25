@@ -532,27 +532,59 @@ def test_the_sleep_and_sickness_dialogs_write_one_row_each(window):
     sickness.apply_button.click()
     assert sickness.table.rowCount() == 2
 
+    def standing(dataset):
+        alesa = dataset.staff["alesa"]
+        assert dataset.staff["vic"].ral == 4  # a RAL lower
+        assert alesa.resting_blocks == {"breakfast", "clinic_1", "clinic_2"}  # by block start
+        assert "alesa" in dataset.staff_categories["all"]  # she works the afternoon
+
+    # applied at once, before anything is written, and nothing is read again
+    standing(window.store.dataset)
+    assert "Adjustments" not in window.store.source.tabs("config")
+    window.write_adjustments()
+    assert window.loader is None
+    window.wait_for_adjustments()
     written = window.store.source.read("config", "Adjustments")
-    assert written[0] == ["date", "staff", "resting", "RAL_penalty", "note"]
     assert ["2026-09-16", "Alesa", "morning", "", ""] in written
     assert ["2026-09-16", "Vic", "", "1", "short sleep"] in written
 
-    # reloading applies it: Vic is a RAL lower, Alesa is off for the morning blocks only
-    window.reload()
+    window.reload()  # and the sheet says the same as the window did
     window.wait_for_load()
-    assert window.store.dataset.staff["vic"].ral == 4
-    alesa = window.store.dataset.staff["alesa"]
-    assert alesa.resting_blocks == {
-        "breakfast",
-        "clinic_1",
-        "clinic_2",
-    }  # the morning, by block start
-    assert "alesa" in window.store.dataset.staff_categories["all"]  # she works the afternoon
+    standing(window.store.dataset)
 
     sickness = SameDayDialog(window.store, SICKNESS, window)
     sickness.staff_box.setCurrentText("Vic")
     sickness.remove_button.click()
+    assert window.store.dataset.staff["vic"].ral == 5
+    window.write_adjustments()
+    window.wait_for_adjustments()
     assert [row[1] for row in window.store.source.read("config", "Adjustments")[1:]] == ["Alesa"]
+
+
+def test_closing_the_dialog_writes_in_the_background_without_a_reload(window, monkeypatch):
+    from puppet_strings.app.same_day import SLEEP, SameDayDialog
+
+    def record(dialog):
+        dialog.staff_box.setCurrentText("Vic")
+        dialog.apply_button.click()
+
+    monkeypatch.setattr(SameDayDialog, "exec", record)
+    window.open_same_day(SLEEP)
+    assert window.loader is None and "Vic is down 1 RAL today" in window.status_label.text()
+    window.wait_for_adjustments()
+    assert [row[1] for row in window.store.source.read("config", "Adjustments")[1:]] == ["Vic"]
+
+
+def test_resting_all_day_takes_someone_out_of_every_category_at_once(window):
+    from puppet_strings.app.same_day import SICKNESS, SameDayDialog
+
+    sickness = SameDayDialog(window.store, SICKNESS, window)
+    sickness.staff_box.setCurrentText("Vic")
+    sickness.resting_box.setCurrentText(resting_label(Rest.ALL_DAY))
+    sickness.apply_button.click()
+    assert not any("vic" in m for m in window.store.dataset.staff_categories.values())
+    sickness.remove_button.click()
+    assert "vic" in window.store.dataset.staff_categories["all"]
 
 
 def test_one_person_can_be_both_short_of_sleep_and_resting(window):
@@ -567,6 +599,8 @@ def test_one_person_can_be_both_short_of_sleep_and_resting(window):
     sickness.apply_button.click()
     (row,) = window.store.dataset.today_adjustments
     assert row.ral_penalty == 1 and row.summary == "resting this afternoon and down 1 RAL"
+    window.write_adjustments()
+    window.wait_for_adjustments()
     assert len(window.store.source.read("config", "Adjustments")) == 2  # one header, one row
 
 

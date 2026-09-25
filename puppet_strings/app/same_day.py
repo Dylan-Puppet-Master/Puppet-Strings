@@ -88,7 +88,7 @@ class SameDayDialog(QDialog):
 
     @property
     def changed(self) -> bool:
-        """Whether anything was written, so the window knows to reload."""
+        """Whether anything was recorded, so the window knows to write the tab."""
         return self._changed
 
     def show_adjustments(self) -> None:

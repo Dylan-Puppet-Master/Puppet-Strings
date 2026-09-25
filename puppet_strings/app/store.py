@@ -23,7 +23,7 @@ from puppet_strings.publish.writer import day_sheet
 from puppet_strings.requests_db import id_prefix, open_requests, scope_for
 from puppet_strings.sheets.adjustments import adjustment_rows
 from puppet_strings.sheets.calendar import calendar_days, parse_calendar
-from puppet_strings.sheets.load import load_dataset, read_history
+from puppet_strings.sheets.load import load_dataset, read_history, with_standing
 from puppet_strings.sheets.schedules import ROOT
 from puppet_strings.sheets.source import CsvSource, Source
 
@@ -258,7 +258,8 @@ class RequestStore:
         """Record what changed for one staff member today.
 
         Only the fields given are set, so a sleep agreement and a rest can be recorded
-        one after the other without either wiping the other.
+        one after the other without either wiping the other. Nothing is written:
+        `adjustments_writer` does that, once the Puppet Master has finished.
         """
         target = self.dataset.target
         rows = {(a.date, a.staff): a for a in self.dataset.adjustments}
@@ -269,25 +270,36 @@ class RequestStore:
             ral_penalty=current.ral_penalty if penalty is None else penalty,
             note=note or current.note,
         )
-        self._write_adjustments(list(rows.values()))
+        self._adjust(list(rows.values()))
 
     def clear_adjustment(self, staff_id: str) -> None:
-        """Put one staff member back to their usual standing for today."""
+        """Put one staff member back to their usual standing for today. Nothing is written."""
         target = self.dataset.target
         kept = [a for a in self.dataset.adjustments if (a.date, a.staff) != (target, staff_id)]
-        self._write_adjustments(kept)
+        self._adjust(kept)
 
-    def _write_adjustments(self, adjustments: list[Adjustment]) -> None:
-        """Write the tab and keep the dataset in step, so the dialog shows what it wrote.
+    def _adjust(self, adjustments: list[Adjustment]) -> None:
+        """Apply new adjustments to the loaded day, with nothing read or written.
 
-        The staff themselves are only re-read on the next load, which is why the window
-        reloads once the dialog closes.
+        The staff's RAL and resting blocks, and so the categories and what each request
+        resolves to, follow at once, which is what lets the dialog record several people
+        without a round trip to Google for each and the window skip a reload afterwards.
         """
-        tab = self.config.tabs["adjustments"]
-        self.source.write(
-            CONFIG_SHEET, tab, adjustment_rows(tuple(adjustments), self.dataset.staff)
-        )
-        self.dataset = replace(self.dataset, adjustments=tuple(adjustments))
+        adjusted = replace(self.dataset, adjustments=tuple(adjustments))
+        self.dataset = apply_exclusions(with_standing(adjusted, self.config.midday))
+        self.facets, self.resolved = {}, {}
+        for request in self.requests:
+            self._index(request)
+
+    def adjustments_writer(self):
+        """A job writing the Adjustments tab as it stands now, for a worker thread.
+
+        The rows are taken here, so recording someone else while it runs cannot change
+        what it sends; the next write sends that.
+        """
+        source, tab = self.source, self.config.tabs["adjustments"]
+        table = adjustment_rows(self.dataset.adjustments, self.dataset.usual_staff)
+        return lambda: source.write(CONFIG_SHEET, tab, table)
 
     @property
     def tags(self) -> list[str]:

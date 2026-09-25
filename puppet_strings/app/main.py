@@ -193,6 +193,8 @@ class MainWindow(QMainWindow):
         self.updater: Worker | None = None
         self.installer: Worker | None = None
         self.backup: Worker | None = None  # the requests, copied to Drive when they change
+        self.adjuster: Worker | None = None  # the Adjustments tab, written after the dialog
+        self.adjustments_waiting = False  # recorded while a write was running; write again
         self.checked_for_updates = False
         self.reload_requested = False
         # The date whose load last failed: said once, and read again only on Reload.
@@ -609,9 +611,10 @@ class MainWindow(QMainWindow):
     def reload(self) -> None:
         """Read every sheet again for the target date, in the background.
 
-        A click while a load is running queues one more load for when it finishes.
+        A click while a load is running queues one more load for when it finishes, and so
+        does one while the Adjustments tab is being written, which the load would read.
         """
-        if self.loader is not None:
+        if self.loader is not None or self.adjuster is not None:
             self.reload_requested = True
             return
         self.status_label.setText(f"  Loading {self.target}…")
@@ -821,8 +824,60 @@ class MainWindow(QMainWindow):
             return
         dialog = SameDayDialog(self.store, kind, self)
         dialog.exec()
-        if dialog.changed:
-            self.reload()  # standing feeds eligibility, so read everything again
+        if not dialog.changed:
+            return
+        # The store has applied it already: every pane follows, and nothing is read again.
+        # The history is fetched again in case the change landed as it arrived and it was
+        # dropped as another day's.
+        self._requests_changed()
+        self.names.show_dataset(self.store.dataset)
+        self.prefetch_history()
+        if self.loader is not None:
+            self.reload_requested = True  # it may have read the tab before this is written
+        dataset = self.store.dataset
+        today = [a.describe(dataset.staff[a.staff].name) for a in dataset.today_adjustments]
+        self._say(". ".join(today) if today else "Nobody is adjusted today")
+        self.write_adjustments()
+
+    def write_adjustments(self) -> None:
+        """Write the Adjustments tab in the background, one write at a time."""
+        if self.adjuster is not None:
+            self.adjustments_waiting = True
+            return
+        self.adjuster = Worker(self.store.adjustments_writer())
+        self.adjuster.failed.connect(self._adjustments_failed)
+        self.adjuster.finished.connect(self._adjustments_finished)
+        self.adjuster.start()
+
+    def wait_for_adjustments(self) -> None:
+        """Block until the Adjustments tab has been written (used by tests)."""
+        while self.adjuster is not None:
+            self.adjuster.wait()
+            QApplication.processEvents()
+
+    def _adjustments_failed(self, message: str) -> None:
+        """Show what is on the sheet again, since what the window shows never got there."""
+        self.adjustments_waiting = False
+        self.reload_requested = True  # before the box, which lets the thread finish
+        QMessageBox.critical(self, "Could not write the Adjustments tab", message)
+
+    def closeEvent(self, event) -> None:  # noqa: N802 - Qt's name
+        """Let a write of the Adjustments tab land: it is the only copy of what was recorded."""
+        if self.adjuster is not None:
+            self.adjuster.wait()
+            if self.adjustments_waiting:
+                self.store.adjustments_writer()()
+        super().closeEvent(event)
+
+    def _adjustments_finished(self) -> None:
+        """Drop the thread; write again if more was recorded, else run a reload held back."""
+        self.adjuster = None
+        if self.adjustments_waiting:
+            self.adjustments_waiting = False
+            self.write_adjustments()
+        elif self.reload_requested:
+            self.reload_requested = False
+            self.reload()
 
     def load_offerings(self) -> None:
         """Add the Offerings tab's clinics to the day's requests, in the background.

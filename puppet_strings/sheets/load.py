@@ -3,7 +3,7 @@
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from datetime import date
+from datetime import date, time
 
 from puppet_strings.config import Config
 from puppet_strings.exclude import apply_exclusions
@@ -103,6 +103,50 @@ def _config_tables(source: Source, config: Config) -> dict:
     return source.read_many("config", wanted)
 
 
+def with_standing(dataset: Dataset, midday: time) -> Dataset:
+    """The dataset's staff as its adjustments and who is away leave them, from their usual.
+
+    Someone on an adjustment today has its RAL and its resting blocks; someone away rests
+    through the whole day. Nobody resting the whole day is offered by a category, so
+    nothing is asked of them. The resting map gets every adjustment's date, since `holds`
+    asks it rather than the staff member.
+
+    Starts over from `usual_staff` and `named_categories`, so it can be applied again after
+    the adjustments change, with nothing read. What an EXCLUDE did is dropped with the
+    rest: `apply_exclusions` puts it back.
+    """
+    target, calendar = dataset.target, dataset.calendar
+    resting: dict[date, dict[str, frozenset[str]]] = {}
+    for a in dataset.adjustments:
+        if a.date not in calendar:
+            continue
+        on_day = [b for b in dataset.blocks.values() if block_runs_on(b, calendar[a.date])]
+        resting.setdefault(a.date, {})[a.staff] = resting_blocks(a, on_day, midday)
+    today_blocks = frozenset(
+        b.id for b in dataset.blocks.values() if block_runs_on(b, calendar[target])
+    )
+    for i in dataset.away:
+        resting.setdefault(target, {})[i] = today_blocks
+    today = {a.staff: a for a in dataset.adjustments if a.date == target}
+    resting_today = resting.get(target, {})
+    staff = {
+        i: replace(
+            member,
+            ral=today[i].ral_for(member.ral) if i in today else member.ral,
+            resting_blocks=resting_today.get(i, member.resting_blocks),
+        )
+        for i, member in dataset.usual_staff.items()
+    }
+    working = frozenset(i for i, member in staff.items() if member.resting_blocks != today_blocks)
+    return replace(
+        dataset,
+        staff=staff,
+        staff_categories={c: m & working for c, m in dataset.named_categories.items()},
+        resting=resting,
+        excluded={},
+    )
+
+
 def check_camp_day(target: date, calendar: dict[date, CalendarDay]) -> None:
     """Raise NotACampDay unless the Calendar sheet covers the date. Says what to try instead."""
     if target in calendar:
@@ -169,20 +213,6 @@ def _build(
     adjustments = parse_adjustments(
         config_tables.get(tabs["adjustments"], [[*ADJUSTMENT_HEADER]]), staff
     )
-    resting: dict[date, dict[str, frozenset[str]]] = {}
-    for a in adjustments:
-        if a.date not in calendar:
-            continue
-        on_day = [b for b in blocks.values() if block_runs_on(b, calendar[a.date])]
-        resting.setdefault(a.date, {})[a.staff] = resting_blocks(a, on_day, config.midday)
-    today = {a.staff: a for a in adjustments if a.date == target}
-    staff = {
-        **staff,
-        **{
-            i: replace(staff[i], ral=a.ral_for(staff[i].ral), resting_blocks=resting[target][i])
-            for i, a in today.items()
-        },
-    }
     categories = parse_staff_categories(categories_read.result(), staff)
     _reserve("staff", categories, (ALL, CLINIC_TRAINERS, *staff))
 
@@ -190,27 +220,14 @@ def _build(
     # row: the Skills sheet keeps everyone who ever worked here, including staff who have
     # left and staff who only come for one session. Anybody it does not name is away, which
     # is the same to the solver as resting all day -- no category offers them and no
-    # position can be filled by them.
-    today_blocks = {b.id for b in blocks.values() if block_runs_on(b, calendar[target])}
+    # position can be filled by them. `with_standing` takes them out, below.
     at_camp = frozenset().union(*categories.values()) if categories else frozenset(staff)
     away = set(staff) - at_camp
-    staff = {
-        **staff,
-        **{i: replace(staff[i], resting_blocks=frozenset(today_blocks)) for i in away},
-    }
-    # `holds` asks the resting map rather than the staff member, so being away goes in both
-    for i in away:
-        resting.setdefault(target, {})[i] = frozenset(today_blocks)
     if away:
         warnings.append(
             f"{len(away)} on the Skills sheet are in no category this span, so they are away"
         )
-    # someone resting the whole day is offered by no category, so nothing is asked of them
-    working = frozenset(i for i, member in staff.items() if member.resting_blocks != today_blocks)
-    categories = {**categories, ALL: at_camp, CLINIC_TRAINERS: trainers(staff) & at_camp}
-    named = categories
-    # a category never offers someone who is not working today
-    staff_categories = {c: members & working for c, members in categories.items()}
+    named = {**categories, ALL: at_camp, CLINIC_TRAINERS: trainers(staff) & at_camp}
     read_boards, board_warnings = boards.result()
     warnings += board_warnings
     cabin_acts, cabin_warnings = cabin_act_activities(
@@ -259,7 +276,7 @@ def _build(
     dataset = Dataset(
         target=target,
         staff=staff,
-        staff_categories=staff_categories,
+        staff_categories=named,
         activities=activities,
         activity_categories=activity_categories,
         blocks=blocks,
@@ -272,15 +289,16 @@ def _build(
         published=schedules,
         baseline=baseline,
         adjustments=adjustments,
-        resting=resting,
         away=frozenset(away),
+        usual_staff=staff,
+        named_categories=named,
         warnings=tuple(warnings),
     )
     # Last, because who is away for a day is written in the requests and the requests are
     # read here: every reader of a Dataset then sees one day, with the people an EXCLUDE
     # takes out of it already out of it. The mappings are checked against that day, since
     # whether a row belongs to its set is a question about the day's own categories.
-    dataset = apply_exclusions(dataset)
+    dataset = apply_exclusions(with_standing(dataset, config.midday))
     mappings_sheet.check_mappings(dataset)
     return dataset
 
