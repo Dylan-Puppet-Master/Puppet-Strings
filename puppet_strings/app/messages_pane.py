@@ -22,6 +22,7 @@ class MessagesPane(QTreeWidget):
     def __init__(self) -> None:
         super().__init__()
         self.setHeaderLabels(["time", "message"])
+        self.setHeaderHidden(True)  # a time and what was said need no labels
         self.setColumnWidth(0, 80)
         self.setRootIsDecorated(False)
         self.setAlternatingRowColors(False)

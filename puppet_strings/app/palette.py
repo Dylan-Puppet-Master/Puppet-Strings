@@ -159,6 +159,18 @@ QDockWidget::title {{
     border-bottom: 1px solid {LINE};
     padding: 5px 8px;
 }}
+/* The tabs over docks that share a place (Errors and Messages): flat, with the one
+   picked underlined, and no line along the bar, which Fusion breaks under that tab. */
+QMainWindow > QTabBar {{ background: {WINDOW}; qproperty-drawBase: 0; }}
+QMainWindow > QTabBar::tab {{
+    background: {WINDOW};
+    color: {QUIET};
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 5px 12px;
+}}
+QMainWindow > QTabBar::tab:hover {{ color: {TEXT}; }}
+QMainWindow > QTabBar::tab:selected {{ color: {TEXT}; border-bottom-color: {HIGHLIGHT}; }}
 QToolBar {{ background: {WINDOW}; border-bottom: 1px solid {LINE}; spacing: 4px; }}
 QToolBar QToolButton:hover, QPushButton:hover {{ background: {LINE}; }}
 QPushButton {{
