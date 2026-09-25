@@ -27,6 +27,7 @@ from PySide6.QtGui import (
     QPen,
     QTextCursor,
     QTextDocument,
+    QTextLayout,
     QTextOption,
 )
 from PySide6.QtWidgets import (
@@ -117,6 +118,12 @@ LABEL_FONT = _font(9.5, QFont.DemiBold, spacing=0.9)
 VALUE_FONT = _font(12)
 STATUS_FONT = _font(11)
 
+# The middle distance writes its words this many times their size close up, and at that
+# size on the card whatever the zoom; see `CardItem._paint_summary`.
+SUMMARY_SCALE = 2.5
+SUMMARY_CHIP_FONT = _font(10 * SUMMARY_SCALE, QFont.Bold, spacing=0.6 * SUMMARY_SCALE)
+SUMMARY_TITLE_FONT = _font(14 * SUMMARY_SCALE, QFont.DemiBold)
+
 
 @dataclass(frozen=True)
 class Status:
@@ -140,6 +147,29 @@ def _block_colour(priority: Priority, picked: bool) -> QColor:
 # made once rather than for each card at each frame, as hundreds are painted from far out
 BLOCK_COLOURS = {(p, picked): _block_colour(p, picked) for p in Priority for picked in (0, 1)}
 DOT_COLOURS = {kind: QColor(colour) for kind, colour in STATUS_COLOURS.items()}
+
+
+def _fitted(text: str, font: QFont, width: float, height: float) -> str:
+    """As much of a paragraph as fits in whole lines, wrapped to a width, ending in "…" if cut.
+
+    A line cut through the middle by the bottom of the card reads worse than one fewer.
+    """
+    metrics = QFontMetricsF(font)
+    room = max(int(height // metrics.lineSpacing()), 1)
+    layout = QTextLayout(text, font)
+    option = QTextOption()
+    option.setWrapMode(QTextOption.WordWrap)
+    layout.setTextOption(option)
+    starts = []
+    layout.beginLayout()
+    while (line := layout.createLine()).isValid():
+        line.setLineWidth(width)
+        starts.append(line.textStart())
+    layout.endLayout()
+    if len(starts) <= room:
+        return text
+    start = starts[room - 1]
+    return text[:start] + metrics.elidedText(text[start:], Qt.ElideRight, width)
 
 
 def _wrapped(text: str, font: QFont, width: float, lines: int | None = None) -> float:
@@ -178,6 +208,7 @@ class CardItem(QGraphicsObject):
         self.highlighter = SkedgeHighlighter(self.code)
         self.height = 0.0
         self.face = self.bounds = QRectF()
+        self.summary = ""  # the description as the middle distance shows it; see `measure`
         self.stripe = QPainterPath()
         self.stripe_for = None  # the height `stripe` was built for
         self.setFlag(QGraphicsItem.ItemIsSelectable)
@@ -256,6 +287,12 @@ class CardItem(QGraphicsObject):
         y += high + INSET
         self.regions = regions
         self._set_height(y)
+        self.summary = _fitted(
+            request.description or request.id or "Untitled request",
+            SUMMARY_TITLE_FONT,
+            INNER,
+            self._summary_body().height(),
+        )
 
     def _set_height(self, height: float) -> None:
         """Take a new height, and the rectangles that go with it, kept for painting.
@@ -328,7 +365,7 @@ class CardItem(QGraphicsObject):
         if self.editing:
             return  # the form draws the fields
         if lod < FULL_DETAIL:
-            self._paint_summary(painter, rect, colour, lod)
+            self._paint_summary(painter, rect, colour)
             return
         self._paint_header(painter, colour)
         self._paint_title(painter)
@@ -396,28 +433,31 @@ class CardItem(QGraphicsObject):
         self.stripe, self.stripe_for = path, self.height
         return path
 
-    def _paint_summary(self, painter: QPainter, rect: QRectF, colour: QColor, lod: float) -> None:
-        """Middle distance: the priority, and the description written large enough to read."""
-        request = self.shown
-        scale = min(1 / lod, 3.0)
-        chip = _font(10 * scale, QFont.Bold, spacing=0.6 * scale)
-        painter.setFont(chip)
+    def _summary_body(self) -> QRectF:
+        """Where the description goes on a card seen from the middle distance."""
+        top = INSET + 16 * SUMMARY_SCALE + 8
+        return QRectF(INSET, top, INNER, self.height - top - INSET)
+
+    def _paint_summary(self, painter: QPainter, rect: QRectF, colour: QColor) -> None:
+        """Middle distance: the priority, and the description written large enough to read.
+
+        Written at one size on the card, whatever the zoom, so that the words grow and
+        shrink with the card as if they were printed on it, rather than being set again
+        in a new size, and wrapped anew, at every step of a zoom.
+        """
+        painter.setFont(SUMMARY_CHIP_FONT)
         painter.setPen(colour)
-        top = QRectF(INSET, INSET, INNER, 16 * scale)
-        painter.drawText(top, Qt.AlignLeft | Qt.AlignVCenter, PRIORITY_NAMES[request.priority])
+        top = QRectF(INSET, INSET, INNER, 16 * SUMMARY_SCALE)
+        painter.drawText(top, Qt.AlignLeft | Qt.AlignVCenter, PRIORITY_NAMES[self.shown.priority])
         if self.status.kind in (BAD, WARNING, UNSAVED):
             painter.setPen(Qt.NoPen)
-            painter.setBrush(QColor(STATUS_COLOURS[self.status.kind]))
-            size = 8 * scale
+            painter.setBrush(DOT_COLOURS[self.status.kind])
+            size = 8 * SUMMARY_SCALE
             painter.drawEllipse(QRectF(rect.right() - INSET - size, INSET + 4, size, size))
-        title = _font(14 * scale, QFont.DemiBold)
-        painter.setFont(title)
+        painter.setFont(SUMMARY_TITLE_FONT)
         painter.setPen(QColor(palette.INK))
-        body = QRectF(INSET, top.bottom() + 8, INNER, rect.height() - top.bottom() - 8 - INSET)
         painter.drawText(
-            body,
-            Qt.TextWordWrap | Qt.AlignLeft | Qt.AlignTop,
-            request.description or request.id or "Untitled request",
+            self._summary_body(), Qt.TextWordWrap | Qt.AlignLeft | Qt.AlignTop, self.summary
         )
 
     def _paint_header(self, painter: QPainter, colour: QColor) -> None:
