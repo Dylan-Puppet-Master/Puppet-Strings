@@ -77,6 +77,33 @@ Its **Requests** row hands the requests over and backs them up; see
 **Same-day changes.** Once the day on screen is published, the toolbar offers
 **Same-day changes** and **Who is off today…**. See [Same-day changes](same-day.md).
 
+## Canvas
+
+**Table** and **Canvas**, at the right-hand end of the toolbar, switch how the requests are
+shown. The window remembers which one you used last. On the canvas, every request that passes
+the filters is a card, and each group is a frame of cards. Everything else stays where it
+is: the groups pane, the filters, the Namespaces and Calendar panes and the errors pane.
+
+- **Moving around.** Scroll to zoom at the pointer. Drag the empty canvas to pan (or drag
+  with the middle button, or with Space held). Click or drag the minimap to jump somewhere.
+  **F** shows everything, **Ctrl+1** is actual size, and **+** and **−** zoom. Picking a
+  group in the groups pane takes you to its frame.
+- **Editing.** Click a card and type. The card turns into the editor, with the cursor in
+  the field you clicked. A card clicked from far away is brought up to full size first.
+  Clicking away saves it, and so does **Ctrl+S**. If the card does not validate, it keeps
+  your changes, is marked unsaved, and waits for you. **Escape** puts it back to how it was
+  saved.
+- **New requests.** Press **New request** in the corner or in a frame's header,
+  double-click inside a frame, or press **N** for the group nearest the middle of the view.
+  A new card left empty is thrown away.
+- **Moving and deleting.** Drag a card onto another frame to move it to that group.
+  Shift-click, or Shift-drag a box, to pick several. **Delete** deletes the cards picked,
+  after asking.
+
+From far away, a card shows its priority and description in large type. From further out
+still, it is a block of its priority's colour, so you can see a group's shape and find the
+one you want.
+
 ## Groups
 
 **The groups pane.** Down the left-hand side is every group of requests, with how many

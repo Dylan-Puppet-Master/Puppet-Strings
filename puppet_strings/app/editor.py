@@ -269,7 +269,26 @@ class RequestEditor(QWidget):
         self.save_button = QPushButton("Save")
         self.delete_button = QPushButton("Delete")
         self.new_button = QPushButton("New")
+        self._lay_out()
 
+        self.timer = QTimer(self)
+        self.timer.setSingleShot(True)
+        self.timer.setInterval(300)
+        self.timer.timeout.connect(self.validate)
+        self.skedge_edit.textChanged.connect(self.timer.start)
+        self.priority_box.currentTextChanged.connect(self._priority_changed)
+        self.weight_box.valueChanged.connect(self.timer.start)
+        self.requester_edit.textChanged.connect(self.timer.start)
+        self.save_button.clicked.connect(self._save)
+        self.delete_button.clicked.connect(self._delete)
+        self.new_button.clicked.connect(self.new_requested.emit)
+        self.clear()
+
+    def _lay_out(self) -> None:
+        """Put the fields in a column: the form, the Skedge box under it, the buttons last.
+
+        On its own so the canvas's card, which has the same fields, can arrange them its way.
+        """
         form = QFormLayout()
         form.addRow("id", self.id_label)
         form.addRow("description", self.description_edit)
@@ -289,19 +308,6 @@ class RequestEditor(QWidget):
         layout.addWidget(self.skedge_edit, stretch=1)
         layout.addWidget(self.status)
         layout.addLayout(buttons)
-
-        self.timer = QTimer(self)
-        self.timer.setSingleShot(True)
-        self.timer.setInterval(300)
-        self.timer.timeout.connect(self.validate)
-        self.skedge_edit.textChanged.connect(self.timer.start)
-        self.priority_box.currentTextChanged.connect(self._priority_changed)
-        self.weight_box.valueChanged.connect(self.timer.start)
-        self.requester_edit.textChanged.connect(self.timer.start)
-        self.save_button.clicked.connect(self._save)
-        self.delete_button.clicked.connect(self._delete)
-        self.new_button.clicked.connect(self.new_requested.emit)
-        self.clear()
 
     def set_dataset(self, dataset: Dataset | None, groups: list[str] | None = None) -> None:
         """Names are validated and suggested against this dataset."""

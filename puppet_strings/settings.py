@@ -15,6 +15,7 @@ from pathlib import Path
 from puppet_strings.model import SCOPES
 
 DEFAULT_PATH = Path("~/.config/puppet_strings/settings.json")
+TABLE, CANVAS = "table", "canvas"  # the two ways the window shows the requests
 
 # Nothing but directories is asked for. What is inside the root is found by name -- a
 # spreadsheet called Skills is the Skills sheet, a folder called 2027 is that year -- so
@@ -50,6 +51,7 @@ class Settings:
     sheets: dict[str, Chosen] = field(default_factory=dict)
     folders: dict[str, Chosen] = field(default_factory=dict)
     group_scopes: dict[str, str] = field(default_factory=dict)
+    view: str = TABLE  # how the requests are shown: `table`, or `canvas`
 
     def ids(self, kind: str) -> dict[str, str]:
         """Just the ids of `sheets` or `folders`, which is what a Source wants."""
@@ -79,6 +81,7 @@ def load_settings(path: Path | None = None) -> Settings:
             for group, kind in (scopes.items() if isinstance(scopes, dict) else ())
             if kind in SCOPES
         },
+        view=data.get("view") if data.get("view") in (TABLE, CANVAS) else TABLE,
     )
 
 
@@ -94,6 +97,7 @@ def save_settings(settings: Settings, path: Path | None = None) -> None:
         for kind in ("sheets", "folders")
     }
     data["group_scopes"] = dict(settings.group_scopes)
+    data["view"] = settings.view
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 

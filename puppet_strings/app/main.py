@@ -3,10 +3,12 @@
 import sys
 import traceback
 from contextlib import suppress
+from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
 from PySide6.QtCore import QDate, Qt, QThread, Signal
+from PySide6.QtGui import QActionGroup
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
     QApplication,
@@ -21,6 +23,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QSizePolicy,
     QSplitter,
+    QStackedWidget,
     QToolBar,
     QVBoxLayout,
     QWidget,
@@ -30,6 +33,7 @@ from puppet_strings import __version__
 from puppet_strings.app import palette
 from puppet_strings.app.busy import BusyDialog
 from puppet_strings.app.calendar_pane import SessionCalendar
+from puppet_strings.app.canvas.view import Canvas
 from puppet_strings.app.configure import ConfigureDialog
 from puppet_strings.app.conflicts import summary
 from puppet_strings.app.details import details, is_mapping
@@ -52,6 +56,7 @@ from puppet_strings.exclude import mentions_exclusion
 from puppet_strings.google_auth import AuthError
 from puppet_strings.model import WRITABLE_PRIORITIES, Dataset
 from puppet_strings.session import open_source
+from puppet_strings.settings import CANVAS, TABLE, load_settings, save_settings
 from puppet_strings.sheets.source import CsvSource, LoadError, NotACampDay
 from puppet_strings.update import download, install, latest_release
 
@@ -209,7 +214,7 @@ class MainWindow(QMainWindow):
         self.editor.deleted.connect(self._deleted)
         self.editor.new_requested.connect(self.new_request)
         self.names = NamespacesPanel()
-        self.names.picked.connect(self.editor.insert_name)
+        self.names.picked.connect(self.insert_name)
         self.names.inspected.connect(self.inspect_name)
         self.calendar = SessionCalendar()
         self.calendar.picked.connect(self.insert_date)
@@ -221,23 +226,43 @@ class MainWindow(QMainWindow):
         self.groups.rescoped.connect(lambda _: self.editor_new_if_empty())
         self.errors = ErrorsPane()
         self.errors.picked.connect(self.show_request)
+        # The other way of showing the requests: as cards on a surface, edited in place.
+        self.canvas = Canvas(store, self.proxy.passes)
+        self.canvas.saved.connect(lambda r, original: self._saved(r, original, self.canvas))
+        self.canvas.deleted.connect(self._deleted)
+        self.canvas.delete_requested.connect(lambda ids: self.delete_requests(self._requests(ids)))
+        self.canvas.moved.connect(self._set_group)
 
         self._build_toolbar()
+        # The filters sit over whichever view is showing, so they move with the view.
+        self.filter_bar = QWidget()
+        filters = self._build_filters()
+        filters.setContentsMargins(0, 0, 0, 0)
+        self.filter_bar.setLayout(filters)
         left = QWidget()
-        left_layout = QVBoxLayout(left)
-        left_layout.addLayout(self._build_filters())
-        left_layout.addWidget(self.table)
+        self.table_layout = QVBoxLayout(left)
+        self.table_layout.addWidget(self.filter_bar)
+        self.table_layout.addWidget(self.table)
         groups_box = QWidget()
         groups_layout = QVBoxLayout(groups_box)
         groups_layout.addWidget(QLabel("Groups"))
         groups_layout.addWidget(self.groups)
+        browser = QSplitter()
+        browser.addWidget(left)
+        browser.addWidget(self.editor)
+        browser.setStretchFactor(0, 4)
+        browser.setStretchFactor(1, 3)
+        canvas_page = QWidget()
+        self.canvas_layout = QVBoxLayout(canvas_page)
+        self.canvas_layout.addWidget(self.canvas, stretch=1)
+        self.views = QStackedWidget()
+        self.views.addWidget(browser)
+        self.views.addWidget(canvas_page)
         splitter = QSplitter()
         splitter.addWidget(groups_box)
-        splitter.addWidget(left)
-        splitter.addWidget(self.editor)
+        splitter.addWidget(self.views)
         splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 4)
-        splitter.setStretchFactor(2, 3)
+        splitter.setStretchFactor(1, 7)
         self.setCentralWidget(splitter)
         names_dock = QDockWidget("Namespaces", self)
         names_dock.setWidget(self.names)
@@ -250,6 +275,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.BottomDockWidgetArea, self.errors_dock)
         self._say("Pick a target date and press Reload.")
         self._list_file()
+        self.show_view(load_settings().view)
         self.read_calendar()
 
     def _build_toolbar(self) -> None:
@@ -283,7 +309,39 @@ class MainWindow(QMainWindow):
         spacer = QWidget()  # everything after this is pushed to the right-hand end
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         toolbar.addWidget(spacer)
+        views = QActionGroup(self)
+        self.table_action = toolbar.addAction("Table", lambda: self.show_view(TABLE, True))
+        self.canvas_action = toolbar.addAction("Canvas", lambda: self.show_view(CANVAS, True))
+        self.table_action.setToolTip("The requests as a table, with the editor beside it")
+        self.canvas_action.setToolTip("The requests as cards to zoom around and edit in place")
+        for action in (self.table_action, self.canvas_action):
+            action.setCheckable(True)
+            views.addAction(action)
+        toolbar.addSeparator()
         toolbar.addAction("Configure", self.configure)
+
+    @property
+    def on_canvas(self) -> bool:
+        """Whether the requests are being shown as cards."""
+        return self.views.currentIndex() == 1
+
+    def show_view(self, view: str, remember: bool = False) -> None:
+        """Show the requests as a table and editor, or as cards on the canvas.
+
+        The filters go with whichever is shown. The choice is kept for the next run when it
+        was made on the toolbar.
+        """
+        canvas = view == CANVAS
+        if not canvas and self.on_canvas:
+            self.canvas.deactivate()  # save what the card has before the canvas is hidden
+        layout = self.canvas_layout if canvas else self.table_layout
+        layout.insertWidget(0, self.filter_bar)
+        self.views.setCurrentIndex(1 if canvas else 0)
+        (self.canvas_action if canvas else self.table_action).setChecked(True)
+        if canvas:
+            self.canvas.setFocus()
+        if remember:
+            save_settings(replace(load_settings(), view=view))
 
     def check_for_updates(self, quietly: bool = False) -> None:
         """Ask GitHub whether a newer Puppet Strings has been published.
@@ -423,9 +481,16 @@ class MainWindow(QMainWindow):
             date=self.date_filter.date().toPython() if self.date_check.isChecked() else None,
         )
         self.groups.refresh()
+        self.canvas.refresh()
 
     def show_request(self, request_id: str) -> None:
-        """Open a request in the editor, and select its row when the table is showing it."""
+        """Open a request in the editor, and select its row when the table is showing it.
+
+        On the canvas, the camera goes to its card and opens it.
+        """
+        if self.on_canvas:
+            self.canvas.reveal(request_id)
+            return
         request = self.model.request(request_id)
         if request is None:
             return
@@ -440,6 +505,7 @@ class MainWindow(QMainWindow):
         """Show everything wrong with the requests, and return the conflicts and errors."""
         conflicts, errors = self.store.conflicts, self.store.errors
         self.errors.show_problems(conflicts, errors, self.store.requests)
+        self.canvas.show_problems(conflicts, errors)
         count = len(conflicts) + len(errors)
         self.errors_dock.setWindowTitle(f"Errors ({count})" if count else "Errors")
         return conflicts, errors
@@ -447,6 +513,8 @@ class MainWindow(QMainWindow):
     def _group_chosen(self, group: str) -> None:
         """Show the group the pane switched to. The counts stay: no filter changed."""
         self.proxy.set_filters(group=group)
+        if self.on_canvas:
+            self.canvas.focus_group(group)
         chosen = "" if group == ALL else f" in {group}"
         self.status_label.setText(f"  {self.proxy.rowCount()} requests{chosen}")
 
@@ -489,6 +557,7 @@ class MainWindow(QMainWindow):
         self.model.refresh()
         self.groups.refresh()
         self.editor.set_dataset(self.store.dataset, self.store.groups)
+        self.canvas.set_dataset(self.store.dataset, self.store.groups)
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
         found = self.refresh_errors()
         self.apply_filters()
@@ -629,6 +698,7 @@ class MainWindow(QMainWindow):
         self.model.refresh()
         self.table.resizeColumnsToContents()
         self.editor.set_dataset(dataset, self.store.groups)
+        self.canvas.set_dataset(dataset, self.store.groups)
         self.groups.refresh()
         self.names.show_dataset(dataset)
         self._fill_combo(self.staff_filter, "any staff", sorted(dataset.staff))
@@ -638,6 +708,7 @@ class MainWindow(QMainWindow):
         self._refresh_same_day()
         self.prefetch_history()
         conflicts, errors = self.refresh_errors()
+        self.canvas.refresh()
         today = [a.describe(dataset.staff[a.staff].name) for a in dataset.today_adjustments]
         state = "published" if dataset.baseline is not None else "not published"
         parts = [
@@ -693,6 +764,7 @@ class MainWindow(QMainWindow):
             self._say(str(e))
             return
         self.editor.set_dataset(None, self.store.groups)
+        self.canvas.set_dataset(None, self.store.groups)
         self.names.show_dataset(None)
         self.model.refresh()
         self._fill_combo(self.tag_filter, "any tag", self.store.tags)
@@ -799,7 +871,11 @@ class MainWindow(QMainWindow):
 
     def insert_date(self, day: date) -> None:
         """Put a clicked calendar date into the Skedge editor at the cursor."""
-        self.editor.insert_name(day.isoformat())
+        self.insert_name(day.isoformat())
+
+    def insert_name(self, text: str) -> None:
+        """Put a name into whichever Skedge is being written: the editor's, or a card's."""
+        (self.canvas if self.on_canvas else self.editor).insert_name(text)
 
     def run_solve(self) -> None:
         """Solve the target date in the background, then show the schedule dialog."""
@@ -857,10 +933,14 @@ class MainWindow(QMainWindow):
         if request is not None:
             self.editor.show_request(request)
 
-    def _saved(self, request, original_id) -> None:
-        """Save one request, and leave the editor saying that it is saved."""
+    def _saved(self, request, original_id, editor=None) -> None:
+        """Save one request, and leave the editor saying that it is saved.
+
+        `editor` is whichever asked: the request editor, or the canvas for a card.
+        """
+        editor = editor or self.editor
         if not self._covers_or_agreed(request):
-            self.editor.not_saved("Not saved; still editing")
+            editor.not_saved("Not saved; still editing")
             self.status_label.setText("  Not saved; still editing")
             return
         QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -868,9 +948,11 @@ class MainWindow(QMainWindow):
             saved = self.store.save(request, original_id)
         finally:
             QApplication.restoreOverrideCursor()
+        if editor is self.canvas:
+            self.canvas.settle(saved)  # the card is filed under its id before the refresh
         if mentions_exclusion(saved.skedge):
             self.reload()  # who is away changes what every other request is read against
-            self.editor.saved_as(saved)
+            editor.saved_as(saved)
             self.status_label.setText(f"  Saved {saved.id}")
             return
         conflicts, errors = self._requests_changed()
@@ -878,7 +960,7 @@ class MainWindow(QMainWindow):
         wrong = [e for e in errors if e.request == saved.id]
         note = f"; it conflicts with {len(clashes)} other request(s)" if clashes else ""
         note += f"; {len(wrong)} error(s) in it" if wrong else ""
-        self.editor.saved_as(saved, note)  # last, so nothing else overwrites the confirmation
+        editor.saved_as(saved, note)  # last, so nothing else overwrites the confirmation
         self.status_label.setText(f"  Saved {saved.id}{note}")
 
     def _covers_or_agreed(self, request) -> bool:
@@ -921,7 +1003,10 @@ class MainWindow(QMainWindow):
 
     def delete_selected(self) -> None:
         """Delete every selected request, once the Puppet Master has said yes."""
-        chosen = self.selected_requests()
+        self.delete_requests(self.selected_requests())
+
+    def delete_requests(self, chosen: list) -> None:
+        """Delete these requests, once the Puppet Master has said yes."""
         if not chosen:
             return
         shown = "\n".join(r.id for r in chosen[:10])
