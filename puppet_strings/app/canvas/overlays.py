@@ -1,8 +1,15 @@
 """What floats over the canvas: the zoom controls, the minimap and the New request button."""
 
-from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QEasingCurve, QPointF, QRectF, QSize, Qt, QVariantAnimation, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QPushButton, QToolButton, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QPushButton,
+    QToolButton,
+    QWidget,
+)
 
 from puppet_strings.app import palette
 from puppet_strings.app.canvas.card import priority_colour
@@ -103,19 +110,56 @@ class NewButton(QPushButton):
 class Minimap(QWidget):
     """The whole canvas, small, with the part on screen outlined. Click or drag to go there.
 
+    Small while the pointer is elsewhere, so it hides little of the canvas; under the
+    pointer it opens out, which is where a finer aim is wanted. It grows from its bottom
+    right corner, and says `resized` as it does so the canvas can keep it in its corner.
+
     `canvas` is asked for `arrangement_bounds()`, `minimap_items()` (frames and cards as
     rectangles) and `visible_rect()`, and told `look_at(point)`.
     """
 
-    WIDTH, HEIGHT = 220, 150
+    SMALL = QSize(150, 100)
+    LARGE = QSize(400, 270)
     MARGIN = 10
+
+    resized = Signal()
 
     def __init__(self, canvas, parent: QWidget) -> None:
         super().__init__(parent)
         self.canvas = canvas
-        self.setFixedSize(self.WIDTH, self.HEIGHT)
+        self.setFixedSize(self.SMALL)
         self.setCursor(Qt.PointingHandCursor)
         self.setToolTip("Click or drag to move around")
+        self.growth = QVariantAnimation(self)
+        self.growth.setDuration(140)
+        self.growth.setEasingCurve(QEasingCurve.OutCubic)
+        self.growth.valueChanged.connect(self._size_to)
+
+    def _size_to(self, size: QSize) -> None:
+        self.setFixedSize(size)
+        self.resized.emit()
+
+    def _grow_to(self, size: QSize) -> None:
+        self.growth.stop()
+        self.growth.setStartValue(self.size())
+        self.growth.setEndValue(size)
+        self.growth.start()
+
+    def enterEvent(self, event) -> None:  # noqa: N802
+        """Open out under the pointer."""
+        self._grow_to(self.LARGE)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        """Shrink back once the pointer goes, unless a drag on it is still under way."""
+        if not QApplication.mouseButtons() & Qt.LeftButton:
+            self._grow_to(self.SMALL)
+        super().leaveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        """A drag let go of off the map: shrink back now."""
+        if not self.rect().contains(event.position().toPoint()):
+            self._grow_to(self.SMALL)
 
     def _mapping(self) -> tuple[QRectF, float, QPointF]:
         """The canvas area shown, the scale it is drawn at, and where its corner goes."""

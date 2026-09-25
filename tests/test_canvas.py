@@ -13,8 +13,13 @@ from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent, QTextCurs
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
-from puppet_strings.app.canvas.card import BAD, UNSAVED  # noqa: E402
-from puppet_strings.app.canvas.layout import CARD_WIDTH, arrange, columns  # noqa: E402
+from puppet_strings.app.canvas.card import BAD, SUMMARY, UNSAVED  # noqa: E402
+from puppet_strings.app.canvas.layout import (  # noqa: E402
+    ASIDE_GAP,
+    CARD_WIDTH,
+    arrange,
+    columns,
+)
 from puppet_strings.app.groups import UNGROUPED  # noqa: E402
 from puppet_strings.app.main import MainWindow  # noqa: E402
 from puppet_strings.app.requests_model import REQUEST_IDS  # noqa: E402
@@ -61,6 +66,18 @@ def test_a_bigger_group_gets_more_columns():
     assert columns(4) == 2
     assert columns(25) == 4
     assert columns(10_000) == 10
+
+
+def test_the_requests_on_no_group_stand_apart_to_the_right():
+    groups = [("a", [("a0", 100)]), ("none", [("n0", 100)]), ("b", [("b0", 100)])]
+    laid = arrange(groups, aside="none")
+    rest = [laid.frames["a"], laid.frames["b"]]
+    apart = laid.frames["none"]
+    assert apart.y == 0 and apart.x >= max(b.x + b.w for b in rest) + ASIDE_GAP
+    assert list(laid.frames) == ["a", "none", "b"]  # still in the order given
+    assert laid.cards["n0"][0] > apart.x
+    moved = arrange(groups, {"none": (-500.0, 40.0)}, aside="none")
+    assert (moved.frames["none"].x, moved.frames["none"].y) == (-500.0, 40.0)
 
 
 @pytest.fixture(scope="module")
@@ -112,6 +129,13 @@ def show_card(canvas, key: str):
     canvas.look(card.sceneBoundingRect().center(), 1.0)
     settle(50)
     return card
+
+
+def far_off(canvas) -> None:
+    """Everything in view, from far enough off that a drag moves whole groups."""
+    canvas.fit(animate=False)
+    canvas.look(canvas.center(), min(canvas.zoom, SUMMARY * 0.9))
+    settle(50)
 
 
 def empty_spot(canvas) -> QPoint:
@@ -400,8 +424,7 @@ def drag(canvas, start: QPoint, end: QPoint) -> None:
 
 def test_from_far_off_a_drag_moves_the_whole_group_and_it_stays_moved(window, fixtures_copy):
     canvas = window.canvas
-    canvas.fit(animate=False)
-    settle(50)
+    far_off(canvas)
     assert canvas.far
     frame = canvas.frames[DAILY]
     card = canvas.cards["breaks"]
@@ -427,8 +450,7 @@ def test_from_far_off_a_drag_moves_the_whole_group_and_it_stays_moved(window, fi
 
 def test_from_far_off_clicking_a_card_still_opens_it(window):
     canvas = window.canvas
-    canvas.fit(animate=False)
-    settle(50)
+    far_off(canvas)
     card = canvas.cards["breaks"]
     QTest.mouseClick(canvas.viewport(), Qt.LeftButton, pos=at(canvas, card))
     assert canvas.active is card
@@ -450,3 +472,35 @@ def test_close_up_a_drag_on_a_frame_pans_rather_than_moving_the_group(window):
     drag(canvas, spot, spot + QPoint(0, 80))
     assert frame.pos() == was
     assert canvas.center().y() < before.y()
+
+
+def test_the_camera_shows_everything_until_it_is_moved(window):
+    canvas = window.canvas
+    middle = canvas.arrangement_bounds().center()
+    assert (canvas.center() - middle).manhattanLength() < 10
+    window.text_filter.setText("counselor")  # what there is to show changes
+    settle()
+    assert (canvas.center() - canvas.arrangement_bounds().center()).manhattanLength() < 10
+    canvas.zoom_by(2.0)
+    moved = canvas.center()
+    window.text_filter.setText("")
+    settle()
+    assert canvas.center() == moved  # moved by hand, it stays put
+    canvas.fit(animate=False)
+    assert canvas.following
+
+
+def test_the_minimap_opens_out_under_the_pointer(window):
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QEnterEvent
+
+    minimap = window.canvas.minimap
+    corner = minimap.geometry().bottomRight()
+    assert minimap.size() == minimap.SMALL
+    minimap.enterEvent(QEnterEvent(QPointF(5, 5), QPointF(5, 5), QPointF(5, 5)))
+    settle(300)
+    assert minimap.size() == minimap.LARGE
+    assert minimap.geometry().bottomRight() == corner  # grown from its corner
+    minimap.leaveEvent(None)
+    settle(300)
+    assert minimap.size() == minimap.SMALL

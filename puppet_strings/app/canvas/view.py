@@ -107,6 +107,9 @@ class Canvas(QGraphicsView):
         self.saving: CardItem | None = None  # the card whose save the window is handling
         self.stale = True  # the store changed while the canvas was not on screen
         self.fitted = False  # the camera has been put somewhere sensible
+        # Nobody has moved the camera since it last showed everything, so it keeps showing
+        # everything as the requests come and go and the window changes size.
+        self.following = True
         self.zoom = 1.0
         self.press = None  # what the mouse went down on, and where
         self.dragging: list[CardItem] = []
@@ -175,6 +178,7 @@ class Canvas(QGraphicsView):
         for overlay in (self.zoom_bar, self.minimap, self.new_button, self.hint):
             overlay.raise_()
         self.zoom_bar.moved_sideways.connect(self._place_overlays)
+        self.minimap.resized.connect(self._place_overlays)
         self.horizontalScrollBar().valueChanged.connect(self.minimap.update)
         self.verticalScrollBar().valueChanged.connect(self.minimap.update)
 
@@ -236,8 +240,8 @@ class Canvas(QGraphicsView):
         for card in self.cards.values():
             card.set_status(self.status_of(card))
         self.relayout(animate=self.fitted)
-        if not self.fitted and self.cards:
-            self.fit(animate=False)
+        if self.following:
+            self.fit(animate=self.fitted)
 
     def _stored(self, request_id: str) -> Request | None:
         return next((r for r in self.store.every if r.id == request_id), None)
@@ -401,7 +405,7 @@ class Canvas(QGraphicsView):
             if same_group(name, g) or name == g
         }
         self.arrangement = arrange(
-            [(g, [(c.key, c.height) for c in members[g]]) for g in order], placed
+            [(g, [(c.key, c.height) for c in members[g]]) for g in order], placed, UNGROUPED
         )
         if self.motion is not None:
             self.motion.stop()
@@ -499,6 +503,7 @@ class Canvas(QGraphicsView):
             if card.key not in self.cards:
                 return  # it went while the last one was being saved
             self.active = card
+            self.following = False  # the camera stays on the card, whatever else moves
             self.editor.show_request(card.shown)
             if card.request is None:
                 self.editor.original_id = None
@@ -688,11 +693,13 @@ class Canvas(QGraphicsView):
     def look_at(self, point: QPointF) -> None:
         """Move straight to a point, at the zoom there is."""
         self._stop_camera()
+        self.following = False
         self.look(point, self.zoom)
 
     def zoom_by(self, factor: float, at=None) -> None:
         """Zoom by a factor, keeping the canvas under `at` (a view point) where it is."""
         self._stop_camera()
+        self.following = False
         at = at if at is not None else QPointF(self.viewport().rect().center())
         anchor = self.mapToScene(at.toPoint())
         new = min(max(self.zoom * factor, LEAST), MOST)
@@ -703,6 +710,7 @@ class Canvas(QGraphicsView):
     def fly_to(self, center: QPointF, zoom: float, animate: bool = True) -> None:
         """Glide the camera to a point and a zoom."""
         self._stop_camera()
+        self.following = False  # `fit` says otherwise once it has set off
         if not animate or not self.isVisible():
             self.look(center, zoom)
             return
@@ -733,10 +741,11 @@ class Canvas(QGraphicsView):
         self.fly_to(rect.center(), zoom, animate)
 
     def fit(self, animate: bool = True) -> None:
-        """Show everything."""
+        """Show everything, and keep showing it until the camera is moved some other way."""
         if self.arrangement.frames:
             self.fitted = True
             self.fly_to_rect(self.arrangement_bounds(), animate)
+            self.following = True
 
     def _stop_camera(self) -> None:
         if self.camera is not None:
@@ -832,6 +841,7 @@ class Canvas(QGraphicsView):
         if press["pan"] or press["kind"] in (None, "frame"):
             if first:
                 self.viewport().setCursor(Qt.ClosedHandCursor)
+            self.following = False
             last = press.get("last", press["pos"])
             step = pos - last
             press["last"] = pos
@@ -1085,6 +1095,7 @@ class Canvas(QGraphicsView):
         """Scroll to zoom at the pointer; a sideways scroll pans."""
         angle = event.angleDelta()
         if angle.x() and not angle.y():
+            self.following = False
             bar = self.horizontalScrollBar()
             bar.setValue(bar.value() - angle.x())
             return
@@ -1160,9 +1171,11 @@ class Canvas(QGraphicsView):
             y += spacing
 
     def resizeEvent(self, event) -> None:  # noqa: N802
-        """Keep the controls in their corners."""
+        """Keep the controls in their corners, and everything in view if it was."""
         super().resizeEvent(event)
         self._place_overlays()
+        if self.following and self.fitted:
+            self.fit(animate=False)
 
     def _place_overlays(self) -> None:
         """The controls along the bottom, clear of the frames' own headers at the top."""

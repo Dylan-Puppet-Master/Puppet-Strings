@@ -79,15 +79,17 @@ Its **Requests** row hands the requests over and backs them up; see
 
 **Table** and **Canvas**, at the right-hand end of the toolbar, switch how the requests are
 shown. The window remembers which one you used last. On the canvas, every request that passes
-the filters is a card, and each group is a frame of cards. Everything else stays where it
-is: the groups pane, the filters, the Namespaces and Calendar panes and the errors pane.
+the filters is a card, and each group is a frame of cards. The groups are laid out in rows,
+and `Ungrouped` stands apart to their right. Everything else stays where it is: the groups
+pane, the filters, the Namespaces and Calendar panes and the errors pane.
 
 ![The canvas](img/canvas.png)
 
 - **Moving around.** Scroll to zoom at the pointer. Drag the empty canvas to pan (or drag
-  with the middle button, or with Space held). Click or drag the minimap to jump somewhere.
-  **F** shows everything, **Ctrl+1** is actual size, and **+** and **−** zoom. Picking a
-  group in the groups pane takes you to its frame.
+  with the middle button, or with Space held). Click or drag the minimap to jump somewhere;
+  it opens out under the pointer for a finer aim. **F** shows everything, **Ctrl+1** is
+  actual size, and **+** and **−** zoom. Picking a group in the groups pane takes you to
+  its frame. Until you move the camera, it keeps everything in view as the requests change.
 - **Editing.** Click a card and type. The card turns into the editor, with the cursor in
   the field you clicked. A card clicked from far away is brought up to full size first.
   Clicking away saves it, and so does **Ctrl+S**. If the card does not validate, it keeps
