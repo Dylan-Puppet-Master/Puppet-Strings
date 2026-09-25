@@ -1201,12 +1201,20 @@ class Canvas(QGraphicsView):
         spacing = 32.0
         if spacing * self.zoom < 14:
             spacing *= 4 ** max(0, floor(log(14 / (spacing * self.zoom), 4)) + 1)
-        step = max(4, round(spacing * self.zoom))  # in pixels on screen
+        exact = spacing * self.zoom  # in pixels on screen
+        step = max(4, round(exact))  # the tile's whole-pixel size, stretched to `exact` below
         to_screen = painter.worldTransform()
         origin = to_screen.map(QPointF(0, 0))  # where the dots line up
         brush = QBrush(self._dot_tile(step))
-        brush.setTransform(QTransform.fromTranslate(origin.x() - step / 2, origin.y() - step / 2))
+        # Stretched and smoothly sampled, the dots move by fractions of a pixel as the zoom
+        # changes; a whole-pixel tile at a whole-pixel offset made them hop about instead.
+        scale = exact / step
+        brush.setTransform(
+            QTransform.fromScale(scale, scale)
+            * QTransform.fromTranslate(origin.x() - exact / 2, origin.y() - exact / 2)
+        )
         painter.save()
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
         painter.resetTransform()
         painter.fillRect(to_screen.mapRect(rect), brush)
         painter.restore()
