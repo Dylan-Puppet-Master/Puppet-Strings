@@ -285,7 +285,7 @@ exactly the days of its scope and the rest of the season never sees it.
 
 | Scope | Read on | For |
 |---|---|---|
-| Day | That one date | Clinics from the Offerings tab you have edited, which are the day's alone, and anything asked of one day. |
+| Day | That one date | Anything asked of one day. |
 | Week | Every date of its week of the session | A week's arrangements. |
 | Session | Every date of its session | What was asked of one session in particular. A new request is scoped to its session unless you say otherwise. |
 | Season | Every date of the year's season | What holds all season: the legal limits, the standing agreements. |
@@ -296,9 +296,9 @@ manager offers the day, week, session and season of the date being scheduled. A 
 Skedge can still narrow the days it is about, with `ON`: its scope says when it is read,
 and its Skedge what it asks for once it is.
 
-A day's clinics are made from its Offerings tab on every load and are not saved. One you
-edit is saved, and read in place of the one made, until you delete it, which throws the
-edits away.
+A day's clinics are asked for by one season-long request, `REQUEST EACH offerings`, which
+reads whichever day's Offerings tab is loaded; see the [Skedge
+reference](skedge.md#asking-for-an-activity-without-naming-anybody).
 
 Each request has these fields, all edited in the request manager:
 
@@ -309,7 +309,7 @@ Each request has these fields, all edited in the request manager:
 | `skedge` | The request itself; see the [Skedge reference](skedge.md). |
 | `priority` | One of `MUST_HAPPEN`, `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. `STABILITY` is the solver's own during a [same-day change](same-day.md) and is never a request's. |
 | `weight` | A positive number, 1 unless said otherwise. Always 1 with `MUST_HAPPEN`. |
-| `tags` | Any labels you like, for filtering in the request manager. Requests made from the Offerings tab carry the tag `clinic_import`. |
+| `tags` | Any labels you like, for filtering in the request manager. |
 | `group` | The one [group](app.md#groups) the request is on in the request manager, such as `Special daily requests`, or none. |
 | `requester` | Who asked for this, as a staff name: `mary_kate`. None if it is nobody's in particular. A name that is not on the Skills sheet makes the request invalid, so a typo is caught rather than lost. |
 | `created` | The date it was made, for the record. |

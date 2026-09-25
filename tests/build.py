@@ -3,7 +3,6 @@
 from dataclasses import replace
 from datetime import date, time, timedelta
 
-from puppet_strings.generate import generated_requests
 from puppet_strings.model import (
     MAIN_SEASON,
     WEEKDAY,
@@ -50,6 +49,10 @@ SKILL_NAMES = {
     "lifeguard": "LIFEGUARD",
     "muay_thai": "Muay Thai",
 }
+
+
+# What asks for the day's clinics, standing, as a Puppet Master's requests would have it.
+CLINICS = Request("clinics", "", "REQUEST EACH offerings", Priority.CLINIC)
 
 
 def staff(name: str, ral: int = 5, **skills: SkillStatus) -> Staff:
@@ -182,7 +185,7 @@ def dataset(
         published=published or {},
         resting=rests,
     )
-    return replace(built, requests=built.requests + tuple(generated_requests(built)))
+    return replace(built, requests=built.requests + ((CLINICS,) if offerings else ()))
 
 
 def published(day, *rows, blocks=None):

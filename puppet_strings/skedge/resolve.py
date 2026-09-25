@@ -20,6 +20,7 @@ from puppet_strings.model import (
     WEEK_PREFIX,
     Dataset,
     MappingTable,
+    Offering,
 )
 from puppet_strings.names import normalize
 from puppet_strings.skedge import ast
@@ -33,6 +34,7 @@ from puppet_strings.skedge.namespaces import (
     DATES,
     KEY_NAMESPACES,
     MAPPINGS,
+    OFFERINGS,
     ROLES,
     STAFF,
     WHOLE,
@@ -329,7 +331,9 @@ class _Names:
             DATES: date_names(dataset),
             ROLES: {r: Named(frozenset({r}), True) for r in roles},
             MAPPINGS: {m: Named(frozenset({m}), True) for m in dataset.mappings},
+            OFFERINGS: offering_names(dataset),
         }
+        self.offerings = {offering_id(o): o for o in dataset.offerings}
         self.domains: dict[str, tuple[str, frozenset[Item]]] = {}  # by `keys`/`value` text
 
     def lookup(self, ref: ast.Ref, namespace: str) -> Named:
@@ -419,6 +423,30 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
             **{cabin: Named(ids, False) for cabin, ids in _cabin_categories(cabin_acts).items()},
         },
     )
+    return names
+
+
+def offering_id(offering: Offering) -> str:
+    """An offering as an item: its first block and its clinic, as its name is written."""
+    return f"{offering.blocks[0]}.{offering.activity}"
+
+
+def offering_names(dataset: Dataset) -> dict[str, Named]:
+    """Every name in the `offerings` namespace: the target date's Offerings tab.
+
+    `offerings.clinic_2.archery_1_2` is archery as offered in clinic 2, and
+    `offerings.clinic_2` everything offered then. A double is under both its blocks, and is
+    the same offering by either name. An offering is an activity and its time together,
+    which is why it is not under `activities`: asked for, it needs no DURING.
+    """
+    names = {WHOLE: Named(frozenset(offering_id(o) for o in dataset.offerings), False)}
+    by_block: dict[str, set[str]] = {}
+    for offering in dataset.offerings:
+        item = offering_id(offering)
+        for block in offering.blocks:
+            by_block.setdefault(block, set()).add(item)
+            names[f"{block}.{offering.activity}"] = Named(frozenset({item}), True)
+    names.update({b: Named(frozenset(items), False) for b, items in by_block.items()})
     return names
 
 
@@ -512,6 +540,11 @@ def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
         },
         BLOCKS: {i: f"{b.start:%H:%M}-{b.end:%H:%M}" for i, b in dataset.blocks.items()},
         MAPPINGS: {m: _mapping_note(v) for m, v in dataset.mappings.items()},
+        OFFERINGS: {
+            f"{b}.{o.activity}": f"{dataset.activities[o.activity].name} in {', '.join(o.blocks)}"
+            for o in dataset.offerings
+            for b in o.blocks
+        },
     }
     listing = {}
     for namespace, names in _names(dataset).spaces.items():
@@ -536,6 +569,8 @@ def _note(namespace: str, name: str, named: Named) -> str:
             day = next(iter(named.items))
             return f"{day.isoformat()} ({day:%A})"
         return f"{len(named.items)} date" + ("" if len(named.items) == 1 else "s")
+    if namespace == OFFERINGS:
+        return f"{len(named.items)} offered"
     if namespace == ROLES:
         if name in LIFEGUARD_ROLES:
             return "extra lifeguard on a water clinic"
@@ -647,6 +682,8 @@ def _statement(statement: ast.Statement, scope: _Scope) -> tuple[Statement, dict
     if isinstance(statement, ast.Preference):
         p = statement.pattern
         return _phrase(p.who, p.what, p.busy, p.clauses, scope, statement.pos, prefer=True)
+    if statement.who is None and _offered(statement.what, scope) and not statement.negated:
+        return _offering(statement, scope), {}
     if statement.negated:
         who = _choice(statement.who, STAFF, scope, pool=False)
         if who.kind in (COUNT, POOL):
@@ -847,6 +884,50 @@ def _anyone(what: ast.Target, scope: _Scope, pos: ast.Pos) -> Choice:
     return Choice(_sorted(everyone), POOL, pos=pos)
 
 
+ON_ITS_OWN = "an offering is asked for on its own, as REQUEST EACH offerings"
+
+
+def _offered(what: ast.Target, scope: _Scope) -> bool:
+    """Whether a statement's target is offerings, by name or by a variable bound to them."""
+    if not isinstance(what, ast.Selector):
+        return False
+    return ast.offers(what.expr) or any(
+        scope.vars.get(var.name, (None, None))[1] == OFFERINGS for var in ast.vars_in(what.expr)
+    )
+
+
+def _offering(statement: ast.Requirement, scope: _Scope) -> Requirement:
+    """`REQUEST <an offering>`: its clinic, in the blocks the Offerings tab puts it in.
+
+    The same requirement as `REQUEST activities.clinics.x DURING blocks.y`, or DURING ALL
+    of a double's two blocks, on the date being scheduled: the only date there are
+    offerings for. The Offerings tab has said when, so the request says nothing more.
+    """
+    if statement.clauses:
+        raise _error(
+            "an offering already says when it runs, so it takes nothing more; to ask for "
+            "something else of the clinic, write it as a request of its own",
+            statement.clauses[0].pos,
+        )
+    what = statement.what
+    choice = _choice(what, OFFERINGS, scope, pool=False)
+    if choice.kind != ALL or len(choice.items) != 1 or choice.parts or choice.units:
+        raise _error("one offering at a time: REQUEST EACH offerings", what.pos)
+    offering = scope.names.offerings[choice.items[0]]
+    return Requirement(
+        who=_anyone(what, scope, statement.pos),
+        what=Choice((offering.activity,), ALL, pos=what.pos),
+        during=Choice(offering.blocks, ALL, pos=what.pos),
+        on=Choice((scope.dataset.target,), ALL),
+        role=None,
+        minutes=None,
+        with_=None,
+        without=None,
+        label=statement.label,
+        pos=statement.pos,
+    )
+
+
 def _pattern(pattern: ast.Pattern, scope: _Scope) -> Pattern:
     """A pattern that is matched rather than counted: a score's."""
     who = _choice(pattern.who, STAFF, scope, pool=True)
@@ -856,6 +937,8 @@ def _pattern(pattern: ast.Pattern, scope: _Scope) -> Pattern:
 
 def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, pool: bool) -> dict:
     """The target and clauses shared by requirements and patterns, resolved."""
+    if _offered(what, scope):
+        raise _error(ON_ITS_OWN, what.pos)
     during = ast.clause(clauses, ast.During)
     on = ast.clause(clauses, ast.On)
     role = ast.clause(clauses, ast.AsRole)

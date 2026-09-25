@@ -20,7 +20,6 @@ from dataclasses import dataclass
 from datetime import date
 
 from puppet_strings.app.conflicts import forced, one_target
-from puppet_strings.generate import is_generated
 from puppet_strings.model import (
     ANY_SKILL,
     TRAINEE_ROLES,
@@ -63,8 +62,6 @@ def find_errors(
     found: list[Problem] = []
     offered = _offered(dataset)
     for request in requests:
-        if is_generated(request, dataset.target):
-            continue  # the offerings are what the day offers; they cannot disagree with it
         for copy in resolved.get(request.id, ()):
             for statement in copy.statements:
                 if isinstance(statement, Requirement):

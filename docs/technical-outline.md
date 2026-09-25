@@ -388,7 +388,7 @@ Dependencies: `ortools`, `lark`, `gspread`, `PySide6`. Development: `pytest`, `r
 - `free[s, d, b]`: true iff no `x` for `s` overlaps block `b` on `d`. Encoded as `free + sum(x overlapping b) == 1` when blocks in the overlap set are pairwise exclusive (always true after the no-double-booking constraint).
 - **No double booking**: for each staff and block, `sum(x[s, *, *, d, b]) <= 1`; for each pair of overlapping blocks, `sum over both <= 1`.
 - **One holder per position, one instance per block**: `sum_s x[s, a, p, d, b] <= 1` for every position `p`. (Implied by the proposal, stated here.)
-- **Offered clinics are staffed**: for each offering `(a, d, b)`, a generated `CLINIC` request `REQUEST activities.clinics.a DURING blocks.b ON d` with id `offering:<a>:<b>`.
+- **Offered clinics are staffed**: a standing `CLINIC` request, `REQUEST EACH offerings`, resolves each offering `(a, b)` of the target date to `REQUEST activities.clinics.a DURING blocks.b`, one copy per offering.
 - **Lifeguards** are ordinary positions with skill `LIFEGUARD` and RAL 5, so eligibility (rule 2) covers them.
 - **Trainees**: `x[s, a, shadow, d, b] → filled[a, d, b]`, where `filled` is the AND of the position-filled literals. `x[s, a, scaffolded, d, b] → OR(x[t, a, p, d, b] for trainers t of p's skill)`. At most one trainee per instance.
 - **Past dates**: no variables. Lookups return Python `True`/`False`; compile functions fold constants.
@@ -1022,3 +1022,13 @@ Recorded so the outline matches the code.
   the season, and a span's days are written with `&`: `{dates.session_2 & dates.thursdays}`,
   or `{dates.session_2.week_1 & dates.sundays}` for the day it starts. The saved requests
   were rewritten to match, and the completer offers date names like any others.
+- **Offerings are names, not requests** (Puppet Master, 2026-09-25). Every load made one
+  `CLINIC` request per row of the Offerings tab, tagged `clinic_import`, with its own
+  rules: never saved, not deletable, an edited one read in place of the one made. They
+  filled the request manager with requests nobody changed. The Offerings tab is now the
+  `offerings` namespace, `offerings.clinic_2.archery_1_2` and `offerings.clinic_2`, and an
+  offering asked for with no subject is its clinic in its block: one standing
+  `REQUEST EACH offerings` does what the generated requests did, and `generate.py` is gone.
+  An offering says when it runs, so it takes no clauses and goes nowhere but there. No
+  saved request had been an edited clinic, so nothing was rewritten; the standing request
+  was added to the Puppet Master's requests file.

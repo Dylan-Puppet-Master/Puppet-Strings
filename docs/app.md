@@ -19,32 +19,25 @@ Reading the sheets puts up a progress panel, the one the solver uses, without a 
 button: it cannot usefully be stopped part-way, but takes long enough over Google Sheets to
 be worth saying so. It runs off the window's own thread, so the panel keeps painting and
 the window stays alive while it works.
-Loading a date makes one `CLINIC` request per clinic on its Offerings tab, tagged
-`clinic_import`. They are made afresh on every load and not saved: the Offerings tab is
-where they live. Such a request names every position on Clinic_Data, so a clinic wanting
-a facilitator, a second and a lifeguard reads:
+The day's clinics are asked for by one standing request, kept all season at `CLINIC`
+priority:
 
 ```skedge
-REQUEST ANY 1 staff DO activities.clinics.canoe_1_2 AS_ROLE EACH {roles.first + roles.second + roles.lifeguard} DURING blocks.clinic_1 ON 2026-09-17
+REQUEST EACH offerings
 ```
 
-`EACH` is what makes each position its own choice of person; `ALL` would ask one
-person to hold all three. A clinic with one position names it on its own, `AS_ROLE
-roles.first`, because a one-item set takes no quantifier. The clinic runs fully
-staffed or not at all — filling one position of an instance fills them all — and every
-position it wants is written down rather than left to the skill matching.
+`offerings` is the loaded date's Offerings tab, each clinic in the block it runs in, so the
+one request asks for whatever that day offers; see
+[offerings](skedge.md#asking-for-an-activity-without-naming-anybody). Each clinic is
+staffed from its positions on Clinic_Data, and runs fully staffed or not at all.
 
 **Reload** also makes the day's spreadsheet when it is not there yet, with its Offerings
 grid copied from the Clinic Schedule template and its other tabs empty. So a day nobody has
 set up is one click from being ready, and the next Reload reads what you put in the grid.
 
-Since every load makes them from the Offerings tab, a clinic you add or remove there is
-added or removed here on the next **Reload**. An imported clinic cannot be deleted in the
-app, since the next load would make it again: take it off the Offerings tab instead. It
-can be edited, for example to limit who runs it; the edited one is saved, and read in
-place of the one made from the tab from then on. Deleting an edited clinic throws the
-edits away, so it is the Offerings tab's again. A day's clinics
-are that day's alone, so no other day shows them. **Solve** builds the schedule and opens
+A clinic you add to the Offerings tab or take off it is asked for, or not, on the next
+**Reload**. To ask for one clinic differently, for example to limit who runs it, leave its
+offering out of `REQUEST EACH offerings` and write it a request of its own. **Solve** builds the schedule and opens
 it in a window with the staff view, the clinic view and the report; it asks first if the
 date has no clinics offered.
 **Publish** in that window writes the day's own spreadsheet in the
@@ -121,9 +114,7 @@ requests are in each. Click one and the table shows only that group. `All reques
 group at all, which is how a request that has been forgotten about turns up.
 
 Two groups are always there — **Special daily requests** and **Special weekly
-requests** — and you make the rest. Requests made from the Offerings tab are on no shelf,
-so they sit under `Ungrouped`: there are dozens of them and the `clinic_import` tag and the
-`CLINIC` priority already tell them apart. **New** asks for a name, **Rename**
+requests** — and you make the rest. **New** asks for a name, **Rename**
 renames a group everywhere it is used, and **Delete** takes a group off its requests
 without deleting the requests themselves. The two default groups cannot be renamed or
 deleted.

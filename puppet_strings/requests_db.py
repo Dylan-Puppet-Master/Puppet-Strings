@@ -12,9 +12,7 @@ cover the date is not read at all. The scope is kept as the dates it covers, so 
 day's requests is one question of an index however many days the season has had, and
 nothing needs a list of its own per day or per session.
 
-A request written in the app is scoped to its session unless it is scoped otherwise, and
-the clinics from the Offerings tab that are saved, being edited, are scoped to their day:
-they are that day's and nobody else's.
+A request written in the app is scoped to its session unless it is scoped otherwise.
 
 A folder of fixtures carries its own `requests.sqlite`, so a copy of a session is one
 folder and running on it touches nothing on the computer it runs on.
@@ -27,7 +25,6 @@ from itertools import count
 from pathlib import Path
 
 from puppet_strings.config import Config
-from puppet_strings.generate import IMPORT_TAG
 from puppet_strings.local_db import LocalDb, connect, marks
 from puppet_strings.model import (
     DAY,
@@ -103,10 +100,10 @@ _PUT = (
 
 
 def scope_for(request: Request, dataset: Dataset) -> Scope:
-    """The request's own scope, or the one its kind implies around the date scheduled."""
+    """The request's own scope, or else its session around the date scheduled."""
     if request.scope is not None:
         return request.scope
-    return dataset.scope(DAY if IMPORT_TAG in request.tags else DEFAULT_SCOPE)
+    return dataset.scope(DEFAULT_SCOPE)
 
 
 def describe(scope: Scope) -> str:

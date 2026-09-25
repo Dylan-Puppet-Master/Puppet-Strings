@@ -54,10 +54,9 @@ def ids(outcomes):
 def requests_of(outcomes):
     """The requests behind the outcomes, once each.
 
-    A generated clinic request asks for each position separately (`AS_ROLE EACH`), so
-    an unstaffable clinic is reported once per position, as `<id>[first]`, `<id>[second]`.
-    These tests are about which clinic could not be staffed, not about how many positions
-    it has.
+    A request with EACH is reported a copy at a time, as `<id>[<item>]`: the clinics
+    request as `clinics[clinic_1.riflery]`. These tests are about which request could not
+    be met, not about which of its copies.
     """
     return list(dict.fromkeys(o.id.split("[")[0] for o in outcomes))
 
@@ -91,7 +90,7 @@ def test_ral_excludes_checked_off_staff_below_the_minimum():
         [staff("Brian", ral=3, riflery=OK)], [RIFLERY], offerings=[("Riflery", ["clinic_1"])]
     )
     result = run(only_brian)
-    assert result.feasible and ids(result.unsatisfied) == ["offering:2026-09-16:riflery:clinic_1"]
+    assert result.feasible and ids(result.unsatisfied) == ["clinics[clinic_1.riflery]"]
 
 
 def test_unstaffable_clinic_is_reported_and_the_rest_is_scheduled():
@@ -103,9 +102,9 @@ def test_unstaffable_clinic_is_reported_and_the_rest_is_scheduled():
     )
     result = run(ds)
     assert result.feasible
-    assert requests_of(result.unsatisfied) == ["offering:2026-09-16:muay_thai:clinic_2"]
+    assert requests_of(result.unsatisfied) == ["clinics"]
     # one line per clinic, not per position: an instance fills all of its positions or none
-    assert ids(result.unsatisfied) == ["offering:2026-09-16:muay_thai:clinic_2"]
+    assert ids(result.unsatisfied) == ["clinics[clinic_2.muay_thai]"]
     assert result.unsatisfied[0].priority is Priority.CLINIC
     assert where(result, activity="archery_1_2")[0].staff == "dylan"
 
@@ -139,7 +138,7 @@ def test_day_off_beats_an_offering():
     )
     result = run(ds)
     assert result.feasible and not where(result, staff="dylan")
-    assert ids(result.unsatisfied) == ["offering:2026-09-16:archery_1_2:clinic_1"]
+    assert ids(result.unsatisfied) == ["clinics[clinic_1.archery_1_2]"]
 
 
 def test_pin_and_not_do():
@@ -168,7 +167,7 @@ def test_pin_and_not_do():
     result = run(ds)
     assert where(result, activity="archery_1_2")[0].staff == "randy"
     assert not where(result, staff="dylan", activity="gravity_zip_line")
-    assert requests_of(result.unsatisfied) == ["offering:2026-09-16:gravity_zip_line:clinic_1"]
+    assert requests_of(result.unsatisfied) == ["clinics"]
 
 
 def test_a_clinic_runs_only_where_a_request_names_it():
@@ -216,7 +215,7 @@ def test_lifeguard_is_an_extra_person_at_ral_5():
         [canoe],
         offerings=[("Canoe 1 & 2", ["clinic_1"])],
     )
-    assert requests_of(run(low_ral).unsatisfied) == ["offering:2026-09-16:canoe_1_2:clinic_1"]
+    assert requests_of(run(low_ral).unsatisfied) == ["clinics"]
     pinned = dataset(
         members,
         [canoe],
@@ -509,7 +508,7 @@ def test_a_partial_task_blocks_a_clinic_in_the_same_block():
         offerings=[("Archery 1 & 2", ["clinic_1"])],
         requests=[request("break", text, Priority.MUST_HAPPEN)],
     )
-    assert ids(run(ds).unsatisfied) == ["offering:2026-09-16:archery_1_2:clinic_1"]
+    assert ids(run(ds).unsatisfied) == ["clinics[clinic_1.archery_1_2]"]
 
 
 def test_three_breaks_in_three_distinct_blocks():
@@ -1133,9 +1132,7 @@ def test_not_do_with_keeps_two_staff_off_the_same_clinic():
         requests=[request("feud", feud, Priority.MUST_HAPPEN)],
     )
     result = run(only_two)
-    assert result.feasible and requests_of(result.unsatisfied) == [
-        "offering:2026-09-16:craft_fairy:clinic_1"
-    ]
+    assert result.feasible and requests_of(result.unsatisfied) == ["clinics"]
 
 
 def test_a_forbidden_pair_may_still_work_in_different_blocks():
@@ -1561,9 +1558,7 @@ def test_an_invalid_request_is_left_out_of_the_solve_and_said_so():
 def test_fixture_dataset_solves(dataset):
     result = solve(dataset, CONFIG)
     assert result.feasible
-    assert ids(result.unsatisfied) == [
-        "offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1"
-    ]
+    assert ids(result.unsatisfied) == ["clinics[clinic_1.pole_course_explore_level_1_2_dbl]"]
     counselor_hours = [a for a in result.assignments if a.activity == "counselor hour"]
     assert len(counselor_hours) == 6 and all(a.minutes == 60 for a in counselor_hours)
     breaks = [a for a in result.assignments if a.activity == "break"]

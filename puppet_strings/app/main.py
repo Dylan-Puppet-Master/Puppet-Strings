@@ -55,7 +55,6 @@ from puppet_strings.app.store import RequestStore
 from puppet_strings.app.worker import Worker
 from puppet_strings.config import Config, load_config
 from puppet_strings.exclude import mentions_exclusion
-from puppet_strings.generate import is_imported
 from puppet_strings.google_auth import AuthError
 from puppet_strings.model import WRITABLE_PRIORITIES, Dataset
 from puppet_strings.requests_db import describe, scope_for
@@ -1135,26 +1134,8 @@ class MainWindow(QMainWindow):
 
     def _deleted(self, request_id: str) -> None:
         request = self.model.request(request_id)
-        if request is not None and not self._refuse_imported([request]):
+        if request is not None:
             self._delete([request])
-
-    def _refuse_imported(self, requests: list) -> bool:
-        """Say why a clinic from the Offerings tab cannot be deleted here, if one is among them.
-
-        The next load would make it again: the Offerings tab is where it is taken off.
-        """
-        edited = self.store.edited(requests)  # these go back to what the tab says
-        clinics = [r for r in requests if is_imported(r) and r.id not in edited]
-        if not clinics:
-            return False
-        which = "These clinics come" if len(clinics) > 1 else "This clinic comes"
-        QMessageBox.information(
-            self,
-            "Imported clinic",
-            f"{which} from the Offerings tab. Remove {'them' if len(clinics) > 1 else 'it'} "
-            "there, then reload.",
-        )
-        return True
 
     def selected_requests(self) -> list:
         """The requests on the selected rows, top to bottom."""
@@ -1168,7 +1149,7 @@ class MainWindow(QMainWindow):
 
     def delete_requests(self, chosen: list) -> None:
         """Delete these requests, once the Puppet Master has said yes."""
-        if not chosen or self._refuse_imported(chosen):
+        if not chosen:
             return
         shown = "\n".join(r.id for r in chosen[:10])
         if len(chosen) > 10:
@@ -1189,12 +1170,9 @@ class MainWindow(QMainWindow):
 
     def _delete(self, requests: list) -> None:
         away = any(mentions_exclusion(r.skedge) for r in requests)
-        reverted = self.store.edited(requests)
         self.store.delete(*(r.id for r in requests))
         self._requests_changed()
         said = requests[0].id if len(requests) == 1 else f"{len(requests)} requests"
-        if len(reverted) == len(requests):
-            said = f"the edits to {said}; back to the Offerings tab's"
         self._say(f"Deleted {said}")
         if away:
             self.reload()  # the day has somebody back in it, so read it all again

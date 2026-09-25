@@ -6,12 +6,22 @@ from datetime import date
 import pytest
 
 from puppet_strings.config import Config
-from puppet_strings.generate import generated_requests
 from puppet_strings.model import Adjustment, Offering, Priority, Rest
 from puppet_strings.sheets.adjustments import adjustment_rows, on_date, parse_adjustments
 from puppet_strings.sheets.source import LoadError
 from puppet_strings.solver.solve import solve
-from tests.build import BLOCKS, OK, TARGET, clinic, dataset, published, request, resting, staff
+from tests.build import (
+    BLOCKS,
+    CLINICS,
+    OK,
+    TARGET,
+    clinic,
+    dataset,
+    published,
+    request,
+    resting,
+    staff,
+)
 
 CONFIG = Config(tier_seconds_limit=10, workers=4)
 ARCHERY = clinic("Archery 1 & 2", ("Archery 1 & 2", 4), category="weapons")
@@ -119,7 +129,7 @@ def test_staffing_a_clinic_outranks_leaving_someone_where_they_were():
     ds = day(members, [ARCHERY, RIFLERY], [("Archery 1 & 2", ["clinic_1"])], rows)
     # riflery is added to the day, and only Dylan can run it
     added = replace(ds, offerings=(*ds.offerings, Offering("riflery", ("clinic_1",))))
-    added = replace(added, requests=tuple(generated_requests(added)))
+    added = replace(added, requests=(CLINICS,))
     result = solve(added, CONFIG, same_day=True)
     assert {(a.staff, a.activity) for a in result.assignments} == {
         ("dylan", "riflery"),

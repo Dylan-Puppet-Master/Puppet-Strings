@@ -7,7 +7,7 @@ Puppet Strings builds the daily staff schedule for Camp Augusta. The Puppet Mast
 ## The Daily Loop
 
 1. Fill in tomorrow's **Offerings** tab to define the clinics that will run.
-2. Open the request manager (`puppet-strings app`), which imports the day's clinics from its Offerings tab, then add or adjust requests acccording to the shared camp schedule request doc or personl requests from staff members. This is also where I would request that staff members be trained on clinics.
+2. Open the request manager (`puppet-strings app`), which reads the day's clinics from its Offerings tab, then add or adjust requests acccording to the shared camp schedule request doc or personl requests from staff members. This is also where I would request that staff members be trained on clinics.
 3. Press **Solve**. Read the staff view, the clinic view and the report of anything that could not be satisfied.
 4. Press **Publish**. The schedule lands in that day's own formatted spreadsheet.
 

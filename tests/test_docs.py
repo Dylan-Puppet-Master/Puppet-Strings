@@ -24,7 +24,7 @@ def test_doc_example_validates(dataset, name):
 
 
 def test_docs_have_every_example():
-    assert len(EXAMPLES) == 63
+    assert len(EXAMPLES) == 65
 
 
 def _prerequisites(dataset, skedge):
@@ -44,7 +44,7 @@ def _prerequisites(dataset, skedge):
 @pytest.mark.parametrize("name", list(EXAMPLES))
 def test_doc_example_solves(dataset, name):
     skedge = EXAMPLES[name]
-    offerings = tuple(r for r in dataset.requests if "clinic_import" in r.tags)
+    offerings = tuple(r for r in dataset.requests if r.id == "clinics")
     example = as_written(skedge)
     single = replace(dataset, requests=offerings + _prerequisites(dataset, skedge) + (example,))
     result = solve(single, Config(tier_seconds_limit=10, tidy_seconds=1, workers=4))

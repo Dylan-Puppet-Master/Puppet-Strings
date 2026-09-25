@@ -78,9 +78,7 @@ LIFEGUARD_SKILL = "lifeguard"  # the LIFEGUARD column on the Skills tab
 LIFEGUARD_RAL = 5
 
 # The groups the request manager sorts requests onto to begin with. A group is a label on
-# a request, so the ones the Puppet Master adds need nothing declared anywhere. Requests
-# made from the Offerings tab are on no shelf: the `clinic_import` tag already tells them
-# apart, and a group they filled by the dozen buried everything else.
+# a request, so the ones the Puppet Master adds need nothing declared anywhere.
 DEFAULT_GROUPS = ("Special daily requests", "Special weekly requests")
 
 ANY_SKILL = "any"  # a Positions cell reading "Any" needs no checkoff
@@ -308,8 +306,9 @@ class Span:
 class Priority(Enum):
     """Request priority tiers, highest first.
 
-    `CLINIC` and `STABILITY` are the solver's own: `CLINIC` comes from the Offerings tab
-    and `STABILITY` holds a published schedule together during a same-day change.
+    `CLINIC` is for running the day's clinics and cabin acts at all, as `REQUEST EACH
+    offerings` asks. `STABILITY` is the solver's own: it holds a published schedule
+    together during a same-day change.
     """
 
     MUST_HAPPEN = "MUST_HAPPEN"

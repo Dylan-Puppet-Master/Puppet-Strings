@@ -205,7 +205,7 @@ def test_the_pane_exports_and_imports_the_requests(app, config, tmp_path, monkey
 
     shutil.copyfile(FIXTURES / "requests.sqlite", config.requests)
     dialog = ConfigureDialog(config, credentials=object())
-    assert "7 requests on this computer" in dialog.requests_label.text()
+    assert "8 requests on this computer" in dialog.requests_label.text()
     handed = tmp_path / "handed"
     monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(handed), ""))
     dialog.export_requests()
@@ -217,8 +217,8 @@ def test_the_pane_exports_and_imports_the_requests(app, config, tmp_path, monkey
         QFileDialog, "getOpenFileName", lambda *a, **k: (str(tmp_path / "handed.sqlite"), "")
     )
     dialog.import_requests()
-    assert "Imported 7" in dialog.requests_label.text() and dialog.saved
-    assert RequestDb(config.requests).count() == 7
+    assert "Imported 8" in dialog.requests_label.text() and dialog.saved
+    assert RequestDb(config.requests).count() == 8
 
 
 def test_backing_up_asks_for_an_account_and_a_folder_first(app, config, monkeypatch):

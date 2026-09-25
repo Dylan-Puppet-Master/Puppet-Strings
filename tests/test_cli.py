@@ -6,12 +6,15 @@ from tests.conftest import FIXTURES, saved_requests
 
 def test_validate_and_names(capsys):
     assert main(["--fixtures", str(FIXTURES), "--date", "2026-09-16", "validate"]) == 0
-    assert "31 of 31 requests valid" in capsys.readouterr().out
+    assert "8 of 8 requests valid" in capsys.readouterr().out
     assert main(["--fixtures", str(FIXTURES), "--date", "2026-09-16", "names"]) == 0
     out = capsys.readouterr().out
     assert "staff.cam_vl  (Cam VL)" in out
     assert "activities.clinics  (category" in out
     assert "blocks.meals" in out
+    assert (
+        "offerings.clinic_2.blacksmithing_dbl  (Blacksmithing (DBL) in clinic_1, clinic_2)" in out
+    )
 
 
 def test_solve_prints_views_and_report(capsys):
@@ -20,7 +23,8 @@ def test_solve_prints_views_and_report(capsys):
     assert "Staff" in out and "Breakfast" in out and "Clinic 1" in out
     assert "Day 4, Session 1 Week 1 - Wednesday" in out
     assert re.search(r"Blacksmithing \(DBL\)\s+(\w+)\s+\1\b", out)
-    assert "unsatisfied  offering:2026-09-16:pole_course_explore_level_1_2_dbl:clinic_1" in out
+    unmet = next(line for line in out.splitlines() if line.startswith("unsatisfied"))
+    assert unmet.split()[1] == "clinics" and "(clinic_1.pole_course_explore_level_1_2_dbl)" in unmet
 
 
 def test_solve_publishes_to_fixture_copy(tmp_path, capsys):
@@ -35,17 +39,6 @@ def test_solve_publishes_to_fixture_copy(tmp_path, capsys):
     assert main(args) == 1
     assert "already published" in capsys.readouterr().err
     assert main(args + ["--force"]) == 0
-
-
-def test_the_clinics_are_made_on_every_load_and_never_saved(tmp_path, capsys):
-    import shutil
-
-    copy = tmp_path / "fixtures"
-    shutil.copytree(FIXTURES, copy)
-    assert main(["--fixtures", str(copy), "--date", "2026-09-17", "validate"]) == 0
-    out = capsys.readouterr().out
-    assert "offering:2026-09-17:riflery:clinic_3" not in out  # valid, so nothing said
-    assert not any(i.startswith("offering:2026-09-17:") for i in saved_requests(copy))
 
 
 def test_missing_calendar_date_is_an_error(capsys):
@@ -104,11 +97,11 @@ def test_requests_are_handed_over_as_a_file(tmp_path, capsys):
     shutil.copytree(FIXTURES, copy)
     handed = tmp_path / "handed.sqlite"
     assert main(["--fixtures", str(copy), "export-requests", str(handed)]) == 0
-    assert "exported 7 requests" in capsys.readouterr().out
+    assert "exported 8 requests" in capsys.readouterr().out
     delete_requests(copy, "scope = ?", "season")
     assert main(["--fixtures", str(copy), "import-requests", str(handed)]) == 0
     said = capsys.readouterr().out
-    assert "imported 7 requests" in said and "requests.before-import.sqlite" in said
+    assert "imported 8 requests" in said and "requests.before-import.sqlite" in said
     assert "breaks" in saved_requests(copy)
     (tmp_path / "notes.txt").write_text("not requests")
     assert main(["--fixtures", str(copy), "import-requests", str(tmp_path / "notes.txt")]) == 1

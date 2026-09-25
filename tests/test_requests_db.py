@@ -31,7 +31,7 @@ def request(id, scope=SEASON_2026, **fields) -> Request:
 
 def test_a_load_reads_what_covers_the_day_broadest_first(book, dataset):
     requests = book.read(dataset.target)
-    assert [r.scope.kind for r in requests] == [SEASON] * 7  # the clinics are not saved
+    assert [r.scope.kind for r in requests] == [SEASON] * 8
     first = requests[0]
     assert first.id == "counselor-hours" and first.weight == 1.0
     assert first.created == date(2026, 9, 1)
@@ -117,10 +117,8 @@ def test_scopes_around_a_date(dataset):
     assert prefixes == ["sep16", "s1w1", "s1", "season"]
 
 
-def test_an_unscoped_request_is_this_sessions_or_a_generated_one_this_days(dataset):
+def test_an_unscoped_request_is_this_sessions(dataset):
     assert scope_for(request("x", None), dataset) == dataset.scope(SESSION)
-    generated = request("offering:x", None, tags=("clinic_import",))
-    assert scope_for(generated, dataset) == dataset.scope(DAY)
     assert scope_for(request("y", SEASON_2026), dataset) == SEASON_2026
 
 
@@ -172,18 +170,18 @@ def test_the_file_is_the_puppet_masters_alone(tmp_path):
 
 def test_export_and_import_hand_the_requests_over(book, tmp_path):
     handed = tmp_path / "handed.sqlite"
-    assert book.export(handed) == 7
+    assert book.export(handed) == 8
     theirs = RequestDb(tmp_path / "theirs.sqlite")
     theirs.put((request("mine"),))
     count, kept = theirs.import_file(handed)
-    assert count == 7 and theirs.every() == book.every()
+    assert count == 8 and theirs.every() == book.every()
     assert kept == tmp_path / "theirs.before-import.sqlite"
     assert [r.id for r in RequestDb(kept).every()] == ["mine"]  # what was replaced is kept
 
 
 def test_an_import_into_a_computer_with_no_requests_keeps_nothing(book, tmp_path):
     fresh = RequestDb(tmp_path / "fresh.sqlite")
-    assert fresh.import_file(book.path) == (7, None)
+    assert fresh.import_file(book.path) == (8, None)
 
 
 @pytest.mark.parametrize("problem", ["not a database", "no meta", "older format", "bad row"])
@@ -224,16 +222,17 @@ def test_a_request_saved_in_the_app_is_in_the_file(fixtures_copy):
     assert "s1-1" not in saved_requests(fixtures_copy)
 
 
-def test_one_days_offerings_are_not_another_days(fixtures_copy):
-    """A day's clinics are made from its own Offerings tab, and saved on no day."""
+def test_the_standing_clinics_request_asks_for_each_days_own_offerings(fixtures_copy):
+    """One saved request, and on each day it is that day's Offerings tab it reads."""
     from puppet_strings.app.store import RequestStore
     from puppet_strings.sheets.source import CsvSource
+    from puppet_strings.skedge.validate import validate_request
     from tests.conftest import CONFIG
 
     store = RequestStore(CsvSource(fixtures_copy), CONFIG)
-    store.load(date(2026, 9, 17))
-    made = [r.id for r in store.requests if "clinic_import" in r.tags]
-    assert len(made) == len(store.dataset.offerings) > 0
-    assert all(i.startswith("offering:2026-09-17:") for i in made)
-    assert not any(r.id.startswith("offering:2026-09-17:") for r in store.book.every())
-    assert not any(r.id.startswith("offering:2026-09-17:") for r in store.elsewhere)
+    for day in (date(2026, 9, 16), date(2026, 9, 17)):
+        store.load(day)
+        clinics = next(r for r in store.dataset.requests if r.id == "clinics")
+        copies = validate_request(clinics, store.dataset)
+        assert len(copies) == len(store.dataset.offerings) > 0
+        assert {c.statements[0].on.items for c in copies} == {(day,)}

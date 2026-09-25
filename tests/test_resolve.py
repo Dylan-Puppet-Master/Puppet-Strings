@@ -286,7 +286,15 @@ def test_a_span_on_its_own_is_every_date_of_it(dataset):
 
 def test_name_listing_matches_the_namespaces(dataset):
     listing = name_listing(dataset)
-    assert list(listing) == ["staff", "activities", "blocks", "dates", "roles", "mappings"]
+    assert list(listing) == [
+        "staff",
+        "activities",
+        "blocks",
+        "dates",
+        "roles",
+        "mappings",
+        "offerings",
+    ]
     assert ("", "category, 21 members") in listing["staff"]
     assert ("", "category, 20 members") in listing["activities"]
     assert ("clinics", "category, 16 members") in listing["activities"]
@@ -412,3 +420,60 @@ def test_a_bound_cabin_act_on_another_day_is_no_copy(dataset):
         "{ REQUEST staff.dylan FREE DURING blocks.lunch }",
     )
     assert len(conditioned) == 1
+
+
+# -- offerings --------------------------------------------------------------------------------
+
+
+def _pinned(statement: Requirement) -> Requirement:
+    """A requirement with its positions out of it, so two written differently compare."""
+    no_pos = {k: replace(getattr(statement, k), pos=ast.Pos(0, 0)) for k in ("who", "what")}
+    return replace(statement, pos=None, **no_pos, during=replace(statement.during, pos=None))
+
+
+def test_an_offering_is_its_clinic_in_its_block_today(dataset):
+    (copy,) = resolve(dataset, "REQUEST offerings.clinic_3.riflery")
+    (written_out,) = resolve(dataset, "REQUEST activities.clinics.riflery DURING blocks.clinic_3")
+    (st,) = copy.statements
+    assert st.what.items == ("riflery",) and st.on.items == (dataset.target,)
+    assert _pinned(st) == _pinned(written_out.statements[0])
+
+
+def test_a_double_is_one_offering_across_both_its_blocks_by_either_name(dataset):
+    first = "offerings.clinic_1.pole_course_explore_level_1_2_dbl"
+    second = "offerings.clinic_2.pole_course_explore_level_1_2_dbl"
+    (one,) = resolve(dataset, f"REQUEST {first}")
+    (other,) = resolve(dataset, f"REQUEST {second}")
+    assert one.statements[0].during.items == ("clinic_1", "clinic_2")
+    assert one.statements[0].during.kind == ALL
+    assert one.statements == other.statements
+
+
+def test_each_offering_is_a_copy_named_by_its_offering(dataset):
+    copies = resolve(dataset, "REQUEST EACH offerings", Priority.CLINIC)
+    assert len(copies) == len(dataset.offerings)
+    assert "clinic_3.riflery" in {c.key for c in copies}
+    bound = resolve(dataset, "EACH o IN offerings.clinic_3\nREQUEST o")
+    assert {c.key for c in bound} == {c.key for c in copies if "clinic_3" in c.key} != set()
+    left = resolve(dataset, "REQUEST EACH {offerings - offerings.clinic_3.riflery}")
+    assert len(left) == len(copies) - 1
+
+
+@pytest.mark.parametrize(
+    ("skedge", "message"),
+    [
+        ("REQUEST EACH offerings DURING blocks.clinic_1", "already says when it runs"),
+        ("REQUEST EACH offerings ON dates.target", "already says when it runs"),
+        ("REQUEST staff.rob DO EACH offerings", "asked for on its own"),
+        ("REQUEST staff.rob NOT DO ANY offerings", "asked for on its own"),
+        ("PREFER staff.rob DO EACH offerings DURING AT_LEAST 1 blocks", "asked for on its own"),
+        ("REQUEST ANY offerings", "one offering at a time"),
+        ("REQUEST ANY 2 offerings", "one offering at a time"),
+        ("REQUEST ALL offerings.clinic_3", "one offering at a time"),
+        ("REQUEST offerings.clinic_3", "needs a quantifier"),
+        ("REQUEST EACH {offerings + activities.clinics.riflery}", "expected a name from offerings"),
+    ],
+)
+def test_an_offering_is_asked_for_on_its_own_and_one_at_a_time(dataset, skedge, message):
+    with pytest.raises(SkedgeError, match=message):
+        resolve(dataset, skedge)

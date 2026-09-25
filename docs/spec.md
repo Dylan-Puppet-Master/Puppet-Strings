@@ -255,10 +255,17 @@ normalizes to a built-in name, are a load error.
 | `dates` | | `dates.target`, and the scopes below |
 | `roles` | | `roles.first` … `roles.sixth`, `roles.lifeguard`, `roles.lifeguard_2` …, `roles.shadow`, `roles.scaffolded`, `roles.trainee` |
 | `mappings` | The mappings on the Mappings tab | |
+| `offerings` | The clinics on `dates.target`'s Offerings tab, under the block each runs in | `offerings` |
 
 A namespace is plural because it holds many names. `activities` has a branch per kind of
 activity, so `activities.clinics.archery_1_2` is a clinic and `activities.cabin_acts.p4`
 is a cabin act; only `activities` is both.
+
+An **offering** is one row of the Offerings tab: a clinic and the block it runs in, or the
+two blocks of a double. `offerings.clinic_2.archery_1_2` is archery as offered in clinic 2,
+an item; `offerings.clinic_2` is everything offered then, a set. A double is under both of
+its blocks, and is the same item by either name. There are offerings only for
+`dates.target`.
 
 Every name is either an **item** (one thing: `staff.rob`, `blocks.clinic_1`, `dates.target`)
 or a **set** (`staff.counselor`, `blocks`). Set names are plural or collective; there is
@@ -474,6 +481,12 @@ round: `videographer: ANY 1 {staff.dylan + staff.donny}` is
 
 `<what>` is an activity or a `'quoted task'`. "Anything at all" is not a target: nothing to
 do is `FREE`, something to do is `BUSY`, and someone resting is neither.
+
+`REQUEST <activity> [clauses]`, with no subject, is `REQUEST ANY staff DO <activity>`: the
+activity runs, staffed from its positions. `REQUEST <offering>` is the same for the
+offering's clinic, `DURING` its block, or `ALL` of a double's two, `ON dates.target`. An
+offering takes no clauses and no subject, and is one at a time, so all of a day's clinics
+are `REQUEST EACH offerings`. An offering anywhere else is an error.
 
 A missing `ON` is `ON dates.target`, everywhere in the language. A missing `DURING` is
 `ANY` of the blocks the date has: `REQUEST staff.rob DO 'x'` is at least once today.
@@ -822,6 +835,9 @@ the solver report:
 | `is one item and takes no quantifier` | `ANY staff.rob`; `WITH AT_LEAST 1 staff.vic`; `ALL blocks.clinic_1` right of `NOT`. |
 | `needs a quantifier: ALL or a count` | `WITH` or `WITHOUT` a set of several, with no quantifier. |
 | `counts who is alongside, so it takes ALL or a count` | `WITH EACH staff.mfgs` or `WITH ANY staff.mfgs`; likewise `WITHOUT`. |
+| `an offering already says when it runs, so it takes nothing more` | Any clause on `REQUEST <offering>`. |
+| `an offering is asked for on its own, as REQUEST EACH offerings` | An offering after `DO`, after `NOT DO`, or in a pattern. |
+| `one offering at a time: REQUEST EACH offerings` | `ALL`, `ANY` or a count of offerings. |
 | `one activity at a time` | `ALL` of several activities in blocks that are not pooled or counted, or a group on the activity. |
 | `one role at a time: AS_ROLE takes a role, ANY or EACH` | `ALL` of several roles, or a count of them. |
 | `describes the activity, so it goes after` | `AS_ROLE`, `FOR`, `WITH` or `WITHOUT` before the verb; the message names the clause and the verb. |

@@ -24,8 +24,9 @@ from puppet_strings.app.main import MainWindow  # noqa: E402
 from puppet_strings.app.requests_model import COLUMNS  # noqa: E402
 from puppet_strings.app.store import RequestStore  # noqa: E402
 from puppet_strings.config import Config  # noqa: E402
-from puppet_strings.model import Priority, Rest  # noqa: E402
+from puppet_strings.model import DAY, Priority, Rest  # noqa: E402
 from puppet_strings.sheets.source import CsvSource, LoadError  # noqa: E402
+from puppet_strings.skedge.resolve import offering_id  # noqa: E402
 from tests.conftest import FIXTURES, delete_requests, family_camp, saved_requests  # noqa: E402
 
 
@@ -85,9 +86,7 @@ def visible_ids(window):
 
 
 def test_table_and_filters(window):
-    assert window.proxy.rowCount() == 31
-    window.tag_filter.setCurrentText("clinic_import")
-    assert window.proxy.rowCount() == 24
+    assert window.proxy.rowCount() == 8
     window.tag_filter.setCurrentText("legal")
     assert visible_ids(window) == {"counselor-hours", "breaks"}
     window.tag_filter.setCurrentIndex(0)
@@ -102,11 +101,7 @@ def test_table_and_filters(window):
     assert "breaks" not in ids and {"dylan-off-ropes", "counselor-hours"} <= ids
     window.staff_filter.setCurrentIndex(0)
     window.activity_filter.setCurrentText("riflery")
-    assert visible_ids(window) == {
-        "clinic-preference",
-        "clinic-variety",
-        "offering:2026-09-16:riflery:clinic_3",
-    }
+    assert visible_ids(window) == {"clinic-preference", "clinic-variety", "clinics"}
     window.activity_filter.setCurrentIndex(0)
     window.date_filter.setDate(QDate(2026, 9, 19))
     ids = visible_ids(window)
@@ -137,7 +132,7 @@ def test_editor_validation_and_save(window):
     assert "3 EACH copies" in editor.status.text()
     editor.tags_edit.setText("training, week 2")
     editor.save_button.click()
-    assert window.model.rowCount() == 32
+    assert window.model.rowCount() == 9
     assert editor.id_label.text() == "s1-1"  # numbered in its scope, not made of the wording
     saved = saved_requests(window.store.source.root)["s1-1"]
     assert saved.tags == ("training", "week 2")
@@ -146,7 +141,7 @@ def test_editor_validation_and_save(window):
     editor.description_edit.setText("Dylan's day off, changed")
     editor.save_button.click()
     assert editor.id_label.text() == "s1-1"  # rewording it keeps the id
-    assert window.model.rowCount() == 32
+    assert window.model.rowCount() == 9
     editor.clear()
     editor.skedge_edit.setPlainText("REQUEST staff.dylan DO 'x' DURING blocks.clinic_1")
     editor.validate()  # the editor validates 300 ms after typing; tests cannot wait
@@ -154,9 +149,9 @@ def test_editor_validation_and_save(window):
     assert editor.id_label.text() == "s1-2"  # and a description is not needed at all
     assert window.model.request("s1-2").description == ""
     editor.delete_button.click()
-    assert window.model.rowCount() == 32
+    assert window.model.rowCount() == 9
     window._deleted("s1-1")
-    assert window.model.rowCount() == 31
+    assert window.model.rowCount() == 8
 
 
 def test_selecting_a_row_fills_the_editor(window):
@@ -196,7 +191,7 @@ def test_completer_finds_a_name_without_its_namespace(window):
     assert editor.skedge_edit.toPlainText() == "REQUEST staff.dylan"
     editor.skedge_edit.setPlainText("")
     QTest.keyClicks(editor.skedge_edit, "DURING clinic_3")
-    assert completions(editor) == ["blocks.clinic_3"]
+    assert completions(editor)[0] == "blocks.clinic_3"  # then what is offered in it
     editor.skedge_edit.setPlainText("")
     QTest.keyClicks(editor.skedge_edit, "AS_ROLE seco")
     assert completions(editor) == ["roles.second"]
@@ -314,6 +309,7 @@ def test_namespaces_panel_lists_namespaces(window):
         "dates",
         "roles",
         "mappings",
+        "offerings",
     ]
     assert names.topLevelItem(3).child(0).text(0).startswith("dates.")
     staff = names.topLevelItem(0)
@@ -399,28 +395,10 @@ def test_calendar_click_inserts_a_date(window):
     assert window.editor.skedge_edit.toPlainText().endswith("2026-10-02")
 
 
-def test_the_clinics_are_made_from_the_offerings_tab_and_not_saved(window):
-    made = [r for r in window.store.requests if "clinic_import" in r.tags]
-    assert len(made) == 24 and all(r.priority.value == "CLINIC" for r in made)
-    assert not any("clinic_import" in r.tags for r in window.store.book.every())
-
-
-def test_deleting_an_edited_clinic_puts_back_the_offerings_tabs(window, informed):
-    from dataclasses import replace
-
-    riflery = "offering:2026-09-16:riflery:clinic_3"
-    made = window.model.request(riflery)
-    window.store.save(replace(made, description="riflery, edited"), riflery)
-    window.reload()
-    window.wait_for_load()
-    assert window.model.request(riflery).description == "riflery, edited"
-    before = window.model.rowCount()
-    window._deleted(riflery)
-    assert not informed  # nothing refused: the edits are what goes
-    assert window.model.rowCount() == before
-    assert window.model.request(riflery) == made
-    assert riflery not in {r.id for r in window.store.book.every()}
-    assert "back to the Offerings tab's" in window.status_label.text()
+def test_the_days_clinics_are_one_standing_request(window):
+    clinics = [r for r in window.store.requests if "offerings" in r.skedge]
+    assert [r.id for r in clinics] == ["clinics"]
+    assert len(window.store.resolved["clinics"]) == len(window.store.dataset.offerings) == 24
 
 
 def test_reloading_a_day_with_no_spreadsheet_makes_one(window):
@@ -431,16 +409,8 @@ def test_reloading_a_day_with_no_spreadsheet_makes_one(window):
     window.wait_for_load()
     assert window.store.dataset.target == date(2026, 9, 28)
     assert "Offerings" in window.store.source.tabs(where)
-    made = [r for r in window.store.requests if "clinic_import" in r.tags]
-    assert len(made) == len(window.store.dataset.offerings) > 0  # from the template's grid
-
-
-def test_an_imported_clinic_is_not_deleted_but_sent_to_the_offerings_tab(window, informed):
-    riflery = "offering:2026-09-16:riflery:clinic_3"
-    window._deleted(riflery)
-    window.delete_requests([window.model.request(riflery), window.model.request("breaks")])
-    assert window.model.request(riflery) is not None and window.model.request("breaks")
-    assert len(informed) == 2 and "Offerings tab" in informed[0]
+    offered = window.store.dataset.offerings  # from the template's grid
+    assert len(window.store.resolved["clinics"]) == len(offered) > 0
 
 
 def test_reload_picks_up_a_request_deleted_from_the_file(window):
@@ -451,7 +421,7 @@ def test_reload_picks_up_a_request_deleted_from_the_file(window):
     window.reload()
     window.reload()  # a second click while loading queues another load, not a no-op
     window.wait_for_load()
-    assert window.model.rowCount() == 30
+    assert window.model.rowCount() == 7
     assert window.model.request(shown) is None
     assert window.editor.original_id is None and window.loader is None
 
@@ -703,8 +673,8 @@ def test_groups_pane_lists_defaults_with_counts(window):
     rows = group_rows(window)
     assert list(rows)[:2] == [ALL, UNGROUPED]
     assert list(rows)[2:] == list(DEFAULT_GROUPS)
-    assert rows[ALL] == 31
-    assert rows[UNGROUPED] == 25  # the generated clinic requests are in no group
+    assert rows[ALL] == 8
+    assert rows[UNGROUPED] == 2
     assert rows["Special daily requests"] == 3 and rows["Special weekly requests"] == 3
 
 
@@ -716,10 +686,9 @@ def test_picking_a_group_filters_the_table(window):
     assert visible_ids(window) == {"clinic-preference", "clinic-variety"}
     window.priority_filter.setCurrentIndex(0)
     pick_group(window, UNGROUPED)
-    shown = visible_ids(window)
-    assert len(shown) == 25 and all("offering" in i or i == "cabin-acts" for i in shown)
+    assert visible_ids(window) == {"cabin-acts", "clinics"}
     pick_group(window, ALL)
-    assert window.proxy.rowCount() == 31
+    assert window.proxy.rowCount() == 8
 
 
 def test_making_a_group_and_dragging_requests_onto_it(window, monkeypatch):
@@ -838,8 +807,8 @@ def test_renaming_and_deleting_a_group(window, monkeypatch):
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
     window.groups.delete_group()
     assert "Ropes" not in group_rows(window)
-    assert window.model.rowCount() == 31  # the requests stay, on no shelf
-    assert group_rows(window)[UNGROUPED] == 27
+    assert window.model.rowCount() == 8  # the requests stay, on no shelf
+    assert group_rows(window)[UNGROUPED] == 4
 
 
 def test_a_default_group_cannot_be_renamed_and_a_name_is_not_taken_twice(window, monkeypatch):
@@ -936,13 +905,13 @@ def test_saving_a_request_outside_the_date_asks_first(window, monkeypatch):
     editor.save_button.click()
     assert asked and "does not cover 2026-09-16" in asked[0]
     assert "2026-09-27, 2026-09-28, 2026-09-29 and 4 more" in asked[0]
-    assert window.model.rowCount() == 31  # cancelled: nothing saved, still editing
+    assert window.model.rowCount() == 8  # cancelled: nothing saved, still editing
     assert window.editor.original_id is None
     assert "Not saved" in window.status_label.text()
 
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Save)
     editor.save_button.click()
-    assert window.model.rowCount() == 32
+    assert window.model.rowCount() == 9
     saved = editor.original_id
     assert window.model.request(saved) is not None
     assert window.date_check.isChecked()  # it does nothing on the date being scheduled
@@ -1635,23 +1604,18 @@ def test_a_keyword_is_coloured_in_whichever_case_it_is_written_in(window):
 # -- moving between days, and deleting many at once ------------------------------------------
 
 
-def test_another_days_offerings_are_not_shown(window):
-    """Offerings are the day's own: moving the date reads the new day, without the old one's.
+def test_the_clinics_asked_for_are_the_days_own_offerings(window):
+    """Moving the date reads the new day's Offerings tab, without the old one's."""
 
-    Each day's clinics are made from its own Offerings tab.
-    """
-    assert any(r.id.startswith("offering:2026-09-16:") for r in window.store.requests)
-    window.date_edit.setDate(QDate(2026, 9, 17))
-    window.date_edit.editingFinished.emit()  # the date box, finished with
-    window.wait_for_load()
-    assert window.store.dataset.target == date(2026, 9, 17)
-    imported = [r for r in window.store.requests if "clinic_import" in r.tags]
-    assert imported and all(r.id.startswith("offering:2026-09-17:") for r in imported)
-    window.date_edit.setDate(QDate(2026, 9, 16))
-    window.date_edit.editingFinished.emit()
-    window.wait_for_load()
-    generated = [r for r in window.store.requests if "clinic_import" in r.tags]
-    assert generated and all(r.id.startswith("offering:2026-09-16:") for r in generated)
+    def asked() -> set[tuple[str, date]]:
+        copies = window.store.resolved["clinics"]
+        return {(copy.key, copy.statements[0].on.items[0]) for copy in copies}
+
+    for day in (date(2026, 9, 16), date(2026, 9, 17)):
+        window.date_edit.setDate(QDate(day.year, day.month, day.day))
+        window.date_edit.editingFinished.emit()  # the date box, finished with
+        window.wait_for_load()
+        assert asked() == {(offering_id(o), day) for o in window.store.dataset.offerings}
 
 
 def test_the_same_date_is_not_read_again(window):
@@ -1660,15 +1624,10 @@ def test_the_same_date_is_not_read_again(window):
 
 
 def select_rows(window, count: int) -> list[str]:
-    """Pick the first rows that are not clinics from the Offerings tab, which do not delete."""
+    """Pick the first rows."""
     selection = window.table.selectionModel()
     selection.clearSelection()
-    rows = [
-        i
-        for i in range(window.proxy.rowCount())
-        if "clinic_import" not in window.proxy.data(window.proxy.index(i, 0), Qt.UserRole).tags
-    ]
-    for row in rows[:count]:
+    for row in range(count):
         index = window.proxy.index(row, 0)
         selection.select(index, QItemSelectionModel.Select | QItemSelectionModel.Rows)
     return [r.id for r in window.selected_requests()]
@@ -1709,11 +1668,8 @@ def test_the_on_date_box_starts_ticked_and_unticked_lists_every_date(window):
     window.date_edit.setDate(QDate(2026, 9, 16))
     window.date_edit.editingFinished.emit()
     window.wait_for_load()
-    other_day = "offering:2026-09-17:riflery:clinic_3"
-    assert other_day not in {r.id for r in window.store.every}  # made on its own day only
     window.date_check.setChecked(False)
-    assert other_day not in visible_ids(window)
-    assert "offering:2026-09-16:riflery:clinic_3" in visible_ids(window)
+    assert visible_ids(window) == {r.id for r in window.store.every}
 
 
 def test_a_request_from_another_date_saves_without_being_solved(window, monkeypatch):
@@ -1721,9 +1677,11 @@ def test_a_request_from_another_date_saves_without_being_solved(window, monkeypa
     window.date_edit.setDate(QDate(2026, 9, 17))
     window.date_edit.editingFinished.emit()
     window.wait_for_load()
-    other_day = "offering:2026-09-17:riflery:clinic_3"
-    request = window.model.request(other_day)
-    window.store.save(replace(request, description="moved"), other_day)  # an edited clinic
+    breaks = window.model.request("breaks")
+    that_day = window.store.dataset.scope(DAY)
+    other_day = window.store.save(
+        replace(breaks, id="", description="moved", scope=that_day), None
+    ).id
     window.date_edit.setDate(QDate(2026, 9, 16))
     window.date_edit.editingFinished.emit()
     window.wait_for_load()
@@ -1756,7 +1714,7 @@ def test_the_group_counts_follow_the_filters(window):
     for change in (
         lambda: window.date_check.setChecked(False),
         lambda: window.date_check.setChecked(True),
-        lambda: window.tag_filter.setCurrentText("clinic_import"),
+        lambda: window.tag_filter.setCurrentText("legal"),
         lambda: window.text_filter.setText("dylan"),
     ):
         change()
@@ -1765,8 +1723,7 @@ def test_the_group_counts_follow_the_filters(window):
     window.tag_filter.setCurrentIndex(0)
     window.text_filter.setText("")
     window.date_check.setChecked(False)
-    made = len(window.store.dataset.offerings)  # the day's clinics, which are not saved
-    assert counts()[ALL] == len(window.store.every) == window.store.book.count() + made
+    assert counts()[ALL] == len(window.store.every) == window.store.book.count()
 
 
 def test_before_any_load_unticking_lists_the_whole_file(app, fixtures_copy):

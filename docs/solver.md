@@ -58,9 +58,9 @@ These come from the sheets and never need a request:
 1. No one's assignments overlap in time. A clinic fills its block; a `FOR` task takes
    part of a block, and several such tasks can share one block back to back.
 2. A position is filled only by someone checked off on its skill with a high enough RAL.
-3. A clinic runs only where a `REQUEST … DO` names it. Each offered clinic is such a
-   request at `CLINIC` priority, made from the Offerings tab when the date is loaded; a clinic runs fully
-   staffed or not at all.
+3. A clinic runs only where a request names it. `REQUEST EACH offerings`, at `CLINIC`
+   priority, names every clinic on the day's Offerings tab; a clinic runs fully staffed or
+   not at all.
 4. A water clinic's `LG_Required` lifeguards are extra positions beyond its facilitators,
    each needing the `LIFEGUARD` skill at RAL 5.
 5. Trainees never fill a position. A shadow needs the clinic fully staffed; a scaffolded
