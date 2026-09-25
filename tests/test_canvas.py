@@ -536,3 +536,31 @@ def test_the_table_is_sorted_again_when_it_comes_back(window):
     assert window.proxy.sortColumn() == 1
     assert window.proxy.sortOrder() == Qt.DescendingOrder
     assert header.sortIndicatorSection() == 1
+
+
+def test_a_new_card_stays_where_it_was_written_until_the_canvas_is_zoomed_out(window):
+    from puppet_strings.app.canvas.card import FULL_DETAIL
+    from puppet_strings.app.canvas.layout import HEADER, PAD
+    from puppet_strings.model import Priority
+
+    canvas = window.canvas
+    show_card(canvas, "breaks")
+    canvas.new_card(DAILY)
+    card = canvas.active
+    canvas.editor.description_edit.setText("Low, and written first")
+    canvas.editor.priority_box.setCurrentText(Priority.LOW.value)
+    canvas.editor.skedge_edit.setPlainText(
+        "REQUEST staff.dylan NOT DO ANY activities.clinics.ropes ON 2026-09-16"
+    )
+    canvas.deactivate()
+    assert card.request is not None  # saved
+
+    def first(card) -> bool:
+        frame = canvas.arrangement.frames[DAILY]
+        return canvas.arrangement.cards[card.key] == (frame.x + PAD, frame.y + HEADER)
+
+    assert canvas.zoom >= FULL_DETAIL and first(card)  # LOW, but it stays where it was written
+    canvas.look(canvas.center(), FULL_DETAIL * 0.9)
+    assert card.kept is None and not first(card)  # zoomed out: it goes to LOW's place
+    canvas.look(canvas.center(), 1.0)
+    assert not first(card)  # and stays there

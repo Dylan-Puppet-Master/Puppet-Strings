@@ -198,6 +198,9 @@ class CardItem(QGraphicsObject):
         self.editing = False
         self.hovered = False
         self.placed = False  # put in its spot yet, so later moves glide rather than jump
+        # Made here, on the canvas: the how-manyeth, which is where it stays in its frame,
+        # saved or not, until the canvas lets it go (see `Canvas.relayout`). None otherwise.
+        self.kept: int | None = None
         self.editor_height = 0.0  # while editing, how tall the form on the card is
         self.regions: dict[str, QRectF] = {}  # where each field is painted, for a click to find
         self.code = QTextDocument()

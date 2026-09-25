@@ -96,7 +96,10 @@ pane, the filters, the Namespaces and Calendar panes, and the Errors and Message
   saved.
 - **New requests.** Press **New request** beside the zoom controls or in a frame's header,
   double-click inside a frame, or press **N** for the group nearest the middle of the view.
-  A new card left empty is thrown away.
+  A new card left empty is thrown away. New cards go at the front of their frame, and
+  stay where they are once saved for as long as you are zoomed in far enough to read the
+  cards in full, so several written in a row do not jump about. Zoom out past that and
+  they move to their priority's place with the rest.
 - **Moving and deleting.** Drag a card onto another frame, or onto a group in the groups
   pane, to move it to that group. Shift-click, or Shift-drag a box, to pick several.
   **Delete** deletes the cards picked, after asking.

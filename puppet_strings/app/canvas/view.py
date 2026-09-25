@@ -54,6 +54,7 @@ from PySide6.QtWidgets import (
 from puppet_strings.app import palette
 from puppet_strings.app.canvas.card import (
     BAD,
+    FULL_DETAIL,
     INSET,
     NOTE,
     OK,
@@ -391,7 +392,16 @@ class Canvas(QGraphicsView):
         return order
 
     def relayout(self, animate: bool = True) -> None:
-        """Put every frame and card where the arrangement says, gliding there if asked."""
+        """Put every frame and card where the arrangement says, gliding there if asked.
+
+        A frame's cards go in order of priority, except the ones made here: those come
+        first, in the order they were made, and stay there once saved while the cards can
+        be read in full. Making several requests in a row, each one saved stays where it
+        was written rather than going off to its priority's place, possibly off screen.
+        Zoomed out from full detail, they are let go and take their places with the rest.
+        """
+        if self.zoom < FULL_DETAIL:
+            self._let_go()
         order = self.group_order()
         members: dict[str, list[CardItem]] = {g: [] for g in order}
         for card in self.cards.values():
@@ -450,6 +460,13 @@ class Canvas(QGraphicsView):
             self.motion.start()
         self._place_proxy()
         self.minimap.redraw()
+
+    def _let_go(self) -> bool:
+        """Let the cards made here and saved since take their places; say if there were any."""
+        kept = [c for c in self.cards.values() if c.kept is not None and c.request is not None]
+        for card in kept:
+            card.kept = None
+        return bool(kept)
 
     def group_of_request(self, request: Request) -> str:
         """The key of the frame a request belongs in."""
@@ -635,7 +652,9 @@ class Canvas(QGraphicsView):
         group = "" if group in (UNGROUPED, ALL) else group
         self.editor.clear(group, self.store.group_scopes.of(group) if group else "")
         draft = self.editor.current()
-        card = CardItem(f"draft:{next(self.drafts)}", None, draft)
+        made = next(self.drafts)
+        card = CardItem(f"draft:{made}", None, draft)
+        card.kept = made
         card.set_status(Status(UNSAVED, "New request"))
         self._add(card, fade=False)  # there at once: it is what was just asked for
         self.scene().clearSelection()
@@ -677,6 +696,8 @@ class Canvas(QGraphicsView):
         self.centerOn(center)
         self.zoom_bar.show_zoom(self.zoom)
         self.minimap.update()
+        if self.zoom < FULL_DETAIL and self._let_go():
+            self.relayout(animate=True)  # zoomed out: the new cards take their places
 
     @property
     def far(self) -> bool:
@@ -1235,6 +1256,8 @@ class Canvas(QGraphicsView):
 
 
 def _card_order(card: CardItem) -> tuple:
-    """New cards first, then by priority, then by id."""
+    """Cards made here and kept first, as they were made; then by priority, then by id."""
+    if card.kept is not None:
+        return (0, card.kept, 0, "")
     request = card.shown
-    return (card.request is not None, RANKS.get(request.priority, 99), request.id or "")
+    return (1, 0, RANKS.get(request.priority, 99), request.id or "")
