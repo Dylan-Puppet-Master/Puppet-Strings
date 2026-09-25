@@ -1581,3 +1581,27 @@ def test_a_date_camp_is_not_running_still_lists_every_request(window, monkeypatc
     window.staff_filter.setCurrentIndex(0)
     window.table.selectRow(0)  # a request opens, scope and all, with no date loaded
     assert window.editor.original_id and window.editor.scope_box.count() == 1
+
+
+def test_enter_after_a_whole_name_starts_a_new_line(window):
+    """A namespace or name written in full is done; Enter ends the line, Down still picks."""
+    editor = window.editor
+    editor.clear()
+    box = editor.skedge_edit
+    for text in ("REQUEST staff", "REQUEST staff.dylan"):
+        box.setPlainText("")
+        QTest.keyClicks(box, text)
+        assert box.completer.popup().isVisible(), text
+        QTest.keyClick(box.completer.popup(), Qt.Key_Return)
+        assert box.toPlainText() == text + "\n"
+        assert not box.completer.popup().isVisible()
+    box.setPlainText("")
+    QTest.keyClicks(box, "REQUEST staff")
+    QTest.keyClick(box.completer.popup(), Qt.Key_Down)
+    QTest.keyClick(box.completer.popup(), Qt.Key_Return)
+    assert "\n" not in box.toPlainText()  # a suggestion was taken, not a line begun
+    assert not box.completer.popup().isVisible()
+    box.setPlainText("")
+    QTest.keyClicks(box, "REQUEST staff.dyl")
+    QTest.keyClick(box.completer.popup(), Qt.Key_Return)
+    assert box.toPlainText() == "REQUEST staff.dylan"

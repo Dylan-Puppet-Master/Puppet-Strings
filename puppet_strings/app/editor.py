@@ -3,7 +3,7 @@
 import re
 from datetime import date, datetime
 
-from PySide6.QtCore import QRegularExpression, QStringListModel, Qt, QTimer, Signal
+from PySide6.QtCore import QModelIndex, QRegularExpression, QStringListModel, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
@@ -148,6 +148,7 @@ class SkedgeEdit(QPlainTextEdit):
         self.completer.activated.connect(self._insert_completion)
         self.every: list[str] = []
         self.but_dates: list[str] = []
+        self.whole: set[str] = set()  # names, namespaces and branches, each finished as typed
         self.showing: list[str] | None = None
 
     def set_dataset(self, dataset: Dataset | None) -> None:
@@ -159,6 +160,8 @@ class SkedgeEdit(QPlainTextEdit):
         """The names to suggest, as `namespace.name`. Reuses the model, leaving no garbage."""
         self.every = list(names)
         self.but_dates = [n for n in self.every if not n.startswith(self.DATES)]
+        parts = (n.split(".") for n in self.every)
+        self.whole = {".".join(p[:i]) for p in parts for i in range(1, len(p) + 1)}
         self.showing = None
         self.names.setStringList(self.every)
 
@@ -176,12 +179,19 @@ class SkedgeEdit(QPlainTextEdit):
         Ctrl+S is asked for here rather than left to the editor around this box: with the
         popup open, the completer hands its keys straight to this box and nowhere else.
         """
+        popup = self.completer.popup()
         if event.key() == Qt.Key_S and event.modifiers() & Qt.ControlModifier:
-            self.completer.popup().hide()
+            popup.hide()
             self.save_requested.emit()
             return
+        if (
+            popup.isVisible()
+            and event.key() in (Qt.Key_Enter, Qt.Key_Return)
+            and not popup.currentIndex().isValid()
+        ):
+            popup.hide()  # nothing picked, so Enter is a new line; the completer sees it taken
         popup_keys = (Qt.Key_Enter, Qt.Key_Return, Qt.Key_Escape, Qt.Key_Tab, Qt.Key_Backtab)
-        if self.completer.popup().isVisible() and event.key() in popup_keys:
+        if popup.isVisible() and event.key() in popup_keys:
             event.ignore()
             return
         before = self.document().revision()
@@ -202,7 +212,10 @@ class SkedgeEdit(QPlainTextEdit):
         self._offer(self.every if "." in match.group() else self.but_dates)
         if match.group() != self.completer.completionPrefix():
             self.completer.setCompletionPrefix(match.group())
-            popup.setCurrentIndex(self.completer.completionModel().index(0, 0))
+            # A name or namespace already written in full picks nothing, so Enter ends the
+            # line there; Down picks the first suggestion.
+            first = self.completer.completionModel().index(0, 0)
+            popup.setCurrentIndex(QModelIndex() if match.group() in self.whole else first)
         if not self.completer.completionCount():
             popup.hide()
             return
