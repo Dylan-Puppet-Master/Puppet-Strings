@@ -13,7 +13,8 @@ def test_validate_and_names(capsys):
     assert "activities.clinics  (category" in out
     assert "blocks.meals" in out
     assert (
-        "offerings.clinic_2.blacksmithing_dbl  (Blacksmithing (DBL) in clinic_1, clinic_2)" in out
+        "activities.clinics.offerings.clinic_2.blacksmithing_dbl  (Blacksmithing (DBL) in clinic_1, clinic_2)"
+        in out
     )
 
 

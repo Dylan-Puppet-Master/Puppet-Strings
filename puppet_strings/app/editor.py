@@ -147,9 +147,14 @@ class SkedgeEdit(QPlainTextEdit):
         self.whole: set[str] = set()  # names, namespaces and branches, each finished as typed
 
     def set_dataset(self, dataset: Dataset | None) -> None:
-        """Suggest every name the dataset has, or none without one."""
+        """Suggest every name the dataset has, or none without one.
+
+        Shorter names first, since a match is on any part of a name: `clinic_3` is
+        `blocks.clinic_3` far more often than one of the day's offerings in it.
+        """
         listing = name_listing(dataset).items() if dataset is not None else ()
-        self.set_names([written(ns, name) for ns, rows in listing for name, _ in rows])
+        names = [written(ns, name) for ns, rows in listing for name, _ in rows]
+        self.set_names(sorted(names, key=lambda n: n.count(".")))
 
     def set_names(self, names: list[str]) -> None:
         """The names to suggest, as `namespace.name`. Reuses the model, leaving no garbage."""

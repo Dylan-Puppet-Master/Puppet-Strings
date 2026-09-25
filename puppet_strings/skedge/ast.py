@@ -4,15 +4,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import date
 
-from puppet_strings.skedge.namespaces import (
-    ACTIVITIES,
-    BLOCKS,
-    DATES,
-    OFFERINGS,
-    ROLES,
-    STAFF,
-    written,
-)
+from puppet_strings.skedge.namespaces import ACTIVITIES, BLOCKS, DATES, ROLES, STAFF, written
 
 ALL = "ALL"
 ANY = "ANY"  # any of these: the set is one pool
@@ -450,7 +442,7 @@ def selectors(line: Line) -> Iterator[tuple[str | None, Selector]]:
         if part.who is not None:
             yield STAFF, part.who
         if isinstance(getattr(part, "what", None), Selector):
-            yield (OFFERINGS if offers(part.what.expr) else ACTIVITIES), part.what
+            yield ACTIVITIES, part.what
         for c in part.clauses:
             if type(c) in NAMESPACES:
                 yield NAMESPACES[type(c)], c.selector
@@ -487,11 +479,6 @@ def nodes(expr: SetExpr) -> Iterator[SetExpr]:
             yield from nodes(arg)
     elif isinstance(expr, Group):
         yield from nodes(expr.expr)
-
-
-def offers(expr: SetExpr) -> bool:
-    """Whether an expression names offerings, which stand where an activity would."""
-    return any(isinstance(node, Ref) and node.namespace == OFFERINGS for node in nodes(expr))
 
 
 def vars_in(expr: SetExpr) -> Iterator[Var]:

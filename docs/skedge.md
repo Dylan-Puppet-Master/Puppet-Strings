@@ -64,17 +64,16 @@ Names are dotted, lowercase `snake_case`. Sheet values become identifiers by the
 | Namespace | Contents |
 |---|---|
 | `staff` | Staff members and staff categories, plus `staff.clinic_trainers` |
-| `activity` | Clinics and their categories (`activities.clinics.ropes`), and cabin acts (`activities.cabin_acts.p4`) |
+| `activity` | Clinics and their categories (`activities.clinics.ropes`), the day's offerings (`activities.clinics.offerings.clinic_2.archery_1_2`), and cabin acts (`activities.cabin_acts.p4`) |
 | `block` | Blocks and block categories (`blocks.meals`) |
 | `date` | `dates.target`, and the nested scopes below |
 | `role` | `roles.first`, `roles.second`, …; `roles.lifeguard`, `roles.lifeguard_2`; `roles.shadow`, `roles.scaffolded`, `roles.trainee` |
 | `mapping` | Mapping tables, such as `mappings.preference` and `mappings.buddy` |
-| `offering` | The day's Offerings tab by block: `offerings.clinic_2.archery_1_2` is archery in clinic 2, and `offerings.clinic_2` everything offered then |
 
 A namespace or a branch of one, written on its own, is everything under it: `staff` is
 everyone at camp, `blocks` every block, `activities.clinics` every clinic and
 `dates.session_4` every date of session 4. So no variable, label or definition can be
-called `staff`, `activities`, `blocks`, `dates`, `roles`, `mappings` or `offerings`.
+called `staff`, `activities`, `blocks`, `dates`, `roles` or `mappings`.
 
 A name is either one thing or a set, and sets are always plural or collective
 (`blocks`, `dates.mondays`). There is no `blocks.any`: "any block" is
@@ -416,12 +415,13 @@ REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
 
 A day's clinics are asked for the same way, but a clinic can run more than once a day, in
 different blocks, so what is asked for is an **offering**: one clinic in the block the
-Offerings tab puts it in. An offering already says when it runs, so its request says
+Offerings tab puts it in. `activities.clinics.offerings.clinic_2.archery_1_2` is archery
+as offered in clinic 2, and `activities.clinics.offerings.clinic_2` everything offered then. An offering already says when it runs, so its request says
 nothing more, and one standing request, at `CLINIC` priority, asks for every clinic of
 whichever day is being scheduled:
 
 ```skedge
-REQUEST EACH offerings
+REQUEST EACH activities.clinics.offerings
 ```
 
 Each offering is met or not on its own, and the report names any that is not by its
@@ -431,7 +431,7 @@ else either. To ask for one clinic differently, leave its offering out and write
 request:
 
 ```skedge
-REQUEST EACH {offerings - offerings.clinic_3.riflery}
+REQUEST EACH {activities.clinics.offerings - activities.clinics.offerings.clinic_3.riflery}
 REQUEST activities.clinics.riflery WITH staff.rob DURING blocks.clinic_3
 ```
 
@@ -894,7 +894,7 @@ every example on this page against it.
 
 ### Clinic assignment
 
-Archery runs during clinic 2. `REQUEST EACH offerings` asks this of every clinic on the
+Archery runs during clinic 2. `REQUEST EACH activities.clinics.offerings` asks this of every clinic on the
 Offerings tab, by name, and a clinic asked for by name is staffed from its positions;
 naming the positions instead asks for a different person in each with `EACH` — `ALL`
 would ask one person to hold both. The clinic runs fully staffed or not at all, so the

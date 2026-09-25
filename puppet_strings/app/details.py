@@ -11,7 +11,7 @@ they open nothing. Mappings open their table instead, because a mapping is worth
 rather than reading.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from puppet_strings.model import Activity, Dataset, SkillStatus, Staff
 from puppet_strings.skedge.namespaces import (
@@ -20,6 +20,7 @@ from puppet_strings.skedge.namespaces import (
     CABIN_ACTS,
     CLINICS,
     MAPPINGS,
+    OFFERINGS,
     STAFF,
 )
 
@@ -125,7 +126,32 @@ def _activities(name: str, rest: str, dataset: Dataset) -> Details | None:
         return _cabin_act(name, leaf, dataset)
     if branch == CLINICS and leaf in dataset.activities:
         return _activity(name, dataset.activities[leaf], dataset)
+    if branch == CLINICS and leaf.partition(".")[0] == OFFERINGS:
+        return _offerings(name, rest, dataset)
     return _set_of_activities(name, rest, dataset)
+
+
+def _offerings(name: str, rest: str, dataset: Dataset) -> Details | None:
+    """One offering is its clinic, at its time; several are listed, each at its time."""
+    from puppet_strings.skedge.resolve import activity_names, offering_id
+
+    named = activity_names(dataset).get(rest)
+    if named is None:
+        return None
+    offered = {offering_id(o): o for o in dataset.offerings}
+    if named.single:
+        offering = offered[next(iter(named.items))]
+        found = _activity(name, dataset.activities[offering.activity], dataset)
+        return replace(found, subtitle=f"{found.subtitle} in {', '.join(offering.blocks)}")
+    rows = tuple(
+        (dataset.activities[o.activity].name, ", ".join(o.blocks))
+        for o in sorted((offered[i] for i in named.items), key=lambda o: (o.blocks, o.activity))
+    )
+    return Details(
+        title=name,
+        subtitle=f"{len(rows)} offered on {dataset.target}",
+        sections=(Section("It holds", rows or (("nothing", ""),)),),
+    )
 
 
 def _cabin_act(name: str, cabin: str, dataset: Dataset) -> Details | None:

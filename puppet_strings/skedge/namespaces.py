@@ -5,9 +5,6 @@ written on its own is the whole collection: `staff` is everyone at camp, `blocks
 block and `dates.session_4` every date of session 4. `activities` nests: a clinic is
 `activities.clinics.archery_1_2` and a cabin act is `activities.cabin_acts.p4`, so what
 kind of thing a name stands for is part of the name rather than something to remember.
-
-`offerings` is the day's Offerings tab: each clinic in the block it is offered in,
-`offerings.clinic_2.archery_1_2`, so one name says what runs and when.
 """
 
 STAFF = "staff"
@@ -16,9 +13,8 @@ BLOCKS = "blocks"
 DATES = "dates"
 ROLES = "roles"
 MAPPINGS = "mappings"
-OFFERINGS = "offerings"
 
-NAMESPACES = (STAFF, ACTIVITIES, BLOCKS, DATES, ROLES, MAPPINGS, OFFERINGS)
+NAMESPACES = (STAFF, ACTIVITIES, BLOCKS, DATES, ROLES, MAPPINGS)
 
 WHOLE = ""  # the name of a namespace or branch itself: everything under it
 ALL = "all"  # the category the sheets file every staff member at camp and every block under
@@ -32,6 +28,10 @@ CABIN_ACTS = "cabin_acts"
 # block, and a few the board moves to rest hour.
 AT_CABIN_ACT = "at_cabin_act"
 AT_REST_HOUR = "at_rest_hour"
+
+# The day's Offerings tab, under `activities.clinics`: each clinic in the block it is offered
+# in, `activities.clinics.offerings.clinic_2.archery_1_2`, so one name says what runs and when.
+OFFERINGS = "offerings"
 
 # What a mapping key may name: any namespace but `mappings` itself.
 KEY_NAMESPACES = (STAFF, ACTIVITIES, BLOCKS, DATES, ROLES)

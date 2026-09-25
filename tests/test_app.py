@@ -309,7 +309,6 @@ def test_namespaces_panel_lists_namespaces(window):
         "dates",
         "roles",
         "mappings",
-        "offerings",
     ]
     assert names.topLevelItem(3).child(0).text(0).startswith("dates.")
     staff = names.topLevelItem(0)
@@ -396,7 +395,7 @@ def test_calendar_click_inserts_a_date(window):
 
 
 def test_the_days_clinics_are_one_standing_request(window):
-    clinics = [r for r in window.store.requests if "offerings" in r.skedge]
+    clinics = [r for r in window.store.requests if "clinics.offerings" in r.skedge]
     assert [r.id for r in clinics] == ["clinics"]
     assert len(window.store.resolved["clinics"]) == len(window.store.dataset.offerings) == 24
 

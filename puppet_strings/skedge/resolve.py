@@ -331,7 +331,6 @@ class _Names:
             DATES: date_names(dataset),
             ROLES: {r: Named(frozenset({r}), True) for r in roles},
             MAPPINGS: {m: Named(frozenset({m}), True) for m in dataset.mappings},
-            OFFERINGS: offering_names(dataset),
         }
         self.offerings = {offering_id(o): o for o in dataset.offerings}
         self.domains: dict[str, tuple[str, frozenset[Item]]] = {}  # by `keys`/`value` text
@@ -399,6 +398,9 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
     that is comes from the dates the request is about. Its own generated id is not a name,
     because nobody should have to write a date into one. `at_cabin_act` and `at_rest_hour`
     split the board by the block each act is in, so each half is asked for on its own.
+
+    `activities.clinics.offerings` is the day's Offerings tab (`offering_names`). Its items
+    are clinics at a time rather than clinics, so it is in none of the sets above it.
     """
     clinics = {i: a for i, a in dataset.activities.items() if not a.cabin}
     cabin_acts = {i: a for i, a in dataset.activities.items() if a.cabin}
@@ -409,6 +411,10 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
         {
             WHOLE: Named(frozenset(clinics), False),
             **_members(clinics, dataset.activity_categories),
+            **{
+                f"{OFFERINGS}.{name}" if name else OFFERINGS: named
+                for name, named in offering_names(dataset).items()
+            },
         },
     )
     _add(
@@ -432,12 +438,12 @@ def offering_id(offering: Offering) -> str:
 
 
 def offering_names(dataset: Dataset) -> dict[str, Named]:
-    """Every name in the `offerings` namespace: the target date's Offerings tab.
+    """The names under `activities.clinics.offerings`: the target date's Offerings tab.
 
     `offerings.clinic_2.archery_1_2` is archery as offered in clinic 2, and
     `offerings.clinic_2` everything offered then. A double is under both its blocks, and is
-    the same offering by either name. An offering is an activity and its time together,
-    which is why it is not under `activities`: asked for, it needs no DURING.
+    the same offering by either name. An offering is a clinic and its time together, so
+    asked for, it needs no DURING; like a cabin act, it belongs to one day, the target.
     """
     names = {WHOLE: Named(frozenset(offering_id(o) for o in dataset.offerings), False)}
     by_block: dict[str, set[str]] = {}
@@ -540,12 +546,16 @@ def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
         },
         BLOCKS: {i: f"{b.start:%H:%M}-{b.end:%H:%M}" for i, b in dataset.blocks.items()},
         MAPPINGS: {m: _mapping_note(v) for m, v in dataset.mappings.items()},
-        OFFERINGS: {
-            f"{b}.{o.activity}": f"{dataset.activities[o.activity].name} in {', '.join(o.blocks)}"
+    }
+    described[ACTIVITIES].update(
+        {
+            f"{CLINICS}.{OFFERINGS}.{b}.{o.activity}": (
+                f"{dataset.activities[o.activity].name} in {', '.join(o.blocks)}"
+            )
             for o in dataset.offerings
             for b in o.blocks
-        },
-    }
+        }
+    )
     listing = {}
     for namespace, names in _names(dataset).spaces.items():
         rows = [
@@ -569,7 +579,7 @@ def _note(namespace: str, name: str, named: Named) -> str:
             day = next(iter(named.items))
             return f"{day.isoformat()} ({day:%A})"
         return f"{len(named.items)} date" + ("" if len(named.items) == 1 else "s")
-    if namespace == OFFERINGS:
+    if namespace == ACTIVITIES and _offerings_name(name):
         return f"{len(named.items)} offered"
     if namespace == ROLES:
         if name in LIFEGUARD_ROLES:
@@ -884,15 +894,27 @@ def _anyone(what: ast.Target, scope: _Scope, pos: ast.Pos) -> Choice:
     return Choice(_sorted(everyone), POOL, pos=pos)
 
 
-ON_ITS_OWN = "an offering is asked for on its own, as REQUEST EACH offerings"
+EACH_OFFERING = "REQUEST EACH activities.clinics.offerings"
+ON_ITS_OWN = f"an offering is asked for on its own, as {EACH_OFFERING}"
+
+
+def _offerings_name(name: str) -> bool:
+    """Whether an `activities` name is the Offerings tab or part of it."""
+    branch = f"{CLINICS}.{OFFERINGS}"
+    return name == branch or name.startswith(f"{branch}.")
 
 
 def _offered(what: ast.Target, scope: _Scope) -> bool:
-    """Whether a statement's target is offerings, by name or by a variable bound to them."""
+    """Whether a statement's target is offerings, by name or by a variable bound to one."""
     if not isinstance(what, ast.Selector):
         return False
-    return ast.offers(what.expr) or any(
-        scope.vars.get(var.name, (None, None))[1] == OFFERINGS for var in ast.vars_in(what.expr)
+    return any(
+        (isinstance(node, ast.Ref) and node.namespace == ACTIVITIES and _offerings_name(node.name))
+        or (
+            isinstance(node, ast.Var)
+            and scope.vars.get(node.name, (None,))[0] in scope.names.offerings
+        )
+        for node in ast.nodes(what.expr)
     )
 
 
@@ -910,10 +932,12 @@ def _offering(statement: ast.Requirement, scope: _Scope) -> Requirement:
             statement.clauses[0].pos,
         )
     what = statement.what
-    choice = _choice(what, OFFERINGS, scope, pool=False)
+    choice = _choice(what, ACTIVITIES, scope, pool=False, when=(scope.dataset.target,))
     if choice.kind != ALL or len(choice.items) != 1 or choice.parts or choice.units:
-        raise _error("one offering at a time: REQUEST EACH offerings", what.pos)
-    offering = scope.names.offerings[choice.items[0]]
+        raise _error(f"one offering at a time: {EACH_OFFERING}", what.pos)
+    offering = scope.names.offerings.get(choice.items[0])
+    if offering is None:
+        raise _error("an offering is asked for apart from other activities", what.pos)
     return Requirement(
         who=_anyone(what, scope, statement.pos),
         what=Choice((offering.activity,), ALL, pos=what.pos),
@@ -1452,7 +1476,11 @@ def _on_those_days(
     one act on the day being asked about — and is then a single thing, which is why the
     request needs no quantifier for it. A name holding both kinds stays a set.
     """
-    dated = {i: scope.dataset.activities[i].day for i in items}
+    offerings = scope.names.offerings  # the target's, so of it
+    dated = {
+        i: scope.dataset.target if i in offerings else scope.dataset.activities[i].day
+        for i in items
+    }
     if not any(day is not None for day in dated.values()):
         return items, single
     kept = frozenset(i for i, day in dated.items() if day is None or day in when)

@@ -23,10 +23,10 @@ The day's clinics are asked for by one standing request, kept all season at `CLI
 priority:
 
 ```skedge
-REQUEST EACH offerings
+REQUEST EACH activities.clinics.offerings
 ```
 
-`offerings` is the loaded date's Offerings tab, each clinic in the block it runs in, so the
+`activities.clinics.offerings` is the loaded date's Offerings tab, each clinic in the block it runs in, so the
 one request asks for whatever that day offers; see
 [offerings](skedge.md#asking-for-an-activity-without-naming-anybody). Each clinic is
 staffed from its positions on Clinic_Data, and runs fully staffed or not at all.
@@ -37,7 +37,7 @@ set up is one click from being ready, and the next Reload reads what you put in 
 
 A clinic you add to the Offerings tab or take off it is asked for, or not, on the next
 **Reload**. To ask for one clinic differently, for example to limit who runs it, leave its
-offering out of `REQUEST EACH offerings` and write it a request of its own. **Solve** builds the schedule and opens
+offering out of `REQUEST EACH activities.clinics.offerings` and write it a request of its own. **Solve** builds the schedule and opens
 it in a window with the staff view, the clinic view and the report; it asks first if the
 date has no clinics offered.
 **Publish** in that window writes the day's own spreadsheet in the

@@ -296,7 +296,7 @@ manager offers the day, week, session and season of the date being scheduled. A 
 Skedge can still narrow the days it is about, with `ON`: its scope says when it is read,
 and its Skedge what it asks for once it is.
 
-A day's clinics are asked for by one season-long request, `REQUEST EACH offerings`, which
+A day's clinics are asked for by one season-long request, `REQUEST EACH activities.clinics.offerings`, which
 reads whichever day's Offerings tab is loaded; see the [Skedge
 reference](skedge.md#asking-for-an-activity-without-naming-anybody).
 

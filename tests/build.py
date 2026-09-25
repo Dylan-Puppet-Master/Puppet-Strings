@@ -52,7 +52,7 @@ SKILL_NAMES = {
 
 
 # What asks for the day's clinics, standing, as a Puppet Master's requests would have it.
-CLINICS = Request("clinics", "", "REQUEST EACH offerings", Priority.CLINIC)
+CLINICS = Request("clinics", "", "REQUEST EACH activities.clinics.offerings", Priority.CLINIC)
 
 
 def staff(name: str, ral: int = 5, **skills: SkillStatus) -> Staff:
