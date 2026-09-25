@@ -1,7 +1,7 @@
 """What floats over the canvas: the zoom controls, the minimap and the New request button."""
 
 from PySide6.QtCore import QEasingCurve, QPointF, QRectF, QSize, Qt, QVariantAnimation, Signal
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -130,6 +130,8 @@ class Minimap(QWidget):
         self.setFixedSize(self.SMALL)
         self.setCursor(Qt.PointingHandCursor)
         self.setToolTip("Click or drag to move around")
+        self.drawn: QPixmap | None = None  # the map without the view on it; see `_map`
+        self.drawn_for = None
         self.growth = QVariantAnimation(self)
         self.growth.setDuration(140)
         self.growth.setEasingCurve(QEasingCurve.OutCubic)
@@ -180,17 +182,30 @@ class Minimap(QWidget):
             rect.height() * scale,
         )
 
-    def paintEvent(self, event) -> None:  # noqa: N802
-        """The frames, the cards in their priorities' colours, and the view."""
-        painter = QPainter(self)
+    def redraw(self) -> None:
+        """The frames or the cards changed: draw the map afresh, not just the view on it."""
+        self.drawn = None
+        self.update()
+
+    def _map(self) -> QPixmap:
+        """The frames and the cards, drawn once and kept until they or the size change.
+
+        The map sits over the canvas, so it is painted again at every step of a pan or a
+        zoom; drawing hundreds of cards on it each time was a good part of what a step cost.
+        """
+        ratio = self.devicePixelRatioF()
+        if self.drawn is not None and self.drawn_for == (self.size(), ratio):
+            return self.drawn
+        pixmap = QPixmap(self.size() * ratio)
+        pixmap.setDevicePixelRatio(ratio)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.Antialiasing)
-        back = QColor(palette.SURFACE)
         painter.setPen(QPen(QColor(palette.LINE), 1))
-        painter.setBrush(back)
+        painter.setBrush(QColor(palette.SURFACE))
         painter.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 10, 10)
         bounds, scale, offset = self._mapping()
         frames, cards = self.canvas.minimap_items()
-        painter.setPen(QPen(QColor(palette.LINE), 1))
         painter.setBrush(QColor(palette.WINDOW))
         for rect in frames:
             painter.drawRoundedRect(self._to_map(rect, bounds, scale, offset), 2, 2)
@@ -200,6 +215,16 @@ class Minimap(QWidget):
             colour.setAlpha(170)
             painter.setBrush(colour)
             painter.drawRect(self._to_map(rect, bounds, scale, offset))
+        painter.end()
+        self.drawn, self.drawn_for = pixmap, (self.size(), ratio)
+        return pixmap
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        """The frames, the cards in their priorities' colours, and the view."""
+        painter = QPainter(self)
+        painter.drawPixmap(0, 0, self._map())
+        painter.setRenderHint(QPainter.Antialiasing)
+        bounds, scale, offset = self._mapping()
         view = self._to_map(self.canvas.visible_rect(), bounds, scale, offset)
         view = view.intersected(QRectF(self.rect()).adjusted(2, 2, -2, -2))
         fill = QColor(palette.HIGHLIGHT)

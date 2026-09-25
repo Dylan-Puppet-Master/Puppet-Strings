@@ -13,8 +13,9 @@ group and find the one wanted.
 """
 
 from dataclasses import dataclass
+from math import acos, degrees, sqrt
 
-from PySide6.QtCore import QEvent, QObject, QRectF, QSizeF, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSizeF, Qt, Signal
 from PySide6.QtGui import (
     QAbstractTextDocumentLayout,
     QColor,
@@ -130,6 +131,17 @@ def priority_colour(priority: Priority) -> QColor:
     return QColor(PRIORITY_COLOURS.get(priority, palette.QUIET))
 
 
+def _block_colour(priority: Priority, picked: bool) -> QColor:
+    colour = priority_colour(priority)
+    colour.setAlpha(150 if picked else 95)
+    return colour
+
+
+# made once rather than for each card at each frame, as hundreds are painted from far out
+BLOCK_COLOURS = {(p, picked): _block_colour(p, picked) for p in Priority for picked in (0, 1)}
+DOT_COLOURS = {kind: QColor(colour) for kind, colour in STATUS_COLOURS.items()}
+
+
 def _wrapped(text: str, font: QFont, width: float, lines: int | None = None) -> float:
     """How tall a paragraph is, wrapped to a width, at most `lines` lines of it."""
     metrics = QFontMetricsF(font)
@@ -165,6 +177,9 @@ class CardItem(QGraphicsObject):
         self.code.setDefaultTextOption(option)
         self.highlighter = SkedgeHighlighter(self.code)
         self.height = 0.0
+        self.face = self.bounds = QRectF()
+        self.stripe = QPainterPath()
+        self.stripe_for = None  # the height `stripe` was built for
         self.setFlag(QGraphicsItem.ItemIsSelectable)
         self.setAcceptHoverEvents(True)
         self.setCursor(Qt.PointingHandCursor)
@@ -209,8 +224,7 @@ class CardItem(QGraphicsObject):
         """Work out where each field goes, and so how tall the card is."""
         self.prepareGeometryChange()
         if self.editing:
-            self.height = self.editor_height + 2 * INSET
-            self.update()
+            self._set_height(self.editor_height + 2 * INSET)
             return
         request = self.shown
         regions = {}
@@ -241,7 +255,17 @@ class CardItem(QGraphicsObject):
         regions["status"] = QRectF(INSET, y, INNER, high)
         y += high + INSET
         self.regions = regions
-        self.height = y
+        self._set_height(y)
+
+    def _set_height(self, height: float) -> None:
+        """Take a new height, and the rectangles that go with it, kept for painting.
+
+        Qt asks for the bounding rectangle several times a frame, for every card on
+        screen; from far out that is hundreds, so they are made here rather than there.
+        """
+        self.height = height
+        self.face = QRectF(0, 0, CARD_WIDTH, height)
+        self.bounds = self.face.adjusted(-10, -10, 10, 16)
         self.update()
 
     def _tag_rows(self, tags: tuple[str, ...]) -> list[list[tuple[str, float]]]:
@@ -260,11 +284,11 @@ class CardItem(QGraphicsObject):
 
     def card_rect(self) -> QRectF:
         """The card itself, without the shadow round it."""
-        return QRectF(0, 0, CARD_WIDTH, self.height)
+        return self.face
 
     def boundingRect(self) -> QRectF:  # noqa: N802
         """The card and its shadow."""
-        return self.card_rect().adjusted(-10, -10, 10, 16)
+        return self.bounds
 
     def shape(self) -> QPainterPath:
         """Clicks land on the card, not on its shadow."""
@@ -293,11 +317,13 @@ class CardItem(QGraphicsObject):
         lod = QStyleOptionGraphicsItem.levelOfDetailFromTransform(painter.worldTransform())
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.TextAntialiasing)
-        rect = self.card_rect()
-        colour = priority_colour(self.shown.priority)
+        rect = self.face
         if lod < SUMMARY:
-            self._paint_block(painter, rect, colour)
+            # Corners of a pixel or two look no different smoothed, and cost more.
+            painter.setRenderHint(QPainter.Antialiasing, RADIUS * lod >= 2)
+            self._paint_block(painter, rect)
             return
+        colour = priority_colour(self.shown.priority)
         self._paint_body(painter, rect, colour, lod)
         if self.editing:
             return  # the form draws the fields
@@ -311,22 +337,26 @@ class CardItem(QGraphicsObject):
         self._paint_meta(painter)
         self._paint_status(painter)
 
-    def _paint_block(self, painter: QPainter, rect: QRectF, colour: QColor) -> None:
+    def _paint_block(self, painter: QPainter, rect: QRectF) -> None:
         """From far off: the card as a block of its priority's colour."""
-        fill = QColor(colour)
-        fill.setAlpha(150 if self.isSelected() or self.editing else 95)
+        picked = self.isSelected() or self.editing
         painter.setPen(Qt.NoPen)
-        painter.setBrush(fill)
+        painter.setBrush(BLOCK_COLOURS[self.shown.priority, picked])
         painter.drawRoundedRect(rect, RADIUS, RADIUS)
         if self.status.kind in (BAD, WARNING, UNSAVED):
-            painter.setBrush(QColor(STATUS_COLOURS[self.status.kind]))
+            painter.setBrush(DOT_COLOURS[self.status.kind])
             painter.drawEllipse(QRectF(rect.right() - 40, 16, 24, 24))
 
     def _paint_body(self, painter: QPainter, rect: QRectF, colour: QColor, lod: float) -> None:
-        """The card's shadow, face, edge and stripe."""
+        """The card's shadow, face, edge and stripe.
+
+        The shadow is three layers close up; further out they are a pixel apart, so one is
+        drawn in their place, which spares the fill of two card-sized shapes per card.
+        """
         painter.setPen(Qt.NoPen)
         lift = 2.0 if self.lifted else 1.0
-        for grow, alpha in ((6, 18), (3, 30), (1, 50)):
+        layers = ((6, 18), (3, 30), (1, 50)) if lod >= FULL_DETAIL else ((3, 60),)
+        for grow, alpha in layers:
             shade = QColor(0, 0, 0, alpha)
             painter.setBrush(shade)
             spread = grow * lift
@@ -342,12 +372,29 @@ class CardItem(QGraphicsObject):
         else:
             painter.setPen(QPen(EDGE.lighter(125) if self.hovered else EDGE, 1.0))
         painter.drawRoundedRect(rect, RADIUS, RADIUS)
-        stripe = QPainterPath()
-        stripe.addRoundedRect(rect, RADIUS, RADIUS)
-        painter.save()
-        painter.setClipPath(stripe)
-        painter.fillRect(QRectF(0, 0, STRIPE, rect.height()), colour)
-        painter.restore()
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(colour)
+        painter.drawPath(self._stripe())
+
+    def _stripe(self) -> QPainterPath:
+        """The card's left edge as far in as the stripe goes, following its rounded corners.
+
+        Built as a shape rather than painted through a clip, which cost more than the rest
+        of the card's face put together. Kept until the card changes height.
+        """
+        if self.stripe_for == self.height:
+            return self.stripe
+        # where the corners' curve crosses the stripe's inner edge, in Qt's degrees
+        turn = degrees(acos((STRIPE - RADIUS) / RADIUS))
+        corner = QSizeF(2 * RADIUS, 2 * RADIUS)
+        path = QPainterPath()
+        path.moveTo(STRIPE, RADIUS - sqrt(RADIUS**2 - (RADIUS - STRIPE) ** 2))
+        path.arcTo(QRectF(QPointF(0, 0), corner), turn, 180 - turn)
+        path.lineTo(0, self.height - RADIUS)
+        path.arcTo(QRectF(QPointF(0, self.height - 2 * RADIUS), corner), 180, 180 - turn)
+        path.closeSubpath()
+        self.stripe, self.stripe_for = path, self.height
+        return path
 
     def _paint_summary(self, painter: QPainter, rect: QRectF, colour: QColor, lod: float) -> None:
         """Middle distance: the priority, and the description written large enough to read."""

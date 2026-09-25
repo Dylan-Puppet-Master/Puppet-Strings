@@ -449,7 +449,7 @@ class Canvas(QGraphicsView):
         if animate:
             self.motion.start()
         self._place_proxy()
-        self.minimap.update()
+        self.minimap.redraw()
 
     def group_of_request(self, request: Request) -> str:
         """The key of the frame a request belongs in."""
@@ -853,11 +853,13 @@ class Canvas(QGraphicsView):
         if press["kind"] == "group":
             if first:
                 self._lift_frame(press["item"])
+                self._hold_still(True)
             self._carry_frame(pos)
             return
         if press["kind"] == "card":
             if first:
                 self._lift(press["item"])
+                self._hold_still(True)
             if self.viewport().rect().contains(pos):
                 self._carry(pos)
             else:
@@ -898,7 +900,7 @@ class Canvas(QGraphicsView):
             self.scene().clearSelection()
 
     def _hold_still(self, panning: bool) -> None:
-        """Keep each card and frame as a picture while the canvas is dragged about.
+        """Keep each card and frame as a picture while the canvas, a card or a group is dragged.
 
         A drag only slides things along, so the pictures are moved rather than every card
         painted over again, shadows and text and all, on each move of the mouse. Not kept
@@ -1053,6 +1055,7 @@ class Canvas(QGraphicsView):
         """
         cards = self._put_down()
         self.press = None
+        self._hold_still(False)  # the release goes to the drag, not to the canvas
         self.relayout(animate=True)
         ids = [c.request_id for c in cards if c.request is not None]
         if not ids:
