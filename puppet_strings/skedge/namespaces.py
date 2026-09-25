@@ -3,8 +3,9 @@
 They are plural because each one is a collection of names, and a namespace or branch
 written on its own is the whole collection: `staff` is everyone at camp, `blocks` every
 block and `dates.session_4` every date of session 4. `activities` nests: a clinic is
-`activities.clinics.archery_1_2` and a cabin act is `activities.cabin_acts.p4`, so what
-kind of thing a name stands for is part of the name rather than something to remember.
+`activities.clinics.archery_1_2` and a cabin act is `activities.cabin_acts.at_cabin_act.p4`,
+so what kind of thing a name stands for is part of the name rather than something to
+remember.
 """
 
 STAFF = "staff"
@@ -25,7 +26,8 @@ CLINICS = "clinics"
 CABIN_ACTS = "cabin_acts"
 
 # The two kinds of cabin act, under `activities.cabin_acts`: most run in the cabin act
-# block, and a few the board moves to rest hour.
+# block, and a few the board moves to rest hour. Each of the day's acts is under one of
+# them by its cabin: `activities.cabin_acts.at_cabin_act.p4`.
 AT_CABIN_ACT = "at_cabin_act"
 AT_REST_HOUR = "at_rest_hour"
 

@@ -4,7 +4,7 @@ Names are looked up, set expressions evaluated, and `EACH` expanded into indepen
 copies of the declaration. A copy is what the solver compiles.
 """
 
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
@@ -393,17 +393,24 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
     up by accident. `activities` on its own is deliberately both: it is the only name that means
     every activity there is.
 
-    A clinic is named by itself or by its Clinic_Data category. A cabin act is named by its
-    cabin and nothing else: `activities.cabin_acts.p4` is P4's act, and which day's act
-    that is comes from the dates the request is about. Its own generated id is not a name,
-    because nobody should have to write a date into one. `at_cabin_act` and `at_rest_hour`
-    split the board by the block each act is in, so each half is asked for on its own.
+    A clinic is named by itself or by its Clinic_Data category. A cabin act is named by the
+    block the board puts it in and its cabin: `activities.cabin_acts.at_cabin_act.p4` is
+    P4's act today, in the cabin act block, and `activities.cabin_acts.at_rest_hour.m1` M1's
+    act moved to rest hour. They are the target date's board, as the offerings are its
+    Offerings tab, so a cabin has a name only on a day its act is there, and under the block
+    it is in that day. Its own generated id is not a name, because nobody should have to
+    write a date into one. `activities.cabin_acts` is today's acts, and `at_cabin_act` and
+    `at_rest_hour` each half of them, so each half is asked for on its own.
 
     `activities.clinics.offerings` is the day's Offerings tab (`offering_names`). Its items
     are clinics at a time rather than clinics, so it is in none of the sets above it.
     """
     clinics = {i: a for i, a in dataset.activities.items() if not a.cabin}
-    cabin_acts = {i: a for i, a in dataset.activities.items() if a.cabin}
+    today = {i: a for i, a in dataset.activities.items() if a.cabin and a.day == dataset.target}
+    halves = {
+        AT_CABIN_ACT: {i: a for i, a in today.items() if not a.rest_hour},
+        AT_REST_HOUR: {i: a for i, a in today.items() if a.rest_hour},
+    }
     names = {WHOLE: Named(frozenset(dataset.activities), False)}
     _add(
         names,
@@ -421,12 +428,13 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
         names,
         CABIN_ACTS,
         {
-            WHOLE: Named(frozenset(cabin_acts), False),
-            AT_CABIN_ACT: Named(
-                frozenset(i for i, a in cabin_acts.items() if not a.rest_hour), False
-            ),
-            AT_REST_HOUR: Named(frozenset(i for i, a in cabin_acts.items() if a.rest_hour), False),
-            **{cabin: Named(ids, False) for cabin, ids in _cabin_categories(cabin_acts).items()},
+            WHOLE: Named(frozenset(today), False),
+            **{half: Named(frozenset(acts), False) for half, acts in halves.items()},
+            **{
+                f"{half}.{normalize(a.cabin)}": Named(frozenset({i}), True)
+                for half, acts in halves.items()
+                for i, a in acts.items()
+            },
         },
     )
     return names
@@ -454,14 +462,6 @@ def offering_names(dataset: Dataset) -> dict[str, Named]:
             names[f"{block}.{offering.activity}"] = Named(frozenset({item}), True)
     names.update({b: Named(frozenset(items), False) for b, items in by_block.items()})
     return names
-
-
-def _cabin_categories(cabin_acts: Mapping[str, object]) -> dict[str, frozenset[str]]:
-    """`activities.cabin_acts.p4` is P4's act on every day the cabin act sheets cover."""
-    by_cabin: dict[str, set[str]] = {}
-    for activity_id, activity in cabin_acts.items():
-        by_cabin.setdefault(normalize(activity.cabin), set()).add(activity_id)
-    return {cabin: frozenset(ids) for cabin, ids in by_cabin.items()}
 
 
 def date_names(dataset: Dataset) -> dict[str, Named]:
@@ -539,9 +539,10 @@ def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:
         ACTIVITIES: {
             **{f"{CLINICS}.{i}": a.name for i, a in dataset.activities.items() if not a.cabin},
             **{
-                f"{CABIN_ACTS}.{normalize(a.cabin)}": f"cabin {a.cabin}"
+                f"{CABIN_ACTS}.{AT_REST_HOUR if a.rest_hour else AT_CABIN_ACT}."
+                f"{normalize(a.cabin)}": a.name
                 for a in dataset.activities.values()
-                if a.cabin
+                if a.cabin and a.day == dataset.target
             },
         },
         BLOCKS: {i: f"{b.start:%H:%M}-{b.end:%H:%M}" for i, b in dataset.blocks.items()},
@@ -660,10 +661,10 @@ def _expand(declaration: ast.Declaration, each: list, scope: _Scope) -> Iterator
 class _AnotherDay(Exception):
     """An EACH item is an activity that is not on the days its statement is about.
 
-    `EACH activities.cabin_acts` splits over every act of the season, because which
-    days a statement is about is only known once its ON is resolved. A copy whose act
-    belongs to another day asks for nothing that can happen on its own days, so it is no
-    copy at all -- rather than a request to run Friday's act on Wednesday.
+    `EACH activities.cabin_acts` splits over the target date's acts, before which days a
+    statement is about is known, since that is only once its ON is resolved. A copy for a
+    day the act is not on asks for nothing that can happen on it, so it is no copy at all
+    -- rather than a request to run Wednesday's act on Friday.
     """
 
 
@@ -971,8 +972,7 @@ def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, poo
     without = ast.clause(clauses, ast.Without)
     target = Choice((scope.dataset.target,), POOL if pool else ALL)
     # The dates come first: an activity that belongs to one day, such as a cabin act, is
-    # only the one the request is about, so `activities.cabin_acts.p4 ON <a date>` is one
-    # thing and needs no quantifier, while the same name over a week is five.
+    # only there on the dates the request is about if one of them is its day.
     when = _choice(on.selector, DATES, scope, pool) if on else target
     blocks = _choice(during.selector, BLOCKS, scope, pool) if during else None
     if during and during.consecutive:
@@ -1332,9 +1332,9 @@ _CHOSEN = "left of NOT the subject is who the NOT is about, so it takes ALL, EAC
 def _matched(selector: ast.Selector, one: bool) -> None:
     """A set that is matched says so with ANY; one thing is written on its own.
 
-    Whether a name is one thing is asked of the name, not of the day: a cabin's act all
-    season, `activities.cabin_acts.p4`, is a set even on a day it comes to one act, so a
-    request says the same about it whichever day it is read on.
+    Whether a name is one thing is asked of the name, not of the day: a set of cabin acts
+    is a set even on a day it comes to one act, so a request says the same about it
+    whichever day it is read on.
     """
     if selector.quantifier is None and not one:
         raise _error(
@@ -1471,10 +1471,9 @@ def _on_those_days(
 ) -> tuple[frozenset[Item], bool]:
     """Keep only the activities that exist on the dates the request is about.
 
-    A clinic belongs to no day and always survives. A cabin act belongs to one, so a name
-    that stands for a cabin's act all season, `activities.cabin_acts.p4`, comes down to the
-    one act on the day being asked about — and is then a single thing, which is why the
-    request needs no quantifier for it. A name holding both kinds stays a set.
+    A clinic belongs to no day and always survives. A cabin act, or an offering, belongs to
+    one, the target date, so it is only there when the request is about that day. A name
+    holding both kinds stays a set.
     """
     offerings = scope.names.offerings  # the target's, so of it
     dated = {

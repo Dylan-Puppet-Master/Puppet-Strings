@@ -22,7 +22,8 @@ own — one request asks for all of them, and the positions say who by.
 
 An act whose title starts or ends with "RH" or "Rest Hour" is moved to rest hour, and the
 cabin rests in the cabin act block instead. It is marked so, and `activities.cabin_acts`
-names the two kinds apart; which block each runs in is still for a request to say.
+names the two kinds apart, `at_cabin_act.p4` and `at_rest_hour.p2`; which block each runs
+in is still for a request to say.
 """
 
 import re

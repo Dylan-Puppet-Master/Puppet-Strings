@@ -250,15 +250,21 @@ normalizes to a built-in name, are a load error.
 | Namespace | Holds | Built in |
 |---|---|---|
 | `staff` | Staff members, staff categories | `staff`, `staff.clinic_trainers` |
-| `activities` | Clinics under `clinics`, with the day's offerings under `clinics.offerings`; cabin acts under `cabin_acts` | `activities`, `activities.clinics`, `activities.clinics.offerings`, `activities.cabin_acts` |
+| `activities` | Clinics under `clinics`, with the day's offerings under `clinics.offerings`; the day's cabin acts under `cabin_acts` | `activities`, `activities.clinics`, `activities.clinics.offerings`, `activities.cabin_acts` |
 | `blocks` | Blocks, block categories | `blocks` |
 | `dates` | | `dates.target`, and the scopes below |
 | `roles` | | `roles.first` … `roles.sixth`, `roles.lifeguard`, `roles.lifeguard_2` …, `roles.shadow`, `roles.scaffolded`, `roles.trainee` |
 | `mappings` | The mappings on the Mappings tab | |
 
 A namespace is plural because it holds many names. `activities` has a branch per kind of
-activity, so `activities.clinics.archery_1_2` is a clinic and `activities.cabin_acts.p4`
-is a cabin act; only `activities` is both.
+activity, so `activities.clinics.archery_1_2` is a clinic and
+`activities.cabin_acts.at_cabin_act.p4` is a cabin act; only `activities` is both.
+
+The cabin act names are `dates.target`'s board. `activities.cabin_acts` is the day's acts,
+`activities.cabin_acts.at_cabin_act` those in the cabin act block and
+`activities.cabin_acts.at_rest_hour` those the board moves to rest hour, and each act is an
+item under its half by its cabin: `activities.cabin_acts.at_rest_hour.p2`. A cabin has a
+name only on a day it has an act, under the half its act is in that day.
 
 An **offering** is one row of the Offerings tab: a clinic and the block it runs in, or the
 two blocks of a double. `activities.clinics.offerings.clinic_2.archery_1_2` is archery as
@@ -554,8 +560,8 @@ date) in which the staff member is free, or busy. A clause left out does not fil
 In a pattern a set is a **pool**: the pattern matches an assignment whose field is any
 member. A pool says so with `ANY`: `ANY staff.counselor`. A set with no quantifier is an
 error in a pattern; an item still takes none, and whether a name is an item is a question
-about the name, not the day, so a cabin's act all season, `activities.cabin_acts.p4`, takes
-`ANY` even on a day it comes to one act. `EACH` splits the declaration as anywhere. A count,
+about the name, not the day, so `activities.cabin_acts.at_rest_hour` takes `ANY` even on a
+day it comes to one act. `EACH` splits the declaration as anywhere. A count,
 `ANY n` and an `(ANY n …)` group are errors in a pattern, and so is `ALL` in a score, which
 matches one assignment at a time.
 

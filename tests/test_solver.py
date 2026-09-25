@@ -1690,7 +1690,9 @@ def test_a_position_may_name_one_person():
     ds = dataset(
         [staff("Dylan", archery_1_2=OK), staff("Rob", archery_1_2=OK)],
         [ARCHERY, act],
-        requests=[request("act", "REQUEST activities.cabin_acts.m1 DURING blocks.clinic_1")],
+        requests=[
+            request("act", "REQUEST activities.cabin_acts.at_cabin_act.m1 DURING blocks.clinic_1")
+        ],
     )
     result = run(ds)
     assert result.feasible
@@ -1703,7 +1705,9 @@ def test_a_position_may_name_a_category():
     ds = dataset(
         [staff("Dylan", archery_1_2=OK), staff("Rob", archery_1_2=OK)],
         [ARCHERY, act],
-        requests=[request("act", "REQUEST activities.cabin_acts.m2 DURING blocks.clinic_1")],
+        requests=[
+            request("act", "REQUEST activities.cabin_acts.at_cabin_act.m2 DURING blocks.clinic_1")
+        ],
     )
     result = run(ds)
     assert result.feasible

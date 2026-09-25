@@ -64,7 +64,7 @@ Names are dotted, lowercase `snake_case`. Sheet values become identifiers by the
 | Namespace | Contents |
 |---|---|
 | `staff` | Staff members and staff categories, plus `staff.clinic_trainers` |
-| `activity` | Clinics and their categories (`activities.clinics.ropes`), the day's offerings (`activities.clinics.offerings.clinic_2.archery_1_2`), and cabin acts (`activities.cabin_acts.p4`) |
+| `activity` | Clinics and their categories (`activities.clinics.ropes`), the day's offerings (`activities.clinics.offerings.clinic_2.archery_1_2`), and the day's cabin acts (`activities.cabin_acts.at_cabin_act.p4`) |
 | `block` | Blocks and block categories (`blocks.meals`) |
 | `date` | `dates.target`, and the nested scopes below |
 | `role` | `roles.first`, `roles.second`, …; `roles.lifeguard`, `roles.lifeguard_2`; `roles.shadow`, `roles.scaffolded`, `roles.trainee` |
@@ -412,6 +412,10 @@ board moved to rest hour:
 REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
 REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
 ```
+
+The names are the board of the day being scheduled. Each act is under the half it is in by
+its cabin, so `activities.cabin_acts.at_cabin_act.p4` is P4's act today, and a cabin has a
+name only on a day it has an act.
 
 A day's clinics are asked for the same way, but a clinic can run more than once a day, in
 different blocks, so what is asked for is an **offering**: one clinic in the block the

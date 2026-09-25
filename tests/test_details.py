@@ -45,7 +45,7 @@ def test_a_clinic_shows_what_each_position_asks_for_and_who_could_hold_it(datase
 
 
 def test_a_cabin_act_shows_the_day_being_scheduled_and_its_card(dataset):
-    found = details("activities.cabin_acts.m2", dataset)
+    found = details("activities.cabin_acts.at_cabin_act.m2", dataset)
     assert found.subtitle == "M2 Fort Building on 2026-09-16"
     asks = rows(found, "It asks for")
     assert asks["first: Vic"] == "Vic"  # asked for by name, so nobody else will do
@@ -54,16 +54,14 @@ def test_a_cabin_act_shows_the_day_being_scheduled_and_its_card(dataset):
     assert rows(found, "On the cabin act board")["Activity"] == "Fort Building"
 
 
-def test_a_cabin_with_nothing_on_today_says_which_days_it_has(dataset):
-    found = details("activities.cabin_acts.p4", dataset)
-    assert found.subtitle == "nothing on 2026-09-16"
-    assert rows(found, "It does have these days") == {"2026-09-18": "P4 Tea Party"}
+def test_a_cabin_with_nothing_on_today_has_no_name_today(dataset):
+    assert details("activities.cabin_acts.at_cabin_act.p4", dataset) is None
 
 
 def test_a_set_of_activities_lists_them(dataset):
     found = details("activities.cabin_acts", dataset)
-    assert found.subtitle == "4 activities"
-    assert rows(found, "It holds")["M1 Lake Day"] == "2026-09-14"
+    assert found.subtitle == "1 activities"
+    assert rows(found, "It holds") == {"M2 Fort Building": "2026-09-16"}  # today's board
 
 
 @pytest.mark.parametrize("name", ["dates.target", "dates.session_1", "roles.first"])
@@ -121,7 +119,7 @@ def test_the_target_date_is_what_a_cabin_act_is_shown_for(source):
     from puppet_strings.sheets.load import load_dataset
 
     friday = load_dataset(source, Config(), date(2026, 9, 18))
-    found = details("activities.cabin_acts.p4", friday)
+    found = details("activities.cabin_acts.at_cabin_act.p4", friday)
     assert found.subtitle == "P4 Tea Party on 2026-09-18"
     assert rows(found, "It asks for")["first: Sarah"] == "Sarah"
 

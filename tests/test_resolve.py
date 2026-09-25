@@ -7,7 +7,6 @@ import pytest
 from puppet_strings.model import Priority, Request
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.ast import SkedgeError
-from puppet_strings.skedge.namespaces import written
 from puppet_strings.skedge.resolve import (
     ALL,
     ANY,
@@ -297,8 +296,8 @@ def test_name_listing_matches_the_namespaces(dataset):
     assert ("", "category, 21 members") in listing["staff"]
     assert ("", "category, 20 members") in listing["activities"]
     assert ("clinics", "category, 16 members") in listing["activities"]
-    assert ("cabin_acts", "category, 4 members") in listing["activities"]
-    assert ("cabin_acts.m1", "cabin M1") in listing["activities"]
+    assert ("cabin_acts", "category, 1 members") in listing["activities"]
+    assert ("cabin_acts.at_cabin_act.m2", "M2 Fort Building") in listing["activities"]
     assert ("session_1.week_2", "7 dates") in listing["dates"]
     assert ("mondays", "3 dates") in listing["dates"]
     assert ("weekdays", "15 dates") in listing["dates"]
@@ -381,7 +380,7 @@ def test_ast_positions_survive_into_errors(dataset):
     assert isinstance(ast.Pos(1, 24), ast.Pos)
 
 
-def test_each_of_the_cabin_acts_is_only_the_ones_on_the_day(dataset):
+def test_the_cabin_acts_are_only_the_ones_on_the_day(dataset):
     copies = resolve(dataset, "REQUEST EACH activities.cabin_acts DURING blocks.cabin_act")
     days = [dataset.activities[c.statements[0].what.items[0]].day for c in copies]
     assert days == [dataset.target]
@@ -390,23 +389,43 @@ def test_each_of_the_cabin_acts_is_only_the_ones_on_the_day(dataset):
         "REQUEST EACH activities.cabin_acts DURING blocks.cabin_act "
         "ON EACH {2026-09-14 .. 2026-09-18}",
     )
-    assert len(week) == 3  # Monday's, Wednesday's and Friday's; the 28th is another week
+    assert len(week) == 1  # the other days' acts are on their own days' boards
 
 
-def test_the_board_splits_into_cabin_act_and_rest_hour_acts(dataset):
+@pytest.mark.parametrize(
+    ("day", "at_cabin_act", "at_rest_hour"),
+    [
+        (date(2026, 9, 16), {"m2": "M2 Fort Building"}, {}),
+        (date(2026, 9, 28), {}, {"m1": "M1 RH: Gaga Ball"}),
+    ],
+)
+def test_each_act_is_named_under_the_block_the_days_board_puts_it_in(
+    source, day, at_cabin_act, at_rest_hour
+):
     """An act titled "RH: …" is under at_rest_hour; every other one is under at_cabin_act."""
-    split = {
-        name: resolve(
-            dataset,
-            f"REQUEST EACH {written('activities.cabin_acts', name)} DURING "
-            "blocks.cabin_act ON EACH dates.season",
+    from puppet_strings.sheets.load import load_dataset
+    from tests.conftest import CONFIG
+
+    that_day = load_dataset(source, CONFIG, day)
+    halves = (
+        ("at_cabin_act", "cabin_act", at_cabin_act),
+        ("at_rest_hour", "rest_hour", at_rest_hour),
+    )
+    for half, block, acts in halves:
+        copies = resolve(
+            that_day, f"REQUEST EACH activities.cabin_acts.{half} DURING blocks.{block}"
         )
-        for name in ("", "at_cabin_act", "at_rest_hour")
-    }
-    acts = {n: {c.statements[0].what.items[0] for c in copies} for n, copies in split.items()}
-    assert {dataset.activities[i].name for i in acts["at_rest_hour"]} == {"M1 RH: Gaga Ball"}
-    assert acts["at_cabin_act"] | acts["at_rest_hour"] == acts[""]
-    assert not acts["at_cabin_act"] & acts["at_rest_hour"]
+        names = {that_day.activities[c.statements[0].what.items[0]].name for c in copies}
+        assert names == set(acts.values())
+        for cabin, name in acts.items():
+            named = f"activities.cabin_acts.{half}.{cabin}"
+            (copy,) = resolve(that_day, f"REQUEST {named} DURING blocks.{block}")
+            assert that_day.activities[copy.statements[0].what.items[0]].name == name
+
+
+def test_a_cabin_has_no_name_on_a_day_its_act_is_not_there(dataset):
+    with pytest.raises(SkedgeError, match="unknown name 'activities.cabin_acts.at_cabin_act.p4'"):
+        resolve(dataset, "REQUEST activities.cabin_acts.at_cabin_act.p4 DURING blocks.cabin_act")
 
 
 def test_a_bound_cabin_act_on_another_day_is_no_copy(dataset):

@@ -149,11 +149,11 @@ the cabin rests in the cabin act block instead. One that mentions rest hour only
 middle, such as `CA: Blackberry picking, RH: muffins`, is a warning and is treated as an
 ordinary cabin act. Ask for its rest hour part in a request of its own.
 
-The names it makes are `activities.cabin_acts.<cabin>` (for example
-`activities.cabin_acts.p4`), `activities.cabin_acts`, and the two halves of the board:
-`activities.cabin_acts.at_cabin_act` and `activities.cabin_acts.at_rest_hour`. A cabin's
-name stands for its act on whichever days the request is about, so over one day it is one
-thing and over a week it is five.
+The names it makes are the board of the day being scheduled: `activities.cabin_acts` for
+its acts, the two halves of it, `activities.cabin_acts.at_cabin_act` and
+`activities.cabin_acts.at_rest_hour`, and each act under its half by its cabin, for
+example `activities.cabin_acts.at_cabin_act.p4`. A cabin has a name only on a day it has
+an act, and which half it is under can change from one day to the next.
 
 ## Blocks (config spreadsheet)
 

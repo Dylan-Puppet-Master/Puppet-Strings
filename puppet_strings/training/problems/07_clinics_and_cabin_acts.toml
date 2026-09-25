@@ -13,7 +13,8 @@ REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
   needs no DO: REQUEST <activity> DURING <block> asks for it, fully staffed
 • AS_ROLE picks a position: roles.first, roles.second, …
 • roles.trainee is a trainee alongside the positions
-• A cabin act belongs to one day, so activities.cabin_acts.p4 is today's P4
+• A cabin act is today's board: activities.cabin_acts.at_cabin_act.p4 is P4's
+  act today, named under the block the board puts it in
 • An act titled "RH: …" runs at rest hour: it is in cabin_acts.at_rest_hour,
   and the rest are in cabin_acts.at_cabin_act
 """
@@ -113,10 +114,10 @@ wrong = ["REQUEST staff.leah DO activities.clinics.riflery AS_ROLE roles.trainee
 id = "clinic-cabin-p4"
 title = "P4's cabin act"
 prompt = "P4's cabin act runs during the cabin act block today."
-answer = "REQUEST activities.cabin_acts.p4 DURING blocks.cabin_act"
-hints = ["Cabin acts are under activities.cabin_acts, by cabin."]
-explain = "activities.cabin_acts.p4 is P4's act on the day being scheduled — today it's the Liquid Nitrogen Lab."
-wrong = ["REQUEST activities.cabin_acts.p2 DURING blocks.cabin_act"]
+answer = "REQUEST activities.cabin_acts.at_cabin_act.p4 DURING blocks.cabin_act"
+hints = ["Cabin acts are under activities.cabin_acts, by the block the board puts them in, then by cabin."]
+explain = "activities.cabin_acts.at_cabin_act.p4 is P4's act on the day being scheduled — today it's the Liquid Nitrogen Lab."
+wrong = ["REQUEST activities.cabin_acts.at_cabin_act.p4 DURING blocks.rest_hour"]
 
 [[problem]]
 id = "clinic-all-cabin-acts"
@@ -144,8 +145,9 @@ wrong = ["REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.cabin_ac
 id = "clinic-cabin-o4-rest"
 title = "An act at rest hour"
 prompt = "O4's cabin act runs during rest hour instead."
-answer = "REQUEST activities.cabin_acts.o4 DURING blocks.rest_hour"
-wrong = ["REQUEST activities.cabin_acts.o4 DURING blocks.cabin_act"]
+answer = "REQUEST activities.cabin_acts.at_cabin_act.o4 DURING blocks.rest_hour"
+hints = ["The board has O4's act in the cabin act block, so it is under at_cabin_act."]
+wrong = ["REQUEST activities.cabin_acts.at_cabin_act.o4 DURING blocks.cabin_act"]
 
 [[problem]]
 id = "clinic-not-two-at-once"

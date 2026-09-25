@@ -1034,3 +1034,10 @@ Recorded so the outline matches the code.
   An offering says when it runs, so it takes no clauses and goes nowhere but there. No
   saved request had been an edited clinic, so nothing was rewritten; the standing request
   was added to the Puppet Master's requests file.
+- **Cabin acts are named by the day's board** (Puppet Master, 2026-09-25). A cabin act was
+  named by its cabin alone, `activities.cabin_acts.p4`, standing for its act on whichever
+  day a request was about. With the offerings the target date's own names, the cabin acts
+  are too: `activities.cabin_acts` and its two halves are that day's acts, and each act is
+  under its half by its cabin, `activities.cabin_acts.at_cabin_act.p4`. A cabin has a name
+  only on a day it has an act. The saved requests naming a cabin were all for one day's act
+  in the cabin act block, and were rewritten to `at_cabin_act`.

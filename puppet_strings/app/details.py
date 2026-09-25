@@ -123,7 +123,7 @@ def _people(ids, dataset: Dataset) -> tuple[tuple[str, str], ...]:
 def _activities(name: str, rest: str, dataset: Dataset) -> Details | None:
     branch, _, leaf = rest.partition(".")
     if branch == CABIN_ACTS:
-        return _cabin_act(name, leaf, dataset)
+        return _cabin_act(name, rest, dataset)
     if branch == CLINICS and leaf in dataset.activities:
         return _activity(name, dataset.activities[leaf], dataset)
     if branch == CLINICS and leaf.partition(".")[0] == OFFERINGS:
@@ -154,20 +154,14 @@ def _offerings(name: str, rest: str, dataset: Dataset) -> Details | None:
     )
 
 
-def _cabin_act(name: str, cabin: str, dataset: Dataset) -> Details | None:
-    """A cabin's act on the day being scheduled, card and all."""
-    if not cabin:
-        return _set_of_activities(name, CABIN_ACTS, dataset)
-    acts = [a for a in dataset.activities.values() if a.cabin and _cabin_id(a) == cabin]
-    today = next((a for a in acts if a.day == dataset.target), None)
-    if today is None:
-        days = tuple((a.day.isoformat(), a.name) for a in sorted(acts, key=lambda a: a.day))
-        return Details(
-            title=name,
-            subtitle=f"nothing on {dataset.target}",
-            sections=(Section("It does have these days", days or ((NOBODY, ""),)),),
-        )
-    return _activity(name, today, dataset, card=True)
+def _cabin_act(name: str, rest: str, dataset: Dataset) -> Details | None:
+    """Today's act for one cabin, card and all; several are listed."""
+    from puppet_strings.skedge.resolve import activity_names
+
+    named = activity_names(dataset).get(rest)
+    if named is not None and named.single:
+        return _activity(name, dataset.activities[next(iter(named.items))], dataset, card=True)
+    return _set_of_activities(name, rest, dataset)
 
 
 def _activity(name: str, activity: Activity, dataset: Dataset, card: bool = False) -> Details:
@@ -217,9 +211,3 @@ def _set_of_activities(name: str, rest: str, dataset: Dataset) -> Details | None
         subtitle=f"{len(rows)} activities",
         sections=(Section("It holds", rows or (("nothing", ""),)),),
     )
-
-
-def _cabin_id(activity: Activity) -> str:
-    from puppet_strings.names import normalize
-
-    return normalize(activity.cabin)
