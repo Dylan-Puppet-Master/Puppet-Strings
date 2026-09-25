@@ -197,7 +197,6 @@ class CardItem(QGraphicsObject):
         self.status = Status(NOTE, "")
         self.editing = False
         self.hovered = False
-        self.lifted = False  # being dragged
         self.placed = False  # put in its spot yet, so later moves glide rather than jump
         self.editor_height = 0.0  # while editing, how tall the form on the card is
         self.regions: dict[str, QRectF] = {}  # where each field is painted, for a click to find
@@ -304,7 +303,7 @@ class CardItem(QGraphicsObject):
         """
         self.height = height
         self.face = QRectF(0, 0, CARD_WIDTH, height)
-        self.bounds = self.face.adjusted(-10, -10, 10, 16)
+        self.bounds = self.face.adjusted(-3, -3, 3, 3)
         self.update()
 
     def _tag_rows(self, tags: tuple[str, ...]) -> list[list[tuple[str, float]]]:
@@ -322,15 +321,15 @@ class CardItem(QGraphicsObject):
         return rows
 
     def card_rect(self) -> QRectF:
-        """The card itself, without the shadow round it."""
+        """The card itself, without the edge drawn round it."""
         return self.face
 
     def boundingRect(self) -> QRectF:  # noqa: N802
-        """The card and its shadow."""
+        """The card, and room for its edge when picked, which is drawn thicker."""
         return self.bounds
 
     def shape(self) -> QPainterPath:
-        """Clicks land on the card, not on its shadow."""
+        """Clicks land on the card's rounded shape, not in its corners."""
         path = QPainterPath()
         path.addRoundedRect(self.card_rect(), RADIUS, RADIUS)
         return path
@@ -342,7 +341,7 @@ class CardItem(QGraphicsObject):
     # -- painting -----------------------------------------------------------------------
 
     def hoverEnterEvent(self, event) -> None:  # noqa: N802
-        """Lift the card's edge a little under the pointer."""
+        """Lighten the card's face and edge a little under the pointer."""
         self.hovered = True
         self.update()
 
@@ -387,23 +386,7 @@ class CardItem(QGraphicsObject):
             painter.drawEllipse(QRectF(rect.right() - 40, 16, 24, 24))
 
     def _paint_body(self, painter: QPainter, rect: QRectF, colour: QColor, lod: float) -> None:
-        """The card's shadow, face, edge and stripe.
-
-        The shadow is three layers close up; further out they are a pixel apart, so one is
-        drawn in their place, which spares the fill of two card-sized shapes per card.
-        """
-        painter.setPen(Qt.NoPen)
-        lift = 2.0 if self.lifted else 1.0
-        layers = ((6, 18), (3, 30), (1, 50)) if lod >= FULL_DETAIL else ((3, 60),)
-        for grow, alpha in layers:
-            shade = QColor(0, 0, 0, alpha)
-            painter.setBrush(shade)
-            spread = grow * lift
-            painter.drawRoundedRect(
-                rect.adjusted(-spread / 2, spread / 2, spread / 2, spread * 1.3),
-                RADIUS + spread / 2,
-                RADIUS + spread / 2,
-            )
+        """The card's face, edge and stripe."""
         face = QColor(CARD).lighter(112) if self.hovered and not self.editing else CARD
         painter.setBrush(face)
         if self.isSelected() or self.editing:

@@ -903,7 +903,7 @@ class Canvas(QGraphicsView):
         """Keep each card and frame as a picture while the canvas, a card or a group is dragged.
 
         A drag only slides things along, so the pictures are moved rather than every card
-        painted over again, shadows and text and all, on each move of the mouse. Not kept
+        painted over again, text and all, on each move of the mouse. Not kept
         otherwise: a zoom would paint every picture afresh, which costs more than painting
         the cards straight onto the canvas.
         """
@@ -996,7 +996,6 @@ class Canvas(QGraphicsView):
         if self.motion is not None:
             self.motion.stop()
         for depth, lifted in enumerate(self.dragging):
-            lifted.lifted = True
             lifted.setZValue(10 + depth)
         self.viewport().setCursor(Qt.ClosedHandCursor)
 
@@ -1020,7 +1019,6 @@ class Canvas(QGraphicsView):
         for frame in self.frames.values():
             frame.set_target(False)
         for card in cards:
-            card.lifted = False
             card.setZValue(2 if card is self.active else 0)
         return cards
 
