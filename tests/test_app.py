@@ -404,22 +404,34 @@ def test_the_clinics_are_made_from_the_offerings_tab_and_not_saved(window):
     assert not any("clinic_import" in r.tags for r in window.store.book.every())
 
 
-def test_an_edited_clinic_is_kept_until_load_offerings(window):
+def test_deleting_an_edited_clinic_puts_back_the_offerings_tabs(window, informed):
     from dataclasses import replace
 
     riflery = "offering:2026-09-16:riflery:clinic_3"
-    edited = replace(window.model.request(riflery), description="riflery, edited")
-    window.store.save(edited, riflery)
+    made = window.model.request(riflery)
+    window.store.save(replace(made, description="riflery, edited"), riflery)
     window.reload()
     window.wait_for_load()
     assert window.model.request(riflery).description == "riflery, edited"
     before = window.model.rowCount()
-    window.load_offerings()
-    window.wait_for_offerings()
-    window.wait_for_load()
+    window._deleted(riflery)
+    assert not informed  # nothing refused: the edits are what goes
     assert window.model.rowCount() == before
-    assert window.model.request(riflery).description != "riflery, edited"
+    assert window.model.request(riflery) == made
     assert riflery not in {r.id for r in window.store.book.every()}
+    assert "back to the Offerings tab's" in window.status_label.text()
+
+
+def test_reloading_a_day_with_no_spreadsheet_makes_one(window):
+    where = "root/2026/Main Season/Session 2/Monday_1"
+    assert not (window.store.source.root / where).exists()
+    window.date_edit.setDate(QDate(2026, 9, 28))
+    window.date_edit.editingFinished.emit()
+    window.wait_for_load()
+    assert window.store.dataset.target == date(2026, 9, 28)
+    assert "Offerings" in window.store.source.tabs(where)
+    made = [r for r in window.store.requests if "clinic_import" in r.tags]
+    assert len(made) == len(window.store.dataset.offerings) > 0  # from the template's grid
 
 
 def test_an_imported_clinic_is_not_deleted_but_sent_to_the_offerings_tab(window, informed):
@@ -448,9 +460,6 @@ def test_solve_uses_requests_saved_since_the_last_reload(app, tmp_path):
     copy = tmp_path / "fresh"
     shutil.copytree(FIXTURES, copy)
     window = make_window(copy)
-    window.load_offerings()  # which reloads
-    window.wait_for_offerings()
-    window.wait_for_load()
     results = []
     window.run_solve()
     window.worker.done.disconnect()
@@ -1294,44 +1303,6 @@ def test_a_panel_that_cannot_be_cancelled_ignores_escape(window):
     panel.reject()  # Escape
     assert panel.label.text() != "Stopping…" and window.progress is panel
     window.wait_for_load()
-
-
-def test_loading_offerings_puts_up_a_panel_and_keeps_the_window_painting(window):
-    """The panel goes up before the work starts, and the work runs off the UI thread."""
-    window.load_offerings()
-    assert window.progress is not None  # up while the sheet is being written
-    assert window.progress.label.text() == "Loading the offerings for 2026-09-16…"
-    assert not window.progress.cancel_button.isVisible()
-    window.wait_for_offerings()
-    window.wait_for_load()
-    assert window.progress is None and window.offerings is None
-    assert "Loaded 31 requests" in window.status_label.text()
-
-
-def test_a_second_click_while_the_offerings_load_does_nothing(window):
-    window.load_offerings()
-    first = window.offerings
-    window.load_offerings()
-    assert window.offerings is first
-    window.wait_for_offerings()
-    window.wait_for_load()
-    assert "Loaded 31 requests" in window.status_label.text()
-
-
-def test_an_offerings_load_that_fails_says_so(window, monkeypatch):
-    from puppet_strings.sheets.source import LoadError
-
-    shown = []
-    monkeypatch.setattr(QMessageBox, "critical", lambda _w, _t, text: shown.append(text))
-
-    def refuse():
-        raise LoadError("Offerings: no tab")
-
-    monkeypatch.setattr(window.store, "load_offerings", refuse)
-    window.load_offerings()
-    window.wait_for_offerings()
-    assert shown == ["Offerings: no tab"]
-    assert window.progress is None
 
 
 class FakeDialog:

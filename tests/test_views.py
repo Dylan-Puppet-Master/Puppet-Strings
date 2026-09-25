@@ -375,7 +375,7 @@ def test_publish_round_trip(dataset, tmp_path):
 
 
 def test_a_day_sheet_is_made_with_its_tabs(dataset, tmp_path):
-    """Load offerings makes the day a spreadsheet to fill in, before anything is solved."""
+    """A load makes the day a spreadsheet to fill in, before anything is solved."""
     source = CsvSource(tmp_path)
     day_sheet(source, CONFIG, dataset.this_span, dataset.target)
     where = "root/2026/Main Season/Session 1/Wednesday_1"

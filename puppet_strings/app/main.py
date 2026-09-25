@@ -187,7 +187,6 @@ class MainWindow(QMainWindow):
         self.busy: BusyDialog | None = None
         self.progress: BusyDialog | None = None  # for work that cannot be cancelled
         self.loader: LoadWorker | None = None
-        self.offerings: Worker | None = None
         self.history: Worker | None = None  # the past days, read while the day is read over
         self.calendar_reader: Worker | None = None  # the Calendar sheet, read on opening
         self.history_wanted = False
@@ -293,7 +292,6 @@ class MainWindow(QMainWindow):
         self.date_edit.editingFinished.connect(self._target_changed)
         toolbar.addWidget(self.date_edit)
         toolbar.addAction("Reload", self.reload)
-        toolbar.addAction("Load offerings", self.load_offerings)
         toolbar.addAction("Solve", self.run_solve)
         toolbar.addSeparator()
         self.same_day_action = toolbar.addAction("Same-day changes")
@@ -879,39 +877,6 @@ class MainWindow(QMainWindow):
             self.reload_requested = False
             self.reload()
 
-    def load_offerings(self) -> None:
-        """Make the day's clinics the Offerings tab's again, edits thrown away, and reload.
-
-        It may make the day's spreadsheet, so it runs on a worker like the other slow jobs:
-        on the UI thread the progress panel would sit there unpainted.
-        """
-        if self.store.dataset is None or self.offerings is not None:
-            return
-        self.start_progress(f"Loading the offerings for {self.target}…")
-        self.offerings = Worker(self.store.load_offerings)
-        self.offerings.done.connect(self._offerings_loaded)
-        self.offerings.failed.connect(self._offerings_failed)
-        self.offerings.finished.connect(self._offerings_finished)
-        self.offerings.start()
-
-    def wait_for_offerings(self) -> None:
-        """Block until the offerings have been written (used by tests)."""
-        while self.offerings is not None:
-            self.offerings.wait()
-            QApplication.processEvents()
-
-    def _offerings_loaded(self, _=None) -> None:
-        self.end_progress()
-        self.reload()
-
-    def _offerings_failed(self, message: str) -> None:
-        self.end_progress()
-        self.status_label.setText("")
-        QMessageBox.critical(self, "Could not load the offerings", message)
-
-    def _offerings_finished(self) -> None:
-        self.offerings = None
-
     def inspect_name(self, name: str) -> None:
         """Open a name from the Namespaces pane: its mapping table, or what it stands for."""
         if self.store.dataset is None:
@@ -1054,7 +1019,8 @@ class MainWindow(QMainWindow):
 
         The next load would make it again: the Offerings tab is where it is taken off.
         """
-        clinics = [r for r in requests if is_imported(r)]
+        edited = self.store.edited(requests)  # these go back to what the tab says
+        clinics = [r for r in requests if is_imported(r) and r.id not in edited]
         if not clinics:
             return False
         which = "These clinics come" if len(clinics) > 1 else "This clinic comes"
@@ -1099,9 +1065,12 @@ class MainWindow(QMainWindow):
 
     def _delete(self, requests: list) -> None:
         away = any(mentions_exclusion(r.skedge) for r in requests)
+        reverted = self.store.edited(requests)
         self.store.delete(*(r.id for r in requests))
         self._requests_changed()
         said = requests[0].id if len(requests) == 1 else f"{len(requests)} requests"
+        if len(reverted) == len(requests):
+            said = f"the edits to {said}; back to the Offerings tab's"
         self.status_label.setText(f"  Deleted {said}")
         if away:
             self.reload()  # the day has somebody back in it, so read it all again

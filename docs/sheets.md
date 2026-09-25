@@ -297,8 +297,8 @@ Skedge can still narrow the days it is about, with `ON`: its scope says when it 
 and its Skedge what it asks for once it is.
 
 A day's clinics are made from its Offerings tab on every load and are not saved. One you
-edit is saved, and read in place of the one made, until **Load offerings** is pressed,
-which throws the day's edited clinics away.
+edit is saved, and read in place of the one made, until you delete it, which throws the
+edits away.
 
 Each request has these fields, all edited in the request manager:
 
@@ -454,7 +454,7 @@ Under the year, the programme is the span's `program type` and the folder under 
 down twice. A day is named for its weekday and which week of its span it falls in, because a
 fortnight reaches Monday more than once.
 
-**Load offerings makes a day's spreadsheet** when it is not there yet, with the Offerings
+**Reload makes a day's spreadsheet** when it is not there yet, with the Offerings
 grid copied from the Clinic Schedule template — weekday set to its own — and the other tabs
 empty, ready for Publish. It never touches a sheet that is already there, so a grid you have
 pruned stays pruned.

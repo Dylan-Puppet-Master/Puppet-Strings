@@ -11,7 +11,7 @@ from puppet_strings.app.group_scopes import GroupScopes
 from puppet_strings.app.groups import DEFAULT_GROUPS, clean, same_group
 from puppet_strings.config import Config
 from puppet_strings.exclude import apply_exclusions
-from puppet_strings.generate import is_generated
+from puppet_strings.generate import generated_requests, is_imported
 from puppet_strings.model import Adjustment, Dataset, Request, Rest
 from puppet_strings.publish.writer import day_sheet
 from puppet_strings.requests_db import id_prefix, open_requests, scope_for
@@ -85,10 +85,17 @@ class RequestStore:
         business, nothing in the window asks, and there is a spreadsheet of them per day of
         the season so far. `for_solving` reads them when something is about to want them.
 
-        The day's clinics come with it, made from its Offerings tab (`generate`).
+        The day's clinics come with it, made from its Offerings tab (`generate`). A day
+        with no spreadsheet yet is given one, with the Offerings grid copied from the Clinic
+        Schedule to fill in and the views a solve will write, so a new day is ready to plan
+        rather than a folder to go and build by hand.
         """
+
+        def make_day(span, day: date) -> str:
+            return day_sheet(self.source, self.config, span, day)
+
         self.dataset = load_dataset(
-            self.source, self.config, target, history=False, requests=self.book
+            self.source, self.config, target, history=False, requests=self.book, make_day=make_day
         )
         self.requests = list(self.dataset.requests)
         here = {r.id for r in self.requests}
@@ -165,18 +172,6 @@ class RequestStore:
             self._index(request)
         self.book.put([request])
         return request
-
-    def load_offerings(self) -> None:
-        """Make the date's clinics the Offerings tab's again, for a load to read. Raises LoadError.
-
-        The edited ones saved in place of those made from the tab are thrown away. The
-        day's spreadsheet is made first if it is not there yet, with the Offerings grid to
-        fill in and the views a solve will write, so a new day is one click from being
-        ready rather than a folder to go and build by hand.
-        """
-        target = self.dataset.target
-        day_sheet(self.source, self.config, self.dataset.this_span, target)
-        self.book.delete([r.id for r in self.requests if is_generated(r, target)])
 
     @property
     def current(self) -> Dataset:
@@ -340,14 +335,30 @@ class RequestStore:
         self.requests, self.elsewhere = requests, elsewhere
         self.book.put(moved)
 
+    def edited(self, requests: list[Request]) -> set[str]:
+        """Which of these are clinics from the Offerings tab saved with edits of their own."""
+        clinics = {r.id for r in requests if is_imported(r)}
+        return {r.id for r in self.book.every() if r.id in clinics} if clinics else set()
+
     def delete(self, *request_ids: str) -> None:
-        """Remove requests, however many."""
+        """Remove requests, however many.
+
+        An edited clinic of the target date goes back to what the Offerings tab says, which
+        is all deleting one can mean: the tab would make it again on the next load anyway.
+        """
         gone = set(request_ids)
-        self.requests = [r for r in self.requests if r.id not in gone]
+        made = {r.id: r for r in generated_requests(self.dataset)} if self.dataset else {}
+        self.requests = [
+            (made[r.id] if r.id in gone else r)
+            for r in self.requests
+            if r.id not in gone or r.id in made
+        ]
         self.elsewhere = [r for r in self.elsewhere if r.id not in gone]
         for request_id in gone:
             self.facets.pop(request_id, None)
             self.resolved.pop(request_id, None)
+            if request_id in made:
+                self._index(made[request_id])
         self.book.delete(gone)
 
 

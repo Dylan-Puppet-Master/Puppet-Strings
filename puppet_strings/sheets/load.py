@@ -46,6 +46,7 @@ def load_dataset(
     target: date,
     history: bool = True,
     requests: RequestDb | None = None,
+    make_day=None,
 ) -> Dataset:
     """Read every sheet, and the requests, and build the Dataset for `target`.
 
@@ -63,6 +64,9 @@ def load_dataset(
     The cabin act sheets are a folder of their own, one per session and week, and the whole
     folder is read: they are fetched in parallel, so the dozens of small requests they take
     run while the rest of the sheets are being read and parsed.
+
+    `make_day(span, target)` is called if the target has no spreadsheet of its own yet,
+    and returns the one it made; without it, a day with none offers nothing.
 
     The Calendar comes first and the target date is checked against it before anything else
     is read. A date camp is not running is the one mistake that makes everything after it
@@ -92,6 +96,7 @@ def load_dataset(
             history,
             pool,
             requests or open_requests(config, source),
+            make_day,
         )
 
 
@@ -175,6 +180,7 @@ def _build(
     history: bool,
     pool: ThreadPoolExecutor,
     book: RequestDb,
+    make_day,
 ):
     """Everything but the Calendar and the cabin act sheets, which are already read.
 
@@ -194,6 +200,8 @@ def _build(
     mappings_read = pool.submit(source.read_many, "config", list(tab_of.values()))
     in_span = listing.result()
     day_sheet = day_title(span, target)
+    if day_sheet not in in_span and make_day is not None:
+        in_span = {**in_span, day_sheet: make_day(span, target)}
     categories_read = pool.submit(_categories_table, source, in_span, span)
     offerings_read = (
         pool.submit(source.read, in_span[day_sheet], tabs["offerings"])
@@ -248,7 +256,7 @@ def _build(
         offerings = ()
         warnings.append(
             f"{'/'.join(span_path(span))}: no '{day_sheet}' sheet yet, so nothing is offered; "
-            "Load offerings makes one"
+            "a Reload in the app makes one"
         )
     requests = requests_read.result()
 

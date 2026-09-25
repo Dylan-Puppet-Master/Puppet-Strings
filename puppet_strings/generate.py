@@ -11,8 +11,8 @@ They are made afresh on every load and never saved as they are: the Offerings ta
 they live, and a season of them is most of the requests there would be. One that is edited
 is saved like any other request, under its own id, and from then on the saved one is read
 in place of the one made. One cannot be deleted, since the next load would make it again:
-it is taken off the Offerings tab instead. Load offerings throws the saved ones away, so
-the day's clinics are the Offerings tab's again.
+it is taken off the Offerings tab instead. Deleting an edited one throws the edits away,
+so that clinic is the Offerings tab's again.
 """
 
 from datetime import date

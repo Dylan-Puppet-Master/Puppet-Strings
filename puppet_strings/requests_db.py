@@ -13,9 +13,8 @@ day's requests is one question of an index however many days the season has had,
 nothing needs a list of its own per day or per session.
 
 A request written in the app is scoped to its session unless it is scoped otherwise, and
-the clinics imported from the Offerings tab are scoped to their day: they are that day's
-and nobody else's, and the next Load offerings of the day can throw them away without touching
-anything written by hand.
+the clinics from the Offerings tab that are saved, being edited, are scoped to their day:
+they are that day's and nobody else's.
 
 A folder of fixtures carries its own `requests.sqlite`, so a copy of a session is one
 folder and running on it touches nothing on the computer it runs on.

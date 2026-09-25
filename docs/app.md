@@ -15,10 +15,10 @@ The Calendar is read first and the date checked against it, so a date camp is no
 says so at once — naming the range the calendar covers and the nearest camp day — rather
 than after a slow read of everything else. It is a prompt to pick another date, not a
 failure: the window stays as it was, and the calendar panel shades the days you can choose.
-Reading the sheets and loading the offerings both put up a progress panel, the one the
-solver uses, without a Cancel button: neither can usefully be stopped part-way, but both
-take long enough over Google Sheets to be worth saying so. Both run off the window's own
-thread, so the panel keeps painting and the window stays alive while they work.
+Reading the sheets puts up a progress panel, the one the solver uses, without a Cancel
+button: it cannot usefully be stopped part-way, but takes long enough over Google Sheets to
+be worth saying so. It runs off the window's own thread, so the panel keeps painting and
+the window stays alive while it works.
 Loading a date makes one `CLINIC` request per clinic on its Offerings tab, tagged
 `clinic_import`. They are made afresh on every load and not saved: the Offerings tab is
 where they live. Such a request names every position on Clinic_Data, so a clinic wanting
@@ -34,17 +34,16 @@ roles.first`, because a one-item set takes no quantifier. The clinic runs fully
 staffed or not at all — filling one position of an instance fills them all — and every
 position it wants is written down rather than left to the skill matching.
 
-**Load offerings** also makes the day's spreadsheet when it is not there yet, with its
-Offerings grid copied from the Clinic Schedule template and its other tabs empty. So a day
-nobody has set up is one click from being ready, and the click after that reads what you
-put in the grid.
+**Reload** also makes the day's spreadsheet when it is not there yet, with its Offerings
+grid copied from the Clinic Schedule template and its other tabs empty. So a day nobody has
+set up is one click from being ready, and the next Reload reads what you put in the grid.
 
 Since every load makes them from the Offerings tab, a clinic you add or remove there is
 added or removed here on the next **Reload**. An imported clinic cannot be deleted in the
 app, since the next load would make it again: take it off the Offerings tab instead. It
 can be edited, for example to limit who runs it; the edited one is saved, and read in
-place of the one made from the tab from then on. **Load offerings** throws such edits
-away and reloads, so the day's clinics are the Offerings tab's again. A day's clinics
+place of the one made from the tab from then on. Deleting an edited clinic throws the
+edits away, so it is the Offerings tab's again. A day's clinics
 are that day's alone, so no other day shows them. **Solve** builds the schedule and opens
 it in a window with the staff view, the clinic view and the report; it asks first if the
 date has no clinics offered.
@@ -80,7 +79,7 @@ Its **Requests** row hands the requests over and backs them up; see
 **Table** and **Canvas**, at the right-hand end of the toolbar, switch how the requests are
 shown. The window remembers which one you used last. On the canvas, every request that passes
 the filters is a card, and each group is a frame of cards. The groups are laid out in rows,
-and `Ungrouped` stands apart to their right. Everything else stays where it is: the groups
+and `Ungrouped` stands apart to their left. Everything else stays where it is: the groups
 pane, the filters, the Namespaces and Calendar panes and the errors pane.
 
 ![The canvas](img/canvas.png)

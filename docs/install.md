@@ -105,8 +105,8 @@ Requests need no spreadsheet: they are kept on this computer. See
 
 Put the config spreadsheet, and the other spreadsheets, in a **Puppet Strings** folder holding a folder per
 year. Puppet Strings builds the programme and span folders inside a year as it needs them;
-you put a `Staff Categories` spreadsheet in each span's folder, and **Load offerings** makes
-the day spreadsheets. See [the schedules tree](sheets.md#the-schedules-tree).
+you put a `Staff Categories` spreadsheet in each span's folder, and **Reload** makes the
+day spreadsheets. See [the schedules tree](sheets.md#the-schedules-tree).
 
 ## 5. Sign in and choose the sheets
 
@@ -183,15 +183,12 @@ doing.
 ```
 puppet-strings names
 puppet-strings validate
-puppet-strings --date 2026-06-15 load-offerings
 puppet-strings --date 2026-06-15 solve
 ```
 
 `names` lists every name you can use in a request. `validate` checks every request.
-`load-offerings` makes the date's spreadsheet if it is not there yet and throws away
-edited clinics, so the date's clinics are its Offerings tab's again. `solve` prints the
-schedule for a date without publishing it, with a clinic request for each offering. If any command reports a
-load error, it names the sheet, tab and row to fix.
+`solve` prints the schedule for a date without publishing it, with a clinic request for
+each offering. If any command reports a load error, it names the sheet, tab and row to fix.
 
 ## Working offline
 

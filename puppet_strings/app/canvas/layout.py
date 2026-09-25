@@ -9,7 +9,7 @@ a grid of rows would leave a gap under every short one. How many columns a frame
 with how many cards it holds, so a big group is roughly square rather than a tall strip.
 The frames themselves are set in rows, left to right, in the order the groups pane lists
 them, wrapping once a row is about as wide as the whole arrangement is tall; the frame of
-requests on no group stands apart, off to the right. A frame that
+requests on no group stands apart, off to the left. A frame that
 has been dragged somewhere else stays where it was put, with its cards; the rest keep the
 places they would have had anyway, so moving one group never shuffles the others.
 """
@@ -92,7 +92,7 @@ def arrange(
     """Every frame and card, the groups in the order given.
 
     `placed` is where frames have been moved to by hand, by group: each one's top-left
-    corner, which its cards move with. `aside` is a group kept apart, to the right of the
+    corner, which its cards move with. `aside` is a group kept apart, to the left of the
     rest with a wide gap between: the requests on no group, which would otherwise break
     up the rows of the groups that are sorted.
     """
@@ -102,7 +102,7 @@ def arrange(
     row_width = max([sqrt(area) * 1.5, *(w for _, w, _, _ in rows)], default=0)
     frames: dict[str, Box] = {}
     cards: dict[str, tuple[float, float]] = {}
-    x = y = row_height = right = 0.0
+    x = y = row_height = 0.0
     placed = placed or {}
 
     def put(name: str, left: float, top: float, w: float, h: float, spots: dict) -> None:
@@ -115,10 +115,9 @@ def arrange(
         if x and x + w > row_width:
             x, y, row_height = 0.0, y + row_height + FRAME_GAP, 0.0
         put(name, x, y, w, h, spots)
-        right = max(right, x + w)
         x += w + FRAME_GAP
         row_height = max(row_height, h)
     for name, w, h, spots in measured:
         if name == aside:
-            put(name, right + ASIDE_GAP if rows else 0.0, 0.0, w, h, spots)
+            put(name, -(w + ASIDE_GAP) if rows else 0.0, 0.0, w, h, spots)
     return Arrangement({name: frames[name] for name, *_ in measured}, cards)

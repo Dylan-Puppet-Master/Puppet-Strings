@@ -46,8 +46,6 @@ def test_the_clinics_are_made_on_every_load_and_never_saved(tmp_path, capsys):
     out = capsys.readouterr().out
     assert "offering:2026-09-17:riflery:clinic_3" not in out  # valid, so nothing said
     assert not any(i.startswith("offering:2026-09-17:") for i in saved_requests(copy))
-    assert main(["--fixtures", str(copy), "--date", "2026-09-17", "load-offerings"]) == 0
-    assert "24 offerings for 2026-09-17" in capsys.readouterr().out
 
 
 def test_missing_calendar_date_is_an_error(capsys):

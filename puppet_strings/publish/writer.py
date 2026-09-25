@@ -79,7 +79,7 @@ def publish(source: Source, config: Config, dataset: Dataset, result: Result) ->
 def is_published(source: Source, config: Config, dataset: Dataset) -> bool:
     """Whether the day has been solved, which is its assignments having rows.
 
-    The spreadsheet existing is not enough: Load offerings makes one with empty views for a
+    The spreadsheet existing is not enough: a load makes one with empty views for a
     day nobody has scheduled yet.
     """
     span = dataset.this_span

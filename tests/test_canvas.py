@@ -68,12 +68,12 @@ def test_a_bigger_group_gets_more_columns():
     assert columns(10_000) == 10
 
 
-def test_the_requests_on_no_group_stand_apart_to_the_right():
+def test_the_requests_on_no_group_stand_apart_to_the_left():
     groups = [("a", [("a0", 100)]), ("none", [("n0", 100)]), ("b", [("b0", 100)])]
     laid = arrange(groups, aside="none")
     rest = [laid.frames["a"], laid.frames["b"]]
     apart = laid.frames["none"]
-    assert apart.y == 0 and apart.x >= max(b.x + b.w for b in rest) + ASIDE_GAP
+    assert apart.y == 0 and apart.x + apart.w + ASIDE_GAP <= min(b.x for b in rest)
     assert list(laid.frames) == ["a", "none", "b"]  # still in the order given
     assert laid.cards["n0"][0] > apart.x
     moved = arrange(groups, {"none": (-500.0, 40.0)}, aside="none")
