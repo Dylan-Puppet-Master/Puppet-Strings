@@ -293,6 +293,28 @@ def test_suggestions_open_under_the_text_cursor_on_the_card(window):
     popup.hide()
 
 
+def type_keys(box, text):
+    """Type into a box as a person does: each key to whatever has the keyboard just then."""
+    for key in text:
+        QTest.keyClicks(QApplication.activePopupWidget() or box, key)
+
+
+def test_the_suggestions_stay_open_while_typing_and_enter_takes_one(window):
+    canvas = window.canvas
+    canvas.activate(show_card(canvas, "breaks"), "skedge")
+    edit = canvas.editor.skedge_edit
+    edit.setPlainText("REQUEST ")
+    edit.moveCursor(QTextCursor.End)
+    popup = edit.completer.popup()
+    shown = []
+    for key in "dylan":
+        type_keys(edit, key)
+        shown.append(popup.isVisible())
+    assert shown == [False, True, True, True, True]  # from two letters on, and every key
+    QTest.keyClick(popup, Qt.Key_Return)  # the first is picked already
+    assert edit.toPlainText() == "REQUEST staff.dylan" and not popup.isVisible()
+
+
 class Dropped:
     """Stands in for QDrag: rather than wait on the platform, drops at once on one spot."""
 

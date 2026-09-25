@@ -14,7 +14,7 @@ group and find the one wanted.
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QRectF, QSizeF, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QRectF, QSizeF, Qt, Signal
 from PySide6.QtGui import (
     QAbstractTextDocumentLayout,
     QColor,
@@ -29,6 +29,8 @@ from PySide6.QtGui import (
     QTextOption,
 )
 from PySide6.QtWidgets import (
+    QApplication,
+    QCompleter,
     QGraphicsItem,
     QGraphicsObject,
     QGridLayout,
@@ -37,6 +39,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QStyleOptionGraphicsItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from puppet_strings.app import palette
@@ -534,6 +537,48 @@ class WrappingLine(QPlainTextEdit):
         self.setFixedHeight(round(lines * spacing + 2 * margin + margins.top() + margins.bottom()))
 
 
+class SuggestionKeys(QObject):
+    """Handles the keys typed while a suggestion list is open, in place of QCompleter.
+
+    With the list open, the keys go to the list, and QCompleter passes them on to the box
+    being typed in — then closes the list if that box does not have the focus. A box on a
+    card never reports having it while the list is open: the list is a window of its own,
+    and the canvas's scene counts as inactive while it is up. So the list closed on one
+    key and opened again on the next. The keys are handled here instead, first: typing
+    goes to the box, Enter and Tab take the suggestion picked, Escape closes the list,
+    and only moving through the list is left to the list.
+    """
+
+    MOVES = (Qt.Key_Up, Qt.Key_Down, Qt.Key_PageUp, Qt.Key_PageDown)
+
+    def __init__(self, completer: QCompleter, box: QWidget) -> None:
+        super().__init__(box)
+        self.completer = completer
+        self.box = box
+        completer.popup().installEventFilter(self)  # after QCompleter's, so it runs first
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802
+        """Take the key before QCompleter does."""
+        if event.type() != QEvent.KeyPress:
+            return False
+        key = event.key()
+        popup = self.completer.popup()
+        if key in self.MOVES:
+            return False
+        picked = popup.currentIndex()
+        if key in (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Tab) and picked.isValid():
+            popup.hide()
+            self.completer.activated.emit(picked.data())
+            return True
+        if key in (Qt.Key_Escape, Qt.Key_Tab, Qt.Key_Backtab):
+            popup.hide()
+            return True
+        if key in (Qt.Key_Return, Qt.Key_Enter):
+            popup.hide()  # nothing picked: Enter is the box's own, a new line
+        QApplication.sendEvent(self.box, event)
+        return True
+
+
 class CardEditor(RequestEditor):
     """The request editor, laid out as a card: what a card turns into when it is clicked.
 
@@ -612,6 +657,10 @@ class CardEditor(RequestEditor):
         self.skedge_edit.document().documentLayout().documentSizeChanged.connect(self._fit)
         self.tags_edit.setPlaceholderText("tags, comma-separated")
         self.status.setFont(STATUS_FONT)
+        self.suggestion_keys = (
+            SuggestionKeys(self.skedge_edit.completer, self.skedge_edit),
+            SuggestionKeys(self.requester_completer, self.requester_edit),
+        )
         self._fit()
 
     def _lay_out(self) -> None:
