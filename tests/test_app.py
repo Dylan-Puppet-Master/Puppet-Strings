@@ -1030,6 +1030,16 @@ def test_opening_a_request_leaves_its_scope_as_saved(window, monkeypatch):
     assert window.editor.current().scope == request.scope  # nothing to save on leaving it
 
 
+def test_a_blank_request_says_nothing_until_it_is_saved(window):
+    editor = window.editor
+    editor.clear()
+    QTest.qWait(100)
+    assert editor.status.text() == ""
+    window.reload()  # the day loaded again, as after a change on the sheets
+    window.wait_for_load()
+    assert editor.status.text() == ""
+
+
 def test_the_editor_saves_a_request_that_does_not_validate_and_says_so(window):
     editor = window.editor
     editor.clear()

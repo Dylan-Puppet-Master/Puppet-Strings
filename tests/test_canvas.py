@@ -185,12 +185,11 @@ def test_a_card_is_not_checked_as_it_is_typed_and_is_saved_even_if_it_does_not_v
     canvas = window.canvas
     card = show_card(canvas, "breaks")
     canvas.activate(card, "skedge")
-    while canvas.editor.soon.isActive():  # the check on opening, which says how it stands
-        settle(10)
-    said = canvas.editor.status.text()
+    settle(100)
+    assert canvas.editor.status.text() == ""  # nothing said on opening it
     canvas.editor.skedge_edit.setPlainText("REQUEST nobody.at_all DO")
     settle(500)
-    assert canvas.editor.status.text() == said  # nothing said while typing
+    assert canvas.editor.status.text() == ""  # nor while typing
     QTest.keyClick(canvas.editor.skedge_edit, Qt.Key_S, Qt.ControlModifier)
     assert saved_requests(fixtures_copy)["breaks"].skedge == "REQUEST nobody.at_all DO"
     assert "does not validate, so a solve leaves it out" in canvas.editor.status.text()

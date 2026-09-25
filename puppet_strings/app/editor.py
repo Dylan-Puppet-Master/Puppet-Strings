@@ -4,7 +4,7 @@ import re
 from dataclasses import replace
 from datetime import date, datetime
 
-from PySide6.QtCore import QModelIndex, QRegularExpression, QStringListModel, Qt, QTimer, Signal
+from PySide6.QtCore import QModelIndex, QRegularExpression, QStringListModel, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
@@ -273,17 +273,11 @@ class RequestEditor(QWidget):
         self.new_button = QPushButton("New")
         self._lay_out()
 
-        # Nothing is checked as it is typed: half a Skedge is always wrong, and saying so at
-        # every pause was more noise than help. It is checked when it is saved, and saved
+        # Nothing is checked as it is typed, or when it is opened: half a Skedge is always
+        # wrong, and saying so was more noise than help. It is checked when saved, and saved
         # whatever the check finds, with the line under the editor saying what that was;
         # a request that does not validate is left out of solving until it is fixed.
         self.priority_box.currentTextChanged.connect(self._priority_changed)
-        # A request just put in the fields is checked straight after they are shown rather
-        # than before, so a click on a row or a card opens it at once; see `_check_soon`.
-        self.soon = QTimer(self)
-        self.soon.setSingleShot(True)
-        self.soon.setInterval(30)
-        self.soon.timeout.connect(self.validate)
         self.checked: dict[Request, object] = {}  # see `_validated`
         self.checked_for: Dataset | None = None
         # The scope follows the dates the Skedge's ON names as it is written, unless it has
@@ -336,7 +330,6 @@ class RequestEditor(QWidget):
         self.groups = list(groups or [])
         self.requester_names.setStringList(sorted(dataset.staff) if dataset else [])
         self.skedge_edit.set_dataset(dataset)
-        self.validate()
 
     def _offer_scopes(self, keep: Scope | str | None = None) -> None:
         """Offer the day, week, session and season of the date being scheduled.
@@ -374,7 +367,7 @@ class RequestEditor(QWidget):
         self.created_label.setText(request.created.isoformat() if request.created else "")
         self.skedge_edit.setPlainText(request.skedge)
         self.delete_button.setEnabled(True)
-        self._check_soon()
+        self._shown()
 
     def show_group(self, group: str) -> None:
         """Say which shelf the request is on, or that it is on none."""
@@ -399,17 +392,12 @@ class RequestEditor(QWidget):
         self.created_label.setText(date.today().isoformat())
         self.skedge_edit.setPlainText("")
         self.delete_button.setEnabled(False)
-        self._check_soon()
+        self._shown()
 
-    def _check_soon(self) -> None:
-        """Check the request in the fields once they have been drawn, to say how it stands.
-
-        Resolving a request can take a good fraction of a second, and done first it held
-        the fields back until it was over.
-        """
-        self.follow_on = self.scope_picked = False  # a request just shown keeps its scope
+    def _shown(self) -> None:
+        """A request was just put in the fields: nothing is said about it until it is saved."""
+        self.follow_on = self.scope_picked = False  # and it keeps its scope until then
         self._report("", ok=None)
-        self.soon.start()
 
     def _skedge_edited(self) -> None:
         self.follow_on = True
@@ -451,7 +439,6 @@ class RequestEditor(QWidget):
         """Validate the fields; show the result under the editor."""
         if self.dataset is None:
             return self._report("No data loaded", ok=False)
-        self.soon.stop()
         request = self.current()
         try:
             copies = self._validated(request)

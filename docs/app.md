@@ -272,7 +272,9 @@ saved whatever the check finds. The line under the editor then says
 `✓ Saved s1-12 at 14:32:05`, in green, with the time, so a second save of the same request
 still visibly does something; or, in red, what is wrong with it and where: a request that
 does not validate is kept, and a solve leaves it out and says so in its report until it is
-fixed. Opening a request says how it stands. **New** starts a
+fixed. Until you save, the line says nothing: not for a new request, and not for one you
+open. A card on the canvas still says on its bottom line how a saved request stands.
+**New** starts a
 fresh request; **Delete** removes the one being edited. To delete several, select their
 rows in the table and press the Delete key; a popup lists them and asks first. Saving is
 instant: requests are kept on this computer, not in a sheet. The **scope** box chooses the
