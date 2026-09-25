@@ -21,8 +21,13 @@ binding     : (EACH | amount | any_n) NAME _IN set_
 define      : NAME ":" (ALL | EACH | amount | any_n)? set_
 // A name for a quoted task, to write after DO wherever the task is meant.
 define_task : NAME ":" STRING
-if_         : _IF _NL* condition
-unless      : _UNLESS _NL* condition
+// A condition is for the statements in its block, and only those. THEN is required; without
+// it the builder says so rather than guessing which statements were meant. A block holds
+// statements and further IFs, on lines of their own or all on one.
+if_         : _IF _NL* condition (_THEN _NL* block)?
+unless      : _UNLESS _NL* condition (_THEN _NL* block)?
+block       : "{" _NL* (_inner _NL*)+ "}"
+_inner      : if_ | unless | labeled | request | prefer | exclude
 labeled     : NAME ":" request
 // With no amount, the second is only after the first: AT_LEAST 0m.
 gap         : _GAP NAME _TO NAME amount?
@@ -115,6 +120,7 @@ _EXCLUDE.5  : /EXCLUDE\b/i
 _PREFER.5   : /PREFER\b/i
 _IF.5       : /IF\b/i
 _UNLESS.5   : /UNLESS\b/i
+_THEN.5     : /THEN\b/i
 _GAP.5      : /GAP\b/i
 _TO.5       : /TO\b/i
 DO.5        : /DO\b/i

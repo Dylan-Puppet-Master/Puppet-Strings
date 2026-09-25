@@ -41,9 +41,6 @@ def check(declaration: ast.Declaration, hard: bool) -> None:
     if declaration.exclusions:
         _check_exclusions(declaration, hard)
         return
-    conditions = declaration.conditions
-    if len(conditions) > 1:
-        raise _error("only one IF or UNLESS per declaration", conditions[1].pos)
     prefers = [s for s in statements if is_prefer(s)]
     if prefers and hard:
         raise _error(

@@ -52,7 +52,7 @@ the same words are a **pattern**: they match assignments, and nothing in them is
 
 | Element | Form |
 |---|---|
-| Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `AND`, `OR`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `BUSY`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL`, `ANY`, `EACH`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
+| Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `THEN`, `AND`, `OR`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `BUSY`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL`, `ANY`, `EACH`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
 | Quantifier | `ALL`, `EACH`, `ANY`, a choice `ANY n`, and a count: `AT_LEAST n`, `AT_MOST n` or `EXACTLY n`, for any whole `n` from 1 |
 | Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session_4.week_2.monday` |
 | Variable, label | A bare identifier: `s`, `morning`. A label or a definition is followed by a colon. |
@@ -100,8 +100,13 @@ binding     : (EACH | amount | any_n) NAME _IN set_
 define      : NAME ":" (ALL | EACH | amount | any_n)? set_
 // A name for a quoted task, to write after DO wherever the task is meant.
 define_task : NAME ":" STRING
-if_         : _IF _NL* condition
-unless      : _UNLESS _NL* condition
+// A condition is for the statements in its block, and only those. THEN is required; without
+// it the builder says so rather than guessing which statements were meant. A block holds
+// statements and further IFs, on lines of their own or all on one.
+if_         : _IF _NL* condition (_THEN _NL* block)?
+unless      : _UNLESS _NL* condition (_THEN _NL* block)?
+block       : "{" _NL* (_inner _NL*)+ "}"
+_inner      : if_ | unless | labeled | request | prefer | exclude
 labeled     : NAME ":" request
 // With no amount, the second is only after the first: AT_LEAST 0m.
 gap         : _GAP NAME _TO NAME amount?
@@ -194,6 +199,7 @@ _EXCLUDE.5  : /EXCLUDE\b/i
 _PREFER.5   : /PREFER\b/i
 _IF.5       : /IF\b/i
 _UNLESS.5   : /UNLESS\b/i
+_THEN.5     : /THEN\b/i
 _GAP.5      : /GAP\b/i
 _TO.5       : /TO\b/i
 DO.5        : /DO\b/i
@@ -652,9 +658,15 @@ A declaration is lines of these kinds, in any order.
 | Statement | `[label:] REQUEST …` or `PREFER …` | §9. Only a positive `REQUEST … DO` may be labeled. |
 | Binding | `EACH x IN s`, `ANY n x IN s`, `x: ANY n s`, `x: EACH s` | §6.3. |
 | Definition | `x: s`, `x: '<task>'` | A name for a set, or for a quoted task (§6.3). |
-| Condition | `IF <test>` | The statements apply only when this holds. |
-| Negative condition | `UNLESS <test>` | The statements apply only when this does not hold. |
+| Condition | `IF <test> THEN { … }` | The statements in the braces apply only when this holds. |
+| Negative condition | `UNLESS <test> THEN { … }` | The statements in the braces apply only when this does not hold. |
+| Shared dates | `ON <dates>`, on the first line only | Goes on every `REQUEST`, `PREFER` and `EXCLUDE`; none may have its own. |
 | Gap | `GAP a TO b [<amount>]` | Relates the assignments of the `REQUEST` labeled `a` to those of the one labeled `b`. |
+
+The braces hold statements, labeled or not, and further conditions, which apply only when
+every condition around them holds; bindings, definitions and gaps go outside them. A
+statement outside every condition always applies. A gap holds only when both of its
+statements apply. The braces may be spread over lines, indented or not, or all on one.
 
 A test is a statement that says what happens, true or false of the day, past dates and
 today — with no count and no `FOR` it holds when it happens at all — or several tests
@@ -673,7 +685,7 @@ of the declaration only where one can start: at `REQUEST`, `PREFER`, `EXCLUDE`, 
 colon. Anywhere else it carries on the line above. A line may also end in `IF`, `UNLESS`,
 `AND`, `OR` or `(`.
 
-A declaration needs at least one statement and takes at most one condition, and may mix
+A declaration needs at least one statement, takes any number of conditions, and may mix
 `REQUEST` and `PREFER` statements freely: one piece of plain English often needs several
 statements, and they belong together under one description, one priority and one weight.
 
@@ -844,7 +856,9 @@ parser, the validator and the solver report:
 | `PREFER is weighed by how close it comes, so it needs a count or a FOR length` | A `PREFER` with neither. |
 | `a GAP is measured from what a REQUEST makes` | A labeled `REQUEST` with a cap, `ANY n` blocks over pooled dates, or a `FOR` over a pool. |
 | `given twice` | A clause repeated in one statement. |
-| `only one IF or UNLESS per declaration` | Two condition lines. |
+| `needs THEN and the statements it is for` | An `IF` or `UNLESS` with no `THEN { … }`; the message names which. |
+| `the ON on the first line gives this its dates already` | A statement with its own `ON` under an `ON` on the first line. |
+| `is a namespace, so it can't name anything else` | A variable, label or definition called `staff`, `blocks` or another namespace. |
 | `unknown … name` | A name that does not exist in its namespace. |
 | `expected a … name` | A name or variable from the wrong namespace. |
 | `unknown variable` | A bare identifier no `IN` binds. |

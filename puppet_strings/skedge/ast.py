@@ -238,6 +238,9 @@ class Requirement:
 
     `who` is None for `REQUEST <activity>`, which names no one: the activity's own
     positions say who may hold it, so there is nothing left for the request to add.
+
+    `when` is where every IF or UNLESS it is inside was written, outermost first, as it is
+    on every statement: the statement is asked for only when all of them hold.
     """
 
     who: Selector | None
@@ -247,6 +250,7 @@ class Requirement:
     pos: Pos
     label: str | None = None
     busy: bool = False
+    when: tuple[Pos, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -255,6 +259,7 @@ class Preference:
 
     pattern: Pattern
     pos: Pos
+    when: tuple[Pos, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -266,6 +271,7 @@ class Score:
     mapping: Ref
     args: tuple[Var | Ref, ...]
     pos: Pos
+    when: tuple[Pos, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -280,6 +286,7 @@ class Exclude:
     label: str
     clauses: tuple[Clause, ...]
     pos: Pos
+    when: tuple[Pos, ...] = ()
 
 
 Statement = Requirement | Preference | Score | Exclude
@@ -346,7 +353,11 @@ def predicates(test: Test) -> Iterator[Predicate]:
 
 @dataclass(frozen=True)
 class Condition:
-    """`IF …` or, with `unless`, `UNLESS …`."""
+    """`IF … THEN {…}` or, with `unless`, `UNLESS … THEN {…}`.
+
+    The block is not kept here: each statement in it names this condition by its `pos` in
+    its own `when`, and the condition is a line of the declaration like the statements.
+    """
 
     unless: bool
     test: Test

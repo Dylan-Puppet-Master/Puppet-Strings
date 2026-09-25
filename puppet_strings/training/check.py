@@ -304,8 +304,8 @@ def _dates(copies) -> frozenset[date]:
     for st in _statements(copies):
         found |= set(_on(st))
     for copy in copies:
-        if copy.condition is not None:
-            found |= {d for p in _patterns(copy.condition.test) for d in p.on.items}
+        for condition in copy.conditions:
+            found |= {d for p in _patterns(condition.test) for d in p.on.items}
     return frozenset(found)
 
 
@@ -425,10 +425,9 @@ def _judged(copies: tuple[Resolved, ...]) -> tuple[Resolved, ...]:
     """
     judged = []
     for copy in copies:
+        copy = copy.keeping(lambda st: not _fixed(st))
         statements = tuple(
-            replace(st, prefer=False) if isinstance(st, Tally) else st
-            for st in copy.statements
-            if not _fixed(st)
+            replace(st, prefer=False) if isinstance(st, Tally) else st for st in copy.statements
         )
         if statements:
             judged.append(replace(copy, statements=statements))
@@ -509,7 +508,7 @@ def _asking(who: Choice, what, during: Choice, on: Choice) -> Resolved:
         label=None,
         pos=DEFAULT_POS,
     )
-    return Resolved(key="", bindings={}, statements=(requirement,), condition=None, gaps=())
+    return Resolved(key="", bindings={}, statements=(requirement,), gaps=(), when=((),))
 
 
 def _mentions(dataset: Dataset, copies) -> dict[str, set]:

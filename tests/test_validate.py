@@ -60,13 +60,6 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         ),
         (f"{DO} DURING blocks.clinic_2", Priority.HIGH, "DURING given twice", 1, 51),
         (
-            f"IF staff.dylan FREE\nUNLESS staff.rob FREE\n{DO}",
-            Priority.HIGH,
-            "only one IF or UNLESS per declaration",
-            2,
-            1,
-        ),
-        (
             "REQUEST staff.dylan DO 'x' DURING blocks.nope",
             Priority.HIGH,
             "unknown name 'blocks.nope'",

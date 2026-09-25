@@ -46,8 +46,8 @@ goes directly in front of the set it is about, and a length goes on `FOR`. A sin
 (`staff.rob`, `blocks.clinic_1`, `2026-09-21`) needs no quantifier, and takes none. A
 missing `ON` means the day being scheduled, and a missing `DURING` any block of it.
 
-`NOT DO` forbids, `WITH` / `WITHOUT` say who is alongside, `IF` / `UNLESS` make a request
-conditional (`AND` / `OR` join conditions), `GAP` puts time between two requirements, and
+`NOT DO` forbids, `WITH` / `WITHOUT` say who is alongside, `IF` / `UNLESS` … `THEN` make the
+statements in their braces conditional (`AND` / `OR` join conditions), `GAP` puts time between two requirements, and
 `EXCLUDE` takes somebody out of the day altogether. That is the whole language.
 
 Keywords are written in upper case here and everywhere else, which is what makes a request
@@ -551,13 +551,40 @@ lines come to be about the same person:
 ```skedge
 # Nobody who worked the night block yesterday works clinic 1 today.
 EACH s IN staff
-IF s BUSY DURING blocks.night ON {dates.target - 1d}
-REQUEST s FREE DURING blocks.clinic_1
+IF s BUSY DURING blocks.night ON {dates.target - 1d} THEN
+{
+    REQUEST s FREE DURING blocks.clinic_1
+}
 ```
 
-`IF` makes the request apply only when its test holds: when what it says happens, or meets
-its count. `UNLESS` is the opposite. Published past days are facts, so an `IF` about
-yesterday is simply true or false.
+`IF <test> THEN { … }` asks for the statements in the braces only when its test holds:
+when what it says happens, or meets its count. `UNLESS` is the opposite. Published past
+days are facts, so an `IF` about yesterday is simply true or false.
+
+`THEN` and the braces are required, because they are what says which statements the test
+is about. Everything outside them is asked for either way, so one request can hold a
+statement that always applies beside one that depends on something:
+
+```skedge
+# After a busy morning each director gets an hour of paperwork in the afternoon, and would
+# rather have the evening free. Whatever the morning, they are free at lunch.
+EACH d IN staff.director
+IF d BUSY DURING ALL {blocks.clinic_1 + blocks.clinic_2} THEN
+{
+    REQUEST d DO 'paperwork' FOR AT_LEAST 1h DURING ANY {blocks.rest_hour + blocks.playstation}
+    PREFER d FREE DURING AT_LEAST 1 blocks.evening
+}
+REQUEST d FREE DURING blocks.lunch
+```
+
+The braces hold `REQUEST` and `PREFER` statements, labeled or not, and further `IF` and
+`UNLESS` blocks, which apply only when every test around them holds. A request may hold as
+many blocks as it needs. Binding lines, definitions and `GAP` go outside them, since they
+belong to the whole request; a `GAP` between two statements holds only when both are asked
+for. A new line and an indent after `THEN` is how a block is written here, but the lines
+may go unindented or all on one: `IF … THEN { REQUEST … PREFER … }` reads the same. The
+`REQUEST` statements of the request still stand or fall together, and one whose test does
+not hold asks for nothing, so it is met.
 
 Conditions join with `AND` (every one holds) and `OR` (at least one does), and a long one
 reads best a test to a line:
@@ -567,8 +594,10 @@ reads best a test to a line:
 IF
 AT_LEAST 2 staff.counselor DO 'break' DURING ANY blocks
 AND
-staff.dylan FREE DURING blocks.lunch
-REQUEST staff.dylan DO 'front desk' DURING blocks.lunch
+staff.dylan FREE DURING blocks.lunch THEN
+{
+    REQUEST staff.dylan DO 'front desk' DURING blocks.lunch
+}
 ```
 
 Mixing the two needs parentheses, the way mixing set operators does, so there is no
@@ -577,8 +606,10 @@ so a line beginning with either continues the condition above it.
 
 ```skedge
 # Someone from the office covers the front desk in clinic 1, unless a director is free then.
-UNLESS ANY staff.director FREE DURING blocks.clinic_1
-REQUEST ANY 1 staff.office DO 'front desk' DURING blocks.clinic_1
+UNLESS ANY staff.director FREE DURING blocks.clinic_1 THEN
+{
+    REQUEST ANY 1 staff.office DO 'front desk' DURING blocks.clinic_1
+}
 ```
 
 `ANY 1 x IN <set>` on its own line picks one item for the whole request: "the same
@@ -711,8 +742,9 @@ what, dates, blocks. `MAXIMIZE` or `MINIMIZE` goes before or after the pattern i
 A statement can be written on as many lines as it reads well on. A new line starts a new
 statement only where one can: at `REQUEST`, `PREFER`, `EXCLUDE`, `IF`, `UNLESS` or `GAP`,
 at a binding line (`EACH x IN …`, `ANY n x IN …`), or at a name followed by a colon (a
-label or a definition). Every other line carries on the one above it. Nothing needs
-indenting, and where a statement fits on one line it can stay there.
+label or a definition). Every other line carries on the one above it, and that includes a
+line holding only `{` or `}`. Nothing needs indenting, and where a statement fits on one
+line it can stay there.
 
 So a line inside a statement can't start with `EACH x IN` or `ANY n x IN`, which would
 be read as a binding line: put it at the end of the line above instead.
@@ -722,8 +754,8 @@ be read as a binding line: put it at the end of the line above instead.
 A request holds as many `REQUEST` and `PREFER` statements as the thing being asked for
 needs. Plain English often does not fit in one statement — "everyone gets a break, and we
 would rather they were not all at once" is two — and writing them as one request keeps
-them under one description, one priority and one weight, and lets them share a binding, an
-`IF` and a `GAP`.
+them under one description, one priority and one weight, and lets them share a binding, a
+`GAP`, and an `IF` over the ones in its braces.
 
 ```skedge
 # Rob runs the pole course this morning, and we would rather he were free at playstation.
@@ -1102,8 +1134,10 @@ Priority `MUST_HAPPEN`.
 
 ```skedge
 EACH s IN staff
-IF s DO ANY activities.clinics DURING AT_LEAST 3 CONSECUTIVE blocks
-REQUEST s FREE DURING ANY blocks
+IF s DO ANY activities.clinics DURING AT_LEAST 3 CONSECUTIVE blocks THEN
+{
+    REQUEST s FREE DURING ANY blocks
+}
 ```
 
 Priority `HIGH`.

@@ -103,13 +103,14 @@ def test_mapping_cells_parse_on_their_own():
 def test_bindings_conditions_labels_and_gaps():
     lines = parse(
         "ANY 2 p IN staff.counselor\n"
-        "UNLESS p DO ANY activities.clinics DURING AT_LEAST 3 CONSECUTIVE blocks\n"
+        "UNLESS p DO ANY activities.clinics DURING AT_LEAST 3 CONSECUTIVE blocks THEN {\n"
         "first: REQUEST p DO 'campfire setup' DURING blocks.clinic_4\n"
         "last:  REQUEST p DO 'campfire teardown' DURING blocks.evening\n"
+        "}\n"
         "GAP first TO last AT_LEAST 0m\n"
-        "IF staff.rob FREE"
+        "IF staff.rob FREE THEN { REQUEST staff.rob DO 'x' DURING blocks.lunch }"
     ).lines
-    binding, unless, first, last, gap, if_ = lines
+    binding, unless, first, last, gap, if_, lunch = lines
     assert isinstance(binding, ast.Binding)
     selector = binding.selector
     assert (selector.quantifier, selector.n, selector.var) == (ast.ANY_OF, 2, "p")
@@ -117,10 +118,35 @@ def test_bindings_conditions_labels_and_gaps():
     assert unless.unless and during.consecutive and during.selector.n == 3
     assert unless.test.pattern.who.expr == ast.Var("p", ast.Pos(2, 8))
     assert (first.label, last.label) == ("first", "last") and first.pos == ast.Pos(3, 8)
+    assert first.when == last.when == (unless.pos,)
     assert gap == ast.Gap(
-        "first", "last", ast.Amount(ast.AT_LEAST, 0, True, ast.Pos(5, 19)), ast.Pos(5, 1)
+        "first", "last", ast.Amount(ast.AT_LEAST, 0, True, ast.Pos(6, 19)), ast.Pos(6, 1)
     )
     assert not if_.unless and if_.test.pattern.what is None
+    assert lunch.when == (if_.pos,)
+
+
+def test_a_block_may_hold_another_and_sit_beside_what_always_applies():
+    outer, rob, inner, vic, prefer, always = parse(
+        "IF staff.rob FREE DURING blocks.lunch THEN\n"
+        "{\n"
+        "    REQUEST staff.rob DO 'x' DURING blocks.lunch\n"
+        "    IF staff.vic FREE DURING blocks.lunch THEN { REQUEST staff.vic DO 'x' DURING blocks.lunch }\n"
+        "    PREFER staff.rob FREE DURING AT_LEAST 1 blocks.dinner\n"
+        "}\n"
+        "REQUEST staff.rob FREE DURING blocks.dinner"
+    ).lines
+    assert isinstance(outer, ast.Condition) and isinstance(inner, ast.Condition)
+    assert rob.when == prefer.when == (outer.pos,)
+    assert vic.when == (outer.pos, inner.pos) == (ast.Pos(1, 1), ast.Pos(4, 5))
+    assert always.when == ()
+
+
+@pytest.mark.parametrize("word", ["IF", "UNLESS"])
+def test_a_condition_needs_then_and_its_statements(word):
+    with pytest.raises(ast.SkedgeError, match=f"{word} needs THEN") as info:
+        parse(f"{word} staff.dylan FREE DURING blocks.lunch\nREQUEST staff.rob FREE")
+    assert (info.value.line, info.value.column) == (1, 1)
 
 
 def test_conditions_join_with_and_and_or_over_several_lines():
@@ -128,8 +154,10 @@ def test_conditions_join_with_and_and_or_over_several_lines():
         "IF\n"
         "ANY staff.counselor DO 'break' DURING AT_LEAST 2 CONSECUTIVE blocks\n"
         "AND\n"
-        "staff.dylan FREE DURING blocks.lunch\n"
-        "REQUEST staff.rob DO 'x' DURING blocks.lunch"
+        "staff.dylan FREE DURING blocks.lunch THEN\n"
+        "{\n"
+        "    REQUEST staff.rob DO 'x' DURING blocks.lunch\n"
+        "}"
     ).lines
     assert isinstance(if_.test, ast.Junction) and if_.test.all
     first, second = if_.test.parts
@@ -137,8 +165,8 @@ def test_conditions_join_with_and_and_or_over_several_lines():
     assert second.pattern.what is None
     (unless, _) = parse(
         "UNLESS (ANY staff.a FREE and ANY staff.b FREE)\n"
-        "OR staff.c FREE\n"
-        "REQUEST staff.rob DO 'x' DURING blocks.lunch"
+        "OR staff.c FREE THEN\n"
+        "{ REQUEST staff.rob DO 'x' DURING blocks.lunch }"
     ).lines
     assert unless.unless and not unless.test.all
     assert [type(p) for p in unless.test.parts] == [ast.Junction, ast.Predicate]
@@ -148,7 +176,7 @@ def test_conditions_join_with_and_and_or_over_several_lines():
 def test_mixing_and_with_or_needs_parentheses():
     with pytest.raises(ast.SkedgeError, match="mixed AND and OR need parentheses"):
         parse(
-            "IF ANY staff.a FREE AND ANY staff.b FREE OR ANY staff.c FREE\nREQUEST staff.rob FREE"
+            "IF ANY staff.a FREE AND ANY staff.b FREE OR ANY staff.c FREE THEN { REQUEST staff.rob FREE }"
         )
 
 
@@ -273,8 +301,8 @@ def test_consecutive_goes_on_the_blocks():
         ),
         ("REQUEST staff.dylan DO 'x' ON AT_LEAST 2 CONSECUTIVE dates.season", "about blocks"),
         (
-            "IF staff.dylan DO ANY activities.clinics DURING ANY CONSECUTIVE blocks\n"
-            "REQUEST staff.dylan FREE",
+            "IF staff.dylan DO ANY activities.clinics DURING ANY CONSECUTIVE blocks THEN\n"
+            "{ REQUEST staff.dylan FREE }",
             "for a FOR to measure",
         ),
         ("REQUEST AT_MOST 2 ANY staff DO 'break'", "in place of ANY: AT_MOST 2 staff"),
@@ -284,7 +312,7 @@ def test_consecutive_goes_on_the_blocks():
         ("REQUEST staff.cam DO AT_MOST 2 'x'", "count the blocks it is done in"),
         ("REQUEST staff.cam NOT FREE DURING blocks.a", "write BUSY, not NOT FREE"),
         ("REQUEST staff.cam NOT BUSY DURING blocks.a", "write FREE, not NOT BUSY"),
-        ("IF staff.cam NOT FREE DURING blocks.a\nREQUEST staff.x FREE", "write BUSY"),
+        ("IF staff.cam NOT FREE DURING blocks.a THEN { REQUEST staff.x FREE }", "write BUSY"),
         ("REQUEST staff.cam FOR EXACTLY 30m DO 'x' DURING blocks.a", "FOR describes the activity"),
         ("REQUEST WITH staff.x staff.cam FREE DURING blocks.a", "so it goes after FREE"),
     ],
@@ -497,8 +525,7 @@ def test_a_task_may_be_named_and_used_after_do():
     lines = parse(
         "duty: 'on duty'\n"
         "REQUEST staff.rob DO duty DURING blocks.a\n"
-        "IF staff.vic DO duty DURING blocks.b\n"
-        "REQUEST staff.vic NOT DO duty"
+        "IF staff.vic DO duty DURING blocks.b THEN { REQUEST staff.vic NOT DO duty }"
     ).lines
     assert all(
         (x.what if isinstance(x, ast.Requirement) else x.test.pattern.what) == ast.Task("on duty")

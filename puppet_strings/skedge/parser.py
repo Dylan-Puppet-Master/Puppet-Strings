@@ -233,6 +233,7 @@ class _Builder(Transformer):
     """Turns the Lark tree into ast nodes."""
 
     def start(self, meta, lines):
+        lines = list(_flatten(lines, ()))
         if isinstance(lines[0], ast.On):
             lines = _on_every_statement(lines[0], lines[1:])
         _no_namespace_names(lines)
@@ -274,10 +275,14 @@ class _Builder(Transformer):
         return _Any(int(token), _pos(meta))
 
     def if_(self, meta, items):
-        return ast.Condition(False, _test(items[0]), _pos(meta))
+        return _Block(ast.Condition(False, _test(items[0]), _pos(meta)), _block(items, "IF", meta))
 
     def unless(self, meta, items):
-        return ast.Condition(True, _test(items[0]), _pos(meta))
+        condition = ast.Condition(True, _test(items[0]), _pos(meta))
+        return _Block(condition, _block(items, "UNLESS", meta))
+
+    def block(self, meta, items):
+        return tuple(items)
 
     def junction(self, meta, items):
         test = items[0]
@@ -770,6 +775,40 @@ def _name_tasks(declaration: ast.Declaration) -> ast.Declaration:
                         f"'{var.name}' names a task, which goes after DO, not in a set", var.pos
                     )
     return ast.Declaration(lines)
+
+
+@dataclass(frozen=True)
+class _Block:
+    """`IF … THEN {…}` as the rules build it, before `start` flattens it."""
+
+    condition: ast.Condition
+    lines: tuple
+
+
+def _block(items, word: str, meta) -> tuple:
+    """The statements after THEN, or an error saying a condition has to have some."""
+    if len(items) < 2:
+        raise _error(
+            f"{word} needs THEN and the statements it is for: {word} … THEN {{ REQUEST … }}",
+            _pos(meta),
+        )
+    return items[1]
+
+
+def _flatten(lines, when: tuple[ast.Pos, ...]):
+    """Every line with its blocks opened out.
+
+    Each condition becomes a line of its own, and each statement names every condition
+    around it, outermost first, in its `when`.
+    """
+    for line in lines:
+        if isinstance(line, _Block):
+            yield line.condition
+            yield from _flatten(line.lines, (*when, line.condition.pos))
+        elif when:
+            yield replace(line, when=when)
+        else:
+            yield line
 
 
 def _on_every_statement(on: ast.On, lines: list) -> list:

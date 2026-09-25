@@ -1264,8 +1264,8 @@ def test_if_reads_a_published_fact():
     yesterday = TARGET - timedelta(days=1)
     text = (
         "EACH s IN staff\n"
-        "IF s BUSY DURING blocks.playstation ON {dates.target - 1d}\n"
-        "REQUEST s FREE DURING blocks.clinic_1"
+        "IF s BUSY DURING blocks.playstation ON {dates.target - 1d} THEN\n"
+        "{ REQUEST s FREE DURING blocks.clinic_1 }"
     )
     members = [staff("Dylan", archery_1_2=OK), staff("Randy", archery_1_2=OK)]
     ds = dataset(
@@ -1289,8 +1289,8 @@ def test_if_reads_a_published_fact():
 
 def test_unless_applies_only_when_the_pattern_has_no_match():
     text = (
-        "UNLESS ANY staff.director FREE DURING blocks.clinic_1\n"
-        "REQUEST ANY 1 staff.office DO 'front desk' DURING blocks.clinic_1"
+        "UNLESS ANY staff.director FREE DURING blocks.clinic_1 THEN\n"
+        "{ REQUEST ANY 1 staff.office DO 'front desk' DURING blocks.clinic_1 }"
     )
     members = [staff("David", archery_1_2=OK), staff("Lisa")]
     categories = {"director": ["David"], "office": ["Lisa"]}
@@ -1308,11 +1308,41 @@ def test_unless_applies_only_when_the_pattern_has_no_match():
     assert result.unsatisfied == ()
 
 
+def test_only_what_is_in_the_braces_depends_on_the_test():
+    """Mail is asked for either way; the desk only when a director is busy, and Lisa free later."""
+    text = (
+        "IF ANY staff.director BUSY DURING blocks.clinic_1 THEN\n"
+        "{\n"
+        "    IF ANY staff.office FREE DURING blocks.clinic_3 THEN\n"
+        "    {\n"
+        "        REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1\n"
+        "    }\n"
+        "}\n"
+        "REQUEST staff.lisa DO 'mail' DURING blocks.clinic_2"
+    )
+    members = [staff("David", archery_1_2=OK), staff("Lisa")]
+    categories = {"director": ["David"], "office": ["Lisa"]}
+    idle = run(dataset(members, [ARCHERY], categories=categories, requests=[request("t", text)]))
+    assert where(idle, activity="mail") and not where(idle, activity="front desk")
+    assert idle.unsatisfied == ()
+    busy = run(
+        dataset(
+            members,
+            [ARCHERY],
+            offerings=[("Archery 1 & 2", ["clinic_1"])],
+            categories=categories,
+            requests=[request("t", text)],
+        )
+    )
+    assert where(busy, activity="mail") and where(busy, activity="front desk")
+    assert busy.unsatisfied == ()
+
+
 def test_if_with_an_amount_over_a_run():
     text = (
         "EACH s IN staff\n"
-        "IF s DO ANY activities.clinics DURING AT_LEAST 2 CONSECUTIVE blocks\n"
-        "REQUEST s FREE DURING blocks.clinic_3"
+        "IF s DO ANY activities.clinics DURING AT_LEAST 2 CONSECUTIVE blocks THEN\n"
+        "{ REQUEST s FREE DURING blocks.clinic_3 }"
     )
     ds = dataset(
         [staff("Dylan", archery_1_2=OK)],
@@ -1339,8 +1369,8 @@ def test_and_or_join_conditions():
 
     def desk(joined):
         text = (
-            f"IF ANY staff.director FREE DURING blocks.clinic_1\n{joined} staff.lisa FREE DURING blocks.clinic_2\n"
-            "REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1"
+            f"IF ANY staff.director FREE DURING blocks.clinic_1\n{joined} staff.lisa FREE DURING blocks.clinic_2 THEN\n"
+            "{ REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1 }"
         )
         ds = dataset(members, [ARCHERY], categories=categories, requests=[request("desk", text)])
         return where(run(ds), activity="front desk")
@@ -1348,8 +1378,8 @@ def test_and_or_join_conditions():
     # Lisa is free in clinic 2 whatever happens, so OR holds and AND holds too.
     assert desk("AND") and desk("OR")
     busy = (
-        "IF ANY staff.director BUSY DURING blocks.clinic_1\n{} staff.lisa FREE DURING blocks.clinic_2\n"
-        "REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1"
+        "IF ANY staff.director BUSY DURING blocks.clinic_1\n{} staff.lisa FREE DURING blocks.clinic_2 THEN\n"
+        "{{ REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1 }}"
     )
     for joined, expected in (("AND", False), ("OR", True)):
         ds = dataset(

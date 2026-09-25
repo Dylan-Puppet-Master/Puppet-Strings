@@ -4,7 +4,7 @@ Names are looked up, set expressions evaluated, and `EACH` expanded into indepen
 copies of the declaration. A copy is what the solver compiles.
 """
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
@@ -263,13 +263,28 @@ def asks(statement) -> bool:
 
 @dataclass(frozen=True)
 class Resolved:
-    """One expanded copy of a declaration. `key` names the EACH items it was made for."""
+    """One expanded copy of a declaration. `key` names the EACH items it was made for.
+
+    `when` holds, for each statement in turn, the conditions it is asked for under: every
+    IF or UNLESS around it, outermost first, and none for a statement outside them all. A
+    condition around several statements is the same object in each of their entries.
+    """
 
     key: str
     bindings: dict[str, Choice]
     statements: tuple[Statement, ...]
-    condition: Condition | None
     gaps: tuple[ast.Gap, ...]
+    when: tuple[tuple["Condition", ...], ...]
+
+    def keeping(self, keep: Callable[[Statement], bool]) -> "Resolved":
+        """The copy with only the statements `keep` passes, each still under its conditions."""
+        kept = [(st, w) for st, w in zip(self.statements, self.when, strict=True) if keep(st)]
+        return replace(self, statements=tuple(st for st, _ in kept), when=tuple(w for _, w in kept))
+
+    @property
+    def conditions(self) -> tuple["Condition", ...]:
+        """Every condition in the copy, once each."""
+        return tuple({id(c): c for guard in self.when for c in guard}.values())
 
 
 @dataclass(frozen=True)
@@ -636,7 +651,7 @@ class _AnotherDay(Exception):
 
 
 def _copy(declaration: ast.Declaration, scope: _Scope) -> Resolved:
-    conditions = declaration.conditions
+    conditions = {c.pos: _condition(c, scope) for c in declaration.conditions}
     statements, picked = [], {}
     for line in declaration.statements:
         statement, more = _statement(line, scope)
@@ -646,8 +661,8 @@ def _copy(declaration: ast.Declaration, scope: _Scope) -> Resolved:
         key=", ".join(str(item) for item in scope.each.values()),
         bindings={**{name: choice for name, (choice, _) in scope.anys.items()}, **picked},
         statements=tuple(statements),
-        condition=_condition(conditions[0], scope) if conditions else None,
         gaps=declaration.gaps,
+        when=tuple(tuple(conditions[p] for p in line.when) for line in declaration.statements),
     )
 
 

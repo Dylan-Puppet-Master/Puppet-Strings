@@ -36,7 +36,7 @@ def on(dataset, name, item=False):
 def test_defaults(dataset):
     (copy,) = resolve(dataset, "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1")
     (st,) = copy.statements
-    assert isinstance(st, Requirement) and copy.key == "" and copy.condition is None
+    assert isinstance(st, Requirement) and copy.key == "" and not copy.conditions
     assert st.on.items == (dataset.target,) and st.on.kind == ALL
     assert st.who.items == ("dylan",) and st.who.kind == ALL
     assert st.during.items == ("clinic_1",) and st.role is None and st.minutes is None
@@ -158,12 +158,13 @@ def test_patterns_conditions_and_mappings(dataset):
     (copy,) = resolve(
         dataset,
         "EACH s IN staff.director\n"
-        "IF s DO ANY activities.clinics DURING AT_LEAST 3 CONSECUTIVE blocks\n"
-        "REQUEST s FREE DURING ANY 1 blocks",
+        "IF s DO ANY activities.clinics DURING AT_LEAST 3 CONSECUTIVE blocks THEN\n"
+        "{ REQUEST s FREE DURING ANY 1 blocks }",
     )[:1]
-    (level,) = copy.condition.test.tally.levels
+    ((condition,),) = copy.when
+    (level,) = condition.test.tally.levels
     assert level.field == "block" and level.choice.n == 3 and level.choice.consecutive
-    assert copy.condition.test.tally.pattern.who.items == ("david",)
+    assert condition.test.tally.pattern.who.items == ("david",)
     copies = resolve(
         dataset,
         "PREFER EACH s IN staff.counselor DO EACH c IN activities.clinics.weapons "
@@ -398,7 +399,7 @@ def test_a_bound_cabin_act_on_another_day_is_no_copy(dataset):
     conditioned = resolve(
         dataset,
         "EACH a IN activities.cabin_acts\n"
-        "IF staff.dylan DO a DURING blocks.cabin_act\n"
-        "REQUEST staff.dylan FREE DURING blocks.lunch",
+        "IF staff.dylan DO a DURING blocks.cabin_act THEN\n"
+        "{ REQUEST staff.dylan FREE DURING blocks.lunch }",
     )
     assert len(conditioned) == 1

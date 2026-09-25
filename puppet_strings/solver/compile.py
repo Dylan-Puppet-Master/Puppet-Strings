@@ -2,7 +2,8 @@
 
 Each active copy of a REQUEST gets a satisfaction literal `sat`: an assumption when the
 request is hard, `weight * sat` in its tier when soft. A copy's constraints are enforced
-by `active`, which is `sat` and, when the declaration has a condition, that it applies.
+by `active`, which is `sat` and, for a statement inside an IF or UNLESS, that every
+condition around it holds.
 A PREFER adds objective terms only.
 
 A declaration may hold both. Its REQUEST statements share the one `sat`, exactly as they
@@ -194,61 +195,85 @@ class Compiler:
         built, by taking those blocks out of the day (`puppet_strings.exclude`). A copy
         that holds nothing else is done rather than inactive, so the report leaves it be.
         """
-        statements = tuple(st for st in copy.statements if not isinstance(st, Exclusion))
-        if not statements:
+        copy = copy.keeping(lambda st: not isinstance(st, Exclusion))
+        if not copy.statements:
             return True
-        copy = replace(copy, statements=statements)
         if not self._active(copy):
             return False
         self._name = name = f"{request.id}[{copy.key}]" if copy.key else request.id
         self._bindings, self._shared = copy.bindings, {}
         tier = Priority.CLINIC if request.priority.hard else request.priority
-        applies = self._applies(copy.condition, name)
-        wanted = [st for st in copy.statements if is_prefer(st)]
-        required = [st for st in copy.statements if not is_prefer(st)]
+        holds = {id(c): self._holds(c, f"if:{name}.{i}") for i, c in enumerate(copy.conditions)}
+        applies: dict[tuple[int, ...], Literal] = {}  # statements in one block share theirs
+        for when in copy.when:
+            key = tuple(id(c) for c in when)
+            if key not in applies:
+                applies[key] = self._all_of(
+                    [holds[k] for k in key], f"applies:{name}.{len(applies)}"
+                )
+        guarded = [
+            (st, applies[tuple(id(c) for c in when)])
+            for st, when in zip(copy.statements, copy.when, strict=True)
+        ]
+        wanted = [(st, guard) for st, guard in guarded if is_prefer(st)]
+        required = [(st, guard) for st, guard in guarded if not is_prefer(st)]
         if required:
             # first, so that a preference can be about what the requirements chose, and so
             # that `_collapse` sees only the constraints the requirements posted
-            self._required(request, copy, required, applies, tier, name)
-        for index, statement in enumerate(wanted):
+            self._required(request, copy, required, tier, name)
+        for index, (statement, guard) in enumerate(wanted):
             label = name if index == 0 else f"{name}#{index + 1}"
-            self._prefer(statement, applies, request.weight, tier, label)
+            self._prefer(statement, guard, request.weight, tier, label)
         return True
 
     def _required(
-        self, request: Request, copy: Resolved, statements: list, applies: Literal, tier, name: str
+        self, request: Request, copy: Resolved, statements: list, tier, name: str
     ) -> None:
-        """Compile the copy's REQUEST statements, which stand or fall together."""
+        """Compile the copy's REQUEST statements, which stand or fall together.
+
+        Each is enforced by `sat` and whatever conditions it is under; one whose conditions
+        do not hold asks for nothing, so it is met.
+        """
         sat: Literal = self.model.NewBoolVar(f"sat:{name}")
         if request.priority.hard:
             self.model.AddAssumption(sat)
-        active = self._all_of([sat, applies], f"active:{name}")
+        actives: dict[int, Literal] = {}
+
+        def active(applies: Literal) -> Literal:
+            if id(applies) not in actives:
+                actives[id(applies)] = self._all_of([sat, applies], f"active:{name}.{len(actives)}")
+            return actives[id(applies)]
+
         for var, binding in copy.bindings.items():
             self._shared[var] = self._choose(replace(binding, var=None), sat, f"{name}:{var}")
         self._implied = []
         posted = len(self.model.Proto().constraints)
         deferred: list[Literal] = []
-        made: dict[str, list[Made]] = {}
-        for st in statements:
+        made: dict[str, tuple[list[Made], Literal]] = {}
+        for st, applies in statements:
             if isinstance(st, Requirement):
-                assignments, later = self._require(st, active, name)
+                assignments, later = self._require(st, active(applies), name)
                 deferred.append(later)
                 if st.label:
-                    made[st.label] = assignments
+                    made[st.label] = assignments, applies
             elif isinstance(st, Forbid):
-                self._forbid(st, active, name)
+                self._forbid(st, active(applies), name)
             else:
-                deferred.append(self._tally(st, active, name))
+                deferred.append(self._tally(st, active(applies), name))
         for gap in copy.gaps:
-            self._gap(gap, active, made[gap.first], made[gap.second], name)
+            (first, first_applies), (second, second_applies) = made[gap.first], made[gap.second]
+            # a GAP holds between its statements only when both are asked for
+            both = self._all_of([sat, first_applies, second_applies], f"gap:{name}:applies")
+            self._gap(gap, both, first, second, name)
         if not request.priority.hard:
-            sat = self._collapse(sat, applies, posted)
+            conditional = any(applies is not True for _, applies in statements)
+            sat = self._collapse(sat, not conditional, posted)
             self.terms[tier].append((round(SCALE * request.weight), sat))
         self.compiled.append(
             Compiled(name, request, sat, self._any_of(deferred, f"deferred:{name}"))
         )
 
-    def _collapse(self, sat: Literal, applies: Literal, posted: int) -> Literal:
+    def _collapse(self, sat: Literal, unconditional: bool, posted: int) -> Literal:
         """The literal a copy's satisfaction already is, when the model holds one.
 
         A copy that does nothing but imply a single literal is met exactly when that
@@ -257,7 +282,7 @@ class Compiler:
         solver weigh the request against the assignments it is really about; the boolean is
         then unused and presolve drops it, along with the implication.
         """
-        if applies is not True or len(self._implied) != 1:
+        if not unconditional or len(self._implied) != 1:
             return sat
         conds, consequence = self._implied[0]
         if isinstance(consequence, bool):
@@ -276,10 +301,9 @@ class Compiler:
             return True
         return any(d < target for d in dates) and any(d > target for d in dates)
 
-    def _applies(self, condition: Condition | None, name: str) -> Literal:
-        if condition is None:
-            return True
-        holds = self._test(condition.test, f"if:{name}")
+    def _holds(self, condition: Condition, name: str) -> Literal:
+        """A literal true when an IF's test holds, or an UNLESS's does not."""
+        holds = self._test(condition.test, name)
         return _negate(holds) if condition.unless else holds
 
     def _test(self, test: Predicate | Junction, name: str) -> Literal:
