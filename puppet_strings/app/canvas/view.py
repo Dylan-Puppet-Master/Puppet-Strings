@@ -81,6 +81,7 @@ DRAG = 5  # pixels the pointer moves before a press is a drag rather than a clic
 EDIT_ZOOM = 1.0  # a card clicked from further out than this is brought up to it
 BACKGROUND = QColor("#15181c")
 DOT = QColor("#2c323a")
+FADE_STEPS = 32  # how finely the in-between dots fade; each step is a new tile
 RANKS = {p: i for i, p in enumerate(Priority)}
 
 
@@ -1194,6 +1195,9 @@ class Canvas(QGraphicsView):
     def drawBackground(self, painter: QPainter, rect: QRectF) -> None:  # noqa: N802
         """A dotted surface, its dots spaced for the zoom so they never turn to a haze.
 
+        Zooming out, the dots between every fourth fade away as they close up, so the grid
+        thins out gradually rather than all at once.
+
         The dots are one tiled fill, not a dot at a time: a zoomed-out view holds thousands
         of them, and drawing each on every frame of a drag was most of what a frame cost.
         """
@@ -1201,11 +1205,14 @@ class Canvas(QGraphicsView):
         spacing = 32.0
         if spacing * self.zoom < 14:
             spacing *= 4 ** max(0, floor(log(14 / (spacing * self.zoom), 4)) + 1)
-        exact = spacing * self.zoom  # in pixels on screen
-        step = max(4, round(exact))  # the tile's whole-pixel size, stretched to `exact` below
+        exact = spacing * self.zoom  # in pixels on screen, from 14 up
+        step = max(4, round(exact))  # the tile's whole-pixel spacing, stretched to `exact` below
+        # How strongly the in-between dots show: none at 14 pixels apart, fully at 56, where
+        # the next spacing down takes over as every fourth dot of this one.
+        fade = min(1.0, round(log(exact / 14, 4) * FADE_STEPS) / FADE_STEPS)
         to_screen = painter.worldTransform()
         origin = to_screen.map(QPointF(0, 0))  # where the dots line up
-        brush = QBrush(self._dot_tile(step))
+        brush = QBrush(self._dot_tile(step, fade))
         # Stretched and smoothly sampled, the dots move by fractions of a pixel as the zoom
         # changes; a whole-pixel tile at a whole-pixel offset made them hop about instead.
         scale = exact / step
@@ -1219,19 +1226,30 @@ class Canvas(QGraphicsView):
         painter.fillRect(to_screen.mapRect(rect), brush)
         painter.restore()
 
-    def _dot_tile(self, step: int) -> QPixmap:
-        """One dot in the middle of a square of background, `step` pixels a side."""
+    def _dot_tile(self, step: int, fade: float) -> QPixmap:
+        """Dots `step` pixels apart on a square of background.
+
+        At full strength one dot does. Fading, it is four by four of them: the first at full
+        strength, as it is a dot of the wider spacing too, the rest at `fade`.
+        """
         ratio = self.devicePixelRatioF()
-        key = (step, ratio)
+        key = (step, fade, ratio)
         if getattr(self, "_tile_key", None) != key:
-            tile = QPixmap(round(step * ratio), round(step * ratio))
+            across = 1 if fade >= 1 else 4
+            size = step * across
+            tile = QPixmap(round(size * ratio), round(size * ratio))
             tile.setDevicePixelRatio(ratio)
             tile.fill(BACKGROUND)
             dots = QPainter(tile)
             dots.setRenderHint(QPainter.Antialiasing)
             dots.setPen(Qt.NoPen)
-            dots.setBrush(DOT)
-            dots.drawEllipse(QPointF(step / 2, step / 2), 1.3, 1.3)
+            faded = QColor(DOT)
+            faded.setAlphaF(fade)
+            for row in range(across):
+                for column in range(across):
+                    dots.setBrush(DOT if row == column == 0 else faded)
+                    center = QPointF((column + 0.5) * step, (row + 0.5) * step)
+                    dots.drawEllipse(center, 1.3, 1.3)
             dots.end()
             self._tile, self._tile_key = tile, key
         return self._tile
