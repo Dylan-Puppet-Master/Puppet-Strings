@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import QDate, Qt, QThread, Signal
+from PySide6.QtCore import QDate, QEvent, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QActionGroup
 from PySide6.QtWidgets import (
     QAbstractSpinBox,
@@ -177,6 +177,9 @@ class SolveWorker(QThread):
             self.done.emit(result)
 
 
+CENTRING = (QEvent.Resize, QEvent.LayoutRequest)  # what moves the middle of the toolbar
+
+
 class MainWindow(QMainWindow):
     """Request table with filters on the left, editor on the right, names panel docked."""
 
@@ -281,7 +284,7 @@ class MainWindow(QMainWindow):
         self.read_calendar()
 
     def _build_toolbar(self) -> None:
-        toolbar = QToolBar("Main")
+        toolbar = self.toolbar = QToolBar("Main")
         self.addToolBar(toolbar)
         toolbar.addWidget(QLabel("Target date "))
         self.date_edit = QDateEdit(QDate(date.today() + timedelta(days=1)))
@@ -304,12 +307,11 @@ class MainWindow(QMainWindow):
             action.setVisible(False)  # only while changing a day that is already out
         self.status_label = QLabel("")
         # It can run to a paragraph of warnings, and a label that insists on its full width
-        # pushes everything after it -- Configure included -- into the overflow menu.
-        self.status_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        # pushes everything after it -- Configure included -- into the overflow menu. Its
+        # width is set instead, to whatever puts Table and Canvas in the middle of the bar.
+        self.status_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        self.status_label.setFixedWidth(0)
         toolbar.addWidget(self.status_label)
-        spacer = QWidget()  # everything after this is pushed to the right-hand end
-        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        toolbar.addWidget(spacer)
         views = QActionGroup(self)
         self.table_action = toolbar.addAction("Table", lambda: self.show_view(TABLE, True))
         self.canvas_action = toolbar.addAction("Canvas", lambda: self.show_view(CANVAS, True))
@@ -318,8 +320,44 @@ class MainWindow(QMainWindow):
         for action in (self.table_action, self.canvas_action):
             action.setCheckable(True)
             views.addAction(action)
+        spacer = QWidget()  # everything after this is pushed to the right-hand end
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        toolbar.addWidget(spacer)
         toolbar.addSeparator()
         toolbar.addAction("Configure", self.configure)
+        toolbar.installEventFilter(self)
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802
+        """Keep Table and Canvas in the middle of the toolbar as it changes size."""
+        if watched is getattr(self, "toolbar", None) and event.type() in CENTRING:
+            QTimer.singleShot(0, self._center_views)
+        return super().eventFilter(watched, event)
+
+    def _center_views(self) -> None:
+        """Size the status label so that Table and Canvas sit in the middle of the toolbar.
+
+        Worked out from what is either side of it, none of which its own width moves. It
+        never takes the room Configure needs, so a narrow window keeps Configure on the bar
+        and lets Table and Canvas sit a little off centre instead.
+        """
+        bar, label = self.toolbar, self.status_label
+        widgets = [bar.widgetForAction(a) for a in bar.actions()]
+        widgets = [w for w in widgets if w is not None and not w.isHidden()]
+        first, last = (bar.widgetForAction(a) for a in (self.table_action, self.canvas_action))
+        if not bar.isVisible() or not {label, first, last} <= set(widgets):
+            return  # not laid out yet, or some of it in the overflow menu
+        at = widgets.index(label)
+        spacing = bar.layout().spacing()
+        left = max(w.geometry().right() for w in widgets[:at]) + 1 + spacing
+        views = first.sizeHint().width() + spacing + last.sizeHint().width()
+        after = widgets.index(last) + 1
+        right = sum(w.sizeHint().width() + spacing for w in widgets[after:])
+        right += bar.layout().contentsMargins().right() + 2 * spacing + 16  # the overflow button
+        centred = (bar.width() - views) // 2 - spacing - left
+        room = bar.width() - left - spacing - views - right
+        width = max(0, min(centred, room))
+        if width != label.width():
+            label.setFixedWidth(width)
 
     @property
     def on_canvas(self) -> bool:
