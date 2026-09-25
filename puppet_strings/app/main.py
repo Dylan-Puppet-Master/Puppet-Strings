@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSplitter,
     QStackedWidget,
+    QTabWidget,
     QToolBar,
     QVBoxLayout,
     QWidget,
@@ -44,6 +45,7 @@ from puppet_strings.app.errors_panel import ErrorsPane
 from puppet_strings.app.facets import facets
 from puppet_strings.app.groups import ALL, UNGROUPED
 from puppet_strings.app.groups_panel import GroupsPane
+from puppet_strings.app.messages_pane import MessagesPane
 from puppet_strings.app.namespaces_panel import NamespacesPanel
 from puppet_strings.app.request_table import RequestTable
 from puppet_strings.app.requests_model import RequestFilter, RequestsModel
@@ -231,6 +233,7 @@ class MainWindow(QMainWindow):
         self.groups.rescoped.connect(lambda _: self.editor_new_if_empty())
         self.errors = ErrorsPane()
         self.errors.picked.connect(self.show_request)
+        self.messages = MessagesPane()
         # The other way of showing the requests: as cards on a surface, edited in place.
         self.canvas = Canvas(store, self.proxy.passes)
         self.canvas.saved.connect(lambda r, original: self._saved(r, original, self.canvas))
@@ -278,6 +281,16 @@ class MainWindow(QMainWindow):
         self.errors_dock = QDockWidget("Errors", self)
         self.errors_dock.setWidget(self.errors)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.errors_dock)
+        messages_dock = QDockWidget("Messages", self)
+        messages_dock.setWidget(self.messages)
+        self.addDockWidget(Qt.BottomDockWidgetArea, messages_dock)
+        # Errors and Messages share the bottom as tabs along its top, and the tabs are their
+        # titles: a title bar over them as well would say the same thing twice.
+        self.tabifyDockWidget(self.errors_dock, messages_dock)
+        self.setTabPosition(Qt.BottomDockWidgetArea, QTabWidget.North)
+        for dock in (self.errors_dock, messages_dock):
+            dock.setTitleBarWidget(QWidget())
+        self.errors_dock.raise_()
         self._say("Pick a target date and press Reload.")
         self._list_file()
         self.show_view(load_settings().view)
@@ -459,7 +472,10 @@ class MainWindow(QMainWindow):
         are copies on Drive and has none is worse off than one who knows there are none.
         """
         said = self.status_label.text().strip()
-        self._say(f"{said} Could not back up the requests: {why.strip().splitlines()[-1]}")
+        failed = f"Could not back up the requests: {why.strip().splitlines()[-1]}"
+        self.status_label.setText(f"  {said} {failed}")
+        self.status_label.setToolTip(f"{said} {failed}")
+        self.messages.add([failed])  # what was said before it is kept already
 
     def configure(self) -> None:
         """Choose the Google account and the sheets, then read everything again."""
@@ -573,7 +589,7 @@ class MainWindow(QMainWindow):
         """
         self.store.set_group(ids, "" if group == UNGROUPED else group)
         self._groups_changed()
-        self.status_label.setText(f"  Moved {len(ids)} request(s) to {group}")
+        self._say(f"Moved {len(ids)} request(s) to {group}")
 
     def editor_new_if_empty(self) -> None:
         """Start a new request in the group being shown, if the editor is not on one.
@@ -658,7 +674,7 @@ class MainWindow(QMainWindow):
         if self.loader is not None or self.adjuster is not None:
             self.reload_requested = True
             return
-        self.status_label.setText(f"  Loading {self.target}…")
+        self._say(f"Loading {self.target}…")
         self.start_progress(f"Reading the sheets for {self.target}…")
         self.loader = LoadWorker(self.store, self.target)
         self.loader.done.connect(self._loaded)
@@ -761,7 +777,7 @@ class MainWindow(QMainWindow):
             summary(conflicts),
             error_summary(errors),
         ]
-        self._say(". ".join(parts + today + list(dataset.warnings)))
+        self._say(*parts, *today, *dataset.warnings)
 
     def prefetch_history(self) -> None:
         """Read the published days behind the target, in the background, so Solve is ready.
@@ -794,10 +810,16 @@ class MainWindow(QMainWindow):
             self.history.wait()
             QApplication.processEvents()
 
-    def _say(self, message: str) -> None:
-        """Put a message in the toolbar, with the whole of it on the tooltip."""
+    def _say(self, *parts: str) -> None:
+        """Put a message along the bottom, and keep it in the messages pane.
+
+        A message of several parts — what a load found, say — runs together on the one
+        line, and is kept with each part on a line of its own.
+        """
+        message = ". ".join(p for p in parts if p)
         self.status_label.setText(f"  {message}")
         self.status_label.setToolTip(message)
+        self.messages.add(list(parts))
 
     def _list_file(self) -> None:
         """Show the requests file with no date loaded: every request, none to be solved."""
@@ -876,7 +898,7 @@ class MainWindow(QMainWindow):
             self.reload_requested = True  # it may have read the tab before this is written
         dataset = self.store.dataset
         today = [a.describe(dataset.staff[a.staff].name) for a in dataset.today_adjustments]
-        self._say(". ".join(today) if today else "Nobody is adjusted today")
+        self._say(*(today or ["Nobody is adjusted today"]))
         self.write_adjustments()
 
     def write_adjustments(self) -> None:
@@ -951,7 +973,7 @@ class MainWindow(QMainWindow):
         # import on the main thread; a QThread import crashes
         from puppet_strings.solver.solve import Cancel
 
-        self.status_label.setText("  Solving…")
+        self._say("Solving…")
         self.busy = BusyDialog(f"Solving {self.target}…", self)
         cancel = Cancel()
         self.busy.cancelled.connect(cancel.stop)
@@ -981,7 +1003,7 @@ class MainWindow(QMainWindow):
 
     def _solve_stopped(self) -> None:
         self._close_busy()
-        self.status_label.setText("  Solve cancelled")
+        self._say("Solve cancelled")
 
     def _solve_failed(self, message: str) -> None:
         self._close_busy()
@@ -1002,7 +1024,7 @@ class MainWindow(QMainWindow):
         editor = editor or self.editor
         if not self._covers_or_agreed(request):
             editor.not_saved("Not saved; still editing")
-            self.status_label.setText("  Not saved; still editing")
+            self._say("Not saved; still editing")
             return
         QApplication.setOverrideCursor(Qt.WaitCursor)
         try:
@@ -1014,7 +1036,7 @@ class MainWindow(QMainWindow):
         if mentions_exclusion(saved.skedge):
             self.reload()  # who is away changes what every other request is read against
             editor.saved_as(saved)
-            self.status_label.setText(f"  Saved {saved.id}")
+            self._say(f"Saved {saved.id}")
             return
         conflicts, errors = self._requests_changed()
         clashes = [c for c in conflicts if saved.id in c.requests]
@@ -1022,7 +1044,7 @@ class MainWindow(QMainWindow):
         note = f"; it conflicts with {len(clashes)} other request(s)" if clashes else ""
         note += f"; {len(wrong)} error(s) in it" if wrong else ""
         editor.saved_as(saved, note)  # last, so nothing else overwrites the confirmation
-        self.status_label.setText(f"  Saved {saved.id}{note}")
+        self._say(f"Saved {saved.id}{note}")
 
     def _covers_or_agreed(self, request) -> bool:
         """Warn before saving a request that says nothing about the date being scheduled.
@@ -1113,7 +1135,7 @@ class MainWindow(QMainWindow):
         said = requests[0].id if len(requests) == 1 else f"{len(requests)} requests"
         if len(reverted) == len(requests):
             said = f"the edits to {said}; back to the Offerings tab's"
-        self.status_label.setText(f"  Deleted {said}")
+        self._say(f"Deleted {said}")
         if away:
             self.reload()  # the day has somebody back in it, so read it all again
 

@@ -1139,6 +1139,20 @@ def test_the_conflicts_pane_starts_empty(window):
     assert "No errors" in window.status_label.text()
 
 
+def test_the_messages_pane_keeps_each_part_of_what_was_said_on_a_line(window):
+    lines = window.messages.lines()
+    loaded = next(i for i, line in enumerate(lines) if line.startswith("Loaded"))
+    assert lines[loaded + 1 : loaded + 4] == [
+        "2026-09-16 is not published",
+        "No conflicts",
+        "No errors",
+    ]
+    assert window.messages.topLevelItem(loaded).text(0)  # the time, on its first line
+    assert not window.messages.topLevelItem(loaded + 1).text(0)
+    save_request(window, "Dylan on archery", PIN_ARCHERY)
+    assert window.messages.lines()[-1].startswith("Saved ")
+
+
 def test_saving_a_contradiction_groups_it_in_the_pane(window):
     riflery = save_request(window, "Dylan on archery", PIN_ARCHERY)
     assert window.errors.topLevelItemCount() == 0

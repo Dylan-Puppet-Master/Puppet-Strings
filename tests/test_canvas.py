@@ -474,13 +474,22 @@ def test_close_up_a_drag_on_a_frame_pans_rather_than_moving_the_group(window):
     assert canvas.center().y() < before.y()
 
 
+def centred(canvas) -> bool:
+    """Whether the view is over the middle of everything, to within a couple of pixels.
+
+    The camera goes to a whole pixel on screen, so from far out it can be a few canvas
+    units off the exact middle.
+    """
+    off = canvas.center() - canvas.arrangement_bounds().center()
+    return off.manhattanLength() * canvas.zoom < 3
+
+
 def test_the_camera_shows_everything_until_it_is_moved(window):
     canvas = window.canvas
-    middle = canvas.arrangement_bounds().center()
-    assert (canvas.center() - middle).manhattanLength() < 10
+    assert centred(canvas)
     window.text_filter.setText("counselor")  # what there is to show changes
     settle()
-    assert (canvas.center() - canvas.arrangement_bounds().center()).manhattanLength() < 10
+    assert centred(canvas)
     canvas.zoom_by(2.0)
     moved = canvas.center()
     window.text_filter.setText("")
