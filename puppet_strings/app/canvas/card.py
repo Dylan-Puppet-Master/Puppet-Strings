@@ -81,9 +81,11 @@ CODE = QColor(palette.SUNKEN)
 EDGE = QColor(palette.LINE)
 SELECTED = QColor(palette.HIGHLIGHT).lighter(135)
 
-# How near a card has to be, in screen pixels per canvas unit, to be painted in full; and
-# nearer than what to be painted as more than a block of colour.
-FULL_DETAIL = 0.55
+# How near a card has to be, in screen pixels per canvas unit (the zoom: 0.7 is 70%), to
+# be painted in full; and nearer than what to be painted as more than a block of colour.
+# Between the two it is the middle distance: its priority and description, written large.
+# A group's frame shows its full header from FULL_DETAIL in too.
+FULL_DETAIL = 0.7
 SUMMARY = 0.2
 
 # the states a card's status line can be in, and the colour of its dot
