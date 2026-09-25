@@ -1,7 +1,7 @@
 """What floats over the canvas: the zoom controls, the minimap and the New request button."""
 
 from PySide6.QtCore import QEasingCurve, QPointF, QRectF, QSize, Qt, QVariantAnimation, Signal
-from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -29,6 +29,7 @@ QToolButton {{
     font-weight: 600;
 }}
 QToolButton:hover {{ background: {palette.LINE}; }}
+QToolButton#level {{ padding: 4px 0px; }}
 """
 
 
@@ -50,7 +51,12 @@ class ZoomBar(QFrame):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
         self.level = QToolButton()
-        self.level.setMinimumWidth(56)
+        self.level.setObjectName("level")
+        # As wide as the widest zoom it can say, so the bar keeps its width as the number
+        # changes, and no wider.
+        bold = QFont(self.level.font())
+        bold.setWeight(QFont.DemiBold)
+        self.level.setFixedWidth(QFontMetrics(bold).horizontalAdvance("250%") + 8)
         self.level.setToolTip("Actual size (Ctrl+1)")
         for text, tip, signal in (
             ("−", "Zoom out (−)", self.zoom_out),
