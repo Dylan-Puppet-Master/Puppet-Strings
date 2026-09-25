@@ -129,12 +129,12 @@ def test_a_choice_the_solver_makes_is_not_a_conflict(dataset):
         # somewhere in the day, not in this block
         req(
             "loose",
-            "REQUEST staff.dylan DO 'paperwork' FOR EXACTLY 60m DURING ANY 1 blocks.all",
+            "REQUEST staff.dylan DO 'paperwork' FOR EXACTLY 60m DURING ANY 1 blocks",
         ),
         # a preference, which never has to hold
         req(
             "wish",
-            "PREFER staff.dylan DO activities.clinics.riflery DURING AT_MOST 1 blocks.all",
+            "PREFER staff.dylan DO activities.clinics.riflery DURING AT_MOST 1 blocks",
             Priority.HIGH,
         ),
     ]

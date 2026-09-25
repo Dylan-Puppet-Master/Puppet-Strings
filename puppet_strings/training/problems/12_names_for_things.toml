@@ -63,11 +63,11 @@ wrong = ["REQUEST mappings.buddy(staff.robyn) DO 'cabin cover' DURING blocks.emb
 id = "names-videographer"
 title = "Alesa and one of two"
 prompt = "Alesa, plus either Dylan or Cam VL, do a 'video shoot' together in one block today."
-answer = "ANY 1 v IN {staff.dylan + staff.cam_vl}\nREQUEST ALL {staff.alesa + v} DO 'video shoot' DURING ANY 1 blocks.all"
+answer = "ANY 1 v IN {staff.dylan + staff.cam_vl}\nREQUEST ALL {staff.alesa + v} DO 'video shoot' DURING ANY 1 blocks"
 hints = ["Name the choice: ANY 1 v IN {staff.dylan + staff.cam_vl}.", "Then add it into a set: ALL {staff.alesa + v}."]
 explain = "Written in place, ALL {staff.alesa + ANY 1 {staff.dylan + staff.cam_vl}} says the same. The one not picked is not ruled out."
-alternatives = ["REQUEST ALL {staff.alesa + ANY 1 {staff.dylan + staff.cam_vl}} DO 'video shoot' DURING ANY 1 blocks.all"]
-wrong = ["REQUEST ALL {staff.alesa + staff.dylan} DO 'video shoot' DURING ANY 1 blocks.all"]
+alternatives = ["REQUEST ALL {staff.alesa + ANY 1 {staff.dylan + staff.cam_vl}} DO 'video shoot' DURING ANY 1 blocks"]
+wrong = ["REQUEST ALL {staff.alesa + staff.dylan} DO 'video shoot' DURING ANY 1 blocks"]
 
 [[problem]]
 id = "names-the-rest-stay-off"
@@ -83,7 +83,7 @@ wrong = ["ANY 1 m IN staff.mfgs\nREQUEST m DO 'trail check' DURING blocks.clinic
 id = "names-free-after-clinic"
 title = "A person and their day"
 prompt = "Each counselor who runs a clinic in clinic 1 should be free in clinic 2. Name each counselor with a binding line, and use IF."
-answer = "EACH s IN staff.counselors\nIF s DO ANY activities.clinics.all DURING blocks.clinic_1\nREQUEST s FREE DURING blocks.clinic_2"
+answer = "EACH s IN staff.counselors\nIF s DO ANY activities.clinics DURING blocks.clinic_1\nREQUEST s FREE DURING blocks.clinic_2"
 priority = "HIGH"
 wrong = ["EACH s IN staff.counselors\nREQUEST s FREE DURING blocks.clinic_2"]
 

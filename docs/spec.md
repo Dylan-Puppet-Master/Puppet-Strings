@@ -158,8 +158,8 @@ without     : _WITHOUT chooser as_role?
 
 // ANY with no number is any of these: the set is one pool. ANY n chooses n of it, once for
 // the statement. A count measures, in front of the set it counts. CONSECUTIVE is about
-// blocks, after DURING: `ANY 2 CONSECUTIVE blocks.all` picks blocks in a row, and
-// `ANY CONSECUTIVE blocks.all` pools each run for a FOR to measure. A count before another
+// blocks, after DURING: `ANY 2 CONSECUTIVE blocks` picks blocks in a row, and
+// `ANY CONSECUTIVE blocks` pools each run for a FOR to measure. A count before another
 // quantifier, and ANY_n_OF, are old spellings, parsed only to say the new ones.
 chooser     : (ALL | ANY | amount)? CONSECUTIVE? set_
             | amount (ALL | ANY | EACH) CONSECUTIVE? set_
@@ -252,23 +252,23 @@ normalizes to a built-in name, are a load error.
 
 | Namespace | Holds | Built in |
 |---|---|---|
-| `staff` | Staff members, staff categories | `staff.all`, `staff.clinic_trainers` |
-| `activities` | Clinics under `clinics`, cabin acts under `cabin_acts` | `activities.all`, `activities.clinics.all`, `activities.cabin_acts.all` |
-| `blocks` | Blocks, block categories | `blocks.all` |
+| `staff` | Staff members, staff categories | `staff`, `staff.clinic_trainers` |
+| `activities` | Clinics under `clinics`, cabin acts under `cabin_acts` | `activities`, `activities.clinics`, `activities.cabin_acts` |
+| `blocks` | Blocks, block categories | `blocks` |
 | `dates` | | `dates.target`, and the scopes below |
 | `roles` | | `roles.first` … `roles.sixth`, `roles.lifeguard`, `roles.lifeguard_2` …, `roles.shadow`, `roles.scaffolded`, `roles.trainee` |
 | `mappings` | The mappings on the Mappings tab | |
 
 A namespace is plural because it holds many names. `activities` has a branch per kind of
 activity, so `activities.clinics.archery_1_2` is a clinic and `activities.cabin_acts.p4`
-is a cabin act; only `activities.all` is both.
+is a cabin act; only `activities` is both.
 
 Every name is either an **item** (one thing: `staff.rob`, `blocks.clinic_1`, `dates.target`)
-or a **set** (`staff.counselor`, `blocks.all`). Set names are plural or collective; there is
+or a **set** (`staff.counselor`, `blocks`). Set names are plural or collective; there is
 no name that means "any one of": that is what `ANY` and a count are for.
 
-A staff category, and `staff.all`, hold only the people working on `dates.target`: someone
-resting all day is in no category, though their own name still resolves. `staff.all` is the
+A staff category, and `staff`, hold only the people working on `dates.target`: someone
+resting all day is in no category, though their own name still resolves. `staff` is the
 union of the span's Staff Categories columns, not the Skills sheet's rows; a staff member in
 no category is away for that span and is treated as resting all day.
 
@@ -287,26 +287,24 @@ same names, and a span's weeks are its days seven at a time from the start.
 | Span | Kind | Covers |
 |---|---|---|
 | `dates.target` | item | the date being scheduled |
-| `dates.season.all` | set | every date the Calendar sheet covers |
-| `dates.session_1.all` … `dates.session_20.all` | set | a `main season` row, numbered in sheet order |
-| `dates.<name>.all` | set | any other row, by its `name` column normalized |
-| `dates.<span>.week_1.all` … `.week_20.all` | set | that week of that span |
-| `dates.session_target.all` | set | the session `dates.target` falls in; absent outside the main season |
-| `dates.session_target.week_target.all` | set | the week of that session `dates.target` falls in |
+| `dates.season` | set | every date the Calendar sheet covers |
+| `dates.session_1` … `dates.session_20` | set | a `main season` row, numbered in sheet order |
+| `dates.<name>` | set | any other row, by its `name` column normalized |
+| `dates.<span>.week_1` … `.week_20` | set | that week of that span |
+| `dates.session_target` | set | the session `dates.target` falls in; absent outside the main season |
+| `dates.session_target.week_target` | set | the week of that session `dates.target` falls in |
 
 | Name within any span | Kind | Holds |
 |---|---|---|
-| `all` | set | every date of the span |
 | `mondays` … `sundays` | set | every date of the span falling on that weekday |
 | `first`, `last` | item | the span's first and last date |
 
 | Name within a week | Kind | Holds |
 |---|---|---|
-| `all` | set | every date of the week |
 | `monday` … `sunday` | item | that weekday of the week |
 | `first`, `last` | item | the week's first and last date |
 
-A name exists only if the span reaches it: `dates.session_2.week_2.all` is a name only
+A name exists only if the span reaches it: `dates.session_2.week_2` is a name only
 when session 2 runs to a second week. At most 20 main season rows and 20 weeks per span.
 
 There are no `first_monday` / `last_friday` names and no cross-session `first_mondays`
@@ -386,17 +384,17 @@ Evaluation order is fixed:
    reported under `id[item, …]`. `EACH` over an empty set gives no copies, and the
    request is inactive.
 2. Within a copy, each choice is made once, and the whole statement holds for what it
-   picked: `ANY 2 staff.counselor DO 'x' DURING ANY 1 blocks.all` is two counselors in one
+   picked: `ANY 2 staff.counselor DO 'x' DURING ANY 1 blocks` is two counselors in one
    block. The counts of a test or a `PREFER` apply one inside the other in this order,
    wherever each is written: the subject, the activity, `ON`, `DURING`. So `IF AT_MOST 2
-   staff.counselor DO 'break' DURING AT_LEAST 3 blocks.all` holds when at most two
+   staff.counselor DO 'break' DURING AT_LEAST 3 blocks` holds when at most two
    counselors have three breaks or more each.
 3. A set taken `ALL` is one unit inside every choice and count:
-   `ALL {staff.lucy + staff.tom} DO … DURING ANY 1 blocks.all` is one block that both
+   `ALL {staff.lucy + staff.tom} DO … DURING ANY 1 blocks` is one block that both
    of them work. `EACH` gives each of them a block of their own.
 4. A pool is innermost: it is matched by any of its members for each combination of the
    units and chosen or counted items around it. `ALL {staff.lucy + staff.tom} DO … DURING
-   ANY blocks.all` gives each of them a block, not necessarily the same one.
+   ANY blocks` gives each of them a block, not necessarily the same one.
 
 `ANY` on the blocks of a statement is at least one of them, so for one person it is the
 same as `ANY 1`; it differs only where rules 3 and 4 differ: a choice sits outside the
@@ -404,25 +402,25 @@ units, a pool inside them.
 
 **A block is a block on a date.** Blocks happen every day, so where a statement's dates are
 pooled with `ANY`, a count of its blocks counts each block on each of those dates:
-`DURING AT_MOST 8 blocks.all_clinics ON ANY dates.session_1.all` is at most eight clinic
+`DURING AT_MOST 8 blocks.all_clinics ON ANY dates.session_1` is at most eight clinic
 blocks over the session, clinic 1 on Monday and clinic 1 on Tuesday being two. Everywhere
 else the blocks are counted on one date at a time — the dates are one date, split with
 `EACH`, or counted outside the blocks by rule 2 — except under `ALL` dates, one unit by
 rule 3, where a block counts when the rest holds in it on every one of them. A count of
 blocks over pooled dates takes no group. `ANY n` of blocks over pooled dates is a pick of
-blocks on those dates, the same way: `DURING ANY 2 blocks.all ON ANY dates.session_1.all`
+blocks on those dates, the same way: `DURING ANY 2 blocks ON ANY dates.session_1`
 is two blocks in the session, on one day or two.
 
 The activity and `AS_ROLE` take one thing at a time, since a person does one thing in a
 block. `ALL` of several activities needs the blocks pooled or counted, and `AS_ROLE` takes
 a role, `ANY` or `EACH`. A choice or a count of activities is of different ones:
-`DO ANY 2 activities.clinics.all DURING ANY blocks.all` is two different clinics.
+`DO ANY 2 activities.clinics DURING ANY blocks` is two different clinics.
 
 `CONSECUTIVE` goes on the blocks, after `ANY`, `ANY n` or a count. `DURING ANY 2
-CONSECUTIVE blocks.all` picks two adjacent blocks. `DURING AT_LEAST 2 CONSECUTIVE
-blocks.all` holds when some **run** of adjacent blocks the rest holds for reaches 2,
+CONSECUTIVE blocks` picks two adjacent blocks. `DURING AT_LEAST 2 CONSECUTIVE
+blocks` holds when some **run** of adjacent blocks the rest holds for reaches 2,
 `AT_MOST` when no run exceeds it, and `EXACTLY` when both do. Blocks are adjacent when they
-are next to each other in the Blocks sheet, on one date. `DURING ANY CONSECUTIVE blocks.all`
+are next to each other in the Blocks sheet, on one date. `DURING ANY CONSECUTIVE blocks`
 pools each run on its own, for a `FOR` to measure (§7.1), and needs one. A run never
 crosses from one date to the next.
 
@@ -512,9 +510,9 @@ Clauses of a statement:
 `FOR` measures the activity within one unit of the blocks. Blocks taken one at a time — an
 item, `ALL`, `EACH`, `ANY n` or a count — make each block a unit, and a quoted-task piece
 never leaves its block, so there `FOR` is the length of each piece:
-`DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks.all` is three breaks of 30 minutes. Blocks
+`DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks` is three breaks of 30 minutes. Blocks
 pooled with `ANY` are one unit together, and `FOR` is what they add up to:
-`DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks.all` is two hours in whichever
+`DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks` is two hours in whichever
 blocks. `ANY CONSECUTIVE` makes each run a unit, a run being one staff member's blocks.
 Pooled dates and people are added up the same way.
 
@@ -827,7 +825,7 @@ parser, the validator and the solver report:
 | `names one task, so no quantifier` | `DO ANY duty`, where `duty` names a task. |
 | `names one item at a time, and` | `EACH x IN` a set holding a group. |
 | `CONSECUTIVE counts blocks one at a time, so no groups` | A group in `DURING … CONSECUTIVE …`. |
-| `CONSECUTIVE goes before the blocks` | `DURING AT_LEAST 2 blocks.all CONSECUTIVE`, the old spelling; the message gives the new one. |
+| `CONSECUTIVE goes before the blocks` | `DURING AT_LEAST 2 blocks CONSECUTIVE`, the old spelling; the message gives the new one. |
 | `CONSECUTIVE comes after ANY, ANY n or a count` | `DURING ALL CONSECUTIVE …` or `CONSECUTIVE` with no quantifier. |
 | `CONSECUTIVE is about blocks, so it goes after DURING` | `CONSECUTIVE` in any clause but `DURING`, or on a subject or activity. |
 | `ANY CONSECUTIVE pools each run of blocks for a FOR to measure` | `DURING ANY CONSECUTIVE …` with no `FOR`; to pick blocks in a row, `ANY n` goes there instead. |

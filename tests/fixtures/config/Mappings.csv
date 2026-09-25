@@ -1,3 +1,3 @@
 mapping,keys,value,scale_min,scale_max,default
-preference,"staff, activities.clinics.all",numeric,1,5,3
-buddy,staff.counselor,{staff.all - staff.counselor},,,ANY 1 {staff.all - staff.counselor - staff.director}
+preference,"staff, activities.clinics",numeric,1,5,3
+buddy,staff.counselor,{staff - staff.counselor},,,ANY 1 {staff - staff.counselor - staff.director}

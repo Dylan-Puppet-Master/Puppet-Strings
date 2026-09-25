@@ -7,6 +7,7 @@ import pytest
 from puppet_strings.model import Priority, Request
 from puppet_strings.skedge import ast
 from puppet_strings.skedge.ast import SkedgeError
+from puppet_strings.skedge.namespaces import written
 from puppet_strings.skedge.resolve import (
     ALL,
     ANY,
@@ -44,7 +45,7 @@ def test_defaults(dataset):
 def test_quantifiers(dataset):
     (copy,) = resolve(
         dataset,
-        "REQUEST ANY 2 staff.counselor DO 'x' DURING ALL blocks.all ON ANY 1 dates.session_1.all",
+        "REQUEST ANY 2 staff.counselor DO 'x' DURING ALL blocks ON ANY 1 dates.session_1",
     )
     (st,) = copy.statements
     assert (st.who.kind, st.who.n, st.who.items) == (ANY, 2, ("dylan", "james", "paul"))
@@ -138,8 +139,8 @@ def test_patterns_conditions_and_mappings(dataset):
     (copy,) = resolve(
         dataset,
         "EACH s IN staff.director\n"
-        "IF s DO ANY activities.clinics.all DURING AT_LEAST 3 CONSECUTIVE blocks.all\n"
-        "REQUEST s FREE DURING ANY 1 blocks.all",
+        "IF s DO ANY activities.clinics DURING AT_LEAST 3 CONSECUTIVE blocks\n"
+        "REQUEST s FREE DURING ANY 1 blocks",
     )[:1]
     (level,) = copy.condition.test.tally.levels
     assert level.field == "block" and level.choice.n == 3 and level.choice.consecutive
@@ -154,14 +155,12 @@ def test_patterns_conditions_and_mappings(dataset):
 
 
 def test_set_operators(dataset):
-    text = (
-        "REQUEST EACH {staff.all - staff.director - staff.counselor} DO 'x' DURING ALL blocks.all"
-    )
+    text = "REQUEST EACH {staff - staff.director - staff.counselor} DO 'x' DURING ALL blocks"
     keys = {c.key for c in resolve(dataset, text)}
     assert keys and not keys & {"david", "lisa", "dylan", "james", "paul"}
     (copy,) = resolve(
         dataset,
-        "REQUEST ALL {staff.counselor & staff.ropes_level_2} DO 'x' DURING ALL blocks.all",
+        "REQUEST ALL {staff.counselor & staff.ropes_level_2} DO 'x' DURING ALL blocks",
     )
     assert copy.statements[0].who.items == ()
 
@@ -174,10 +173,10 @@ def test_date_windows(dataset):
 
 
 def test_date_scopes(dataset):
-    assert on(dataset, "dates.session_1.all") == dataset.session_dates
-    assert on(dataset, "dates.session_1.all") == dataset.session_dates
-    assert on(dataset, "dates.session_2.all") == dataset.span_dates(dataset.sessions[2])
-    assert len(on(dataset, "dates.season.all")) == 21
+    assert on(dataset, "dates.session_1") == dataset.session_dates
+    assert on(dataset, "dates.session_1") == dataset.session_dates
+    assert on(dataset, "dates.session_2") == dataset.span_dates(dataset.sessions[2])
+    assert len(on(dataset, "dates.season")) == 21
     assert on(dataset, "dates.session_1.first", item=True) == (date(2026, 9, 13),)
     assert on(dataset, "dates.season.last", item=True) == (date(2026, 10, 3),)
     assert on(dataset, "dates.session_1.week_1.thursday", item=True) == (date(2026, 9, 17),)
@@ -197,38 +196,38 @@ def test_date_scopes(dataset):
 
 def test_weeks_of_a_session(dataset):
     """A session holds its weeks, and a week holds one of each weekday."""
-    assert on(dataset, "dates.session_1.week_1.all") == dataset.session_dates[:7]
-    assert on(dataset, "dates.session_1.week_2.all") == dataset.session_dates[7:]
-    assert on(dataset, "dates.session_1.week_1.all") == dataset.week_dates
+    assert on(dataset, "dates.session_1.week_1") == dataset.session_dates[:7]
+    assert on(dataset, "dates.session_1.week_2") == dataset.session_dates[7:]
+    assert on(dataset, "dates.session_1.week_1") == dataset.week_dates
     assert on(dataset, "dates.session_1.week_2.monday", item=True) == (date(2026, 9, 21),)
     assert on(dataset, "dates.session_2.week_1.monday", item=True) == (date(2026, 9, 28),)
     assert on(dataset, "dates.session_1.week_1.first", item=True) == (date(2026, 9, 13),)
     assert on(dataset, "dates.session_1.week_1.last", item=True) == (date(2026, 9, 19),)
-    with pytest.raises(SkedgeError, match="unknown name 'dates.session_2.week_2.all'"):
-        on(dataset, "dates.session_2.week_2.all")
-    with pytest.raises(SkedgeError, match="did you mean 'dates.session_1.week_1.all'"):
+    with pytest.raises(SkedgeError, match="unknown name 'dates.session_2.week_2'"):
+        on(dataset, "dates.session_2.week_2")
+    with pytest.raises(SkedgeError, match="did you mean 'dates.session_1.week_1'"):
         on(dataset, "dates.session_1.week_1.al")
 
 
 def test_the_target_session_and_week_follow_the_target(dataset):
     """On 2026-09-16 the target is in session one's first week."""
-    assert on(dataset, "dates.session_target.all") == on(dataset, "dates.session_1.all")
+    assert on(dataset, "dates.session_target") == on(dataset, "dates.session_1")
     assert on(dataset, "dates.session_target.mondays") == on(dataset, "dates.session_1.mondays")
     assert on(dataset, "dates.session_target.week_2.monday", item=True) == (date(2026, 9, 21),)
-    assert on(dataset, "dates.session_target.week_target.all") == dataset.session_dates[:7]
+    assert on(dataset, "dates.session_target.week_target") == dataset.session_dates[:7]
     assert on(dataset, "dates.session_target.week_target.friday", item=True) == (date(2026, 9, 18),)
     later = replace(dataset, target=date(2026, 9, 29))
-    assert on(later, "dates.session_target.all") == on(later, "dates.session_2.all")
+    assert on(later, "dates.session_target") == on(later, "dates.session_2")
     assert on(later, "dates.session_target.week_target.monday", item=True) == (date(2026, 9, 28),)
 
 
 def test_a_date_in_no_session_has_no_target_session(dataset):
     camp = family_camp(dataset)
-    assert on(camp, "dates.family_camp.all") == tuple(date(2026, 10, d) for d in range(4, 8))
+    assert on(camp, "dates.family_camp") == tuple(date(2026, 10, d) for d in range(4, 8))
     with pytest.raises(ast.NoSession, match="2026-10-05 is in Family Camp, which is not a session"):
-        on(camp, "dates.session_target.week_target.all")
+        on(camp, "dates.session_target.week_target")
     with pytest.raises(SkedgeError) as caught:  # any other name is wrong in the usual way
-        on(camp, "dates.session_1.week_9.all")
+        on(camp, "dates.session_1.week_9")
     assert not isinstance(caught.value, ast.NoSession)
 
 
@@ -240,25 +239,36 @@ def test_roles(dataset):
     assert copy.statements[0].role.items == ("trainee",)
     (copy,) = resolve(
         dataset,
-        "PREFER staff.rob DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second} DURING AT_MOST 3 blocks.all",
+        "PREFER staff.rob DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second} DURING AT_MOST 3 blocks",
     )[:1]
     assert copy.key == "first" and copy.statements[0].pattern.role.kind == ALL
+
+
+def test_a_span_on_its_own_is_every_date_of_it(dataset):
+    (copy,) = resolve(
+        dataset, "REQUEST staff.dylan FREE DURING blocks.clinic_1 ON ANY dates.session_1"
+    )
+    assert len(copy.statements[0].on.items) == 14
+    with pytest.raises(SkedgeError, match="unknown name 'staff.all'; write 'staff' for all"):
+        resolve(dataset, "REQUEST ANY 1 staff.all DO 'x' DURING blocks.clinic_1")
+    with pytest.raises(SkedgeError, match="write 'dates.session_1' for all of it"):
+        resolve(dataset, "REQUEST staff.dylan FREE ON ANY dates.session_1.all")
 
 
 def test_name_listing_matches_the_namespaces(dataset):
     listing = name_listing(dataset)
     assert list(listing) == ["staff", "activities", "blocks", "dates", "roles", "mappings"]
-    assert ("all", "category, 21 members") in listing["staff"]
-    assert ("all", "category, 20 members") in listing["activities"]
-    assert ("clinics.all", "category, 16 members") in listing["activities"]
-    assert ("cabin_acts.all", "category, 4 members") in listing["activities"]
+    assert ("", "category, 21 members") in listing["staff"]
+    assert ("", "category, 20 members") in listing["activities"]
+    assert ("clinics", "category, 16 members") in listing["activities"]
+    assert ("cabin_acts", "category, 4 members") in listing["activities"]
     assert ("cabin_acts.m1", "cabin M1") in listing["activities"]
     assert ("session_1.week_2.thursday", "2026-09-24 (Thursday)") in listing["dates"]
     assert ("session_2.week_1.monday", "2026-09-28 (Monday)") in listing["dates"]
     assert ("season.mondays", "3 dates") in listing["dates"]
     assert ("trainee", "trainee") in listing["roles"]
-    assert ("preference", "staff, activities.clinics.all -> 1 to 5") in listing["mappings"]
-    assert ("buddy", "staff.counselor -> {staff.all - staff.counselor}") in listing["mappings"]
+    assert ("preference", "staff, activities.clinics -> 1 to 5") in listing["mappings"]
+    assert ("buddy", "staff.counselor -> {staff - staff.counselor}") in listing["mappings"]
 
 
 BUDDY = "EACH c IN staff.counselor\nREQUEST {who} FREE DURING blocks.evening"
@@ -286,7 +296,7 @@ def test_a_mapping_is_a_set_among_sets(dataset):
     ("skedge", "message"),
     [
         (
-            BUDDY.format(who="ALL {staff.all - mappings.buddy(c)}"),
+            BUDDY.format(who="ALL {staff - mappings.buddy(c)}"),
             "its default is a choice the solver makes",
         ),
         (
@@ -306,7 +316,7 @@ def test_a_mapping_is_a_set_among_sets(dataset):
             "expected a name from activities, but mappings.buddy gives one from staff",
         ),
         (
-            "PREFER ANY staff.all DO ANY activities.clinics.all MAXIMIZE mappings.buddy(staff.dylan)",
+            "PREFER ANY staff DO ANY activities.clinics MAXIMIZE mappings.buddy(staff.dylan)",
             "not a number, so there is nothing to maximize or minimize",
         ),
         (
@@ -336,12 +346,12 @@ def test_ast_positions_survive_into_errors(dataset):
 
 
 def test_each_of_the_cabin_acts_is_only_the_ones_on_the_day(dataset):
-    copies = resolve(dataset, "REQUEST EACH activities.cabin_acts.all DURING blocks.cabin_act")
+    copies = resolve(dataset, "REQUEST EACH activities.cabin_acts DURING blocks.cabin_act")
     days = [dataset.activities[c.statements[0].what.items[0]].day for c in copies]
     assert days == [dataset.target]
     week = resolve(
         dataset,
-        "REQUEST EACH activities.cabin_acts.all DURING blocks.cabin_act "
+        "REQUEST EACH activities.cabin_acts DURING blocks.cabin_act "
         "ON EACH {2026-09-14 .. 2026-09-18}",
     )
     assert len(week) == 3  # Monday's, Wednesday's and Friday's; the 28th is another week
@@ -352,25 +362,23 @@ def test_the_board_splits_into_cabin_act_and_rest_hour_acts(dataset):
     split = {
         name: resolve(
             dataset,
-            f"REQUEST EACH activities.cabin_acts.{name} DURING "
-            "blocks.cabin_act ON EACH dates.season.all",
+            f"REQUEST EACH {written('activities.cabin_acts', name)} DURING "
+            "blocks.cabin_act ON EACH dates.season",
         )
-        for name in ("all", "at_cabin_act", "at_rest_hour")
+        for name in ("", "at_cabin_act", "at_rest_hour")
     }
     acts = {n: {c.statements[0].what.items[0] for c in copies} for n, copies in split.items()}
     assert {dataset.activities[i].name for i in acts["at_rest_hour"]} == {"M1 RH: Gaga Ball"}
-    assert acts["at_cabin_act"] | acts["at_rest_hour"] == acts["all"]
+    assert acts["at_cabin_act"] | acts["at_rest_hour"] == acts[""]
     assert not acts["at_cabin_act"] & acts["at_rest_hour"]
 
 
 def test_a_bound_cabin_act_on_another_day_is_no_copy(dataset):
-    bound = resolve(
-        dataset, "EACH a IN activities.cabin_acts.all\nREQUEST a DURING blocks.cabin_act"
-    )
+    bound = resolve(dataset, "EACH a IN activities.cabin_acts\nREQUEST a DURING blocks.cabin_act")
     assert [c.statements[0].what.items for c in bound] == [("cabin_act_m2_2026_09_16",)]
     conditioned = resolve(
         dataset,
-        "EACH a IN activities.cabin_acts.all\n"
+        "EACH a IN activities.cabin_acts\n"
         "IF staff.dylan DO a DURING blocks.cabin_act\n"
         "REQUEST staff.dylan FREE DURING blocks.lunch",
     )

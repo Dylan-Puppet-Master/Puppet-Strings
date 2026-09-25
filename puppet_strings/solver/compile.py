@@ -322,7 +322,7 @@ class Compiler:
         """Every chosen staff member does the thing in every chosen block on every chosen date.
 
         A pooled set is chosen from one item at a time, for each combination of the sets that
-        are not: `ALL {staff.x + staff.y} DO … DURING ANY blocks.all` gives each of them a
+        are not: `ALL {staff.x + staff.y} DO … DURING ANY blocks` gives each of them a
         block of their own.
         """
         target = self.dataset.target

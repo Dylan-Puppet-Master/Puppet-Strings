@@ -42,7 +42,7 @@ def test_any_one_and_not_do_the_rest_leaves_the_other_out():
             request(
                 "one",
                 "ANY 1 r IN {staff.dylan + staff.alesa}\n"
-                "REQUEST r DO 'rake leaves' DURING ANY blocks.all\n"
+                "REQUEST r DO 'rake leaves' DURING ANY blocks\n"
                 "REQUEST ALL {(staff.dylan + staff.alesa) - r} NOT DO 'rake leaves'",
                 MUST,
             ),
@@ -50,7 +50,7 @@ def test_any_one_and_not_do_the_rest_leaves_the_other_out():
             request(
                 "other",
                 "ANY 1 r IN {staff.tori + staff.brian}\n"
-                "REQUEST r DO 'rake leaves' DURING ANY blocks.all\n"
+                "REQUEST r DO 'rake leaves' DURING ANY blocks\n"
                 "REQUEST ALL {(staff.tori + staff.brian) - r} NOT DO 'rake leaves'",
                 MUST,
             ),
@@ -69,7 +69,7 @@ def test_a_choice_under_each_is_each_persons_own():
         [staff("Dylan"), staff("Sarah")],
         [],
         requests=[
-            request("breaks", "REQUEST EACH staff.all DO 'break' DURING ANY 3 blocks.all", MUST),
+            request("breaks", "REQUEST EACH staff DO 'break' DURING ANY 3 blocks", MUST),
             request("dylan", "REQUEST staff.dylan FREE DURING blocks.clinic_1", MUST),
             request("sarah", "REQUEST staff.sarah FREE DURING blocks.clinic_2", MUST),
         ],
@@ -87,10 +87,10 @@ def test_a_count_of_people_holds_in_each_block():
         requests=[
             request(
                 "two",
-                "REQUEST AT_MOST 2 staff.all DO 'break' DURING EACH blocks.all",
+                "REQUEST AT_MOST 2 staff DO 'break' DURING EACH blocks",
                 MUST,
             ),
-            request("all", "REQUEST EACH staff.all DO 'break' DURING blocks.lunch"),
+            request("all", "REQUEST EACH staff DO 'break' DURING blocks.lunch"),
         ],
     )
     result = run(ds)
@@ -104,7 +104,7 @@ def test_all_makes_a_group_one_unit_and_each_splits_it():
         [staff("Dylan"), staff("Alesa")],
         [],
         requests=[
-            request("video", f"REQUEST ALL {both} DO 'video' DURING ANY 1 blocks.all", MUST),
+            request("video", f"REQUEST ALL {both} DO 'video' DURING ANY 1 blocks", MUST),
         ],
     )
     result = run(together)
@@ -114,7 +114,7 @@ def test_all_makes_a_group_one_unit_and_each_splits_it():
         [staff("Dylan"), staff("Alesa")],
         [],
         requests=[
-            request("video", f"REQUEST EACH {both} DO 'video' DURING ANY 1 blocks.all", MUST),
+            request("video", f"REQUEST EACH {both} DO 'video' DURING ANY 1 blocks", MUST),
             request("dylan", "REQUEST staff.dylan FREE DURING ALL blocks.all_clinics", MUST),
             request("alesa", "REQUEST staff.alesa FREE DURING blocks.lunch", MUST),
         ],
@@ -131,10 +131,10 @@ def test_a_choice_after_a_choice_is_shared():
         requests=[
             request(
                 "two",
-                "REQUEST ANY 2 staff.all DO 'x' DURING ANY 2 blocks.all_clinics",
+                "REQUEST ANY 2 staff DO 'x' DURING ANY 2 blocks.all_clinics",
                 MUST,
             ),
-            request("none", "REQUEST ALL staff.all NOT DO 'x'"),
+            request("none", "REQUEST ALL staff NOT DO 'x'"),
         ],
     )
     result = run(ds)
@@ -155,10 +155,10 @@ def test_a_count_of_activities_counts_different_ones():
         requests=[
             request(
                 "variety",
-                "REQUEST staff.rob DO ANY 2 activities.clinics.all DURING ANY blocks.all",
+                "REQUEST staff.rob DO ANY 2 activities.clinics DURING ANY blocks",
                 MUST,
             ),
-            request("free", "REQUEST staff.rob FREE DURING EACH blocks.all", Priority.LOW),
+            request("free", "REQUEST staff.rob FREE DURING EACH blocks", Priority.LOW),
         ],
     )
     result = run(ds)
@@ -178,7 +178,7 @@ def test_a_length_over_a_pool_fills_blocks_but_one(bound, least, most):
         [],
         requests=[
             request("edit", text, MUST),
-            request("free", "REQUEST staff.cam FREE DURING EACH blocks.all", Priority.LOW),
+            request("free", "REQUEST staff.cam FREE DURING EACH blocks", Priority.LOW),
         ],
     )
     pieces = rows(run(ds), "video editing")
@@ -196,13 +196,13 @@ def test_a_length_in_one_go_is_a_run_of_adjacent_blocks():
 
 
 def test_a_length_in_one_piece_is_one_block():
-    text = "REQUEST staff.cam DO 'video editing' FOR AT_LEAST 30m DURING ANY 1 blocks.all"
+    text = "REQUEST staff.cam DO 'video editing' FOR AT_LEAST 30m DURING ANY 1 blocks"
     ds = dataset(
         [staff("Cam")],
         [],
         requests=[
             request("edit", text, MUST),
-            request("free", "REQUEST staff.cam FREE DURING EACH blocks.all", Priority.LOW),
+            request("free", "REQUEST staff.cam FREE DURING EACH blocks", Priority.LOW),
         ],
     )
     (piece,) = rows(run(ds), "video editing")
@@ -213,7 +213,7 @@ def test_busy_in_every_block_or_in_one():
     every = "REQUEST staff.hails BUSY DURING ALL {blocks.clinic_4 + blocks.playstation}"
     one = "REQUEST staff.hails BUSY DURING ANY 1 {blocks.clinic_4 + blocks.playstation}"
     work = "REQUEST staff.hails DO 'x' DURING EACH {blocks.clinic_4 + blocks.playstation}"
-    free = "REQUEST staff.hails FREE DURING EACH blocks.all"
+    free = "REQUEST staff.hails FREE DURING EACH blocks"
     for text, expected in ((every, 2), (one, 1)):
         asked = [
             request("b", text, MUST),
@@ -259,7 +259,7 @@ def test_a_preference_is_weighed_by_its_outermost_count():
         [staff("Dylan")],
         [],
         requests=[
-            request("most", "PREFER staff.dylan DO 'break' DURING AT_MOST 2 blocks.all"),
+            request("most", "PREFER staff.dylan DO 'break' DURING AT_MOST 2 blocks"),
             request(
                 "four",
                 "REQUEST staff.dylan DO 'break' DURING EACH blocks.all_clinics",
@@ -283,7 +283,7 @@ def test_a_count_of_blocks_over_pooled_dates_counts_each_block_on_each_date():
         requests=[
             request(
                 "most",
-                f"REQUEST staff.dylan DO 'x' DURING AT_MOST 3 blocks.all ON ANY {window}",
+                f"REQUEST staff.dylan DO 'x' DURING AT_MOST 3 blocks ON ANY {window}",
                 MUST,
             ),
             request(
@@ -304,7 +304,7 @@ def test_a_run_of_blocks_over_pooled_dates_stays_within_a_date():
         requests=[
             request(
                 "run",
-                f"REQUEST staff.dylan DO 'x' DURING AT_MOST 1 CONSECUTIVE blocks.all ON ANY {window}",
+                f"REQUEST staff.dylan DO 'x' DURING AT_MOST 1 CONSECUTIVE blocks ON ANY {window}",
                 MUST,
             ),
             request("first", "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1", Priority.LOW),

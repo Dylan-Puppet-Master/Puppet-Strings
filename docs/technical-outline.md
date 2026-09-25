@@ -133,7 +133,7 @@ The spreadsheet has one tab per category (Arts, Outdoor, Rolling, …) and one c
 | `LG_Required` | int, optional | Lifeguards in addition to `Staff_Required`, each a position needing the `LIFEGUARD` skill at RAL 5. Blank means 0. |
 | `Category` | text, optional | Present on the combined tab; otherwise the tab name is used. Becomes `activities.clinics.<category>` (`activities.clinics.ropes`, `activities.clinics.arts`). |
 
-Built-in: `activities.clinics.all` = every row. Positions are `roles.first`, `roles.second`, `roles.third` for `Staff_Required` = 1, 2, 3, followed by `roles.lifeguard`, `roles.lifeguard_2` for `LG_Required` = 1, 2.
+Built-in: `activities.clinics` = every row. Positions are `roles.first`, `roles.second`, `roles.third` for `Staff_Required` = 1, 2, 3, followed by `roles.lifeguard`, `roles.lifeguard_2` for `LG_Required` = 1, 2.
 
 ### 2.2 Skills (existing, read)
 
@@ -162,7 +162,7 @@ Cell values map to a status:
 
 The mapping is one table at the top of `sheets/skills.py`. A planned "competent facilitator" status, which also supervises scaffolds, is one added row there: the status carries a `can_scaffold` flag, and the scaffold constraint reads that flag rather than the word `Trainer`.
 
-The staff roster (`staff.all`) is the set of rows on this tab.
+The staff roster (`staff`) is the set of rows on this tab.
 
 **Position skills tab** (`Clinic_Name | 1st | 2nd | 3rd`). Maps each clinic position to the skill it requires. A blank cell, or the value `Any`, means the position needs no checkoff (every staff member holds `Any`). A clinic absent from this tab has no eligible staff and is reported as unstaffable when offered.
 
@@ -172,7 +172,7 @@ The staff roster (`staff.all`) is the set of rows on this tab.
 
 One column per category. Row 1 is the category name; the cells below list members. Every member must be a Skills row. Each column becomes `staff.<category>` (`staff.counselor`, `staff.director`, `staff.ropes_level_2`, `staff.village_hero`). A column headed `etc.` or left blank is skipped.
 
-Built-in: `staff.all`. Derived: `staff.clinic_trainers` = everyone with at least one `Trainer` cell on the Skills tab, unless a Staff Categories column of that name exists, which then wins.
+Built-in: `staff`. Derived: `staff.clinic_trainers` = everyone with at least one `Trainer` cell on the Skills tab, unless a Staff Categories column of that name exists, which then wins.
 
 ### 2.4 Offerings (existing, in Clinic_Schedule, read)
 
@@ -221,8 +221,8 @@ but does not define.
 | `program type` | `main season` or `other` | `main season` |
 
 Main season rows are numbered in sheet order, and that number is the name: session 3 is
-`dates.session_3.all` and its second week `dates.session_3.week_2.all`. Anything
-else is `dates.<name>.all`. Weeks are not written down — a span's week is its days
+`dates.session_3` and its second week `dates.session_3.week_2`. Anything
+else is `dates.<name>`. Weeks are not written down — a span's week is its days
 seven at a time from the start — and nor are day types: a date is `weekday` or `weekend` by
 the calendar and `first_day` or `last_day` at the ends of its span, which is what the
 Blocks sheet's `day_types` and `program_type` columns are matched against.
@@ -260,11 +260,11 @@ HEROs; a metric is now a numeric mapping.)
 | Column | Example | Example |
 |---|---|---|
 | `mapping` | `enjoyment` | `buddy` |
-| `keys` | `staff, activities.clinics.all` | `staff.counselor` |
-| `value` | `numeric` | `{staff.all - staff.counselor}` |
+| `keys` | `staff, activities.clinics` | `staff.counselor` |
+| `value` | `numeric` | `{staff - staff.counselor}` |
 | `scale_min` | `1` | |
 | `scale_max` | `5` | |
-| `default` | `3` | `ANY 1 {staff.all - staff.counselor - staff.director}` |
+| `default` | `3` | `ANY 1 {staff - staff.counselor - staff.director}` |
 
 `keys` and `value` are Skedge sets (or a bare namespace), so what a call may take and
 give is checked like any other name. `mapping_enjoyment`:
@@ -375,7 +375,7 @@ Dependencies: `ortools`, `lark`, `gspread`, `PySide6`. Development: `pytest`, `r
 ### 4.1 Pipeline
 
 1. **Parse** each request's `.skedge` with Lark into an AST of lines and clauses.
-2. **Scope**: attach clauses to verbs (same line, or verb-less line), apply defaults (`ON EACH dates.session`, `ACROSS staff.all`), reject duplicates.
+2. **Scope**: attach clauses to verbs (same line, or verb-less line), apply defaults (`ON EACH dates.session`, `ACROSS staff`), reject duplicates.
 3. **Expand `EACH`** into independent declaration copies (Cartesian product when several clauses use it). Each copy gets its own satisfaction literal and reports under `id[copy-key]`, for example `counselor-hours[dylan]`.
 4. **Resolve** every selector against the `Dataset` into item sets; normalize `OR`/`AND` to alternatives; apply quantifiers.
 5. **Apply the time horizon** (proposal §7): past dates become constants from Published Schedules, future dates are dropped, deferrable tasks are marked.
@@ -660,7 +660,7 @@ Recorded so the outline matches the code.
   `resting_blocks` and a reduced `ral`; `resting` is `all day`, `morning` or `afternoon`,
   with a block belonging to the half it starts in, split at `config.midday`. Someone
   resting all day also drops out of every staff category, so mandatory requests over
-  `staff.all` stop demanding anything of them, and `add_structural_constraints` pins a
+  `staff` stop demanding anything of them, and `add_structural_constraints` pins a
   resting block's variables to zero in case a request names them directly. `load_dataset` reads the target's own
   published tab as `Dataset.baseline`. `solve(..., same_day=True)` rewards each kept
   baseline assignment in a new `STABILITY` tier between `CLINIC` and `HIGH`, hints those
@@ -710,10 +710,10 @@ Recorded so the outline matches the code.
 - **The `date` namespace is built from session and week numbers** (2026-09-18). The
   Calendar sheet's `session` column holds a number rather than a name, and a new `week`
   column numbers the days within each session. Every date name is then a span or a name
-  inside one: `dates.season.all`, `dates.session_4.all`, `dates.session_4.week_2.all`, and
-  `dates.session_4.week_2.monday`. `dates.session_1.all` is the session holding the
-  target date and `dates.session_1.week_1.all` the week; the old `dates.session_all`,
-  `dates.season.all` and `date.<session name>.all` are gone. A span carries `first`,
+  inside one: `dates.season`, `dates.session_4`, `dates.session_4.week_2`, and
+  `dates.session_4.week_2.monday`. `dates.session_1` is the session holding the
+  target date and `dates.session_1.week_1` the week; the old `dates.session_all`,
+  `dates.season` and `date.<session name>.all` are gone. A span carries `first`,
   `last`, the weekday sets and the counted occurrences; a week, reaching each weekday
   once, carries the weekday as a single date. An unknown name now suggests the nearest
   real one. The request manager's calendar labels each row `S<session>` / `W<week>` in
@@ -809,7 +809,7 @@ Recorded so the outline matches the code.
   its next load (syntax 6).
 - **A count goes on the set it counts** (Puppet Master, 2026-09-23). An activity has no
   quantity of its own; the blocks, the dates and the people come in numbers. So a count is
-  written directly in front of the set it counts — `DURING EXACTLY 3 blocks.all`,
+  written directly in front of the set it counts — `DURING EXACTLY 3 blocks`,
   `AT_MOST 2 staff.counselor` — rather than after `REQUEST`, far from what it measures, or
   after `DO`, where it read as a quantity of the activity. A length goes on `FOR`, which
   measures within one unit of the blocks: each block when they are taken one at a time,
@@ -817,7 +817,7 @@ Recorded so the outline matches the code.
   count, `ANY` is always a pool, and a binding line names exactly which, `EXACTLY n x IN`.
   `NOT FREE` is `BUSY`, which was what it meant; with it gone, a count right of `NOT` is
   refused, since what it could say reads better as a count of what does happen. `ALL` is
-  one unit inside every count, which is what lets `ALL {…} DURING EXACTLY 1 blocks.all`
+  one unit inside every count, which is what lets `ALL {…} DURING EXACTLY 1 blocks`
   mean one block together. `DURING` and `ON` still go anywhere; `AS_ROLE`, `FOR`, `WITH`
   and `WITHOUT` go after the verb, and the counts nest by role — who, what, dates,
   blocks — rather than by where they were written. A statement with no count but one
@@ -827,7 +827,7 @@ Recorded so the outline matches the code.
   `AT_LEAST`, count reified holds for `AT_MOST`, and do both for `EXACTLY`. A `FOR` over a
   pool lets one of its pieces be cut short (`_allow_partial`). A block is a block on a
   date, so over dates pooled with `ANY` a count of blocks counts each block on each of them
-  (`Compiler._counted`): "at most eight clinics a session" is `DURING AT_MOST 8 blocks.all
+  (`Compiler._counted`): "at most eight clinics a session" is `DURING AT_MOST 8 blocks
   ON ANY <session>`, and runs of blocks stay within a day. Saved requests are read with the
   grammar they were written in, kept as `grammar_v4.lark`, and rewritten on their next
   load; a count over pooled people and something else has no spelling now, and is left for
@@ -840,8 +840,8 @@ Recorded so the outline matches the code.
   forbids, per person, the conjunction over every combination of the `ALL` items, past
   dates counting as facts. `ANY n` stays an error there, "not in two of them" being a count.
   `CONSECUTIVE` moved again, onto the blocks, which are what is in a row: `DURING ANY 2
-  CONSECUTIVE blocks.all` chooses, and a count measured in runs says `DURING ANY
-  CONSECUTIVE blocks.all`, where `AT_LEAST 3 CONSECUTIVE s DO …` read as three consecutive
+  CONSECUTIVE blocks` chooses, and a count measured in runs says `DURING ANY
+  CONSECUTIVE blocks`, where `AT_LEAST 3 CONSECUTIVE s DO …` read as three consecutive
   people. An amount may also follow `DO` when the subject is one person per copy, `s DO
   AT_LEAST 3 …`. Saved requests are rewritten on their next load by `skedge.upgrade`,
   which works on the parse tree, where the old spellings still parse; the requests file
@@ -862,7 +862,7 @@ Recorded so the outline matches the code.
   and returns the Dataset those days leave behind: the blocks go into `resting`, so
   `Dataset.holds` is false and no variable is ever made for them; somebody out for a whole
   day drops out of every staff category, which is what keeps a `MUST_HAPPEN` rule written
-  about `staff.all` from asking anything of them and is why the day still solves; and
+  about `staff` from asking anything of them and is why the day still solves; and
   `Dataset.excluded` carries the label for the published views. The pass is idempotent and
   runs at the end of `load_dataset`, in `solve()` and in `RequestStore.current`, so a
   Dataset is never seen with somebody in a day they are not in. The compiler drops
@@ -1007,7 +1007,7 @@ Recorded so the outline matches the code.
   `_OF`, so they are `ALL` and `EACH`. The lexer still reads the old spellings as the same
   tokens, so the builder can say `write ALL, not ALL_OF` and `skedge/upgrade.py` can find
   and rewrite them; saved requests are rewritten on their next load (syntax 4). `all` and
-  `each` are now keywords and so cannot be a name on their own, though `blocks.all` and
+  `each` are now keywords and so cannot be a name on their own, though `blocks` and
   `all_staff` are untouched: a dotted name is one token, and a keyword ends at `\b`. With
   the `dates` namespace flat, sessions and weeks are named by digit, `dates.session_4.week_2`
   rather than `dates.session_four.week_two`, and a file written the old way is rewritten

@@ -22,7 +22,7 @@ A row must give a `resting` or a `RAL_penalty`, otherwise it does nothing and th
 says so. One row can do both, for someone who is short of sleep and resting the afternoon.
 
 **Resting takes them off that part of the day.** No clinics, and no breaks either, since a
-category such as `staff.all` stops offering anyone who is resting all day. That is why a
+category such as `staff` stops offering anyone who is resting all day. That is why a
 rest belongs here rather than in a `FREE` request, which would collide with the
 mandatory break rule and report a conflict every time somebody was ill.
 

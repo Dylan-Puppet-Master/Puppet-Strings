@@ -14,7 +14,14 @@ rather than reading.
 from dataclasses import dataclass
 
 from puppet_strings.model import Activity, Dataset, SkillStatus, Staff
-from puppet_strings.skedge.namespaces import ACTIVITIES, CABIN_ACTS, CLINICS, MAPPINGS, STAFF
+from puppet_strings.skedge.namespaces import (
+    ACTIVITIES,
+    ALL,
+    CABIN_ACTS,
+    CLINICS,
+    MAPPINGS,
+    STAFF,
+)
 
 NOBODY = "nobody on the sheets today"
 CHECKED = "✓"  # how the Skills tab writes a plain checkoff, and how it is shown back
@@ -59,7 +66,8 @@ def _staff(name: str, rest: str, dataset: Dataset) -> Details | None:
     member = dataset.staff.get(rest)
     if member is not None:
         return _member(name, member, dataset)
-    members = dataset.staff_categories.get(rest)
+    # the sheets file everyone at camp under `all`, which is written as `staff` alone
+    members = None if rest == ALL else dataset.staff_categories.get(rest or ALL)
     if members is None:
         return None
     return Details(
@@ -122,8 +130,8 @@ def _activities(name: str, rest: str, dataset: Dataset) -> Details | None:
 
 def _cabin_act(name: str, cabin: str, dataset: Dataset) -> Details | None:
     """A cabin's act on the day being scheduled, card and all."""
-    if not cabin or cabin == "all":
-        return _set_of_activities(name, f"{CABIN_ACTS}.{cabin}", dataset)
+    if not cabin:
+        return _set_of_activities(name, CABIN_ACTS, dataset)
     acts = [a for a in dataset.activities.values() if a.cabin and _cabin_id(a) == cabin]
     today = next((a for a in acts if a.day == dataset.target), None)
     if today is None:

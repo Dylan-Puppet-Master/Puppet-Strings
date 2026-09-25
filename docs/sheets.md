@@ -20,7 +20,7 @@ tabs are for people.
 | `LG_Required` | Optional. Lifeguards **in addition to** `Staff_Required`. A water clinic with one facilitator and one lifeguard has `Staff_Required` 1 and `LG_Required` 1. Every lifeguard position needs the `LIFEGUARD` skill at RAL 5. |
 | `Category` | Becomes `activity.<category>`, for example `activities.clinics.ropes`. |
 
-Built in: `activities.clinics.all` is every clinic. Positions are `roles.first`, `roles.second`,
+Built in: `activities.clinics` is every clinic. Positions are `roles.first`, `roles.second`,
 `roles.third` for the facilitators, then `roles.lifeguard`, `roles.lifeguard_2` for the
 lifeguards.
 
@@ -54,7 +54,7 @@ column and a `Candle Making` cell are the same skill. A missing row, a blank cel
 nothing matches stops loading with an error listing every one. None of them is read as
 "anyone may facilitate" — that is what `Any` is for.
 
-The staff roster is the set of rows on the main tab, and `staff.all` names all of them.
+The staff roster is the set of rows on the main tab, and `staff` names all of them.
 `staff.clinic_trainers` is everyone with at least one `Trainer` cell. A skill itself is not
 a name: it is asked for by the position that needs it, on a clinic or on a cabin act.
 
@@ -70,7 +70,7 @@ date being scheduled. A span with no `Staff Categories` spreadsheet is a load er
 the folder it looked in: loading with no categories at all would quietly drop every request
 that names one.
 
-**This sheet is also who is at camp.** `staff.all` is everyone it names, not everyone with a
+**This sheet is also who is at camp.** `staff` is everyone it names, not everyone with a
 Skills row: the Skills sheet keeps every person who has ever worked here, including staff
 who have left and staff who come for one session. Somebody with a Skills row and no category
 is away that span, which is the same to the solver as resting all day — no category offers
@@ -150,7 +150,7 @@ middle, such as `CA: Blackberry picking, RH: muffins`, is a warning and is treat
 ordinary cabin act. Ask for its rest hour part in a request of its own.
 
 The names it makes are `activities.cabin_acts.<cabin>` (for example
-`activities.cabin_acts.p4`), `activities.cabin_acts.all`, and the two halves of the board:
+`activities.cabin_acts.p4`), `activities.cabin_acts`, and the two halves of the board:
 `activities.cabin_acts.at_cabin_act` and `activities.cabin_acts.at_rest_hour`. A cabin's
 name stands for its act on whichever days the request is about, so over one day it is one
 thing and over a week it is five.
@@ -165,7 +165,7 @@ One row per time block. Blocks are the units the solver assigns staff to.
 | `start`, `end` | The block's times, written any ordinary way: `8:30`, `08:30` and `8:30 AM` all mean the same thing. Blocks may overlap; the solver never gives one person two assignments that overlap in time. |
 | `day_types` | **Comma-separated**, from `first_day`, `last_day`, `weekday`, `weekend`. Which kinds of day the block exists on. |
 | `program_type` | **Comma-separated**, from `main season`, `other`. Which programmes it exists in. |
-| `categories` | **Comma-separated.** Groups of blocks a request can name at once: `blocks.all_clinics`, `blocks.meals`. `blocks.all` (every block) is built in and may not be used as a category name. |
+| `categories` | **Comma-separated.** Groups of blocks a request can name at once: `blocks.all_clinics`, `blocks.meals`. `blocks` (every block) is built in and may not be used as a category name. |
 
 A block exists on a day when the day runs one of its programmes **and** is one of its kinds
 of day. Nothing writes a day's kinds down: a day is `weekday` or `weekend` by the calendar,
@@ -217,8 +217,8 @@ Example:
 | Family Camp | 2026-09-01 | 2026-09-05 | other |
 
 **The main season rows are numbered in sheet order**, and that number is the name in
-Skedge: the first is `dates.session_1.all`, the second `dates.session_2.all`. Anything
-else is reached by its name, as `dates.family_camp.all`. Inserting a main season row
+Skedge: the first is `dates.session_1`, the second `dates.session_2`. Anything
+else is reached by its name, as `dates.family_camp`. Inserting a main season row
 renumbers the ones after it, so a request naming `dates.session_4` follows the sheet.
 A row that is not main season cannot be named so that it would read as one of the other
 date names — `Season`, `Target`, `Session 4`, `Session Target` — and a load says so.
@@ -245,7 +245,7 @@ you can see at a glance whether it does.
 
 `dates.session_4.mondays` is every Monday of session 4,
 `dates.session_4.week_2.monday` is the one Monday of its second week, and
-`dates.season.all` is every date the sheet covers. See
+`dates.season` is every date the sheet covers. See
 [Dates](skedge.md#dates) for the full list of date names.
 
 ## Requests (on this computer)
@@ -320,7 +320,7 @@ kinds:
 
 - A **numeric** mapping gives a number, such as how much each staff member enjoys each
   clinic. A request scores assignments with it using `MAXIMIZE` or `MINIMIZE`:
-  `PREFER EACH s IN staff.all DO EACH c IN activities.clinics.all MAXIMIZE
+  `PREFER EACH s IN staff DO EACH c IN activities.clinics MAXIMIZE
   mappings.preference(s, c)`.
 - Any other mapping gives a **name**, such as each counselor's buddy HERO, who covers their
   cabin at dinner. A request can put the call anywhere a name goes:
@@ -342,12 +342,12 @@ it empty.
 
 | mapping | keys | value | scale_min | scale_max | default |
 |---|---|---|---|---|---|
-| enjoyment | staff, activities.clinics.all | numeric | 1 | 5 | 3 |
+| enjoyment | staff, activities.clinics | numeric | 1 | 5 | 3 |
 
 | Column | What to put there |
 |---|---|
 | `mapping` | A short name. It becomes `mappings.enjoyment` in requests, and names its tab `mapping_enjoyment`. |
-| `keys` | **Comma-separated.** What each key may be, as Skedge sets: one per argument the mapping takes. `staff, activities.clinics.all` means one rating per staff member per clinic. A bare namespace such as `staff` means any name in it; a set expression such as `{staff.all - staff.counselor}` narrows it down. |
+| `keys` | **Comma-separated.** What each key may be, as Skedge sets: one per argument the mapping takes. `staff, activities.clinics` means one rating per staff member per clinic. A bare namespace such as `staff` means any name in it; a set expression such as `{staff - staff.counselor}` narrows it down. |
 | `value` | `numeric` for a number, or a Skedge set the value must come from. |
 | `scale_min`, `scale_max` | Numeric mappings only. The lowest and highest rating you will ever enter. Ratings are converted to 0–1 against this scale, not against whatever ratings happen to exist, so adding a new rating never changes how the old ones weigh. Leave both blank for any other mapping. |
 | `default` | Optional. What a key with no row of its own gives. For a numeric mapping it is a number. Leave it blank and an unrated pair is worth `scale_min`, the bottom of the scale. Set it to the middle of the scale (3 of 1–5 above) and an unrated pair counts as ordinary rather than disliked. A default outside the scale is a load error. |
@@ -384,7 +384,7 @@ counselor to someone who isn't one.
 
 | mapping | keys | value | scale_min | scale_max | default |
 |---|---|---|---|---|---|
-| buddy | staff.counselor | {staff.all - staff.counselor} | | | ANY 1 {staff.all - staff.counselor - staff.director} |
+| buddy | staff.counselor | {staff - staff.counselor} | | | ANY 1 {staff - staff.counselor - staff.director} |
 
 For a mapping that gives a name, the `default` is a Skedge phrase: what a call stands for
 when its key has no row. `ANY 1 {…}` lets the solver pick anyone from that set. A

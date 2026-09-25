@@ -14,7 +14,7 @@ morning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING ANY 1 {blocks.cli
 afternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING ANY 1 {blocks.playstation + blocks.clinic_3}
 GAP morning TO afternoon AT_MOST 5h
 
-EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all ON 2026-08-05
+EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks ON 2026-08-05
 
 • EXCLUDE is a fact, always MUST_HAPPEN, in a request of its own
 • The label is what the schedule shows where they would have been
@@ -34,14 +34,14 @@ wrong = ["posts: REQUEST staff.charlton DO 'fence posts' DURING ANY 1 {blocks.cl
 id = "gap-setup-teardown"
 title = "Setup, then teardown"
 prompt = "The same counselor does 'campfire setup' during clinic 4, and 'campfire teardown' any time after the setup."
-answer = "ANY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST c DO 'campfire teardown' DURING ANY blocks.all\nGAP setup TO teardown"
+answer = "ANY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST c DO 'campfire teardown' DURING ANY blocks\nGAP setup TO teardown"
 priority = "MEDIUM"
-hints = ["The same person in two lines is a binding: ANY 1 c IN staff.counselors.", "Any time after: the teardown's blocks are ANY blocks.all, and GAP setup TO teardown keeps it after."]
+hints = ["The same person in two lines is a binding: ANY 1 c IN staff.counselors.", "Any time after: the teardown's blocks are ANY blocks, and GAP setup TO teardown keeps it after."]
 explain = "A GAP with no amount is only the order: the teardown starts after the setup ends, however long after."
-alternatives = ["ANY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST c DO 'campfire teardown' DURING ANY blocks.all\nGAP setup TO teardown AT_LEAST 0m"]
+alternatives = ["ANY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST c DO 'campfire teardown' DURING ANY blocks\nGAP setup TO teardown AT_LEAST 0m"]
 wrong = [
-  "ANY 1 c IN staff.counselors\nREQUEST c DO 'campfire setup' DURING blocks.clinic_4\nREQUEST c DO 'campfire teardown' DURING ANY blocks.all",
-  "ANY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST staff.dylan DO 'campfire teardown' DURING ANY blocks.all\nGAP setup TO teardown",
+  "ANY 1 c IN staff.counselors\nREQUEST c DO 'campfire setup' DURING blocks.clinic_4\nREQUEST c DO 'campfire teardown' DURING ANY blocks",
+  "ANY 1 c IN staff.counselors\nsetup:    REQUEST c DO 'campfire setup' DURING blocks.clinic_4\nteardown: REQUEST staff.dylan DO 'campfire teardown' DURING ANY blocks\nGAP setup TO teardown",
 ]
 
 [[problem]]
@@ -74,14 +74,14 @@ wrong = ["mow:  REQUEST ANY 1 staff.mfgs DO 'mowing' DURING ANY 1 {blocks.clinic
 id = "away-day-off"
 title = "Offsite"
 prompt = "Dylan is away at a training course all day Wednesday; the schedule should say 'offsite' where he'd have been."
-answer = "EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all ON 2026-08-05"
+answer = "EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks ON 2026-08-05"
 priority = "MUST_HAPPEN"
 hints = ["EXCLUDE <who> DO '<label>' …"]
 explain = "An EXCLUDE is a fact about the day, not a wish: it takes Dylan out of every block."
 alternatives = ["EXCLUDE staff.dylan DO 'offsite' ON 2026-08-05", "EXCLUDE staff.dylan DO 'offsite' ON dates.session_6.week_1.wednesday"]
 wrong = [
   "EXCLUDE staff.dylan DO 'offsite' ON 2026-08-06",
-  "REQUEST staff.dylan FREE DURING ALL blocks.all ON 2026-08-05",
+  "REQUEST staff.dylan FREE DURING ALL blocks ON 2026-08-05",
 ]
 
 [[problem]]
@@ -107,5 +107,5 @@ title = "Two days out"
 prompt = "Rob is away on 'vacation' Thursday and Friday."
 answer = "EXCLUDE staff.rob DO 'vacation' ON ALL {2026-08-06 .. 2026-08-07}"
 priority = "MUST_HAPPEN"
-alternatives = ["EXCLUDE staff.rob DO 'vacation' ON ALL {2026-08-06 + 2026-08-07}", "EXCLUDE staff.rob DO 'vacation' DURING ALL blocks.all ON ALL {2026-08-06 .. 2026-08-07}"]
+alternatives = ["EXCLUDE staff.rob DO 'vacation' ON ALL {2026-08-06 + 2026-08-07}", "EXCLUDE staff.rob DO 'vacation' DURING ALL blocks ON ALL {2026-08-06 .. 2026-08-07}"]
 wrong = ["EXCLUDE staff.rob DO 'vacation' ON 2026-08-06"]

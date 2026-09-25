@@ -9,6 +9,7 @@ from lark import Lark, Token, Transformer, UnexpectedInput, v_args
 from lark.exceptions import VisitError
 
 from puppet_strings.skedge import ast
+from puppet_strings.skedge.namespaces import NAMESPACES, WHOLE
 
 _GRAMMAR = (Path(__file__).parent / "grammar.lark").read_text()
 _CACHE = Path("~/.config/puppet_strings/parser.cache").expanduser()
@@ -154,6 +155,8 @@ def _atom(item) -> ast.SetExpr:
     if item.type == "REF":
         namespace, name = str(item).split(".", 1)
         return ast.Ref(namespace, name, _token_pos(item))
+    if str(item) in NAMESPACES:  # a namespace on its own is every name in it
+        return ast.Ref(str(item), WHOLE, _token_pos(item))
     if item.type == "DATE":
         try:
             return ast.DateLiteral(date.fromisoformat(str(item)), _token_pos(item))
@@ -230,6 +233,7 @@ class _Builder(Transformer):
     """Turns the Lark tree into ast nodes."""
 
     def start(self, meta, lines):
+        _no_namespace_names(lines)
         declaration = _define(ast.Declaration(tuple(lines)))
         _check_pools(declaration)
         return declaration
@@ -360,7 +364,7 @@ class _Builder(Transformer):
             )
         raise _error(
             f"a task is not counted; count the blocks it is done in: DO {task} DURING "
-            f"{amount.bound} {amount.value} blocks.all",
+            f"{amount.bound} {amount.value} blocks",
             amount.pos,
         )
 
@@ -395,7 +399,7 @@ class _Builder(Transformer):
             if kind not in (ast.ANY, ast.ANY_OF, ast.COUNT):
                 raise _error(
                     "CONSECUTIVE comes after ANY, ANY n or a count: "
-                    "DURING ANY 2 CONSECUTIVE blocks.all",
+                    "DURING ANY 2 CONSECUTIVE blocks",
                     _token_pos(items[0]),
                 )
             items = items[1:]
@@ -507,7 +511,7 @@ def _front_amount(amount, quantifier, expr) -> ast.SkedgeError:
     if word.startswith("EACH"):
         return _error(
             "EACH splits the request, so its set is not what is counted; put the count on the "
-            f"set that is, such as DURING {count} blocks.all",
+            f"set that is, such as DURING {count} blocks",
             amount.pos,
         )
     return _error("a set takes one quantifier", _token_pos(quantifier))
@@ -764,6 +768,18 @@ def _name_tasks(declaration: ast.Declaration) -> ast.Declaration:
                         f"'{var.name}' names a task, which goes after DO, not in a set", var.pos
                     )
     return ast.Declaration(lines)
+
+
+def _no_namespace_names(lines) -> None:
+    """A namespace written on its own is every name in it, so nothing else can be called that."""
+    for line in lines:
+        made = [getattr(line, "label", None)]
+        if isinstance(line, ast.Definition | ast.TaskName):
+            made.append(line.name)
+        made += [selector.var for _, selector in ast.selectors(line)]
+        for name in made:
+            if name in NAMESPACES:
+                raise _error(f"'{name}' is a namespace, so it can't name anything else", line.pos)
 
 
 def _names_taken(declaration: ast.Declaration) -> set[str]:

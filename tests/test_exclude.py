@@ -8,7 +8,7 @@ from puppet_strings.model import Priority, Request
 
 TARGET = date(2026, 9, 16)
 
-ALL_DAY = "EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all ON dates.target"
+ALL_DAY = "EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks ON dates.target"
 MORNING = (
     "EXCLUDE staff.alan DO 'dentist' DURING ALL {blocks.clinic_1 + blocks.clinic_2} ON dates.target"
 )
@@ -26,7 +26,7 @@ def test_a_whole_day_off(dataset):
     ds = away(dataset, ALL_DAY)
     assert all(not ds.holds("dylan", TARGET, b.id) for b in ds.blocks_on(TARGET))
     assert ds.excused("dylan", "clinic_1") == "offsite"
-    # and out of every category, so a request written about staff.all asks nothing of him
+    # and out of every category, so a request written about staff asks nothing of him
     assert "dylan" not in ds.staff_categories["all"]
     assert not any("dylan" in members for members in ds.staff_categories.values())
     assert "dylan" in ds.staff  # still a name, so a request naming him still resolves
@@ -55,7 +55,7 @@ def test_applying_the_same_exclusions_again_changes_nothing(dataset):
 
 
 def test_a_block_the_day_does_not_have_is_no_block_to_be_taken_out_of(dataset):
-    """`blocks.all` is the Blocks sheet; a day only has the blocks that run on it."""
+    """`blocks` is the Blocks sheet; a day only has the blocks that run on it."""
     ds = away(dataset, ALL_DAY)
     running = {b.id for b in ds.blocks_on(TARGET)}
     assert set(ds.excluded[TARGET]["dylan"]) == running
@@ -65,7 +65,7 @@ def test_a_block_the_day_does_not_have_is_no_block_to_be_taken_out_of(dataset):
 def test_excluding_everybody_in_a_category_on_several_dates(dataset):
     text = (
         "EXCLUDE EACH staff.counselor DO 'training' "
-        "DURING ALL blocks.all_clinics ON ALL dates.session_1.week_1.all"
+        "DURING ALL blocks.all_clinics ON ALL dates.session_1.week_1"
     )
     ds = away(dataset, text)
     assert len(ds.excluded) > 1  # every date of the week, not just the one being scheduled

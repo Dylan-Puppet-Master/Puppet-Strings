@@ -61,10 +61,10 @@ wrong = ["REQUEST staff.lisa DO 'week planning' DURING blocks.rest_hour ON EACH 
 id = "dates-whole-session"
 title = "The whole session"
 prompt = "Some day during this session — any day — Brian does 'village photo' during lunch."
-answer = "REQUEST staff.brian DO 'village photo' DURING blocks.lunch ON ANY 1 dates.session_6.all"
-hints = ["Every date of the session is dates.session_6.all."]
+answer = "REQUEST staff.brian DO 'village photo' DURING blocks.lunch ON ANY 1 dates.session_6"
+hints = ["Every date of the session is dates.session_6."]
 alternatives = ["REQUEST staff.brian DO 'village photo' DURING blocks.lunch ON ANY 1 {2026-08-02 .. 2026-08-08}"]
-wrong = ["REQUEST staff.brian DO 'village photo' DURING blocks.lunch ON ANY 1 {dates.session_6.all - dates.session_6.first}"]
+wrong = ["REQUEST staff.brian DO 'village photo' DURING blocks.lunch ON ANY 1 {dates.session_6 - dates.session_6.first}"]
 
 [[problem]]
 id = "dates-day-before-friday"
@@ -143,7 +143,7 @@ wrong = ["REQUEST staff.gabe DO 'archery range mowing' DURING blocks.clinic_4 ON
 id = "dates-week-all"
 title = "All week"
 prompt = "Some day in the session's first week, all of the MFGs do 'dock repair' together during clinic 3."
-answer = "REQUEST ALL staff.mfgs DO 'dock repair' DURING blocks.clinic_3 ON ANY 1 dates.session_6.week_1.all"
+answer = "REQUEST ALL staff.mfgs DO 'dock repair' DURING blocks.clinic_3 ON ANY 1 dates.session_6.week_1"
 alternatives = ["REQUEST ALL staff.mfgs DO 'dock repair' DURING blocks.clinic_3 ON ANY 1 {2026-08-02 .. 2026-08-08}"]
 wrong = ["REQUEST ALL staff.mfgs DO 'dock repair' DURING blocks.clinic_3 ON ANY 1 {2026-08-03 .. 2026-08-07}"]
 

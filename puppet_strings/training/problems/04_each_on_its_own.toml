@@ -5,7 +5,7 @@ day = "2026-08-04"
 teaches = """
 EACH <set>       a separate request for each one
 
-REQUEST EACH staff.directors DO 'break' DURING ANY blocks.all
+REQUEST EACH staff.directors DO 'break' DURING ANY blocks
 REQUEST staff.rob DO 'break' DURING EACH {blocks.lunch + blocks.dinner}
 
 Read a request in three steps:
@@ -20,15 +20,15 @@ Below MUST_HAPPEN, ALL is all-or-nothing; EACH earns credit for each part.
 id = "each-director-break"
 title = "A break each"
 prompt = "Each director gets their own 'break' at some point today. They don't need to be together."
-answer = "REQUEST EACH staff.directors DO 'break' DURING ANY 1 blocks.all"
+answer = "REQUEST EACH staff.directors DO 'break' DURING ANY 1 blocks"
 priority = "HIGH"
-hints = ["EACH staff.directors makes one request per director.", "Each copy then has its own block: ANY blocks.all."]
+hints = ["EACH staff.directors makes one request per director.", "Each copy then has its own block: ANY blocks."]
 explain = "Three separate requests. Each director's break can land in a different block, and each counts on its own."
 alternatives = [
-  "REQUEST EACH {staff.david + staff.lisa + staff.matthew} DO 'break' DURING ANY 1 blocks.all",
+  "REQUEST EACH {staff.david + staff.lisa + staff.matthew} DO 'break' DURING ANY 1 blocks",
 ]
 wrong = [
-  "REQUEST ALL staff.directors DO 'break' DURING ANY 1 blocks.all",
+  "REQUEST ALL staff.directors DO 'break' DURING ANY 1 blocks",
   "REQUEST EACH staff.directors DO 'break' DURING ANY 1 blocks.meals",
 ]
 
@@ -171,9 +171,9 @@ wrong = ["REQUEST ANY 2 staff.counselors DO 'bus tables' DURING ALL blocks.meals
 id = "each-staff-all-break"
 title = "Everyone gets a break"
 prompt = "Every single staff member gets a 'break' in one of today's clinic blocks. Each person counts separately."
-answer = "REQUEST EACH staff.all DO 'break' DURING ANY 1 blocks.all_clinics"
+answer = "REQUEST EACH staff DO 'break' DURING ANY 1 blocks.all_clinics"
 priority = "HIGH"
-hints = ["Everybody on staff this session is staff.all."]
+hints = ["Everybody on staff this session is staff."]
 wrong = ["REQUEST EACH staff.counselors DO 'break' DURING ANY 1 blocks.all_clinics"]
 
 [[problem]]

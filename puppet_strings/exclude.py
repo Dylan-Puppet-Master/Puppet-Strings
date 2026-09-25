@@ -1,6 +1,6 @@
 """Take the people an EXCLUDE names out of the days it names.
 
-    EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all ON 2026-08-26
+    EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks ON 2026-08-26
 
 Dylan is not at camp that day. Nothing may be assigned to him in those blocks, nothing is
 asked of him there, and the schedule says `offsite` where his assignments would have been.
@@ -8,7 +8,7 @@ asked of him there, and the schedule says `offsite` where his assignments would 
 This is the same thing the Adjustments sheet's `resting` does for somebody who is ill, and
 it is done the same way: the blocks go into the dataset's resting map, so `Dataset.holds`
 is false for them and the solver never makes a variable; a person out for the whole day
-drops out of every staff category, so `staff.all` does not offer them and a request written
+drops out of every staff category, so `staff` does not offer them and a request written
 about a category asks nothing of them. That is what lets the legal breaks keep being
 `MUST_HAPPEN` on a day somebody is away: they are asked of the staff who are at camp, and
 somebody who is not there is not one of them.
@@ -56,7 +56,7 @@ def _gather(dataset: Dataset) -> dict[date, dict[str, dict[str, str]]]:
             for day in exclusion.on.items:
                 if not isinstance(day, date) or day not in dataset.calendar:
                     continue
-                # only the blocks the day actually has: `blocks.all` is the Blocks sheet,
+                # only the blocks the day actually has: `blocks` is the Blocks sheet,
                 # and a day it does not run on is not a block anybody could be taken out of
                 running = _blocks_on(dataset, day)
                 asked = {str(b) for b in exclusion.during.items} if exclusion.during else None
@@ -96,7 +96,7 @@ def _without(dataset: Dataset, excluded: dict[date, dict[str, dict[str, str]]]) 
         for i, member in dataset.staff.items()
     }
     # A category never offers somebody who is not working today, which is what keeps a
-    # MUST_HAPPEN request written about `staff.all` from asking anything of them.
+    # MUST_HAPPEN request written about `staff` from asking anything of them.
     all_blocks = frozenset(_blocks_on(dataset, dataset.target))
     working = frozenset(i for i, member in staff.items() if member.resting_blocks != all_blocks)
     categories = {c: members & working for c, members in dataset.staff_categories.items()}

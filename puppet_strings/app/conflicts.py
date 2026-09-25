@@ -15,7 +15,7 @@ reported, and both of them are what keeps this quiet enough to be worth reading:
     impossible, so only what must happen is read here.
 *   The statements are *forced* — they leave the solver no choice. `REQUEST staff.rob DO
     activities.clinics.ropes DURING blocks.clinic_1` claims Rob's clinic 1; `REQUEST
-    ANY 1 staff.all DO …` and `DURING ANY 2 blocks.all` claim nothing in particular,
+    ANY 1 staff DO …` and `DURING ANY 2 blocks` claim nothing in particular,
     because the solver picks, and picking around each other is its job.
 
 Two MUST_HAPPEN requests meeting in one slot are not a conflict by themselves: two asking

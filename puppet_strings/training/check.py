@@ -535,7 +535,7 @@ def _mentions(dataset: Dataset, copies) -> dict[str, set]:
         elif is_dataclass(value):
             if isinstance(value, Requirement | Tally):
                 _placed(value, found["placed"], today)
-            # a pattern over every block of the day, `DURING ANY CONSECUTIVE blocks.all`, is
+            # a pattern over every block of the day, `DURING ANY CONSECUTIVE blocks`, is
             # about the whole day as much as one with no DURING, and names no block in it
             whole = isinstance(value, Pattern) and (
                 value.during is None or today <= set(value.during.items)

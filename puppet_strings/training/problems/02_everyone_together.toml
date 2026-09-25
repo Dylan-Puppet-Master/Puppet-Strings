@@ -150,9 +150,9 @@ wrong = ["REQUEST ALL staff.directors DO 'budget meeting' DURING blocks.rest_hou
 id = "together-all-blocks"
 title = "All day long"
 prompt = "Mogee is on 'kitchen' in every block of the day."
-answer = "REQUEST staff.mogee DO 'kitchen' DURING ALL blocks.all"
-hints = ["Every block is blocks.all."]
-explain = "blocks.all holds every block on the day being scheduled."
+answer = "REQUEST staff.mogee DO 'kitchen' DURING ALL blocks"
+hints = ["Every block is blocks."]
+explain = "blocks holds every block on the day being scheduled."
 day = "2026-08-04"
 
 [[problem]]

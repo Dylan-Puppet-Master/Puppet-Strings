@@ -15,7 +15,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
 @pytest.mark.parametrize(
     ("skedge", "priority", "message", "line", "column"),
     [
-        ("EACH s IN staff.all", Priority.HIGH, "a declaration needs at least one statement", 1, 1),
+        ("EACH s IN staff", Priority.HIGH, "a declaration needs at least one statement", 1, 1),
         (
             "REQUEST staff.dylan DO 'x' DURING ANY CONSECUTIVE blocks.all_clinics",
             Priority.HIGH,
@@ -45,7 +45,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             9,
         ),
         (
-            "REQUEST staff.dylan DO ALL activities.clinics.all DURING blocks.clinic_1",
+            "REQUEST staff.dylan DO ALL activities.clinics DURING blocks.clinic_1",
             Priority.HIGH,
             "one activity at a time",
             1,
@@ -89,14 +89,14 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             24,
         ),
         (
-            f"EACH s IN staff.all\nEACH s IN staff.all\n{DO}",
+            f"EACH s IN staff\nEACH s IN staff\n{DO}",
             Priority.HIGH,
             "variable bound twice",
             2,
             1,
         ),
         (
-            "EACH s IN staff.all\nREQUEST s DO 'x' DURING s",
+            "EACH s IN staff\nREQUEST s DO 'x' DURING s",
             Priority.HIGH,
             "expected a name from blocks, not 's'",
             2,
@@ -145,44 +145,44 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             49,
         ),
         (
-            "REQUEST AT_LEAST 1 staff.all BUSY WITHOUT staff.rob",
+            "REQUEST AT_LEAST 1 staff BUSY WITHOUT staff.rob",
             Priority.HIGH,
             "FREE and BUSY have no instance",
             1,
-            35,
+            31,
         ),
         (
-            "REQUEST staff.dylan NOT DO 'x' WITH EACH staff.all",
+            "REQUEST staff.dylan NOT DO 'x' WITH EACH staff",
             Priority.HIGH,
             "WITH counts who is alongside, so it takes ALL or a count, not EACH",
             1,
             37,
         ),
-        ("REQUEST AT_LEAST 0 staff.all DO 'x'", Priority.HIGH, "amount must be at least 1", 1, 9),
-        ("REQUEST AT_MOST 0 staff.all DO 'x'", Priority.HIGH, "write NOT DO", 1, 9),
+        ("REQUEST AT_LEAST 0 staff DO 'x'", Priority.HIGH, "amount must be at least 1", 1, 9),
+        ("REQUEST AT_MOST 0 staff DO 'x'", Priority.HIGH, "write NOT DO", 1, 9),
         (
-            "PREFER EACH s IN staff.all DO ANY activities.clinics.all MAXIMIZE mappings.preference(s)",
+            "PREFER EACH s IN staff DO ANY activities.clinics MAXIMIZE mappings.preference(s)",
             Priority.HIGH,
-            "wrong number of arguments: mappings.preference takes (staff, activities.clinics.all), not 1",
+            "wrong number of arguments: mappings.preference takes (staff, activities.clinics), not 1",
             1,
             1,
         ),
         (
-            "PREFER ANY staff.all DO ANY activities.clinics.all MAXIMIZE mappings.preference(staff.counselor, activities.clinics.riflery)",
+            "PREFER ANY staff DO ANY activities.clinics MAXIMIZE mappings.preference(staff.counselor, activities.clinics.riflery)",
             Priority.HIGH,
             "mapping argument must be one item",
             1,
-            81,
+            73,
         ),
         (
-            "ANY 1 s IN staff.all\nPREFER s DO ANY activities.clinics.all MAXIMIZE mappings.preference(s, activities.clinics.riflery)",
+            "ANY 1 s IN staff\nPREFER s DO ANY activities.clinics MAXIMIZE mappings.preference(s, activities.clinics.riflery)",
             Priority.HIGH,
             "mapping argument must be one item",
             2,
-            69,
+            65,
         ),
         (
-            "PREFER AT_MOST 1 staff.all DO 'x'",
+            "PREFER AT_MOST 1 staff DO 'x'",
             Priority.MUST_HAPPEN,
             "PREFER needs a priority it can be weighed at",
             1,
@@ -217,7 +217,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             4,
         ),
         (
-            "a: REQUEST staff.dylan DO 'x' DURING AT_MOST 2 blocks.all\nb: REQUEST staff.dylan DO 'y' DURING blocks.clinic_2\nGAP a TO b AT_LEAST 0m",
+            "a: REQUEST staff.dylan DO 'x' DURING AT_MOST 2 blocks\nb: REQUEST staff.dylan DO 'y' DURING blocks.clinic_2\nGAP a TO b AT_LEAST 0m",
             Priority.HIGH,
             "a GAP is measured from what a REQUEST makes",
             1,
@@ -232,24 +232,24 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             1,
             59,
         ),
-        (f"{DO} ON {{dates.session_1.all - 1d}}", Priority.HIGH, "needs a single date here", 1, 55),
+        (f"{DO} ON {{dates.session_1 - 1d}}", Priority.HIGH, "needs a single date here", 1, 55),
         (f"{DO} ON 2026-13-01", Priority.HIGH, "invalid date", 1, 54),
         (
-            "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON dates.session_1.week_9.all",
+            "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks ON dates.session_1.week_9",
             Priority.HIGH,
-            "unknown name 'dates.session_1.week_9.all'",
+            "unknown name 'dates.session_1.week_9'",
             1,
-            55,
+            51,
         ),
         (
-            "ANY 1 b IN blocks.all\nREQUEST staff.dylan DO 'x' DURING ALL {blocks.all & b}",
+            "ANY 1 b IN blocks\nREQUEST staff.dylan DO 'x' DURING ALL {blocks & b}",
             Priority.HIGH,
             "chosen by the solver",
             2,
-            53,
+            49,
         ),
         (
-            "ANY 1 p IN staff.all\nREQUEST ANY 2 {staff.dylan + p} DO 'x' DURING blocks.lunch",
+            "ANY 1 p IN staff\nREQUEST ANY 2 {staff.dylan + p} DO 'x' DURING blocks.lunch",
             Priority.HIGH,
             "taken with ALL or not at all",
             2,
@@ -263,14 +263,14 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             41,
         ),
         (
-            "REQUEST ANY staff.all NOT DO 'x'",
+            "REQUEST ANY staff NOT DO 'x'",
             Priority.HIGH,
             "left of NOT the subject is who the NOT is about",
             1,
             9,
         ),
         (
-            "REQUEST EXACTLY 2 staff.all NOT DO 'x'",
+            "REQUEST EXACTLY 2 staff NOT DO 'x'",
             Priority.HIGH,
             "left of NOT the subject is chosen, so it takes ANY 2, not EXACTLY 2",
             1,
@@ -284,11 +284,11 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             63,
         ),
         (
-            "PREFER EACH staff.all DO ALL activities.clinics.all MAXIMIZE mappings.preference(staff.dylan, activities.clinics.riflery)",
+            "PREFER EACH staff DO ALL activities.clinics MAXIMIZE mappings.preference(staff.dylan, activities.clinics.riflery)",
             Priority.HIGH,
             "a pattern matches one assignment at a time, so a set in it takes ANY or EACH",
             1,
-            26,
+            22,
         ),
         (
             "REQUEST staff.rob NOT DO 'x' DURING AT_MOST 2 blocks.all_clinics",
@@ -337,7 +337,7 @@ def test_a_gap_may_be_zero(dataset):
     assert validate_request(request(text), dataset)
 
 
-EXCLUDE = "EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all ON dates.target"
+EXCLUDE = "EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks ON dates.target"
 
 
 def test_an_exclusion_validates(dataset):
@@ -352,12 +352,12 @@ def test_an_exclusion_validates(dataset):
     [
         (EXCLUDE, Priority.HIGH, "EXCLUDE is a fact about the day, so it is MUST_HAPPEN"),
         (
-            "EXCLUDE AT_LEAST 1 staff.all DO 'offsite'",
+            "EXCLUDE AT_LEAST 1 staff DO 'offsite'",
             Priority.MUST_HAPPEN,
             "nothing in it is chosen, counted or ANY",
         ),
         (
-            "EXCLUDE staff.dylan DO 'offsite' DURING ANY blocks.all",
+            "EXCLUDE staff.dylan DO 'offsite' DURING ANY blocks",
             Priority.MUST_HAPPEN,
             "nothing in it is chosen, counted or ANY",
         ),

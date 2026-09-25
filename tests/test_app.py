@@ -103,7 +103,7 @@ def test_a_target_session_name_can_be_saved_on_a_date_in_no_session(window):
     editor.clear()
     editor.dataset = family_camp(editor.dataset)
     editor.skedge_edit.setPlainText(
-        "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all ON dates.session_target.all"
+        "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks ON dates.session_target"
     )
     assert editor.validate() and editor.save_button.isEnabled()
     assert "which is not a session" in editor.status.text()
@@ -315,15 +315,14 @@ def test_namespaces_panel_nests_dotted_names(window):
         for i in range(window.names.topLevelItemCount())
         if window.names.topLevelItem(i).text(0) == "dates"
     )
-    one = child(dates, "dates.session_1")
-    assert one.data(0, Qt.UserRole) is None  # a span is not a name: its dates are `.all`
-    every = child(one, "dates.session_1.all")
-    assert every.data(0, Qt.UserRole) == "dates.session_1.all" and every.text(1) == "14 dates"
+    assert dates.data(0, Qt.UserRole) is None  # only a step on the way to a name
+    one = child(dates, "dates.session_1")  # a span is a name: every date of it
+    assert one.data(0, Qt.UserRole) == "dates.session_1" and one.text(1) == "14 dates"
     week = child(one, "dates.session_1.week_2")
     monday = child(week, "dates.session_1.week_2.monday")
     assert monday.text(1) == "2026-09-21 (Monday)"
     window.editor.clear()
-    window.names.setCurrentItem(one)  # not a name: nothing is inserted
+    window.names.setCurrentItem(dates)  # not a name: nothing is inserted
     window.names._pick_current()
     assert window.editor.skedge_edit.toPlainText() == ""
     window.names.setCurrentItem(monday)
@@ -826,7 +825,7 @@ def test_saving_a_request_outside_the_date_asks_first(window, monkeypatch):
     )
     editor = write_request(
         window,
-        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL dates.session_2.week_1.all",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL dates.session_2.week_1",
     )
     editor.save_button.click()
     assert asked and "does not cover 2026-09-16" in asked[0]
@@ -856,7 +855,7 @@ def test_saving_a_request_about_this_date_asks_nothing(window, monkeypatch):
     for skedge in (
         "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON dates.target",
         "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1",  # no ON: every day
-        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL dates.session_1.week_1.all",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL dates.session_1.week_1",
     ):
         editor = write_request(window, skedge, description=f"ok {skedge[-6:]}")
         editor.save_button.click()
@@ -1159,7 +1158,7 @@ def test_a_save_that_is_called_off_leaves_the_editor_alone(window, monkeypatch):
     monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Cancel)
     editor = write_request(
         window,
-        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL dates.session_2.week_1.all",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL dates.session_2.week_1",
     )
     editor.save_button.click()
     assert editor.save_button.text() == "Save" and editor.save_button.isEnabled()
@@ -1420,7 +1419,7 @@ def test_a_keyword_is_coloured_in_whichever_case_it_is_written_in(window):
     assert coloured(edit, "staff.dylan") == palette.NAME
     edit.setPlainText("REQUEST staff.dylan DO 'x' DURING blocks.clinic_1")
     assert coloured(edit, "REQUEST") == palette.KEYWORD
-    edit.setPlainText("EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks.all")
+    edit.setPlainText("EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks")
     assert coloured(edit, "EXCLUDE") == palette.KEYWORD
     assert coloured(edit, "ALL") == palette.KEYWORD
     assert coloured(edit, "'offsite'") == palette.STRING

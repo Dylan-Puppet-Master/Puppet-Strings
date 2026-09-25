@@ -203,15 +203,15 @@ def test_blocks(source):
 
 def test_mappings(dataset):
     preference = dataset.mappings["preference"]
-    assert preference.keys == ("staff", "activities.clinics.all") and preference.numeric
+    assert preference.keys == ("staff", "activities.clinics") and preference.numeric
     assert preference.normalized(("dylan", "archery_1_2")) == 1.0
     assert preference.normalized(("dylan", "candle_making")) == 0.5
     assert preference.default == 3 and preference.missing == 3
     assert preference.normalized(("dylan", "riflery")) == 0.5  # no row, so the default
     buddy = dataset.mappings["buddy"]
-    assert not buddy.numeric and buddy.value == "{staff.all - staff.counselor}"
+    assert not buddy.numeric and buddy.value == "{staff - staff.counselor}"
     assert buddy.rows == {("dylan",): "alan", ("james",): "sarah"}
-    assert buddy.default == "ANY 1 {staff.all - staff.counselor - staff.director}"
+    assert buddy.default == "ANY 1 {staff - staff.counselor - staff.director}"
 
 
 def test_mapping_default_column(source):
@@ -240,8 +240,8 @@ MAPPINGS_HEADER = list(INDEX_COLUMNS)
         (["x", "staff", "staff", "1", "5", ""], "only a numeric mapping has a scale"),
         (["x", "", "staff", "", "", ""], "keys needs at least one set"),
         (["x", "mappings.buddy", "staff", "", "", ""], "names mappings"),
-        (["x", "staff", "{staff.all - s}", "", "", ""], "should be a namespace"),
-        (["x", "staff", "{staff.all -", "", "", ""], "unexpected input"),
+        (["x", "staff", "{staff - s}", "", "", ""], "should be a namespace"),
+        (["x", "staff", "{staff -", "", "", ""], "unexpected input"),
     ],
 )
 def test_a_mapping_is_declared_with_sets_it_can_read(row, message):
@@ -268,7 +268,7 @@ def test_a_mapping_is_declared_with_sets_it_can_read(row, message):
         ("mapping_buddy", [["staff", "value"]], "missing columns ['key1']"),
         (
             "Mappings",
-            [MAPPINGS_HEADER, ["buddy", "staff.counselor", "staff.all", "", "", "staff.all"]],
+            [MAPPINGS_HEADER, ["buddy", "staff.counselor", "staff", "", "", "staff"]],
             "a default of more than one name needs ALL or ANY n",
         ),
         (
@@ -288,7 +288,7 @@ def test_a_mapping_is_declared_with_sets_it_can_read(row, message):
         ),
         (
             "Mappings",
-            [MAPPINGS_HEADER, ["buddy", "staff.counselor", "staff.all", "", "", "blocks.lunch"]],
+            [MAPPINGS_HEADER, ["buddy", "staff.counselor", "staff", "", "", "blocks.lunch"]],
             "names blocks, but the value is from staff",
         ),
     ],

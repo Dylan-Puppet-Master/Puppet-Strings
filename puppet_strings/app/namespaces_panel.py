@@ -2,8 +2,9 @@
 
 Names nest on their dots, so `dates.session_4.week_2.monday` is four levels deep
 rather than one line among hundreds. A node that is a name in its own right carries what it
-stands for beside it; a node that is only a step on the way to one, such as the span
-`dates.session_4` (its dates are `dates.session_4.all`), does not.
+stands for beside it, as a branch does for everything under it: `dates.session_4.week_2`
+is every date of that week, as `staff` is everyone. A node that is only a step on the way
+to a name, such as `dates` itself, does not.
 
 Double-click opens a name to see what it stands for, which is the question the one-line
 note cannot answer. Enter, or the right-click menu, puts it into the request being edited.
@@ -14,6 +15,7 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QMenu, QTreeWidget, QTreeWidgetItem
 
 from puppet_strings.model import Dataset
+from puppet_strings.skedge.namespaces import written
 from puppet_strings.skedge.resolve import name_listing
 
 
@@ -47,7 +49,7 @@ class NamespacesPanel(QTreeWidget):
             for name, note in names:
                 node = self._branch(namespace, name, nodes)
                 node.setText(1, note)
-                node.setData(0, Qt.UserRole, f"{namespace}.{name}")  # a name, not just a step
+                node.setData(0, Qt.UserRole, written(namespace, name))  # a name, not just a step
         self.resizeColumnToContents(0)
 
     @staticmethod

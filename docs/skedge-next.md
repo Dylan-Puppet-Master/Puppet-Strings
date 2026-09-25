@@ -20,18 +20,18 @@ The amount no longer sits after `REQUEST`, far from what it measures, and no lon
 
 | Today | Next |
 |---|---|
-| `REQUEST AT_MOST 2 ANY staff.counselors DO 'break' DURING EACH blocks.all` | `REQUEST AT_MOST 2 staff.counselors DO 'break' DURING EACH blocks.all` |
-| `REQUEST EXACTLY 3 EACH staff.village_heroes DO 'break'` | `REQUEST EACH staff.village_heroes DO 'break' DURING EXACTLY 3 blocks.all` |
-| `REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing'` | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks.all` |
-| `REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing' DURING ANY CONSECUTIVE blocks.all` | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY CONSECUTIVE blocks.all` |
-| `REQUEST AT_LEAST 2 staff.charlton DO 'fence building' DURING ANY CONSECUTIVE blocks.all` | `REQUEST staff.charlton DO 'fence building' DURING AT_LEAST 2 CONSECUTIVE blocks.all` |
-| `REQUEST AT_MOST 1 EACH staff.all DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all` | `REQUEST EACH staff.all DO ANY activities.clinics.all DURING AT_MOST 1 CONSECUTIVE blocks.all` |
-| `REQUEST AT_LEAST 1h ANY staff.mfgs DO 'kitchen repair'` | `REQUEST ANY staff.mfgs DO 'kitchen repair' FOR AT_LEAST 1h DURING ANY blocks.all` |
+| `REQUEST AT_MOST 2 ANY staff.counselors DO 'break' DURING EACH blocks` | `REQUEST AT_MOST 2 staff.counselors DO 'break' DURING EACH blocks` |
+| `REQUEST EXACTLY 3 EACH staff.village_heroes DO 'break'` | `REQUEST EACH staff.village_heroes DO 'break' DURING EXACTLY 3 blocks` |
+| `REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing'` | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks` |
+| `REQUEST AT_LEAST 2h staff.cam_vl DO 'video editing' DURING ANY CONSECUTIVE blocks` | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY CONSECUTIVE blocks` |
+| `REQUEST AT_LEAST 2 staff.charlton DO 'fence building' DURING ANY CONSECUTIVE blocks` | `REQUEST staff.charlton DO 'fence building' DURING AT_LEAST 2 CONSECUTIVE blocks` |
+| `REQUEST AT_MOST 1 EACH staff DO ANY activities.clinics DURING ANY CONSECUTIVE blocks` | `REQUEST EACH staff DO ANY activities.clinics DURING AT_MOST 1 CONSECUTIVE blocks` |
+| `REQUEST AT_LEAST 1h ANY staff.mfgs DO 'kitchen repair'` | `REQUEST ANY staff.mfgs DO 'kitchen repair' FOR AT_LEAST 1h DURING ANY blocks` |
 | `REQUEST ANY 3 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour` | `REQUEST AT_LEAST 3 staff.village_heroes DO 'lifeguard' DURING blocks.rest_hour` |
-| `REQUEST AT_MOST 4 EACH staff.directors NOT FREE` | `REQUEST EACH staff.directors BUSY DURING AT_MOST 4 blocks.all` |
+| `REQUEST AT_MOST 4 EACH staff.directors NOT FREE` | `REQUEST EACH staff.directors BUSY DURING AT_MOST 4 blocks` |
 | `REQUEST staff.hails NOT FREE DURING ANY blocks.evening` | `REQUEST staff.hails BUSY DURING ALL blocks.evening` |
 | `REQUEST staff.hails NOT FREE DURING ALL blocks.evening` | `REQUEST staff.hails BUSY DURING AT_LEAST 1 blocks.evening` |
-| `IF AT_LEAST 3 s DO ANY activities.clinics.all DURING ANY CONSECUTIVE blocks.all` | `IF s DO ANY activities.clinics.all DURING AT_LEAST 3 CONSECUTIVE blocks.all` |
+| `IF AT_LEAST 3 s DO ANY activities.clinics DURING ANY CONSECUTIVE blocks` | `IF s DO ANY activities.clinics DURING AT_LEAST 3 CONSECUTIVE blocks` |
 | `ANY 1 v IN {staff.dylan + staff.cam_vl}` | `EXACTLY 1 v IN {staff.dylan + staff.cam_vl}` |
 | `WITH ANY 2 staff.seniors` | `WITH AT_LEAST 2 staff.seniors` |
 
@@ -52,8 +52,8 @@ and `EXACTLY` forbid the rest. So a requirement with a count can now forbid, whi
 specification's "a requirement never forbids" has to give up.
 
 `CONSECUTIVE` goes after a count or `ANY` on the blocks, as today. `DURING AT_LEAST 2
-CONSECUTIVE blocks.all` holds when some run of adjacent blocks reaches 2, `AT_MOST` when no
-run exceeds it, `EXACTLY` when both do. `DURING ANY CONSECUTIVE blocks.all` pools each run
+CONSECUTIVE blocks` holds when some run of adjacent blocks reaches 2, `AT_MOST` when no
+run exceeds it, `EXACTLY` when both do. `DURING ANY CONSECUTIVE blocks` pools each run
 on its own, for a `FOR` to measure.
 
 ## Which count is inside which
@@ -68,16 +68,16 @@ sets in one statement, they apply in this order, outside in:
 5. `DURING`: the blocks.
 6. `AS_ROLE`, `WITH`, `WITHOUT` and `FOR`, within one unit of all of the above.
 
-So `AT_MOST 2 staff.counselors DO 'break' DURING AT_LEAST 3 blocks.all` is "at most two
+So `AT_MOST 2 staff.counselors DO 'break' DURING AT_LEAST 3 blocks` is "at most two
 counselors break in three or more blocks", and `ON AT_LEAST 2 dates.week_1 … DURING EXACTLY
-1 blocks.all` is "on at least two dates, in exactly one block of each". "In at least three
+1 blocks` is "on at least two dates, in exactly one block of each". "In at least three
 blocks, at most two counselors" — blocks outside people — needs the blocks bound on a line
-of their own. At most two at a time is still `DURING EACH blocks.all`, by rule 1.
+of their own. At most two at a time is still `DURING EACH blocks`, by rule 1.
 
 `ALL` makes the group one unit, so a count inside it counts what the group does together:
 
 ```
-REQUEST ALL {staff.dylan + staff.alesa} DO 'video' DURING EXACTLY 1 blocks.all
+REQUEST ALL {staff.dylan + staff.alesa} DO 'video' DURING EXACTLY 1 blocks
 ```
 
 is one block in which both of them film. Either filming alone elsewhere is not a block of
@@ -85,7 +85,7 @@ theirs together, so it is not counted. `EACH {staff.dylan + staff.alesa}` gives 
 each, possibly different ones.
 
 A count on the object counts different activities: `staff.rob DO AT_LEAST 2
-activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_2}` is two clinics, each
+activities.clinics DURING ALL {blocks.clinic_1 + blocks.clinic_2}` is two clinics, each
 of which Rob runs in both blocks.
 
 ## Lengths
@@ -96,20 +96,20 @@ of which Rob runs in both blocks.
 It measures the task within one unit of the blocks:
 
 - Blocks taken one at a time — an item, `ALL`, `EACH` or a count — make each block a unit.
-  `DO 'break' FOR 30m DURING EXACTLY 3 blocks.all` is three breaks of 30 minutes. A piece
+  `DO 'break' FOR 30m DURING EXACTLY 3 blocks` is three breaks of 30 minutes. A piece
   never leaves its block, so a unit of one block holds one piece.
 - Blocks pooled with `ANY` are one unit together: `DO 'video editing' FOR AT_LEAST 2h DURING
-  ANY blocks.all` is two hours in total, across whichever blocks.
+  ANY blocks` is two hours in total, across whichever blocks.
 - `ANY CONSECUTIVE` makes each run a unit: `FOR AT_LEAST 2h DURING ANY CONSECUTIVE
-  blocks.all` is two hours in one run of adjacent blocks. `AT_MOST` holds when no run is
+  blocks` is two hours in one run of adjacent blocks. `AT_MOST` holds when no run is
   longer.
 
-Dates pool the same way: `FOR AT_LEAST 5h DURING ANY blocks.all ON ANY dates.week_1` is five
+Dates pool the same way: `FOR AT_LEAST 5h DURING ANY blocks ON ANY dates.week_1` is five
 hours over the week.
 
 `ANY` on the blocks of a requirement is only allowed with a `FOR` to measure it, since a pool
 otherwise says nothing about how much. Without one, the error says to write a count:
-`DURING AT_LEAST 1 blocks.all`.
+`DURING AT_LEAST 1 blocks`.
 
 ## Positions
 
@@ -170,8 +170,8 @@ Saved requests are rewritten on their next load where the new spelling means the
 - A front count over a pattern with one pooled set moves onto that set as a count.
 - A front length moves onto `FOR`, with the blocks pooled.
 - `ANY n` becomes `AT_LEAST n` where nothing shares the choice. Where something does — `ANY
-  2 staff.x DO … DURING ANY 1 blocks.all`, two people in the same block — the choice becomes
-  a binding line, `EXACTLY 1 b IN blocks.all`, since a count on the blocks would now be each
+  2 staff.x DO … DURING ANY 1 blocks`, two people in the same block — the choice becomes
+  a binding line, `EXACTLY 1 b IN blocks`, since a count on the blocks would now be each
   person's own.
 - `NOT FREE` becomes `BUSY`.
 
@@ -180,7 +180,7 @@ someone to rewrite by hand.
 
 ## Open questions
 
-1. **A count over two pools.** `AT_LEAST 3 ANY staff.x DO 'y' DURING ANY blocks.all` counts
+1. **A count over two pools.** `AT_LEAST 3 ANY staff.x DO 'y' DURING ANY blocks` counts
    person-blocks: three breaks among them, however shared. A count goes on one set, so this
    has no new spelling. Is it needed?
 2. **How a `FOR` total is made up.** A task with no `FOR` fills its block. Under a pooled

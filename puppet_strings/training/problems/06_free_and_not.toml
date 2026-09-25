@@ -34,12 +34,12 @@ wrong = [
 id = "free-day-off"
 title = "Clear all day"
 prompt = "Vic is on call all Thursday: at camp, but with nothing assigned in any block."
-answer = "REQUEST staff.vic FREE DURING ALL blocks.all ON dates.session_6.week_1.thursday"
+answer = "REQUEST staff.vic FREE DURING ALL blocks ON dates.session_6.week_1.thursday"
 priority = "MUST_HAPPEN"
-hints = ["Free in every block: FREE DURING ALL blocks.all."]
-alternatives = ["REQUEST staff.vic FREE DURING ALL blocks.all ON 2026-08-06", "REQUEST staff.vic FREE DURING EACH blocks.all ON 2026-08-06"]
+hints = ["Free in every block: FREE DURING ALL blocks."]
+alternatives = ["REQUEST staff.vic FREE DURING ALL blocks ON 2026-08-06", "REQUEST staff.vic FREE DURING EACH blocks ON 2026-08-06"]
 explain = "FREE is somebody at camp with nothing to do. Somebody away for the day is an EXCLUDE, which comes later."
-wrong = ["REQUEST staff.vic FREE DURING ANY 1 blocks.all ON 2026-08-06"]
+wrong = ["REQUEST staff.vic FREE DURING ANY 1 blocks ON 2026-08-06"]
 
 [[problem]]
 id = "free-not-free"
@@ -66,7 +66,7 @@ prompt = "Rob does no ropes clinic at all today."
 answer = "REQUEST staff.rob NOT DO ANY activities.clinics.ropes"
 hints = ["All the ropes clinics are a category: activities.clinics.ropes.", "Leave out DURING to mean all day."]
 explain = "With no DURING, NOT DO covers the whole day."
-alternatives = ["REQUEST staff.rob NOT DO ANY activities.clinics.ropes DURING ANY blocks.all"]
+alternatives = ["REQUEST staff.rob NOT DO ANY activities.clinics.ropes DURING ANY blocks"]
 wrong = ["REQUEST staff.rob NOT DO ANY activities.clinics.ropes DURING ANY {blocks.all_clinics - blocks.clinic_4}"]
 
 [[problem]]
@@ -151,8 +151,8 @@ wrong = [
 id = "free-not-clinics-morning"
 title = "A quiet morning"
 prompt = "Lisa doesn't run any clinic during clinic 1 or clinic 2."
-answer = "REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING ANY {blocks.clinic_1 + blocks.clinic_2}"
-alternatives = ["REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING ANY {blocks.clinic_2 + blocks.clinic_1}"]
+answer = "REQUEST staff.lisa NOT DO ANY activities.clinics DURING ANY {blocks.clinic_1 + blocks.clinic_2}"
+alternatives = ["REQUEST staff.lisa NOT DO ANY activities.clinics DURING ANY {blocks.clinic_2 + blocks.clinic_1}"]
 wrong = ["REQUEST staff.lisa FREE DURING ALL {blocks.clinic_1 + blocks.clinic_2}"]
 
 [[problem]]
@@ -175,7 +175,7 @@ wrong = ["REQUEST staff.hails BUSY DURING blocks.embers"]
 id = "free-whole-session-off"
 title = "Never on the lake"
 prompt = "All session long, Pip never does 'lifeguard'."
-answer = "REQUEST staff.pip NOT DO 'lifeguard' ON ANY dates.session_6.all"
+answer = "REQUEST staff.pip NOT DO 'lifeguard' ON ANY dates.session_6"
 alternatives = ["REQUEST staff.pip NOT DO 'lifeguard' ON ANY {2026-08-02 .. 2026-08-08}"]
 wrong = ["REQUEST staff.pip NOT DO 'lifeguard'"]
 
@@ -194,8 +194,8 @@ wrong = ["REQUEST staff.hails BUSY DURING ALL blocks.evening"]
 id = "free-not-both"
 title = "Not both"
 prompt = "Lisa shouldn't run a clinic in both clinic 1 and clinic 2. A clinic in one of them is fine."
-answer = "REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING ALL {blocks.clinic_1 + blocks.clinic_2}"
+answer = "REQUEST staff.lisa NOT DO ANY activities.clinics DURING ALL {blocks.clinic_1 + blocks.clinic_2}"
 hints = ["What must not happen is a clinic in clinic 1 and a clinic in clinic 2, together: ALL, right of NOT."]
-explain = "Right of NOT, ALL is all of them together, so one on its own is fine. Said as a count of what does happen, it is the same: DO ANY activities.clinics.all DURING AT_MOST 1 of the two."
-alternatives = ["REQUEST staff.lisa DO ANY activities.clinics.all DURING AT_MOST 1 {blocks.clinic_1 + blocks.clinic_2}"]
-wrong = ["REQUEST staff.lisa NOT DO ANY activities.clinics.all DURING ANY {blocks.clinic_1 + blocks.clinic_2}"]
+explain = "Right of NOT, ALL is all of them together, so one on its own is fine. Said as a count of what does happen, it is the same: DO ANY activities.clinics DURING AT_MOST 1 of the two."
+alternatives = ["REQUEST staff.lisa DO ANY activities.clinics DURING AT_MOST 1 {blocks.clinic_1 + blocks.clinic_2}"]
+wrong = ["REQUEST staff.lisa NOT DO ANY activities.clinics DURING ANY {blocks.clinic_1 + blocks.clinic_2}"]

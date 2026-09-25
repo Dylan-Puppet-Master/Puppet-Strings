@@ -207,15 +207,15 @@ def published(day, *rows, blocks=None):
 def preference(values: dict[tuple[str, str], float], default: float | None = None):
     """A 1-5 preference mapping keyed by staff and clinic."""
     table = {(normalize(s), normalize(a)): v for (s, a), v in values.items()}
-    keys = ("staff", "activities.clinics.all")
+    keys = ("staff", "activities.clinics")
     return {"preference": MappingTable("preference", keys, "numeric", table, 1, 5, default)}
 
 
-BUDDY_DEFAULT = "ANY 1 {staff.all - staff.counselor - staff.director}"
+BUDDY_DEFAULT = "ANY 1 {staff - staff.counselor - staff.director}"
 
 
 def buddies(rows: dict[str, str], default: str | None = BUDDY_DEFAULT):
     """Each counselor's buddy HERO, who covers their cabin at dinner, by name."""
     table = {(normalize(c),): normalize(b) for c, b in rows.items()}
-    value = "{staff.all - staff.counselor}"
+    value = "{staff - staff.counselor}"
     return {"buddy": MappingTable("buddy", ("staff.counselor",), value, table, default=default)}

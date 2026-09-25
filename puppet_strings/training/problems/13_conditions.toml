@@ -36,7 +36,7 @@ wrong = ["IF staff.lisa FREE DURING blocks.clinic_1\nREQUEST ANY 1 staff.permane
 id = "if-busy-then-cover"
 title = "Covering for a busy director"
 prompt = "If David runs any clinic during clinic 2, Lisa does 'office cover' then."
-answer = "IF staff.david DO ANY activities.clinics.all DURING blocks.clinic_2\nREQUEST staff.lisa DO 'office cover' DURING blocks.clinic_2"
+answer = "IF staff.david DO ANY activities.clinics DURING blocks.clinic_2\nREQUEST staff.lisa DO 'office cover' DURING blocks.clinic_2"
 wrong = ["REQUEST staff.lisa DO 'office cover' DURING blocks.clinic_2"]
 
 [[problem]]
@@ -67,7 +67,7 @@ wrong = ["IF staff.rob DO activities.clinics.gravity_zip_line DURING blocks.clin
 id = "if-each-after-clinics"
 title = "After two in a row"
 prompt = "For each village leader: if they run two clinics back to back, they get a free block somewhere today."
-answer = "EACH s IN staff.village_leaders\nIF s DO ANY activities.clinics.all DURING AT_LEAST 2 CONSECUTIVE blocks.all\nREQUEST s FREE DURING ANY 1 blocks.all"
+answer = "EACH s IN staff.village_leaders\nIF s DO ANY activities.clinics DURING AT_LEAST 2 CONSECUTIVE blocks\nREQUEST s FREE DURING ANY 1 blocks"
 priority = "HIGH"
 
 [[problem]]
@@ -130,6 +130,6 @@ wrong = ["IF staff.tori BUSY DURING blocks.embers AND staff.tori BUSY DURING blo
 id = "if-or-many-clinic"
 title = "Plenty of archery"
 prompt = "If Archery 1 & 2 runs in clinic 2 or in clinic 3, Gabe does 'target repair' during clinic 4."
-answer = "IF ANY staff.all DO activities.clinics.archery_1_2 DURING ANY {blocks.clinic_2 + blocks.clinic_3}\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"
-alternatives = ["IF ANY staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_2 OR ANY staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_3\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"]
-wrong = ["IF ANY staff.all DO activities.clinics.archery_1_2 DURING blocks.clinic_2\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"]
+answer = "IF ANY staff DO activities.clinics.archery_1_2 DURING ANY {blocks.clinic_2 + blocks.clinic_3}\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"
+alternatives = ["IF ANY staff DO activities.clinics.archery_1_2 DURING blocks.clinic_2 OR ANY staff DO activities.clinics.archery_1_2 DURING blocks.clinic_3\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"]
+wrong = ["IF ANY staff DO activities.clinics.archery_1_2 DURING blocks.clinic_2\nREQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4"]

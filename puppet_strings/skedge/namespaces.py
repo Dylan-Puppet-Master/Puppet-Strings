@@ -1,9 +1,10 @@
 """The namespaces a Skedge name may begin with.
 
-They are plural because each one is a collection of names, and `staff.all` reads no worse
-than `blocks.all`. `activities` nests: a clinic is `activities.clinics.archery_1_2` and a
-cabin act is `activities.cabin_acts.p4`, so what kind of thing a name stands for is part
-of the name rather than something to remember.
+They are plural because each one is a collection of names, and a namespace or branch
+written on its own is the whole collection: `staff` is everyone at camp, `blocks` every
+block and `dates.session_4` every date of session 4. `activities` nests: a clinic is
+`activities.clinics.archery_1_2` and a cabin act is `activities.cabin_acts.p4`, so what
+kind of thing a name stands for is part of the name rather than something to remember.
 """
 
 STAFF = "staff"
@@ -13,7 +14,10 @@ DATES = "dates"
 ROLES = "roles"
 MAPPINGS = "mappings"
 
-ALL = "all"  # every name in a namespace or one of its branches
+NAMESPACES = (STAFF, ACTIVITIES, BLOCKS, DATES, ROLES, MAPPINGS)
+
+WHOLE = ""  # the name of a namespace or branch itself: everything under it
+ALL = "all"  # the category the sheets file every staff member at camp and every block under
 
 # Branches of `activities`. A clinic and a cabin act are staffed the same way but come
 # from different sheets and mean different things, so neither can be reached by accident.
@@ -27,3 +31,8 @@ AT_REST_HOUR = "at_rest_hour"
 
 # What a mapping key may name: any namespace but `mappings` itself.
 KEY_NAMESPACES = (STAFF, ACTIVITIES, BLOCKS, DATES, ROLES)
+
+
+def written(namespace: str, name: str) -> str:
+    """A name as it is typed: `staff.dylan`, or `staff` for the whole namespace."""
+    return f"{namespace}.{name}" if name else namespace

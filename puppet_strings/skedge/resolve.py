@@ -35,6 +35,8 @@ from puppet_strings.skedge.namespaces import (
     MAPPINGS,
     ROLES,
     STAFF,
+    WHOLE,
+    written,
 )
 from puppet_strings.skedge.namespaces import ALL as ALL_NAME  # `all`, not the quantifier
 from puppet_strings.skedge.parser import parse_default, parse_domain
@@ -315,28 +317,33 @@ class _Names:
     def lookup(self, ref: ast.Ref, namespace: str) -> Named:
         if ref.namespace != namespace:
             raise _error(
-                f"expected a name from {namespace}, not {ref.namespace}.{ref.name}", ref.pos
+                f"expected a name from {namespace}, not {written(ref.namespace, ref.name)}",
+                ref.pos,
             )
         try:
             return self.spaces[namespace][ref.name]
         except KeyError:
             if namespace == DATES and ref.name.split(".")[0] == SESSION_TARGET:
                 raise ast.NoSession(
-                    f"'{namespace}.{ref.name}' names no dates: {self.dataset.target} is in "
+                    f"'{written(namespace, ref.name)}' names no dates: {self.dataset.target} is in "
                     f"{self.dataset.this_span.name}, which is not a session. "
                     "The request is skipped when this date is solved",
                     ref.pos.line,
                     ref.pos.column,
                 ) from None
             raise _error(
-                f"unknown name '{namespace}.{ref.name}'{self._suggest(namespace, ref.name)}",
+                f"unknown name '{written(namespace, ref.name)}'"
+                f"{self._suggest(namespace, ref.name)}",
                 ref.pos,
             ) from None
 
     def _suggest(self, namespace: str, name: str) -> str:
         """The nearest name there is, so a near miss says what to write instead."""
+        whole = name.removesuffix(ALL_NAME).removesuffix(".")
+        if name.split(".")[-1] == ALL_NAME and whole in self.spaces[namespace]:
+            return f"; write '{written(namespace, whole)}' for all of it"
         close = get_close_matches(name, self.spaces[namespace], n=1, cutoff=0.6)
-        return f"; did you mean '{namespace}.{close[0]}'?" if close else ""
+        return f"; did you mean '{written(namespace, close[0])}'?" if close else ""
 
 
 def name_spaces(dataset: Dataset) -> dict[str, dict[str, Named]]:
@@ -350,8 +357,12 @@ def _names(dataset: Dataset) -> _Names:
 
 
 def _members(items, categories) -> dict[str, Named]:
+    """Items and their categories; the sheets' `all` category is the namespace itself."""
     single = {i: Named(frozenset({i}), True) for i in items}
-    sets = {c: Named(frozenset(members), False) for c, members in categories.items()}
+    sets = {
+        WHOLE if c == ALL_NAME else c: Named(frozenset(members), False)
+        for c, members in categories.items()
+    }
     return {**single, **sets}
 
 
@@ -361,7 +372,7 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
     Clinics and cabin acts are staffed the same way but are different things — one comes
     from Clinic_Data and runs for whoever signs up, the other from the cabin act board and
     belongs to one cabin on one day — so each has its own branch and neither can be picked
-    up by accident. `activities.all` is deliberately both: it is the only name that means
+    up by accident. `activities` on its own is deliberately both: it is the only name that means
     every activity there is.
 
     A clinic is named by itself or by its Clinic_Data category. A cabin act is named by its
@@ -372,12 +383,12 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
     """
     clinics = {i: a for i, a in dataset.activities.items() if not a.cabin}
     cabin_acts = {i: a for i, a in dataset.activities.items() if a.cabin}
-    names = {ALL_NAME: Named(frozenset(dataset.activities), False)}
+    names = {WHOLE: Named(frozenset(dataset.activities), False)}
     _add(
         names,
         CLINICS,
         {
-            ALL_NAME: Named(frozenset(clinics), False),
+            WHOLE: Named(frozenset(clinics), False),
             **_members(clinics, dataset.activity_categories),
         },
     )
@@ -385,7 +396,7 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
         names,
         CABIN_ACTS,
         {
-            ALL_NAME: Named(frozenset(cabin_acts), False),
+            WHOLE: Named(frozenset(cabin_acts), False),
             AT_CABIN_ACT: Named(
                 frozenset(i for i, a in cabin_acts.items() if not a.rest_hour), False
             ),
@@ -410,12 +421,12 @@ def date_names(dataset: Dataset) -> dict[str, Named]:
     The tree is the Calendar sheet read out loud, and every span in it carries exactly the
     same names, so what can be said of one can be said of any other:
 
-        dates.season.all                     every camp day
-        dates.session_4.all               every date of session 4
-        dates.session_4.mondays           every Monday of it
-        dates.session_4.week_2.all      every date of its second week
-        dates.session_4.week_2.monday   one date
-        dates.family_camp.all                a span that is not a numbered session
+        dates.season                     every camp day
+        dates.session_4                  every date of session 4
+        dates.session_4.mondays          every Monday of it
+        dates.session_4.week_2           every date of its second week
+        dates.session_4.week_2.monday    one date
+        dates.family_camp                a span that is not a numbered session
 
     Those names are the same on every day of the season. The ones with `target` in them
     follow the date being scheduled: `dates.target` itself, the session it falls in,
@@ -454,7 +465,7 @@ def _span_names(dates: tuple[date, ...]) -> dict[str, Named]:
     meant one date per session, a letter apart, and which of them existed depended on how
     long the season happened to be. A week's weekday says the same thing and says it once.
     """
-    names = {ALL_NAME: Named(frozenset(dates), False)}
+    names = {WHOLE: Named(frozenset(dates), False)}
     if not dates:
         return names
     names["first"], names["last"] = _one(dates[0]), _one(dates[-1])
@@ -468,7 +479,7 @@ def _week_names(dates: tuple[date, ...]) -> dict[str, Named]:
 
     A week reaches each weekday at most once, so `monday` is the one Monday there is.
     """
-    names = {ALL_NAME: Named(frozenset(dates), False)}
+    names = {WHOLE: Named(frozenset(dates), False)}
     if dates:
         names["first"], names["last"] = _one(dates[0]), _one(dates[-1])
     for weekday, days in _by_weekday(dates).items():
@@ -614,7 +625,7 @@ def _expand(declaration: ast.Declaration, each: list, scope: _Scope) -> Iterator
 class _AnotherDay(Exception):
     """An EACH item is an activity that is not on the days its statement is about.
 
-    `EACH activities.cabin_acts.all` splits over every act of the season, because which
+    `EACH activities.cabin_acts` splits over every act of the season, because which
     days a statement is about is only known once its ON is resolved. A copy whose act
     belongs to another day asks for nothing that can happen on its own days, so it is no
     copy at all -- rather than a request to run Friday's act on Wednesday.
@@ -834,7 +845,7 @@ def _exclusion(statement: ast.Exclude, scope: _Scope) -> Exclusion:
 def _anyone(what: ast.Target, scope: _Scope, pos: ast.Pos) -> Choice:
     """The subject of `REQUEST <activity>`, which names none: anyone the activity allows.
 
-    The request is sugar for `REQUEST ANY staff.all DO <activity>`. Asking that someone
+    The request is sugar for `REQUEST ANY staff DO <activity>`. Asking that someone
     holds a position of an activity asks that it runs at all, and a running activity fills
     every position it has (`solver.structural`), so naming one person here asks for all of
     the people it needs — which is why the activity's positions are the only place who may
@@ -1049,7 +1060,7 @@ def _domain_expr(text: str) -> tuple[str, ast.SetExpr | None]:
     if _needs_request(expr):
         raise ast.SkedgeError(
             f"'{text}' should be a namespace, such as staff, or a set of names, such as "
-            "{staff.all - staff.counselor}",
+            "{staff - staff.counselor}",
             1,
             1,
         )
@@ -1164,7 +1175,7 @@ def _choice(
             default = _choice(found, namespace, _default_scope(scope), pool, when)
             return replace(default, pos=selector.pos)
     if _less_a_chosen_name(expr, scope):
-        # `{staff.all - s}`: everyone but whoever the binding chose, whoever that turns out
+        # `{staff - s}`: everyone but whoever the binding chose, whoever that turns out
         # to be, so each member's place in the set waits on the choice
         base = _choice(replace(selector, expr=expr.left), namespace, scope, pool, when)
         choice, bound_namespace = scope.anys[expr.right.name]
@@ -1205,7 +1216,7 @@ def _choice(
         raise _error(
             f"a count counts the members of a set, and {ast.spoken(expr)} is one; put the "
             f"count on the set it counts, such as DURING {ast.worded(selector.bound, selector.n)} "
-            "blocks.all",
+            "blocks",
             selector.pos,
         )
     _no_quantifier_on_one(expr, single, selector.pos)
@@ -1247,7 +1258,7 @@ def _no_quantifier_on_one(expr: ast.SetExpr, single: bool, pos: ast.Pos) -> None
 
 
 def _less_a_chosen_name(expr: ast.SetExpr, scope: _Scope) -> bool:
-    """Whether a set is another less a name a binding line chooses: `{staff.all - s}`."""
+    """Whether a set is another less a name a binding line chooses: `{staff - s}`."""
     return (
         isinstance(expr, ast.SetOp)
         and expr.op == "-"

@@ -25,7 +25,7 @@ prompt = "Riflery runs during clinic 2 — whoever is qualified can staff it."
 answer = "REQUEST activities.clinics.riflery DURING blocks.clinic_2"
 hints = ["An activity with no DO: REQUEST activities.clinics.riflery DURING …"]
 explain = "The clinic already says who may run it, so the request just names it."
-alternatives = ["REQUEST ANY 1 staff.all DO activities.clinics.riflery DURING blocks.clinic_2"]
+alternatives = ["REQUEST ANY 1 staff DO activities.clinics.riflery DURING blocks.clinic_2"]
 wrong = ["REQUEST activities.clinics.riflery DURING blocks.clinic_3"]
 
 [[problem]]
@@ -126,7 +126,7 @@ answer = "REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.cabin_ac
 priority = "HIGH"
 explain = "One line asks for that part of the board. Each act is met or missed on its own."
 wrong = [
-    "REQUEST EACH activities.cabin_acts.all DURING blocks.cabin_act",
+    "REQUEST EACH activities.cabin_acts DURING blocks.cabin_act",
     "REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.rest_hour",
 ]
 

@@ -399,7 +399,7 @@ class MappingTable:
     """A table from keys to a value, declared on the Mappings tab.
 
     `keys` are Skedge set expressions, one per key column, saying what each may hold:
-    `staff.counselor`, `{staff.all - staff.counselor}`, or a bare namespace such as
+    `staff.counselor`, `{staff - staff.counselor}`, or a bare namespace such as
     `staff` for any name in it. `value` is the same for what a row gives, or `numeric`.
 
     A numeric mapping is a scale of ratings: `rows` hold numbers between `scale_min` and

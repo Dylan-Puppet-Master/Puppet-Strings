@@ -8,9 +8,9 @@ teaches = """
 {a & b}      everyone in both a and b
 ( )          groups; mixing different operators needs them
 
-{staff.all - staff.counselors}
-{staff.all - (staff.directors + staff.counselors)}
-{blocks.all - blocks.meals}
+{staff - staff.counselors}
+{staff - (staff.directors + staff.counselors)}
+{blocks - blocks.meals}
 {dates.season.tuesdays & (2026-07-21 .. dates.session_6.last)}   Tuesdays in that run
 """
 
@@ -18,19 +18,19 @@ teaches = """
 id = "sets-everyone-but-directors"
 title = "Everyone but the directors"
 prompt = "Everyone except the directors should be free during playstation — each person on their own."
-answer = "REQUEST EACH {staff.all - staff.directors} FREE DURING blocks.playstation"
+answer = "REQUEST EACH {staff - staff.directors} FREE DURING blocks.playstation"
 priority = "HIGH"
-hints = ["{staff.all - staff.directors} is everyone who isn't a director."]
+hints = ["{staff - staff.directors} is everyone who isn't a director."]
 wrong = [
-  "REQUEST EACH staff.all FREE DURING blocks.playstation",
-  "REQUEST EACH {staff.all - staff.directors - staff.mfgs} FREE DURING blocks.playstation",
+  "REQUEST EACH staff FREE DURING blocks.playstation",
+  "REQUEST EACH {staff - staff.directors - staff.mfgs} FREE DURING blocks.playstation",
 ]
 
 [[problem]]
 id = "sets-non-meal-blocks"
 title = "Not at meals"
 prompt = "Rob doesn't take a 'break' in any block other than a meal."
-answer = "REQUEST staff.rob NOT DO 'break' DURING ANY {blocks.all - blocks.meals}"
+answer = "REQUEST staff.rob NOT DO 'break' DURING ANY {blocks - blocks.meals}"
 wrong = ["REQUEST staff.rob NOT DO 'break' DURING ANY blocks.meals"]
 
 [[problem]]
@@ -53,20 +53,20 @@ wrong = ["REQUEST ANY 1 {staff.permanent_heroes + staff.eq_staff} DO 'trail ride
 id = "sets-non-counselor-breaks"
 title = "Non-counselor breaks"
 prompt = "Each staff member who is neither a director nor a counselor gets a 'break' in one of the clinic blocks."
-answer = "REQUEST EACH {staff.all - staff.directors - staff.counselors} DO 'break' DURING ANY 1 blocks.all_clinics"
+answer = "REQUEST EACH {staff - staff.directors - staff.counselors} DO 'break' DURING ANY 1 blocks.all_clinics"
 priority = "HIGH"
-alternatives = ["REQUEST EACH {staff.all - (staff.directors + staff.counselors)} DO 'break' DURING ANY 1 blocks.all_clinics"]
-wrong = ["REQUEST EACH {staff.all - staff.counselors} DO 'break' DURING ANY 1 blocks.all_clinics"]
+alternatives = ["REQUEST EACH {staff - (staff.directors + staff.counselors)} DO 'break' DURING ANY 1 blocks.all_clinics"]
+wrong = ["REQUEST EACH {staff - staff.counselors} DO 'break' DURING ANY 1 blocks.all_clinics"]
 
 [[problem]]
 id = "sets-parentheses"
 title = "Parentheses"
 prompt = "Everyone except the counselors who are also MFGs stays off 'pool duty' today. Use parentheses."
-answer = "REQUEST ALL {staff.all - (staff.counselors & staff.mfgs)} NOT DO 'pool duty'"
-hints = ["{staff.all - (staff.counselors & staff.mfgs)}", "Mixing - and & needs parentheses, so there's no order of operations to remember."]
+answer = "REQUEST ALL {staff - (staff.counselors & staff.mfgs)} NOT DO 'pool duty'"
+hints = ["{staff - (staff.counselors & staff.mfgs)}", "Mixing - and & needs parentheses, so there's no order of operations to remember."]
 explain = "Alan is the only counselor who is also an MFG, so this keeps everyone but Alan off pool duty."
-alternatives = ["REQUEST ALL {staff.all - staff.alan} NOT DO 'pool duty'"]
-wrong = ["REQUEST ALL {staff.all - staff.counselors} NOT DO 'pool duty'"]
+alternatives = ["REQUEST ALL {staff - staff.alan} NOT DO 'pool duty'"]
+wrong = ["REQUEST ALL {staff - staff.counselors} NOT DO 'pool duty'"]
 
 [[problem]]
 id = "sets-afternoon-clinics"
@@ -96,7 +96,7 @@ wrong = ["REQUEST EACH staff.counselors BUSY DURING blocks.clinic_1"]
 id = "sets-no-clinics-except-weapons"
 title = "Weapons only"
 prompt = "Gabe runs no clinics today except weapons clinics."
-answer = "REQUEST staff.gabe NOT DO ANY {activities.clinics.all - activities.clinics.weapons}"
+answer = "REQUEST staff.gabe NOT DO ANY {activities.clinics - activities.clinics.weapons}"
 wrong = ["REQUEST staff.gabe NOT DO ANY activities.clinics.weapons"]
 
 [[problem]]

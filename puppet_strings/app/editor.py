@@ -25,8 +25,12 @@ from puppet_strings.model import SCOPES, WRITABLE_PRIORITIES, Dataset, Priority,
 from puppet_strings.names import normalize
 from puppet_strings.requests_db import DEFAULT_SCOPE, describe
 from puppet_strings.skedge.ast import NoSession, SkedgeError
+from puppet_strings.skedge.namespaces import NAMESPACES, written
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
+
+# a dotted name, or a namespace on its own
+NAME_PATTERN = r"\b(?:[a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)+|(?:" + "|".join(NAMESPACES) + r")\b)"
 
 KEYWORD_WORDS = (
     "REQUEST",
@@ -82,7 +86,7 @@ class SkedgeHighlighter(QSyntaxHighlighter):
         keywords.setPatternOptions(QRegularExpression.CaseInsensitiveOption)
         self.rules = [
             (keywords, _format(colours.KEYWORD, bold=True)),
-            (QRegularExpression(r"\b[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+"), _format(colours.NAME)),
+            (QRegularExpression(NAME_PATTERN), _format(colours.NAME)),
             (QRegularExpression(r"'[^']*'"), _format(colours.STRING)),
             (
                 QRegularExpression(r"\b\d{4}-\d{2}-\d{2}\b|\b\d+(\.\d+)?[mhd]\b"),
@@ -148,7 +152,7 @@ class SkedgeEdit(QPlainTextEdit):
     def set_dataset(self, dataset: Dataset | None) -> None:
         """Suggest every name the dataset has, or none without one."""
         listing = name_listing(dataset).items() if dataset is not None else ()
-        self.set_names([f"{ns}.{name}" for ns, rows in listing for name, _ in rows])
+        self.set_names([written(ns, name) for ns, rows in listing for name, _ in rows])
 
     def set_names(self, names: list[str]) -> None:
         """The names to suggest, as `namespace.name`. Reuses the model, leaving no garbage."""

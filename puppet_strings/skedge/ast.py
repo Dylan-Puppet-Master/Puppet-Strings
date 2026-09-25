@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import date
 
-from puppet_strings.skedge.namespaces import ACTIVITIES, BLOCKS, DATES, ROLES, STAFF
+from puppet_strings.skedge.namespaces import ACTIVITIES, BLOCKS, DATES, ROLES, STAFF, written
 
 ALL = "ALL"
 ANY = "ANY"  # any of these: the set is one pool
@@ -45,7 +45,7 @@ class Pos:
 
 @dataclass(frozen=True)
 class Ref:
-    """A dotted name: `staff.rob`, `dates.session_mondays`."""
+    """A dotted name, `staff.rob` or `dates.session_4.mondays`, or a whole namespace, `staff`."""
 
     namespace: str
     name: str
@@ -521,7 +521,7 @@ def substitute(node, found: Callable[[Var], SetExpr | None]):
 def spoken(expr: SetExpr) -> str:
     """A set expression written out the way it would be typed."""
     if isinstance(expr, Ref):
-        return f"{expr.namespace}.{expr.name}"
+        return written(expr.namespace, expr.name)
     if isinstance(expr, Var):
         return expr.name
     if isinstance(expr, DateLiteral):

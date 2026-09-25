@@ -23,7 +23,7 @@ position on Clinic_Data, so a clinic wanting a facilitator, a second and a lifeg
 reads:
 
 ```skedge
-REQUEST ANY 1 staff.all DO activities.clinics.canoe_1_2 AS_ROLE EACH {roles.first + roles.second + roles.lifeguard} DURING blocks.clinic_1 ON 2026-09-17
+REQUEST ANY 1 staff DO activities.clinics.canoe_1_2 AS_ROLE EACH {roles.first + roles.second + roles.lifeguard} DURING blocks.clinic_1 ON 2026-09-17
 ```
 
 `EACH` is what makes each position its own choice of person; `ALL` would ask one
@@ -46,7 +46,7 @@ for the target date, so the requests mirror that day's Offerings tab: a clinic y
 there disappears here. The imported requests are that day's alone, filed in its own Clinics
 list, so no other day shows them. Hand-written requests are never touched. You can delete
 an imported request to drop that clinic, or edit it, for example to replace `ANY 1
-staff.all` with a category to limit who runs it; **Load offerings** undoes such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
+staff` with a category to limit who runs it; **Load offerings** undoes such edits. **Solve** builds the schedule and opens it in a window with the staff view, the
 clinic view and the report; it asks first if the date has no clinics imported.
 **Publish** in that window writes the day's own spreadsheet in the
 [schedules tree](sheets.md#the-schedules-tree), asking first if the date is already
@@ -172,8 +172,8 @@ things that cannot both be true.
 Sharing a slot is not by itself a collision: two requests asking for the same clinic agree,
 and two half-hour tasks fit in one block quite happily. What they say has to be impossible.
 
-It also reads only what is **settled**. `REQUEST ANY 1 staff.all DO …`, `DURING ANY
-2 blocks.all` and every `PREFER` leave the solver room to move, and moving things around each
+It also reads only what is **settled**. `REQUEST ANY 1 staff DO …`, `DURING ANY
+2 blocks` and every `PREFER` leave the solver room to move, and moving things around each
 other is its job, so they are never reported. What is left is worth looking at: a request
 saved into a collision says so in the toolbar as it saves. One request may hold several
 statements, so it can also contradict itself, and that shows up the same way.
@@ -195,7 +195,7 @@ Offerings tab for a block — and, where the day runs the clinic somewhere else,
 that is, since that is usually what was meant.
 
 The same two rules apply as to conflicts. Only what is **settled** is read: `ANY 1
-staff.all` names nobody in particular, so nobody in particular is unqualified — the solver
+staff` names nobody in particular, so nobody in particular is unqualified — the solver
 picks somebody who is checked off, and that is its job. And a day with nothing offered yet
 is not a day of errors: until its Offerings tab is filled in nothing is offered, which
 is one thing to see to rather than fifty.
@@ -276,7 +276,7 @@ before Solve is pressed. Pressing Solve sooner reads it then instead.
 
 **Calendar.** Below the names, a calendar with camp days (the dates on the Calendar sheet)
 shaded. Down its left-hand side, each week is labelled with the session and week it is,
-`S4` over `W2`, taken from the Calendar sheet — the numbers `dates.session_4.week_2.all`
+`S4` over `W2`, taken from the Calendar sheet — the numbers `dates.session_4.week_2`
 is built from, rather than the week of the year. Click any date to insert it into the
 Skedge editor at the cursor, as `2026-06-15`.
 
@@ -286,7 +286,7 @@ on a Sunday, and so does the pane before any sheet has been read, whatever the m
 own idea of the first day of the week is.
 
 **Saving a request about other dates.** A request does not have to be about the date being
-scheduled: `ON ALL dates.session_2.week_1.all` is a perfectly good request to write in
+scheduled: `ON ALL dates.session_2.week_1` is a perfectly good request to write in
 the middle of session 1. It will do nothing to the schedule you are about to solve, though,
 which is easy to write by accident — a mistyped date, or `session_2` where you meant
 `session_1`. So saving such a request asks first, names the dates it *is* about, and

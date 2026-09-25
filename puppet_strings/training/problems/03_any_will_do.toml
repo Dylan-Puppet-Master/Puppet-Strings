@@ -80,12 +80,12 @@ wrong = ["REQUEST ALL {staff.kara + staff.paul} DO 'recycling' DURING blocks.res
 id = "any-block-any-time"
 title = "Whenever it fits"
 prompt = "Dylan does 'archery maintenance' at some point today — any block at all."
-answer = "REQUEST staff.dylan DO 'archery maintenance' DURING ANY blocks.all"
-hints = ["Every block is blocks.all; any of them will do."]
+answer = "REQUEST staff.dylan DO 'archery maintenance' DURING ANY blocks"
+hints = ["Every block is blocks; any of them will do."]
 explain = "Leaving DURING out says the same thing: a statement with no DURING is about any block of the day."
 alternatives = [
   "REQUEST staff.dylan DO 'archery maintenance'",
-  "REQUEST staff.dylan DO 'archery maintenance' DURING ANY 1 blocks.all",
+  "REQUEST staff.dylan DO 'archery maintenance' DURING ANY 1 blocks",
 ]
 wrong = ["REQUEST staff.dylan DO 'archery maintenance' DURING ANY blocks.all_clinics"]
 
@@ -108,7 +108,7 @@ answer = "REQUEST staff.hailey DO 'horse check' DURING ANY 2 blocks.all_clinics"
 hints = ["Two of something is a pick: ANY 2, in front of the blocks."]
 wrong = [
   "REQUEST staff.hailey DO 'horse check' DURING ANY blocks.all_clinics",
-  "REQUEST staff.hailey DO 'horse check' DURING ANY 2 blocks.all",
+  "REQUEST staff.hailey DO 'horse check' DURING ANY 2 blocks",
 ]
 
 [[problem]]

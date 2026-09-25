@@ -23,6 +23,7 @@ from puppet_strings.session import open_source
 from puppet_strings.sheets.load import load_dataset
 from puppet_strings.sheets.source import CsvSource, LoadError, Source, Table
 from puppet_strings.skedge.ast import NoSession, SkedgeError
+from puppet_strings.skedge.namespaces import written
 from puppet_strings.skedge.resolve import name_listing
 from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.solve import RequestError, solve
@@ -157,7 +158,7 @@ def _names(dataset: Dataset) -> int:
     for namespace, names in name_listing(dataset).items():
         print(namespace)
         for name, note in names:
-            print(f"  {namespace}.{name}  ({note})")
+            print(f"  {written(namespace, name)}  ({note})")
     return 0
 
 

@@ -79,8 +79,8 @@ without     : _WITHOUT chooser as_role?
 
 // ANY with no number is any of these: the set is one pool. ANY n chooses n of it, once for
 // the statement. A count measures, in front of the set it counts. CONSECUTIVE is about
-// blocks, after DURING: `ANY 2 CONSECUTIVE blocks.all` picks blocks in a row, and
-// `ANY CONSECUTIVE blocks.all` pools each run for a FOR to measure. A count before another
+// blocks, after DURING: `ANY 2 CONSECUTIVE blocks` picks blocks in a row, and
+// `ANY CONSECUTIVE blocks` pools each run for a FOR to measure. A count before another
 // quantifier, and ANY_n_OF, are old spellings, parsed only to say the new ones.
 chooser     : (ALL | ANY | amount)? CONSECUTIVE? set_
             | amount (ALL | ANY | EACH) CONSECUTIVE? set_
