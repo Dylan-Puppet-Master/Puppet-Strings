@@ -2,15 +2,22 @@
 
 A frame is where a card is dropped to move it to that group, and where a new request for
 the group is started — with the button in its header, or a double-click anywhere in it.
+
+Close up, the name is in the header with the rest. Further out it would be too small to
+read at the header's size, so the name and its count are drawn larger, as a tab: the same
+drawing, scaled up from where the header has it, so nothing jumps as the header goes.
+It grows upward, out over the frame's top edge into the gap above, which keeps it clear
+of the cards while they can still be read; only once the gap is used up, about when the
+cards become blocks of colour, does it grow down over them.
 """
 
-from PySide6.QtCore import QRectF, QSizeF, Qt
+from PySide6.QtCore import QPointF, QRectF, QSizeF, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QPen
-from PySide6.QtWidgets import QGraphicsObject, QStyleOptionGraphicsItem
+from PySide6.QtWidgets import QGraphicsItem, QGraphicsObject, QStyleOptionGraphicsItem
 
 from puppet_strings.app import palette
 from puppet_strings.app.canvas.card import FULL_DETAIL, _font
-from puppet_strings.app.canvas.layout import HEADER, PAD
+from puppet_strings.app.canvas.layout import FRAME_GAP, HEADER, PAD
 from puppet_strings.app.groups import UNGROUPED
 
 RADIUS = 18.0
@@ -19,6 +26,13 @@ NOTE_FONT = _font(11.5)
 COUNT_FONT = _font(11, QFont.DemiBold)
 BUTTON_FONT = _font(12, QFont.DemiBold)
 BUTTON = QSizeF(132, 32)
+NAME = QRectF(0, 12, 0, 30)  # the header's strip for the name and its count, but for width
+# From further out the name grows a little on screen as it goes, to hold its own against
+# the frames shrinking round it: by this power of how much further out than FULL_DETAIL.
+GROWTH = 1.1
+LEAST_PIXELS = 11  # it shrinks to fit a narrow frame, but no smaller than this on screen
+MOST_SCALE = 12.0
+CEILING = -(FRAME_GAP - 16)  # as far up into the gap as it goes, clear of the frame above
 
 
 class GroupFrame(QGraphicsObject):
@@ -37,11 +51,14 @@ class GroupFrame(QGraphicsObject):
         self.movable = False  # far enough out that dragging it moves the whole group
         self.setZValue(-10)
         self.setAcceptHoverEvents(True)
+        self.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
+        self.far_title = FarTitle(self)
 
     def set_size(self, size: QSizeF) -> None:
         """Grow or shrink to hold its cards."""
         self.prepareGeometryChange()
         self.size = QSizeF(size)
+        self.far_title.resize()
         self.update()
 
     def set_counts(self, shown: int, total: int, note: str) -> None:
@@ -49,6 +66,19 @@ class GroupFrame(QGraphicsObject):
         if (shown, total, note) != (self.shown, self.total, self.note):
             self.shown, self.total, self.note = shown, total, note
             self.update()
+            self.far_title.update()
+
+    def itemChange(self, change, value):  # noqa: N802
+        """Take the far title along: into the scene, out of it, and wherever it moves."""
+        if change == QGraphicsItem.ItemSceneChange:
+            if self.scene() is not None:
+                self.scene().removeItem(self.far_title)
+            if value is not None:
+                value.addItem(self.far_title)
+                self.far_title.setPos(self.pos())
+        elif change == QGraphicsItem.ItemPositionHasChanged:
+            self.far_title.setPos(self.pos())
+        return super().itemChange(change, value)
 
     def set_target(self, target: bool) -> None:
         """Light up as where a dragged card would go, or stop."""
@@ -100,7 +130,7 @@ class GroupFrame(QGraphicsObject):
         return "Ungrouped" if self.group == UNGROUPED else self.group
 
     def paint(self, painter: QPainter, option, widget=None) -> None:
-        """The frame, its title, its counts and its button; the title alone from far away."""
+        """The frame, and close up its title, its counts and its button."""
         lod = QStyleOptionGraphicsItem.levelOfDetailFromTransform(painter.worldTransform())
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.TextAntialiasing)
@@ -115,8 +145,7 @@ class GroupFrame(QGraphicsObject):
         painter.setBrush(fill)
         painter.drawRoundedRect(rect, RADIUS, RADIUS)
         if lod < FULL_DETAIL:
-            self._paint_far(painter, lod)
-            return
+            return  # the far title has the name
         self._paint_header(painter)
         if self.empty:
             painter.setFont(NOTE_FONT)
@@ -135,23 +164,7 @@ class GroupFrame(QGraphicsObject):
         frame one card wide there is not room for a long name and all the rest.
         """
         button = self.button_rect()
-        count = str(self.shown) if self.shown == self.total else f"{self.shown} of {self.total}"
-        pill_w = QFontMetricsF(COUNT_FONT).horizontalAdvance(count) + 16
-        room = button.left() - 12 - pill_w - 10 - PAD
-        painter.setFont(TITLE_FONT)
-        painter.setPen(QColor(palette.INK if self.group != UNGROUPED else palette.QUIET))
-        title = QFontMetricsF(TITLE_FONT).elidedText(self.title, Qt.ElideRight, room)
-        drawn = painter.drawText(
-            QRectF(PAD, 12, room, 30), Qt.AlignVCenter | Qt.TextDontClip, title
-        )
-        wide = drawn.width()  # as drawn, which at some zooms is not what the metrics say
-        painter.setFont(COUNT_FONT)
-        pill = QRectF(PAD + wide + 10, 17, pill_w, 20)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(palette.LINE))
-        painter.drawRoundedRect(pill, 10, 10)
-        painter.setPen(QColor(palette.TEXT))
-        painter.drawText(pill, Qt.AlignCenter, count)
+        self.paint_name(painter, button.left() - 12 - PAD)
         painter.setFont(NOTE_FONT)
         painter.setPen(QColor(palette.QUIET))
         room = button.left() - 12 - PAD
@@ -166,23 +179,110 @@ class GroupFrame(QGraphicsObject):
         painter.setPen(QColor(palette.ON_HIGHLIGHT))
         painter.drawText(button, Qt.AlignCenter, "+  New request")
 
-    def _paint_far(self, painter: QPainter, lod: float) -> None:
-        """From far off, the title written large enough to find the group by."""
-        text = f"{self.title}  ·  {self.shown}"
-        room = self.size.width() - 2 * PAD
-        wanted = 16 / lod  # about 16 pixels on screen
-        natural = QFontMetricsF(_font(100, QFont.DemiBold)).horizontalAdvance(text) / 100
-        pixels = max(min(wanted, room / natural, 20 * 12), 20)
-        scale = pixels / 20
-        font = _font(pixels, QFont.DemiBold)
-        painter.setFont(font)
-        metrics = QFontMetricsF(font)
-        text = metrics.elidedText(text, Qt.ElideRight, room)
-        box = QRectF(PAD, PAD * 0.6, metrics.horizontalAdvance(text) + 8 * scale, metrics.height())
-        back = QColor(palette.WINDOW)
-        back.setAlpha(215)
+    @property
+    def count(self) -> str:
+        """What the pill after the name says."""
+        return str(self.shown) if self.shown == self.total else f"{self.shown} of {self.total}"
+
+    def name_width(self) -> float:
+        """How wide the name and its count are, in full, at the header's size."""
+        pill_w = QFontMetricsF(COUNT_FONT).horizontalAdvance(self.count) + 16
+        return QFontMetricsF(TITLE_FONT).horizontalAdvance(self.title) + 10 + pill_w
+
+    def paint_name(self, painter: QPainter, room: float, back: QColor | None = None) -> QRectF:
+        """The name and its count from PAD across in the header's name strip, within `room`.
+
+        The far title draws this too, scaled. `back` is a tab to draw them on. Returns
+        where they went.
+        """
+        count = self.count
+        pill_w = QFontMetricsF(COUNT_FONT).horizontalAdvance(count) + 16
+        title = QFontMetricsF(TITLE_FONT).elidedText(self.title, Qt.ElideRight, room - pill_w - 10)
+        wide = QFontMetricsF(TITLE_FONT).horizontalAdvance(title)
+        box = QRectF(PAD, NAME.top(), wide + 10 + pill_w, NAME.height())
+        if back is not None:
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(back)
+            painter.drawRoundedRect(box.adjusted(-10, -2, 10, 2), 10, 10)
+        painter.setFont(TITLE_FONT)
+        painter.setPen(QColor(palette.INK if self.group != UNGROUPED else palette.QUIET))
+        drawn = painter.drawText(
+            QRectF(PAD, NAME.top(), wide + 20, NAME.height()),
+            Qt.AlignVCenter | Qt.TextDontClip,
+            title,
+        )
+        wide = drawn.width()  # as drawn, which at some zooms is not what the metrics say
+        painter.setFont(COUNT_FONT)
+        pill = QRectF(PAD + wide + 10, NAME.top() + 5, pill_w, 20)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(back)
-        painter.drawRoundedRect(box.adjusted(-8 * scale, 0, 0, 0), 8 * scale, 8 * scale)
-        painter.setPen(QColor(palette.INK))
-        painter.drawText(box, Qt.AlignVCenter, text)
+        painter.setBrush(QColor(palette.LINE))
+        painter.drawRoundedRect(pill, 10, 10)
+        painter.setPen(QColor(palette.TEXT))
+        painter.drawText(pill, Qt.AlignCenter, count)
+        return box
+
+
+class FarTitle(QGraphicsItem):
+    """A frame's name and count from too far out for its header: the header's, scaled up.
+
+    An item of its own rather than part of the frame, to be drawn over the cards once it
+    grows down onto them; the frame keeps it where it is.
+    """
+
+    def __init__(self, frame: GroupFrame) -> None:
+        super().__init__()
+        self.frame = frame
+        self.drawn = QRectF()  # where it was last drawn, in the frame's coordinates
+        self.setAcceptedMouseButtons(Qt.NoButton)
+        self.setZValue(4)  # over the cards, under the form
+
+    def resize(self) -> None:
+        """Follow the frame's width."""
+        self.prepareGeometryChange()
+
+    def boundingRect(self) -> QRectF:  # noqa: N802
+        """As far as it can reach: up into the gap, and down over the cards."""
+        return QRectF(0, CEILING - 4, self.frame.size.width(), NAME.height() * MOST_SCALE + 8)
+
+    def scale_at(self, lod: float) -> float:
+        """How many times the header's size it is drawn at, from this far out.
+
+        The header's size at FULL_DETAIL, growing from there; shrinking to fit a narrow
+        frame's width, but never to less than LEAST_PIXELS on screen, nor below the
+        header's size.
+        """
+        grow = (FULL_DETAIL / lod) ** GROWTH
+        fit = (self.frame.size.width() - 2 * PAD) / self.frame.name_width()
+        least = LEAST_PIXELS / (TITLE_FONT.pixelSize() * lod)
+        return min(grow, max(fit, least, 1.0), MOST_SCALE)
+
+    def paint(self, painter: QPainter, option, widget=None) -> None:
+        """Scaled from the bottom of the header's name strip, until the gap is used up."""
+        lod = QStyleOptionGraphicsItem.levelOfDetailFromTransform(painter.worldTransform())
+        if lod >= FULL_DETAIL:
+            self.drawn = QRectF()
+            return
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.TextAntialiasing)
+        scale = self.scale_at(lod)
+        top = max(NAME.bottom() - NAME.height() * scale, CEILING)
+        # The tab fades in on the way out: at FULL_DETAIL it is the header, with none.
+        back = QColor(palette.WINDOW)
+        back.setAlpha(170)
+        tab = _over(back, QColor(palette.CANVAS))
+        tab.setAlpha(round(255 * min(1.0, (FULL_DETAIL - lod) / (0.3 * FULL_DETAIL))))
+        painter.translate(PAD, top)
+        painter.scale(scale, scale)
+        painter.translate(-PAD, -NAME.top())
+        room = (self.frame.size.width() - 2 * PAD) / scale
+        box = self.frame.paint_name(painter, room, tab)
+        corner = QPointF(PAD + (box.left() - PAD) * scale, top)
+        self.drawn = QRectF(corner, box.size() * scale)
+
+
+def _over(fill: QColor, under: QColor) -> QColor:
+    """A see-through colour as it looks laid over an opaque one."""
+    a = fill.alphaF()
+    return QColor.fromRgbF(
+        *(f * a + u * (1 - a) for f, u in zip(fill.getRgbF()[:3], under.getRgbF()[:3], strict=True))
+    )

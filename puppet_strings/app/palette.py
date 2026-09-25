@@ -20,6 +20,7 @@ from PySide6.QtWidgets import QApplication
 # The chrome: three depths of near-black, with the panes sitting a shade above the window
 # and anything you can type into sitting a shade below it.
 WINDOW = "#1e2126"  # the window and its docks
+CANVAS = "#15181c"  # the canvas, under the frames
 SURFACE = "#252a31"  # a pane, a list, a tree, a table
 SUNKEN = "#181b1f"  # an editor, a text field, a drop-down
 ROW = "#22262c"  # the every-other row of a table

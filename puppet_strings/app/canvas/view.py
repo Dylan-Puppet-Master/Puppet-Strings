@@ -65,7 +65,7 @@ from puppet_strings.app.canvas.card import (
     CardItem,
     Status,
 )
-from puppet_strings.app.canvas.frame import GroupFrame
+from puppet_strings.app.canvas.frame import FarTitle, GroupFrame
 from puppet_strings.app.canvas.layout import CARD_WIDTH, Arrangement, arrange
 from puppet_strings.app.canvas.overlays import Minimap, NewButton, ZoomBar
 from puppet_strings.app.facets import resolve_request
@@ -75,11 +75,14 @@ from puppet_strings.app.requests_model import REQUEST_IDS, request_ids
 from puppet_strings.model import Dataset, Priority, Request
 from puppet_strings.settings import load_settings, save_settings
 
-LEAST, MOST = 0.04, 2.5  # how far out and in the canvas zooms
+# The zoom called 100%: how many screen pixels a canvas unit takes at actual size, the
+# size a card is comfortable to read and type on. The zoom bar counts from it.
+ACTUAL = 1.3
+LEAST, MOST = 0.04, 2.5 * ACTUAL  # how far out and in the canvas zooms
 STEP = 1.2  # one click of + or −
 DRAG = 5  # pixels the pointer moves before a press is a drag rather than a click
-EDIT_ZOOM = 1.0  # a card clicked from further out than this is brought up to it
-BACKGROUND = QColor("#15181c")
+EDIT_ZOOM = ACTUAL  # a card clicked from further out than this is brought up to it
+BACKGROUND = QColor(palette.CANVAS)
 DOT = QColor("#2c323a")
 FADE_STEPS = 32  # how finely the in-between dots fade; each step is a new tile
 RANKS = {p: i for i, p in enumerate(Priority)}
@@ -113,7 +116,7 @@ class Canvas(QGraphicsView):
         # Nobody has moved the camera since it last showed everything, so it keeps showing
         # everything as the requests come and go and the window changes size.
         self.following = True
-        self.zoom = 1.0
+        self.zoom = ACTUAL
         self.press = None  # what the mouse went down on, and where
         self.dragging: list[CardItem] = []
         self.drag_from: dict[str, QPointF] = {}
@@ -161,7 +164,7 @@ class Canvas(QGraphicsView):
         self.zoom_bar = ZoomBar(self)
         self.zoom_bar.zoom_in.connect(lambda: self.zoom_by(STEP))
         self.zoom_bar.zoom_out.connect(lambda: self.zoom_by(1 / STEP))
-        self.zoom_bar.actual_size.connect(lambda: self.fly_to(self.center(), 1.0))
+        self.zoom_bar.actual_size.connect(lambda: self.fly_to(self.center(), ACTUAL))
         self.zoom_bar.fit.connect(self.fit)
         self.zoom_bar.reset.connect(self.reset_layout)
         self.zoom_bar.show_reset(bool(self.placed))
@@ -696,7 +699,7 @@ class Canvas(QGraphicsView):
             self._show_handles()
         self.setTransform(QTransform.fromScale(self.zoom, self.zoom))
         self.centerOn(center)
-        self.zoom_bar.show_zoom(self.zoom)
+        self.zoom_bar.show_zoom(self.zoom / ACTUAL)
         self.minimap.update()
         if self.zoom < FULL_DETAIL and self._let_go():
             self.relayout(animate=True)  # zoomed out: the new cards take their places
@@ -753,7 +756,7 @@ class Canvas(QGraphicsView):
         self.camera.valueChanged.connect(step)
         self.camera.start()
 
-    def fly_to_rect(self, rect: QRectF, animate: bool = True, most: float = 1.0) -> None:
+    def fly_to_rect(self, rect: QRectF, animate: bool = True, most: float = ACTUAL) -> None:
         """Glide until a part of the canvas fills the view, but no nearer than `most`."""
         view = self.viewport().rect()
         margin = 48
@@ -811,6 +814,10 @@ class Canvas(QGraphicsView):
         """
         far = self.far
         for item in self.items(pos):
+            if isinstance(item, FarTitle):
+                if not item.drawn.contains(item.mapFromScene(self.mapToScene(pos))):
+                    continue  # it reaches over the cards, but only its tab is there
+                item = item.frame
             if self._in_editor(item):
                 return "editor", self.proxy
             if isinstance(item, CardItem):
@@ -1170,7 +1177,7 @@ class Canvas(QGraphicsView):
         elif (key == Qt.Key_F and not control) or (control and key == Qt.Key_0):
             self.fit()
         elif control and key == Qt.Key_1:
-            self.fly_to(self.center(), 1.0)
+            self.fly_to(self.center(), ACTUAL)
         elif key in (Qt.Key_Plus, Qt.Key_Equal):
             self.zoom_by(STEP)
         elif key in (Qt.Key_Minus, Qt.Key_Underscore):

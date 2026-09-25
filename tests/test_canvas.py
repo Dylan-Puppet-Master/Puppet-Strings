@@ -8,18 +8,20 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QDate, QMimeData, QPoint, QPointF, Qt  # noqa: E402
+from PySide6.QtCore import QDate, QMimeData, QPoint, QPointF, QRectF, Qt  # noqa: E402
 from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent, QTextCursor  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
-from puppet_strings.app.canvas.card import BAD, SUMMARY, UNSAVED  # noqa: E402
+from puppet_strings.app.canvas.card import BAD, FULL_DETAIL, SUMMARY, UNSAVED  # noqa: E402
 from puppet_strings.app.canvas.layout import (  # noqa: E402
     ASIDE_GAP,
     CARD_WIDTH,
+    HEADER,
     arrange,
     columns,
 )
+from puppet_strings.app.canvas.view import ACTUAL  # noqa: E402
 from puppet_strings.app.groups import UNGROUPED  # noqa: E402
 from puppet_strings.app.main import MainWindow  # noqa: E402
 from puppet_strings.app.requests_model import REQUEST_IDS  # noqa: E402
@@ -481,6 +483,29 @@ def test_from_far_off_clicking_a_card_still_opens_it(window):
     card = canvas.cards["breaks"]
     QTest.mouseClick(canvas.viewport(), Qt.LeftButton, pos=at(canvas, card))
     assert canvas.active is card
+    canvas.camera.setCurrentTime(canvas.camera.duration())
+    assert canvas.zoom == pytest.approx(ACTUAL)  # brought up to 100%, not left far off
+    assert canvas.zoom_bar.level.text() == "100%"
+
+
+def test_further_out_a_group_name_grows_up_from_its_header_rather_than_onto_its_cards(window):
+    canvas = window.canvas
+    frame = canvas.frames[WEEKLY]
+    title = frame.far_title
+
+    def drawn_at(zoom: float) -> QRectF:
+        canvas.look(frame.sceneBoundingRect().center(), zoom)
+        canvas.viewport().grab()
+        return QRectF(title.drawn)
+
+    assert drawn_at(1.0).isEmpty()  # close up, the header has it
+    just_out = drawn_at(FULL_DETAIL * 0.99)
+    assert just_out.top() == pytest.approx(12, abs=1)  # where the header had it: no jump
+    middle = drawn_at(0.3)
+    assert middle.height() > just_out.height()
+    assert middle.top() < 0 < middle.bottom() < HEADER  # over the frame's edge, clear of cards
+    point = canvas.mapFromScene(title.mapToScene(middle.center()))
+    assert canvas._hit(point) == ("frame", frame)
 
 
 def test_close_up_a_drag_on_a_frame_pans_rather_than_moving_the_group(window):
