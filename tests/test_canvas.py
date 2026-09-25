@@ -185,7 +185,8 @@ def test_a_card_is_not_checked_as_it_is_typed_and_is_saved_even_if_it_does_not_v
     canvas = window.canvas
     card = show_card(canvas, "breaks")
     canvas.activate(card, "skedge")
-    settle(100)
+    while canvas.editor.soon.isActive():  # the check on opening, which says how it stands
+        settle(10)
     said = canvas.editor.status.text()
     canvas.editor.skedge_edit.setPlainText("REQUEST nobody.at_all DO")
     settle(500)
@@ -526,19 +527,28 @@ def test_the_camera_shows_everything_until_it_is_moved(window):
     assert canvas.following
 
 
-def test_the_minimap_opens_out_under_the_pointer(window):
+def test_the_minimap_opens_out_under_the_pointer(window, monkeypatch):
     from PySide6.QtCore import QPointF
     from PySide6.QtGui import QEnterEvent
 
+    # Qt keeps which buttons are down for the whole run, and a drag in an earlier test can
+    # leave one down as far as it knows; a button down keeps the map open when it is left.
+    monkeypatch.setattr(QApplication, "mouseButtons", lambda: Qt.NoButton)
     minimap = window.canvas.minimap
     corner = minimap.geometry().bottomRight()
     assert minimap.size() == minimap.SMALL
+
+    def grown() -> None:  # however long a busy machine takes to run the animation
+        settle(50)
+        while minimap.growth.state() == minimap.growth.State.Running:
+            settle(20)
+
     minimap.enterEvent(QEnterEvent(QPointF(5, 5), QPointF(5, 5), QPointF(5, 5)))
-    settle(300)
+    grown()
     assert minimap.size() == minimap.LARGE
     assert minimap.geometry().bottomRight() == corner  # grown from its corner
     minimap.leaveEvent(None)
-    settle(300)
+    grown()
     assert minimap.size() == minimap.SMALL
 
 
