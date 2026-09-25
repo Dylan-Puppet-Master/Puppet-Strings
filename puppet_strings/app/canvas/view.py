@@ -10,8 +10,10 @@ Getting about:
 *   scroll to zoom, at the pointer; drag the empty canvas (or with the middle button, or
     with Space held) to pan; the minimap in the corner goes wherever it is clicked
 *   F shows everything, Ctrl+1 is actual size, + and − zoom
-*   drag a card onto another group's frame to move it there; Shift-click or Shift-drag a
-    box to pick several, and Delete to delete them
+*   drag a card onto another group's frame, or onto the groups pane, to move it there;
+    Shift-click or Shift-drag a box to pick several, and Delete to delete them
+*   drag a frame by its title to put the group somewhere else; Reset layout, beside the
+    zoom, puts every group back
 *   N, a frame's New request button, or a double-click inside a frame starts a request
 
 The window talks to it much as it talks to the request editor: `saved` goes out as the
@@ -54,6 +56,7 @@ from puppet_strings.app.canvas.card import (
     INSET,
     NOTE,
     OK,
+    SUMMARY,
     UNSAVED,
     WARNING,
     CardEditor,
@@ -68,6 +71,7 @@ from puppet_strings.app.groups import ALL, UNGROUPED, clean, same_group
 from puppet_strings.app.request_table import BESIDE, drag_token
 from puppet_strings.app.requests_model import REQUEST_IDS, request_ids
 from puppet_strings.model import Dataset, Priority, Request
+from puppet_strings.settings import load_settings, save_settings
 
 LEAST, MOST = 0.04, 2.5  # how far out and in the canvas zooms
 STEP = 1.2  # one click of + or −
@@ -95,6 +99,8 @@ class Canvas(QGraphicsView):
         self.cards: dict[str, CardItem] = {}
         self.frames: dict[str, GroupFrame] = {}
         self.arrangement = Arrangement({}, {})
+        self.placed = dict(load_settings().frames)  # groups dragged somewhere of their own
+        self.frame_drag = None
         self.group_keys: dict[str, str] = {}  # each group's name as compared, to its name
         self.problems: dict[str, Status] = {}  # what the errors pane says about each request
         self.active: CardItem | None = None  # the card the form is on
@@ -151,6 +157,8 @@ class Canvas(QGraphicsView):
         self.zoom_bar.zoom_out.connect(lambda: self.zoom_by(1 / STEP))
         self.zoom_bar.actual_size.connect(lambda: self.fly_to(self.center(), 1.0))
         self.zoom_bar.fit.connect(self.fit)
+        self.zoom_bar.reset.connect(self.reset_layout)
+        self.zoom_bar.show_reset(bool(self.placed))
         self.minimap = Minimap(self, self)
         self.new_button = NewButton(self)
         self.new_button.clicked.connect(lambda: self.new_card(self.nearest_group()))
@@ -166,6 +174,7 @@ class Canvas(QGraphicsView):
         # On the view, not its viewport: scrolling the viewport would carry them off with it.
         for overlay in (self.zoom_bar, self.minimap, self.new_button, self.hint):
             overlay.raise_()
+        self.zoom_bar.moved_sideways.connect(self._place_overlays)
         self.horizontalScrollBar().valueChanged.connect(self.minimap.update)
         self.verticalScrollBar().valueChanged.connect(self.minimap.update)
 
@@ -313,6 +322,8 @@ class Canvas(QGraphicsView):
 
     def _add(self, card: CardItem, fade: bool = True) -> None:
         self.cards[card.key] = card
+        if self.far:
+            card.setCursor(Qt.OpenHandCursor)
         self.canvas_scene.addItem(card)
         if not fade:
             return
@@ -383,7 +394,15 @@ class Canvas(QGraphicsView):
                 members[self.group_of(card)].append(card)
         for cards in members.values():
             cards.sort(key=_card_order)
-        self.arrangement = arrange([(g, [(c.key, c.height) for c in members[g]]) for g in order])
+        placed = {
+            g: corner
+            for g in order
+            for name, corner in self.placed.items()
+            if same_group(name, g) or name == g
+        }
+        self.arrangement = arrange(
+            [(g, [(c.key, c.height) for c in members[g]]) for g in order], placed
+        )
         if self.motion is not None:
             self.motion.stop()
         self.motion = QParallelAnimationGroup(self)
@@ -398,6 +417,7 @@ class Canvas(QGraphicsView):
             frame = self.frames.get(group)
             if frame is None:
                 frame = self.frames[group] = GroupFrame(group)
+                frame.movable = self.far
                 self.canvas_scene.addItem(frame)
                 frame.setPos(box.x, box.y)
                 frame.set_size(QSizeF(box.w, box.h))
@@ -643,11 +663,27 @@ class Canvas(QGraphicsView):
         if self.fitted and not self.hinted and self.isVisible():
             self.hinted = True
             self.hint.hide()
+        was_far = self.far
         self.zoom = min(max(zoom, LEAST), MOST)
+        if self.far != was_far:
+            self._show_handles()
         self.setTransform(QTransform.fromScale(self.zoom, self.zoom))
         self.centerOn(center)
         self.zoom_bar.show_zoom(self.zoom)
         self.minimap.update()
+
+    @property
+    def far(self) -> bool:
+        """Whether cards are only blocks from here, so a drag moves groups, not cards."""
+        return self.zoom < SUMMARY
+
+    def _show_handles(self) -> None:
+        """Say with the pointer what a drag would pick up: a card, or its whole group."""
+        far = self.far
+        for card in self.cards.values():
+            card.setCursor(Qt.OpenHandCursor if far else Qt.PointingHandCursor)
+        for frame in self.frames.values():
+            frame.movable = far
 
     def look_at(self, point: QPointF) -> None:
         """Move straight to a point, at the zoom there is."""
@@ -734,15 +770,26 @@ class Canvas(QGraphicsView):
         return False
 
     def _hit(self, pos):
-        """What is under a point of the view: ("editor"|"card"|"button"|"frame"|None, item)."""
+        """What is under a point of the view, and what it is.
+
+        One of "editor", "card", "button" (a frame's New request), "group" (a group to
+        move: from far enough out that cards are blocks, a press anywhere on a frame or its
+        cards picks the whole group up), "frame", or None for the bare canvas.
+        """
+        far = self.far
         for item in self.items(pos):
             if self._in_editor(item):
                 return "editor", self.proxy
             if isinstance(item, CardItem):
+                if far:
+                    frame = self.frames.get(self.group_of(item))
+                    return ("group", frame) if frame is not None else ("card", item)
                 return "card", item
             if isinstance(item, GroupFrame):
                 inside = item.mapFromScene(self.mapToScene(pos))
-                return ("button" if item.on_button(inside) else "frame"), item
+                if item.on_button(inside) and not far:
+                    return "button", item
+                return ("group" if far else "frame"), item
         return None, None
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
@@ -756,6 +803,8 @@ class Canvas(QGraphicsView):
             return
         self.setFocus()
         self.press = {"pos": pos, "kind": kind, "item": item, "moved": False, "pan": pan}
+        if kind == "group":  # a click, rather than a drag, still opens the card it was on
+            self.press["card"] = next((i for i in self.items(pos) if isinstance(i, CardItem)), None)
         if pan:
             self.panning = True
             self.viewport().setCursor(Qt.ClosedHandCursor)
@@ -789,6 +838,11 @@ class Canvas(QGraphicsView):
             self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - step.x())
             self.verticalScrollBar().setValue(self.verticalScrollBar().value() - step.y())
             return
+        if press["kind"] == "group":
+            if first:
+                self._lift_frame(press["item"])
+            self._carry_frame(pos)
+            return
         if press["kind"] == "card":
             if first:
                 self._lift(press["item"])
@@ -812,6 +866,9 @@ class Canvas(QGraphicsView):
         if press["pan"]:
             return
         kind, item = press["kind"], press["item"]
+        if kind == "group" and press["moved"]:
+            self._set_frame_down(item)
+            return
         if self.dragging:
             self._set_down(event.position().toPoint())
             return
@@ -821,7 +878,9 @@ class Canvas(QGraphicsView):
             self.new_card(item.group)
         elif kind == "card":
             self._click_card(item, event)
-        elif kind in (None, "frame"):
+        elif kind == "group" and press.get("card") is not None:
+            self._click_card(press["card"], event)
+        elif kind in (None, "frame", "group"):
             self.deactivate()
             self.scene().clearSelection()
 
@@ -831,6 +890,8 @@ class Canvas(QGraphicsView):
         kind, item = self._hit(pos)
         if kind == "frame":
             self.new_card(item.group)
+        elif kind == "group":
+            self.fly_to_rect(item.sceneBoundingRect())
         elif kind is None:
             self.fit()
         else:
@@ -846,6 +907,53 @@ class Canvas(QGraphicsView):
         card.setSelected(True)
         point = card.mapFromScene(self.mapToScene(event.position().toPoint()))
         self.activate(card, card.region_at(point), point)
+
+    # -- moving whole groups ---------------------------------------------------------------
+
+    def _members(self, group: str) -> list[CardItem]:
+        return [c for c in self.cards.values() if self.group_of(c) == group]
+
+    def _lift_frame(self, frame: GroupFrame) -> None:
+        """Pick a group up by its title: the frame, and every card in it."""
+        if self.motion is not None:
+            self.motion.stop()
+        self.frame_drag = {
+            "anchor": self.mapToScene(self.press["pos"]),
+            "frame": QPointF(frame.pos()),
+            "cards": {c: QPointF(c.pos()) for c in self._members(frame.group)},
+        }
+        frame.setZValue(-5)
+        for card in self.frame_drag["cards"]:
+            card.setZValue(card.zValue() + 20)
+        self.viewport().setCursor(Qt.ClosedHandCursor)
+
+    def _carry_frame(self, pos) -> None:
+        offset = self.mapToScene(pos) - self.frame_drag["anchor"]
+        self.press["item"].setPos(self.frame_drag["frame"] + offset)
+        for card, start in self.frame_drag["cards"].items():
+            card.setPos(start + offset)
+        self.minimap.update()
+
+    def _set_frame_down(self, frame: GroupFrame) -> None:
+        """Leave the group where it was put, and remember it there."""
+        frame.setZValue(-10)
+        for card in self.frame_drag["cards"]:
+            card.setZValue(card.zValue() - 20)
+        self.frame_drag = None
+        self.placed = {g: p for g, p in self.placed.items() if not same_group(g, frame.group)}
+        self.placed[frame.group] = (frame.pos().x(), frame.pos().y())
+        self._save_placed()
+        self.relayout(animate=True)
+
+    def reset_layout(self) -> None:
+        """Put every group back where the canvas would lay it out, and forget where they were."""
+        self.placed = {}
+        self._save_placed()
+        self.relayout(animate=True)
+
+    def _save_placed(self) -> None:
+        save_settings(replace(load_settings(), frames=dict(self.placed)))
+        self.zoom_bar.show_reset(bool(self.placed))
 
     def _lift(self, card: CardItem) -> None:
         """Pick up a card — and the rest of the selection, if it is part of one."""
@@ -1054,6 +1162,9 @@ class Canvas(QGraphicsView):
     def resizeEvent(self, event) -> None:  # noqa: N802
         """Keep the controls in their corners."""
         super().resizeEvent(event)
+        self._place_overlays()
+
+    def _place_overlays(self) -> None:
         view = self.viewport().rect()
         margin = 16
         self.zoom_bar.adjustSize()

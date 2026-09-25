@@ -32,6 +32,8 @@ class ZoomBar(QFrame):
     zoom_in = Signal()
     actual_size = Signal()
     fit = Signal()
+    reset = Signal()  # put every group back where the canvas lays it out
+    moved_sideways = Signal()  # it changed width, so what sits beside it must move
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
@@ -56,7 +58,19 @@ class ZoomBar(QFrame):
             button.clicked.connect(signal.emit)
             button.setFocusPolicy(Qt.NoFocus)
             layout.addWidget(button)
+        self.reset_button = QToolButton()
+        self.reset_button.setText("Reset layout")
+        self.reset_button.setToolTip("Put every group back where the canvas lays it out")
+        self.reset_button.setFocusPolicy(Qt.NoFocus)
+        self.reset_button.clicked.connect(self.reset.emit)
+        layout.addWidget(self.reset_button)
         self.show_zoom(1.0)
+
+    def show_reset(self, moved: bool) -> None:
+        """Offer Reset layout only once a group has been moved."""
+        self.reset_button.setVisible(moved)
+        self.adjustSize()
+        self.moved_sideways.emit()
 
     def show_zoom(self, zoom: float) -> None:
         """Say how far in the canvas is."""

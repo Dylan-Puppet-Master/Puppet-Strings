@@ -96,9 +96,14 @@ is: the groups pane, the filters, the Namespaces and Calendar panes and the erro
 - **New requests.** Press **New request** in the corner or in a frame's header,
   double-click inside a frame, or press **N** for the group nearest the middle of the view.
   A new card left empty is thrown away.
-- **Moving and deleting.** Drag a card onto another frame to move it to that group.
-  Shift-click, or Shift-drag a box, to pick several. **Delete** deletes the cards picked,
-  after asking.
+- **Moving and deleting.** Drag a card onto another frame, or onto a group in the groups
+  pane, to move it to that group. Shift-click, or Shift-drag a box, to pick several.
+  **Delete** deletes the cards picked, after asking.
+- **Arranging the groups.** Zoom out until the cards are plain blocks, then drag anywhere
+  on a group to move the whole group. At that distance a drag moves groups; close enough
+  to read the cards, it moves cards. Groups stay where you put them, even between runs.
+  **Reset layout**, beside the zoom controls, puts them all back. It only shows once a
+  group has been moved.
 
 From far away, a card shows its priority and description in large type. From further out
 still, it is a block of its priority's colour, so you can see a group's shape and find the

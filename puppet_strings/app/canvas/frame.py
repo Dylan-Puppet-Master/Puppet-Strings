@@ -34,6 +34,7 @@ class GroupFrame(QGraphicsObject):
         self.target = False  # a dragged card would land here
         self.empty = True  # no card in it, so it says how to put one there
         self.over_button = False
+        self.movable = False  # far enough out that dragging it moves the whole group
         self.setZValue(-10)
         self.setAcceptHoverEvents(True)
 
@@ -77,11 +78,14 @@ class GroupFrame(QGraphicsObject):
         return self.button_rect().contains(point)
 
     def hoverMoveEvent(self, event) -> None:  # noqa: N802
-        """Light the button under the pointer."""
-        over = self.on_button(event.pos())
+        """Light the button under the pointer; from far off, offer the frame as a handle."""
+        over = self.on_button(event.pos()) and not self.movable
+        if over:
+            self.setCursor(Qt.PointingHandCursor)
+        else:
+            self.setCursor(Qt.OpenHandCursor if self.movable else Qt.ArrowCursor)
         if over != self.over_button:
             self.over_button = over
-            self.setCursor(Qt.PointingHandCursor if over else Qt.ArrowCursor)
             self.update()
 
     def hoverLeaveEvent(self, event) -> None:  # noqa: N802

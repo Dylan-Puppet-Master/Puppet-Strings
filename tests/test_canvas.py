@@ -209,10 +209,14 @@ def test_a_frames_button_starts_a_request_and_an_empty_one_just_goes(window, fix
 def test_dragging_a_card_onto_another_frame_moves_it_to_that_group(window, fixtures_copy):
     canvas = window.canvas
     card = show_card(canvas, "breaks")
-    canvas.fit(animate=False)
+    weekly = canvas.frames[WEEKLY].sceneBoundingRect()
+    middle = (card.sceneBoundingRect().center() + weekly.center()) / 2
+    canvas.look(middle, 0.22)  # near enough to make cards out, so a drag moves a card
     settle(50)
+    assert not canvas.far
     start = at(canvas, card)
-    target = at(canvas, canvas.frames[WEEKLY], dy=0.5)
+    target = at(canvas, canvas.frames[WEEKLY], dy=0.1)
+    assert canvas.viewport().rect().contains(target)
     QTest.mousePress(canvas.viewport(), Qt.LeftButton, pos=start)
     for step in range(1, 11):
         QTest.mouseMove(canvas.viewport(), start + (target - start) * step / 10)
@@ -376,3 +380,65 @@ def test_a_request_dragged_in_lands_in_the_frame_it_is_dropped_on(window, fixtur
     assert drop(canvas.viewport(), at(canvas, canvas.frames[WEEKLY], dy=0.6), data)
     settle()
     assert saved_requests(fixtures_copy)["breaks"].group == WEEKLY
+
+
+def drag(canvas, start: QPoint, end: QPoint) -> None:
+    QTest.mousePress(canvas.viewport(), Qt.LeftButton, pos=start)
+    for step in range(1, 11):
+        QTest.mouseMove(canvas.viewport(), start + (end - start) * step / 10)
+    QTest.mouseRelease(canvas.viewport(), Qt.LeftButton, pos=end)
+    settle()
+
+
+def test_from_far_off_a_drag_moves_the_whole_group_and_it_stays_moved(window, fixtures_copy):
+    canvas = window.canvas
+    canvas.fit(animate=False)
+    settle(50)
+    assert canvas.far
+    frame = canvas.frames[DAILY]
+    card = canvas.cards["breaks"]
+    frame_was, card_was = QPointF(frame.pos()), QPointF(card.pos())
+    start = at(canvas, card)
+    drag(canvas, start, start + QPoint(0, 60))  # picked up by a card, but the group moves
+    moved = QPointF(0, 60 / canvas.zoom)
+    assert (frame.pos() - (frame_was + moved)).manhattanLength() < 2
+    assert (card.pos() - (card_was + moved)).manhattanLength() < 2
+    assert saved_requests(fixtures_copy)["breaks"].group == DAILY  # no card changed group
+    assert load_settings().frames[DAILY] == pytest.approx((frame.pos().x(), frame.pos().y()))
+    assert canvas.zoom_bar.reset_button.isVisibleTo(canvas.zoom_bar)
+
+    canvas.relayout(animate=False)  # it stays put however often the canvas lays out
+    assert (frame.pos() - (frame_was + moved)).manhattanLength() < 2
+
+    canvas.zoom_bar.reset_button.click()
+    settle()
+    assert (frame.pos() - frame_was).manhattanLength() < 2
+    assert load_settings().frames == {}
+    assert not canvas.zoom_bar.reset_button.isVisibleTo(canvas.zoom_bar)
+
+
+def test_from_far_off_clicking_a_card_still_opens_it(window):
+    canvas = window.canvas
+    canvas.fit(animate=False)
+    settle(50)
+    card = canvas.cards["breaks"]
+    QTest.mouseClick(canvas.viewport(), Qt.LeftButton, pos=at(canvas, card))
+    assert canvas.active is card
+
+
+def test_close_up_a_drag_on_a_frame_pans_rather_than_moving_the_group(window):
+    canvas = window.canvas
+    frame = canvas.frames[DAILY]
+    canvas.look(frame.sceneBoundingRect().center(), 0.8)
+    settle(50)
+    was = QPointF(frame.pos())
+    spot = next(
+        QPoint(x, y)
+        for x in range(10, canvas.viewport().width(), 20)
+        for y in range(10, canvas.viewport().height(), 20)
+        if canvas._hit(QPoint(x, y)) == ("frame", frame)
+    )
+    before = canvas.center()
+    drag(canvas, spot, spot + QPoint(0, 80))
+    assert frame.pos() == was
+    assert canvas.center().y() < before.y()

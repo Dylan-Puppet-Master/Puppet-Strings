@@ -8,7 +8,9 @@ far, the way a pinboard fills: cards differ in height with the length of their S
 a grid of rows would leave a gap under every short one. How many columns a frame gets grows
 with how many cards it holds, so a big group is roughly square rather than a tall strip.
 The frames themselves are set in rows, left to right, in the order the groups pane lists
-them, wrapping once a row is about as wide as the whole arrangement is tall.
+them, wrapping once a row is about as wide as the whole arrangement is tall. A frame that
+has been dragged somewhere else stays where it was put, with its cards; the rest keep the
+places they would have had anyway, so moving one group never shuffles the others.
 """
 
 from dataclasses import dataclass
@@ -80,20 +82,29 @@ def arrange_frame(cards: list[tuple[str, float]]) -> tuple[float, float, dict]:
     return frame_width(len(cards)), HEADER + inner + PAD, spots
 
 
-def arrange(groups: list[tuple[str, list[tuple[str, float]]]]) -> Arrangement:
-    """Every frame and card, the groups in the order given."""
+def arrange(
+    groups: list[tuple[str, list[tuple[str, float]]]],
+    placed: dict[str, tuple[float, float]] | None = None,
+) -> Arrangement:
+    """Every frame and card, the groups in the order given.
+
+    `placed` is where frames have been moved to by hand, by group: each one's top-left
+    corner, which its cards move with.
+    """
     measured = [(name, *arrange_frame(cards)) for name, cards in groups]
     area = sum(w * h for _, w, h, _ in measured)
     row_width = max([sqrt(area) * 1.5, *(w for _, w, _, _ in measured)], default=0)
     frames: dict[str, Box] = {}
     cards: dict[str, tuple[float, float]] = {}
     x = y = row_height = 0.0
+    placed = placed or {}
     for name, w, h, spots in measured:
         if x and x + w > row_width:
             x, y, row_height = 0.0, y + row_height + FRAME_GAP, 0.0
-        frames[name] = Box(x, y, w, h)
+        left, top = placed.get(name, (x, y))
+        frames[name] = Box(left, top, w, h)
         for key, (cx, cy) in spots.items():
-            cards[key] = (x + cx, y + cy)
+            cards[key] = (left + cx, top + cy)
         x += w + FRAME_GAP
         row_height = max(row_height, h)
     return Arrangement(frames, cards)

@@ -52,6 +52,8 @@ class Settings:
     folders: dict[str, Chosen] = field(default_factory=dict)
     group_scopes: dict[str, str] = field(default_factory=dict)
     view: str = TABLE  # how the requests are shown: `table`, or `canvas`
+    # where groups' frames have been dragged to on the canvas: group, and top-left corner
+    frames: dict[str, tuple[float, float]] = field(default_factory=dict)
 
     def ids(self, kind: str) -> dict[str, str]:
         """Just the ids of `sheets` or `folders`, which is what a Source wants."""
@@ -82,6 +84,7 @@ def load_settings(path: Path | None = None) -> Settings:
             if kind in SCOPES
         },
         view=data.get("view") if data.get("view") in (TABLE, CANVAS) else TABLE,
+        frames=_corners(data.get("frames")),
     )
 
 
@@ -98,6 +101,7 @@ def save_settings(settings: Settings, path: Path | None = None) -> None:
     }
     data["group_scopes"] = dict(settings.group_scopes)
     data["view"] = settings.view
+    data["frames"] = {group: list(corner) for group, corner in settings.frames.items()}
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 
@@ -108,4 +112,17 @@ def _chosen(data: object) -> dict[str, Chosen]:
         name: Chosen(row.get("id", ""), row.get("name", ""))
         for name, row in data.items()
         if isinstance(row, dict) and row.get("id")
+    }
+
+
+def _corners(data: object) -> dict[str, tuple[float, float]]:
+    """Where frames were dragged to, leaving out anything that is not a pair of numbers."""
+    if not isinstance(data, dict):
+        return {}
+    return {
+        str(group): (float(corner[0]), float(corner[1]))
+        for group, corner in data.items()
+        if isinstance(corner, list)
+        and len(corner) == 2
+        and all(isinstance(n, int | float) for n in corner)
     }
