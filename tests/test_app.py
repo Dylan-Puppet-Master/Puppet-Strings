@@ -331,6 +331,42 @@ def test_namespaces_panel_nests_dotted_names(window):
     assert window.editor.skedge_edit.toPlainText() == "dates.session_1.week_2"
 
 
+def test_right_clicking_a_calendar_day_can_make_it_the_target(window, monkeypatch):
+    from puppet_strings.app import calendar_pane
+
+    calendar = window.calendar
+    calendar.setCurrentPage(2026, 9)
+    view, cells = calendar.view, {}
+    for row in range(1, view.model().rowCount()):
+        for column in range(1, view.model().columnCount()):
+            index = view.model().index(row, column)
+            day = calendar.date_at(view.visualRect(index).center())
+            assert day.day == int(index.data()), (row, column)  # the day Qt drew there
+            cells[day] = index
+    assert (
+        date(2026, 9, 18) in cells
+        and calendar.date_at(view.visualRect(view.model().index(1, 0)).center()) is None
+    )  # the week labels are no day
+    chosen = []
+
+    class Menu:  # stands in for the menu, choosing its one action at once
+        def __init__(self, parent):
+            pass
+
+        def addAction(self, text, act):  # noqa: N802
+            chosen.append(text)
+            self.act = act
+
+        def exec(self, point):
+            self.act()
+
+    monkeypatch.setattr(calendar_pane, "QMenu", Menu)
+    view.customContextMenuRequested.emit(view.visualRect(cells[date(2026, 9, 18)]).center())
+    assert chosen == ["Set as target"]
+    window.wait_for_load()
+    assert window.target == date(2026, 9, 18) == window.store.dataset.target
+
+
 def test_calendar_click_inserts_a_date(window):
     window.editor.clear()
     window.editor.skedge_edit.setPlainText("ON ")

@@ -210,6 +210,7 @@ class MainWindow(QMainWindow):
         self.names.inspected.connect(self.inspect_name)
         self.calendar = SessionCalendar()
         self.calendar.picked.connect(self.insert_date)
+        self.calendar.target_picked.connect(self.set_target)
         self.groups = GroupsPane(store)
         self.groups.shown = self.proxy.passes
         self.groups.chosen.connect(self._group_chosen)
@@ -238,7 +239,7 @@ class MainWindow(QMainWindow):
         names_dock = QDockWidget("Namespaces", self)
         names_dock.setWidget(self.names)
         self.addDockWidget(Qt.RightDockWidgetArea, names_dock)
-        calendar_dock = QDockWidget("Calendar: click a date to insert it", self)
+        calendar_dock = QDockWidget("Calendar: click to insert, right-click to set target", self)
         calendar_dock.setWidget(self.calendar)
         self.addDockWidget(Qt.RightDockWidgetArea, calendar_dock)
         self.errors_dock = QDockWidget("Errors", self)
@@ -484,6 +485,21 @@ class MainWindow(QMainWindow):
         if dataset is None or dataset.target == self.target or self.target == self.failed_target:
             return
         if self.loader is not None and self.loader.target == self.target:
+            return  # already on its way
+        self.reload()
+
+    def set_target(self, day: date) -> None:
+        """Make a day the target and read it, as picking it in the date box and reloading does.
+
+        It is asked for outright, so it is read even before the first Reload, and even if it
+        failed a moment ago.
+        """
+        self.date_edit.setDate(QDate(day))
+        self.failed_target = None
+        dataset = self.store.dataset
+        if dataset is not None and dataset.target == day:
+            return
+        if self.loader is not None and self.loader.target == day:
             return  # already on its way
         self.reload()
 

@@ -9,6 +9,8 @@ puppet-strings app
 **Toolbar.** Pick the target date (tomorrow by default). Nothing is read when the window
 opens; **Reload** reads every sheet for the date shown, and again whenever it is pressed.
 After the first Reload, changing the date reads the new day by itself.
+Right-clicking a day in the calendar panel and choosing **Set as target** does both at once:
+it makes that day the target and reads it.
 The Calendar is read first and the date checked against it, so a date camp is not running
 says so at once — naming the range the calendar covers and the nearest camp day — rather
 than after a slow read of everything else. It is a prompt to pick another date, not a

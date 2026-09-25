@@ -10,7 +10,7 @@ from datetime import date
 
 from PySide6.QtCore import QDate, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPalette, QTextCharFormat
-from PySide6.QtWidgets import QCalendarWidget, QStyledItemDelegate, QTableView
+from PySide6.QtWidgets import QCalendarWidget, QMenu, QStyledItemDelegate, QTableView
 
 from puppet_strings.app import palette
 from puppet_strings.model import Dataset
@@ -66,6 +66,7 @@ class SessionCalendar(QCalendarWidget):
     """A calendar that shades camp days and numbers its weeks the way the sheet does."""
 
     picked = Signal(date)
+    target_picked = Signal(date)  # "Set as target" on a day's right-click menu
 
     def __init__(self, colours=palette) -> None:
         """`colours` is a module of colour names laid out like `app.palette`."""
@@ -84,6 +85,24 @@ class SessionCalendar(QCalendarWidget):
         self.view = view
         self.currentPageChanged.connect(lambda *_: view.viewport().update())
         self.clicked.connect(lambda day: self.picked.emit(day.toPython()))
+        view.setContextMenuPolicy(Qt.CustomContextMenu)
+        view.customContextMenuRequested.connect(self._menu)
+
+    def _menu(self, point) -> None:
+        day = self.date_at(point)
+        if day is None:
+            return
+        menu = QMenu(self)
+        menu.addAction("Set as target", lambda: self.target_picked.emit(day))
+        menu.exec(self.view.viewport().mapToGlobal(point))
+
+    def date_at(self, point) -> date | None:
+        """The date in the cell under a point of the grid, or None off the days."""
+        index = self.view.indexAt(point)
+        start = self.row_start(index.row())
+        if start is None or index.column() < 1:  # column 0 is the week labels
+            return None
+        return start.addDays(index.column() - 1).toPython()
 
     def _even_out_the_week(self) -> None:
         """Write every weekday in the same ink, and the column of names in a quieter one.
