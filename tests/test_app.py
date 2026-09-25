@@ -199,6 +199,22 @@ def test_a_bare_word_never_suggests_a_date(window):
     assert completions(editor) == ["dates.session_1.mondays"]
 
 
+def test_moving_the_cursor_does_not_open_the_completer(window):
+    """Arrowing through a name already written is not typing it."""
+    editor = window.editor
+    editor.clear()
+    editor.skedge_edit.setPlainText("REQUEST staff.dy")
+    editor.skedge_edit.moveCursor(QTextCursor.End)
+    popup = editor.skedge_edit.completer.popup()
+    QTest.keyClick(editor.skedge_edit, Qt.Key_Left)
+    QTest.keyClick(editor.skedge_edit, Qt.Key_Right)
+    assert not popup.isVisible()
+    QTest.keyClicks(editor.skedge_edit, "l")
+    assert popup.isVisible()
+    QTest.keyClick(editor.skedge_edit, Qt.Key_Left)
+    assert not popup.isVisible()
+
+
 def test_ctrl_s_saves_with_the_completer_open(window):
     """The popup takes the keys while it is up; Ctrl+S must still save."""
     editor = window.editor

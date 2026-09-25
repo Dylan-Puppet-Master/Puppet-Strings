@@ -166,7 +166,7 @@ class SkedgeEdit(QPlainTextEdit):
         self.completer.setCompletionPrefix("")  # the old prefix was narrowing the old list
 
     def keyPressEvent(self, event) -> None:  # noqa: N802
-        """Type as usual, but leave the popup its own keys and suggest after each change.
+        """Type as usual, but leave the popup its own keys and suggest after each edit.
 
         Ctrl+S is asked for here rather than left to the editor around this box: with the
         popup open, the completer hands its keys straight to this box and nowhere else.
@@ -179,8 +179,12 @@ class SkedgeEdit(QPlainTextEdit):
         if self.completer.popup().isVisible() and event.key() in popup_keys:
             event.ignore()
             return
+        before = self.document().revision()
         super().keyPressEvent(event)
-        self.suggest()
+        if self.document().revision() != before:
+            self.suggest()
+        else:
+            self.completer.popup().hide()  # the cursor moved; nothing is being typed
 
     def suggest(self) -> None:
         """Open, narrow, or close the popup for the name being typed at the cursor."""
