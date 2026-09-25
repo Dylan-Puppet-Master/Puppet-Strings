@@ -189,13 +189,6 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             8,
         ),
         (
-            f"a: {DO}\nb: REQUEST staff.dylan DO 'y' DURING blocks.clinic_2\nGAP a TO b AT_LEAST 3",
-            Priority.HIGH,
-            "GAP needs a duration",
-            3,
-            12,
-        ),
-        (
             "a: REQUEST staff.dylan FREE DURING blocks.clinic_1",
             Priority.HIGH,
             "only REQUEST … DO can be labeled",

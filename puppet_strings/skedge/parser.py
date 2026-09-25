@@ -53,19 +53,6 @@ def parse_default(text: str) -> ast.Selector:
     return _parse(text, "mapping_default")
 
 
-def parse_tree(text: str):
-    """The Lark tree for a request, before anything is built from it or refused.
-
-    Only a rewrite of an old spelling wants it: the tree still holds what the builder would
-    turn away, with where it was written.
-    """
-    try:
-        return _parser.parse(text, start="start")
-    except UnexpectedInput as e:
-        line, column = _position(e, text)
-        raise ast.SkedgeError(_describe(e), line, column) from e
-
-
 @lru_cache(maxsize=4096)
 def _parse(text: str, start: str):
     """The tree for some text, kept: a tree is immutable, and the same text is parsed often.
@@ -94,9 +81,6 @@ def _position(error: UnexpectedInput, text: str) -> tuple[int, int]:
 
 
 def _describe(error: UnexpectedInput) -> str:
-    token = getattr(error, "token", None)
-    if token is not None and str(token) == "..":
-        return "a range is a set of its own, so it goes in braces: {{a .. b} & c}"
     expected = getattr(error, "expected", None) or getattr(error, "allowed", None)
     if expected:
         names = sorted({_TERMINAL_NAMES.get(t, t.lstrip("_")) for t in expected})
@@ -121,7 +105,6 @@ _TERMINAL_NAMES = {
     "$END": "end of text",
     "BOUND": "AT_LEAST, AT_MOST or EXACTLY",
     "ANY": "ANY",
-    "ANY_N_OF": "a count",
     "SETOP": "+, - or &",
     "OFFSET": "a day offset such as - 6d",
 }
@@ -187,30 +170,16 @@ def _quantifier(item) -> tuple[str, int | None, str | None]:
     if isinstance(item, ast.Amount):
         _counted(item)
         return ast.COUNT, item.value, item.bound
-    word = str(item).upper()
-    if word == "ALL_OF":  # the old spellings, parsed only to say the new ones
-        raise _error(f"write ALL, not {item}", _token_pos(item))
-    if word == "EACH_OF":
-        raise _error(f"write EACH, not {item}", _token_pos(item))
-    return word, None, None
+    return str(item).upper(), None, None
 
 
 def _counted(amount: ast.Amount) -> None:
     """A count in front of a set is a number of its members, 1 or more."""
-    if amount.duration:
-        raise _error(
-            f"a length goes on FOR: FOR {amount.bound} {_length(amount.value)}", amount.pos
-        )
     if amount.value >= 1:
         return
     if amount.bound == ast.AT_LEAST:
         raise _error("amount must be at least 1", amount.pos)
     raise _error("write NOT DO", amount.pos)
-
-
-def _length(minutes: int) -> str:
-    """A number of minutes the way it would be written: `2h`, `90m`."""
-    return f"{minutes // 60}h" if minutes % 60 == 0 else f"{minutes}m"
 
 
 def _is_quantifier(item) -> bool:
@@ -248,7 +217,7 @@ class _Builder(Transformer):
 
     def binding(self, meta, items):
         quantifier, name, expr = items
-        kind, n, bound = _binding_quantifier(quantifier)
+        kind, n, bound = _quantifier(quantifier)
         selector = ast.Selector(_atom(expr), kind, n, str(name), _pos(meta), bound=bound)
         return ast.Binding(selector, _pos(meta))
 
@@ -256,11 +225,9 @@ class _Builder(Transformer):
         """`x: <set>` names a set; `x: EXACTLY n <set>` and `x: EACH <set>` bind x."""
         name, *quantifier, expr = items
         if quantifier and not _is(quantifier[0], "ALL"):
-            kind, n, bound = _binding_quantifier(quantifier[0])
+            kind, n, bound = _quantifier(quantifier[0])
             selector = ast.Selector(_atom(expr), kind, n, str(name), _pos(meta), bound=bound)
             return ast.Binding(selector, _pos(meta))
-        if quantifier:
-            _quantifier(quantifier[0])  # ALL_OF is refused here as anywhere
         return ast.Definition(str(name), _atom(expr), _pos(meta))
 
     def define_task(self, meta, items):
@@ -270,19 +237,17 @@ class _Builder(Transformer):
 
     def any_n(self, meta, items):
         token = items[-1]
-        if token.type == "ANY_N_OF":
-            n = str(token)[len("ANY_") : -len("_OF")]
-            raise _error(f"write ANY {n}, not {token}", _token_pos(token))
         if int(token) < 1:
             raise _error("ANY needs a number of 1 or more", _token_pos(token))
         return _Any(int(token), _pos(meta))
 
     def if_(self, meta, items):
-        return _Block(ast.Condition(False, _test(items[0]), _pos(meta)), _block(items, "IF", meta))
+        test, block = items
+        return _Block(ast.Condition(False, _test(test), _pos(meta)), block)
 
     def unless(self, meta, items):
-        condition = ast.Condition(True, _test(items[0]), _pos(meta))
-        return _Block(condition, _block(items, "UNLESS", meta))
+        test, block = items
+        return _Block(ast.Condition(True, _test(test), _pos(meta)), block)
 
     def block(self, meta, items):
         return tuple(items)
@@ -336,12 +301,6 @@ class _Builder(Transformer):
         (who, what), clauses = _phrases(items)
         return ast.Requirement(who, _target(what), True, clauses, _pos(meta))
 
-    def request_not_free(self, meta, items):
-        raise _error("write BUSY, not NOT FREE", _verb_pos(items))
-
-    def request_not_busy(self, meta, items):
-        raise _error("write FREE, not NOT BUSY", _verb_pos(items))
-
     def exclude(self, meta, items):
         (who, label), clauses = _phrases(items)
         return ast.Exclude(who, str(label)[1:-1], clauses, _pos(meta))
@@ -360,23 +319,11 @@ class _Builder(Transformer):
 
     def amount(self, meta, items):
         bound, value = items
-        if value.type == "DURATION":
-            return ast.Amount(str(bound).upper(), _duration(value), True, _pos(meta))
         return ast.Amount(str(bound).upper(), int(value), False, _pos(meta))
 
-    def counted_task(self, meta, items):
-        """`DO <amount> '<task>'`, the old spelling, told the new one."""
-        amount, task = items
-        if amount.duration:
-            raise _error(
-                f"a length goes on FOR: DO {task} FOR {amount.bound} {_length(amount.value)}",
-                amount.pos,
-            )
-        raise _error(
-            f"a task is not counted; count the blocks it is done in: DO {task} DURING "
-            f"{amount.bound} {amount.value} blocks",
-            amount.pos,
-        )
+    def length(self, meta, items):
+        bound, value = items
+        return ast.Amount(str(bound).upper(), _duration(value), True, _pos(meta))
 
     # -- patterns ---------------------------------------------------------------------------
 
@@ -392,16 +339,11 @@ class _Builder(Transformer):
         (who,), clauses = _phrases(items)
         return ast.Pattern(who, None, True, clauses, _pos(meta))
 
-    def pattern_not_free(self, meta, items):
-        raise _error("write BUSY, not NOT FREE", _verb_pos(items))
-
     # -- selectors and clauses --------------------------------------------------------------
 
     def chooser(self, meta, items):
         kind, n, bound, var = None, None, None, None
         if _is_quantifier(items[0]):
-            if len(items) > 1 and _is_quantifier(items[1]):
-                raise _front_amount(items[0], items[1], items[-1])
             kind, n, bound = _quantifier(items[0])
             items = items[1:]
         consecutive = _is(items[0], "CONSECUTIVE")
@@ -420,12 +362,6 @@ class _Builder(Transformer):
 
     def during(self, meta, items):
         selector = items[0]
-        if _is(items[-1], "CONSECUTIVE"):
-            raise _error(
-                f"CONSECUTIVE goes before the blocks: DURING {_written(selector)} CONSECUTIVE "
-                f"{ast.spoken(selector.expr)}",
-                _token_pos(items[-1]),
-            )
         return ast.During(_pos(meta), replace(selector, consecutive=False), selector.consecutive)
 
     def on(self, meta, items):
@@ -435,12 +371,6 @@ class _Builder(Transformer):
         return ast.AsRole(_pos(meta), items[0])
 
     def for_(self, meta, items):
-        if len(items) == 1:
-            length = str(items[0])
-            raise _error(
-                f"FOR says how the length is bounded: FOR EXACTLY {length}, or AT_LEAST or AT_MOST",
-                _token_pos(items[0]),
-            )
         return ast.For(_pos(meta), _duration(items[-1]), str(items[0]).upper())
 
     def with_(self, meta, items):
@@ -477,16 +407,7 @@ class _Builder(Transformer):
     def group(self, meta, items):
         quantifier, expr = items
         kind, n, bound = _quantifier(quantifier)
-        if kind == ast.COUNT:
-            raise _error(
-                f"a group is who is in, so it picks with ANY {n}, not {bound} {n}", _pos(meta)
-            )
         return ast.Group(kind, n, _atom(expr), _pos(meta), bound)
-
-    def parenthesized(self, meta, items):
-        written = ast.spoken(_atom(items[0]))
-        braced = written if written.startswith("{") else f"{{{written}}}"
-        raise _error(f"a set inside a set goes in braces, {braced}, not parentheses", _pos(meta))
 
     def date_range(self, meta, items):
         return ast.DateRange(_atom(items[0]), _atom(items[1]), _pos(meta))
@@ -500,47 +421,6 @@ class _Builder(Transformer):
 def _company_role(items) -> ast.Selector | None:
     """The AS_ROLE written straight after a WITH's or WITHOUT's set, which is theirs."""
     return items[1].selector if len(items) > 1 else None
-
-
-def _binding_quantifier(item) -> tuple[str, int | None, str | None]:
-    """A binding names particular people: EACH, or ANY n chosen once."""
-    kind, n, bound = _quantifier(item)
-    if kind == ast.COUNT:
-        raise _error(
-            f"a binding names particular people, so it picks with ANY {n}, not {bound} {n}",
-            item.pos,
-        )
-    return kind, n, bound
-
-
-def _front_amount(amount, quantifier, expr) -> ast.SkedgeError:
-    """`AT_LEAST 3 ANY staff.x`, the old spelling, told where the count goes now."""
-    if not isinstance(amount, ast.Amount):
-        return _error("a set takes one quantifier", _token_pos(quantifier))
-    if amount.duration:
-        return _counted(amount)  # a length goes on FOR, whatever follows it
-    word = str(quantifier).upper()
-    count = ast.worded(amount.bound, amount.value)
-    if word == "ANY":
-        return _error(
-            "a count goes on the set it counts, in place of ANY: "
-            f"{count} {ast.spoken(_atom(expr))}",
-            amount.pos,
-        )
-    if word.startswith("EACH"):
-        return _error(
-            "EACH splits the request, so its set is not what is counted; put the count on the "
-            f"set that is, such as DURING {count} blocks",
-            amount.pos,
-        )
-    return _error("a set takes one quantifier", _token_pos(quantifier))
-
-
-def _written(selector: ast.Selector) -> str:
-    """A selector's quantifier as it is written."""
-    if selector.quantifier == ast.COUNT:
-        return ast.worded(selector.bound, selector.n)
-    return selector.quantifier or "ANY"
 
 
 AFTER_THE_VERB = {ast.AsRole: "AS_ROLE", ast.For: "FOR", ast.With: "WITH", ast.Without: "WITHOUT"}
@@ -576,11 +456,6 @@ def _verb_word(item) -> str:
     if isinstance(item, Token):
         return str(item).upper()
     return "the activity"
-
-
-def _verb_pos(items) -> ast.Pos:
-    token = next(x for x in items if any(_is(x, v) for v in VERBS))
-    return _token_pos(token)
 
 
 def _with_clauses(items) -> ast.Pattern:
@@ -795,16 +670,6 @@ class _Block:
 
     condition: ast.Condition
     lines: tuple
-
-
-def _block(items, word: str, meta) -> tuple:
-    """The statements after THEN, or an error saying a condition has to have some."""
-    if len(items) < 2:
-        raise _error(
-            f"{word} needs THEN and the statements it is for: {word} … THEN {{ REQUEST … }}",
-            _pos(meta),
-        )
-    return items[1]
 
 
 def _flatten(lines, when: tuple[ast.Pos, ...]):

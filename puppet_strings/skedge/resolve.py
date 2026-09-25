@@ -357,9 +357,6 @@ class _Names:
 
     def _suggest(self, namespace: str, name: str) -> str:
         """The nearest name there is, so a near miss says what to write instead."""
-        whole = name.removesuffix(ALL_NAME).removesuffix(".")
-        if name.split(".")[-1] == ALL_NAME and whole in self.spaces[namespace]:
-            return f"; write '{written(namespace, whole)}' for all of it"
         close = get_close_matches(name, self.spaces[namespace], n=1, cutoff=0.6)
         return f"; did you mean '{written(namespace, close[0])}'?" if close else ""
 

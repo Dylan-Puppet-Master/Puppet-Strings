@@ -72,9 +72,6 @@ A duration must be a whole number of minutes: `1.5h` is 90 minutes, `1d` is 1,44
 ## 4. Grammar
 
 The parser reads this grammar, in [Lark](https://lark-parser.readthedocs.io) EBNF (LALR).
-It also reads a few spellings the language no longer has — `ANY_n_OF`, `NOT FREE`, a count in
-front of another quantifier or of a quoted task — so that the builder can say what to write
-now rather than only that something was unexpected.
 
 ```lark
 // Skedge grammar. See docs/skedge.md for the language reference.
@@ -93,23 +90,21 @@ start       : _NL* (on _NL+)? line (_NL+ line)* _NL*
 ?line       : binding | define | define_task | if_ | unless | labeled | request | prefer | gap
             | exclude
 
-binding     : (EACH | amount | any_n) NAME _IN set_
+binding     : (EACH | any_n) NAME _IN set_
 // A name for a set, written once and meaning the same wherever it is used. With ANY n or
-// EACH in front it is a binding line spelled the other way round. A count in front is
-// parsed only to say that a binding picks with ANY n.
-define      : NAME ":" (ALL | EACH | amount | any_n)? set_
+// EACH in front it is a binding line spelled the other way round.
+define      : NAME ":" (ALL | EACH | any_n)? set_
 // A name for a quoted task, to write after DO wherever the task is meant.
 define_task : NAME ":" STRING
-// A condition is for the statements in its block, and only those. THEN is required; without
-// it the builder says so rather than guessing which statements were meant. A block holds
-// statements and further IFs, on lines of their own or all on one.
-if_         : _IF _NL* condition (_THEN _NL* block)?
-unless      : _UNLESS _NL* condition (_THEN _NL* block)?
+// A condition is for the statements in its block, and only those. A block holds statements
+// and further IFs, on lines of their own or all on one.
+if_         : _IF _NL* condition _THEN _NL* block
+unless      : _UNLESS _NL* condition _THEN _NL* block
 block       : "{" _NL* (_inner _NL*)+ "}"
 _inner      : if_ | unless | labeled | request | prefer | exclude
 labeled     : NAME ":" request
-// With no amount, the second is only after the first: AT_LEAST 0m.
-gap         : _GAP NAME _TO NAME amount?
+// With no length, the second is only after the first: AT_LEAST 0m.
+gap         : _GAP NAME _TO NAME length?
 
 // A statement is its subject, verb and object in that order, with its clauses around them.
 // DURING and ON may go anywhere; AS_ROLE, FOR, WITH and WITHOUT describe the activity, so
@@ -119,8 +114,6 @@ request     : _REQUEST _clauses chooser _clauses DO _clauses do_target _clauses 
             | _REQUEST _clauses chooser _clauses FREE _clauses                                -> request_free
             | _REQUEST _clauses chooser _clauses BUSY _clauses                                -> request_busy
             | _REQUEST _clauses chooser _clauses _NOT DO _clauses do_target _clauses          -> request_not_do
-            | _REQUEST _clauses chooser _clauses _NOT FREE _clauses                           -> request_not_free
-            | _REQUEST _clauses chooser _clauses _NOT BUSY _clauses                           -> request_not_busy
 prefer      : _PREFER pattern                                                               -> prefer_count
             | _PREFER pattern goal _clauses                                                 -> prefer_score
             | _PREFER _clauses goal pattern                                                 -> prefer_score
@@ -138,25 +131,23 @@ test        : pattern
 pattern     : _clauses chooser _clauses DO _clauses do_target _clauses               -> pattern_doing
             | _clauses chooser _clauses FREE _clauses                               -> pattern_free
             | _clauses chooser _clauses BUSY _clauses                               -> pattern_busy
-            | _clauses chooser _clauses _NOT FREE _clauses                          -> pattern_not_free
 goal        : (MAXIMIZE | MINIMIZE) call
 call        : REF "(" arg ("," arg)* ")"
 ?arg        : NAME | REF
 
-// A count: AT_LEAST, AT_MOST or EXACTLY and a number, in front of the set it counts. With a
-// duration it is a GAP's, or the old spelling of a length, which goes on FOR now.
-amount      : BOUND (INT | DURATION)
+// A count: AT_LEAST, AT_MOST or EXACTLY and a number, in front of the set it counts. A length
+// is bounded the same way, and is a GAP's.
+amount      : BOUND INT
+length      : BOUND DURATION
 
-// An amount in front of a quoted task is the old spelling, parsed only to say the new one.
-?do_target  : chooser | STRING | amount STRING   -> counted_task
+?do_target  : chooser | STRING
 _clauses    : clause*
 ?clause     : during | on | as_role | for_ | with_ | without
-// CONSECUTIVE after the blocks is the old spelling, parsed only to say the new one.
-during      : _DURING chooser CONSECUTIVE?
+during      : _DURING chooser
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
-// A length says how it is bounded; with no bound it is the old spelling, told the new one.
-for_        : _FOR BOUND? DURATION
+// A length says how it is bounded.
+for_        : _FOR BOUND DURATION
 // Who is alongside: one name, or several with ALL or a count to say how many, and with an
 // AS_ROLE straight after them, in which role. That AS_ROLE is theirs, not the subject's,
 // which is why the parser takes it here rather than as a clause of its own.
@@ -166,27 +157,23 @@ without     : _WITHOUT chooser as_role?
 // ANY with no number is any of these: the set is one pool. ANY n chooses n of it, once for
 // the statement. A count measures, in front of the set it counts. CONSECUTIVE is about
 // blocks, after DURING: `ANY 2 CONSECUTIVE blocks` picks blocks in a row, and
-// `ANY CONSECUTIVE blocks` pools each run for a FOR to measure. A count before another
-// quantifier, and ANY_n_OF, are old spellings, parsed only to say the new ones.
+// `ANY CONSECUTIVE blocks` pools each run for a FOR to measure.
 chooser     : (ALL | ANY | amount)? CONSECUTIVE? set_
-            | amount (ALL | ANY | EACH) CONSECUTIVE? set_
             | any_n CONSECUTIVE? set_
             | EACH set_
             | EACH NAME _IN set_
 any_n       : ANY INT
-            | ANY_N_OF
 
 // A set built from others is in braces, and so is every set inside it: {{a .. b} & c}. A
 // range is the whole of its braces. Parentheses are for a group, which is a choice rather
-// than a set; around a set they are parsed only to say it takes braces.
+// than a set.
 ?set_       : REF | NAME | DATE | call | "{" setexpr "}"
 ?setexpr    : operand (SETOP operand)*   -> setop
             | endpoint ".." endpoint     -> date_range
 ?operand    : endpoint
             | "{" setexpr "}"
-            | "(" setexpr ")"            -> parenthesized
-            | "(" (ALL | amount | any_n) set_ ")"   -> group
-            | (ALL | amount | any_n) set_           -> group
+            | "(" (ALL | any_n) set_ ")"   -> group
+            | (ALL | any_n) set_           -> group
 ?endpoint   : date_atom OFFSET           -> date_offset
             | date_atom
 ?date_atom  : DATE | REF | NAME | call
@@ -216,11 +203,9 @@ _FOR.5      : /FOR\b/i
 _WITH.5     : /WITH\b/i
 _WITHOUT.5  : /WITHOUT\b/i
 BOUND.5     : /AT_LEAST\b/i | /AT_MOST\b/i | /EXACTLY\b/i
-// ALL_OF and EACH_OF are the old spellings, read as the same words only to say the new ones.
-ALL.5       : /ALL(_OF)?\b/i
-EACH.5      : /EACH(_OF)?\b/i
+ALL.5       : /ALL\b/i
+EACH.5      : /EACH\b/i
 ANY.5       : /ANY\b/i
-ANY_N_OF.5  : /ANY_[0-9]+_OF\b/i
 FREE.5      : /FREE\b/i
 BUSY.5      : /BUSY\b/i
 MAXIMIZE.5  : /MAXIMIZE\b/i
@@ -245,7 +230,7 @@ COMMENT     : /#[^\n]*/
 
 // newline before it is nothing, so the line carries on the statement above it. The
 // lookahead spells out how `binding`, `define` and `labeled` begin, so it changes with them.
-_CONTINUES  : /(\r?\n[ \t]*)+(?![ \t\r\n]|(?i:REQUEST|PREFER|EXCLUDE|IF|UNLESS|GAP)\b|(?i:EACH(?:_OF)?|(?:ANY|AT_LEAST|AT_MOST|EXACTLY)[ \t]+\d+|ANY_\d+_OF)[ \t]+[a-z_][a-z0-9_]*[ \t]+(?i:IN)\b|[a-z_][a-z0-9_]*[ \t]*:|$)/
+_CONTINUES  : /(\r?\n[ \t]*)+(?![ \t\r\n]|(?i:REQUEST|PREFER|EXCLUDE|IF|UNLESS|GAP)\b|(?i:EACH|ANY[ \t]+\d+)[ \t]+[a-z_][a-z0-9_]*[ \t]+(?i:IN)\b|[a-z_][a-z0-9_]*[ \t]*:|$)/
 _NL         : /(\r?\n[ \t]*)+/
 %import common.INT
 %import common.WS_INLINE
@@ -804,35 +789,21 @@ The solver schedules `dates.target`.
 ## 15. Errors
 
 Every error names the line and column. The parser reports what it expected, which covers a
-label on a `PREFER` and `MAXIMIZE` without a mapping call. The spellings of earlier
-versions — `ANY_n_OF`, `NOT FREE`, a count in front of a pattern or after `DO`, and
-`CONSECUTIVE` where it used to go — are still parsed, only to say what to write now. The
-parser, the validator and the solver report:
+label on a `PREFER` and `MAXIMIZE` without a mapping call. The parser, the validator and
+the solver report:
 
 | Message | Condition |
 |---|---|
 | `a declaration needs at least one statement` | Only bindings, definitions, conditions or `GAP` lines. |
-| `write ANY` | The old spelling `ANY_2_OF`; the message gives `ANY 2`. |
 | `ANY needs a number of 1 or more` | `ANY 0 staff.x`. |
 | `to pick` | `AT_LEAST n` on a set a `REQUEST` chooses from; the message gives `ANY n`. |
 | `EXACTLY forbids the rest; pick with ANY` | `EXACTLY n` on a set a `REQUEST` chooses from. |
 | `measures, so it counts with AT_LEAST, AT_MOST or EXACTLY` | `ANY n` in a test or a `PREFER`. |
-| `write ALL`, `write EACH` | The old spellings `ALL_OF` and `EACH_OF`; the message gives the new one. |
-| `write BUSY, not NOT FREE` | `NOT FREE`, anywhere. |
-| `write FREE, not NOT BUSY` | `NOT BUSY`. |
 | `amount must be at least 1` | `AT_LEAST 0`. |
 | `write NOT DO` | `AT_MOST 0`, `EXACTLY 0`. |
-| `FOR says how the length is bounded` | `FOR 30m`, the old spelling; the message gives `FOR EXACTLY 30m`. |
-| `a length goes on FOR` | A duration in front of a set, or after `DO`: `AT_LEAST 2h staff.cam DO …`; the message gives the `FOR`. |
-| `a task is not counted; count the blocks it is done in` | `DO AT_LEAST 3 'break'`. |
-| `a count goes on the set it counts, in place of ANY` | `AT_MOST 2 ANY staff.x`, the old spelling; the message gives the new one. |
-| `EACH splits the request, so its set is not what is counted` | `AT_LEAST 3 EACH staff.x`, the old spelling. |
-| `a set takes one quantifier` | Two quantifiers on one set: `AT_LEAST 2 ALL …`. |
 | `a count counts the members of a set, and` | A count of 2 or more on one item: `AT_LEAST 2 staff.charlton`. |
-| `a group is who is in, so it picks with ANY` | A group counted: `AT_LEAST 1 {…}` inside a set. |
 | `a group in a count is taken whole, so it takes ALL` | An `(ANY n …)` group inside a count. |
 | `a count of blocks over pooled dates counts each block on each date` | `DURING AT_MOST 3 {blocks.a + (ALL …)} ON ANY …`. |
-| `a binding names particular people, so it picks with ANY` | `AT_LEAST 1 x IN s`, `x: EXACTLY 1 s`. |
 | `a pattern matches one assignment at a time` | `ALL`, `ANY n`, a count or a group in the pattern of a `PREFER … MAXIMIZE`, other than after `WITH` or `WITHOUT`. |
 | `right of NOT a set takes ANY, for any of these` | A count, `ANY n` or an `(ANY n …)` group to the right of `NOT`, other than after `WITH` or `WITHOUT`. |
 | `ALL right of NOT takes names, not groups or chosen names` | `NOT DO … ALL {staff.x + (ANY 1 …)}` and the like. |
@@ -846,7 +817,6 @@ parser, the validator and the solver report:
 | `names one task, so no quantifier` | `DO ANY duty`, where `duty` names a task. |
 | `names one item at a time, and` | `EACH x IN` a set holding a group. |
 | `CONSECUTIVE counts blocks one at a time, so no groups` | A group in `DURING … CONSECUTIVE …`. |
-| `CONSECUTIVE goes before the blocks` | `DURING AT_LEAST 2 blocks CONSECUTIVE`, the old spelling; the message gives the new one. |
 | `CONSECUTIVE comes after ANY, ANY n or a count` | `DURING ALL CONSECUTIVE …` or `CONSECUTIVE` with no quantifier. |
 | `CONSECUTIVE is about blocks, so it goes after DURING` | `CONSECUTIVE` in any clause but `DURING`, or on a subject or activity. |
 | `ANY CONSECUTIVE pools each run of blocks for a FOR to measure` | `DURING ANY CONSECUTIVE …` with no `FOR`; to pick blocks in a row, `ANY n` goes there instead. |
@@ -863,7 +833,6 @@ parser, the validator and the solver report:
 | `PREFER is weighed by how close it comes, so it needs a count or a FOR length` | A `PREFER` with neither. |
 | `a GAP is measured from what a REQUEST makes` | A labeled `REQUEST` with a cap, `ANY n` blocks over pooled dates, or a `FOR` over a pool. |
 | `given twice` | A clause repeated in one statement. |
-| `needs THEN and the statements it is for` | An `IF` or `UNLESS` with no `THEN { … }`; the message names which. |
 | `the ON on the first line gives this its dates already` | A statement with its own `ON` under an `ON` on the first line. |
 | `is a namespace, so it can't name anything else` | A variable, label or definition called `staff`, `blocks` or another namespace. |
 | `unknown … name` | A name that does not exist in its namespace. |
@@ -871,8 +840,6 @@ parser, the validator and the solver report:
 | `unknown variable` | A bare identifier no `IN` binds. |
 | `variable bound twice` | Two bindings of one identifier. |
 | `mixed set operators need braces around one side` | `{a + b & c}` and the like. |
-| `a set inside a set goes in braces` | `{a - (b & c)}`; the message writes it with braces. |
-| `a range is a set of its own, so it goes in braces` | `{a & b .. c}`. |
 | `mixed AND and OR need parentheses` | `IF a AND b OR c`. |
 | `AS_ROLE needs an activity` | `AS_ROLE` with a quoted task, `FREE` or `BUSY`. |
 | `FOR needs a quoted task` | `FOR` in a pattern with any other target. |
@@ -892,7 +859,6 @@ parser, the validator and the solver report:
 | `weight must be positive` | A weight of zero or less. |
 | `unknown requester` | A `requester` field naming nobody on the Skills sheet. |
 | `weight is not allowed with MUST_HAPPEN` | A weight on a hard request. |
-| `GAP needs a duration` | `GAP a TO b AT_LEAST 3`. |
 | `only REQUEST … DO can be labeled` | A label on a `NOT`, `FREE` or `BUSY` `REQUEST`. |
 | `undefined label` | `GAP` naming a label that no statement defines. |
 | `defined twice` | Two statements with the same label. |

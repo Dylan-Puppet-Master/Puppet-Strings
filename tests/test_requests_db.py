@@ -188,24 +188,6 @@ def test_an_import_into_a_computer_with_no_requests_keeps_nothing(book, tmp_path
     assert fresh.import_file(book.path) == (31, None)
 
 
-def test_an_import_is_rewritten_from_the_version_it_was_written_in(book, tmp_path, dataset):
-    """A role after WITH is theirs from syntax 6, so a file from 7 keeps it where it is."""
-    handed = tmp_path / "handed.sqlite"
-    book.export(handed)
-    role = "REQUEST staff.dylan DO activities.clinics.riflery WITH staff.rob AS_ROLE roles.first"
-    pick = "REQUEST staff.dylan DO 'x' DURING AT_LEAST 1 blocks.all"
-    with sqlite3.connect(handed) as db:
-        db.execute("UPDATE requests SET skedge = ? WHERE id = 'breaks'", (role,))
-        db.execute("UPDATE requests SET skedge = ? WHERE id = 'dylan-off-ropes'", (pick,))
-        db.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('syntax', '7')")
-    fresh = RequestDb(tmp_path / "fresh.sqlite")
-    fresh.import_file(handed)
-    assert fresh.upgrade(dataset)
-    by_id = {r.id: r.skedge for r in fresh.every()}
-    assert by_id["breaks"] == role
-    assert by_id["dylan-off-ropes"] == "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks.all"
-
-
 @pytest.mark.parametrize("problem", ["not a database", "no meta", "older format", "bad row"])
 def test_an_import_that_would_not_load_changes_nothing(book, tmp_path, problem):
     file = tmp_path / "file.sqlite"
@@ -261,56 +243,3 @@ def test_one_days_offerings_are_not_another_days(fixtures_copy):
     assert store.imported == 0  # already imported
     ids = {r.id for r in store.requests if "clinic_import" in r.tags}
     assert ids and all(i.startswith("offering:2026-09-16:") for i in ids)
-
-
-def test_the_old_generated_tag_is_renamed_on_open(fixtures_copy):
-    """A file from before the rename would otherwise import every day's clinics again."""
-    with sqlite3.connect(fixtures_copy / FIXTURE_FILE) as db:
-        db.execute("UPDATE requests SET tags = 'generated, pin' WHERE tags = 'clinic_import'")
-    requests = RequestDb(fixtures_copy / FIXTURE_FILE).every()
-    imported = [r for r in requests if r.id.startswith("offering:")]
-    assert imported and all(r.tags == ("clinic_import", "pin") for r in imported)
-    assert not [r for r in requests if "generated" in r.tags]
-
-
-def test_old_nested_date_names_are_rewritten_on_open(fixtures_copy):
-    """A request written before `dates.session.one` became `dates.session_1` still loads."""
-    old = "REQUEST staff.dylan DO 'x' ON {dates.session.one.week.two.all + dates.other.camp.all}"
-    with sqlite3.connect(fixtures_copy / FIXTURE_FILE) as db:
-        db.execute("UPDATE requests SET skedge = ? WHERE rowid = 1", (old,))
-    (renamed,) = [
-        r.skedge
-        for r in RequestDb(fixtures_copy / FIXTURE_FILE).every()
-        if "dates.camp" in r.skedge
-    ]
-    assert renamed == "REQUEST staff.dylan DO 'x' ON {dates.session_1.week_2.all + dates.camp.all}"
-
-
-def test_date_names_in_words_are_rewritten_in_digits_on_open(fixtures_copy):
-    """A request written before `dates.session_one` became `dates.session_1` still loads."""
-    old = "REQUEST staff.dylan DO 'x' ON {dates.session_twelve.week_two.all + dates.camp.all}"
-    with sqlite3.connect(fixtures_copy / FIXTURE_FILE) as db:
-        db.execute("UPDATE requests SET skedge = ? WHERE rowid = 1", (old,))
-    (renamed,) = [
-        r.skedge
-        for r in RequestDb(fixtures_copy / FIXTURE_FILE).every()
-        if "dates.camp" in r.skedge
-    ]
-    assert renamed == "REQUEST staff.dylan DO 'x' ON {dates.session_12.week_2.all + dates.camp.all}"
-
-
-def test_requests_written_in_an_older_skedge_are_rewritten_once(fixtures_copy, dataset):
-    """A set matched right of NOT takes ANY now; a file from before is rewritten on its load."""
-    old = "REQUEST staff.dylan NOT DO activities.clinics.ropes DURING blocks.all_clinics"
-    with sqlite3.connect(fixtures_copy / FIXTURE_FILE) as db:
-        db.execute("UPDATE requests SET skedge = ? WHERE id = 'dylan-off-ropes'", (old,))
-        db.execute("DELETE FROM meta WHERE key = 'syntax'")
-    book = RequestDb(fixtures_copy / FIXTURE_FILE)
-    assert book.upgrade(dataset)
-    (rewritten,) = [r.skedge for r in book.every() if r.id == "dylan-off-ropes"]
-    assert rewritten == (
-        "REQUEST staff.dylan NOT DO ANY activities.clinics.ropes DURING ANY blocks.all_clinics"
-    )
-    with sqlite3.connect(fixtures_copy / FIXTURE_FILE) as db:
-        db.execute("UPDATE requests SET skedge = ? WHERE id = 'dylan-off-ropes'", (old,))
-    assert not book.upgrade(dataset)  # once: the file says it is done

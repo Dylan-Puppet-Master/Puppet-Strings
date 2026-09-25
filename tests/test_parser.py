@@ -1,4 +1,3 @@
-import re
 from datetime import date
 
 import pytest
@@ -143,13 +142,6 @@ def test_a_block_may_hold_another_and_sit_beside_what_always_applies():
     assert always.when == ()
 
 
-@pytest.mark.parametrize("word", ["IF", "UNLESS"])
-def test_a_condition_needs_then_and_its_statements(word):
-    with pytest.raises(ast.SkedgeError, match=f"{word} needs THEN") as info:
-        parse(f"{word} staff.dylan FREE DURING blocks.lunch\nREQUEST staff.rob FREE")
-    assert (info.value.line, info.value.column) == (1, 1)
-
-
 def test_conditions_join_with_and_and_or_over_several_lines():
     (if_, _) = parse(
         "IF\n"
@@ -228,15 +220,36 @@ def test_set_expressions():
 
 
 @pytest.mark.parametrize(
-    ("text", "message"),
+    "text",
     [
-        ("REQUEST ALL {staff - (staff.a & staff.b)} FREE", "goes in braces, {staff.a & staff.b}"),
-        ("REQUEST staff.x DO 'x' ON EACH {dates.season & (2026-07-21 .. dates.target)}", "braces"),
-        ("REQUEST staff.x DO 'x' ON EACH {dates.season & 2026-07-21 .. dates.target}", "a range"),
+        "IF staff.dylan FREE DURING blocks.lunch\nREQUEST staff.rob FREE",
+        "UNLESS staff.dylan FREE DURING blocks.lunch\nREQUEST staff.rob FREE",
+        "REQUEST ALL {staff - (staff.a & staff.b)} FREE",
+        "REQUEST staff.x DO 'x' ON EACH {dates.season & (2026-07-21 .. dates.target)}",
+        "REQUEST staff.x DO 'x' ON EACH {dates.season & 2026-07-21 .. dates.target}",
+        "REQUEST staff.dylan DO 'x' DURING AT_LEAST 2 blocks CONSECUTIVE",
+        "REQUEST AT_MOST 2 ANY staff DO 'break'",
+        "REQUEST AT_MOST 2 EACH staff DO 'break'",
+        "REQUEST AT_LEAST 2h staff.cam DO 'x'",
+        "REQUEST staff.cam DO AT_LEAST 2h 'x'",
+        "REQUEST staff.cam DO AT_MOST 2 'x'",
+        "REQUEST staff.cam NOT FREE DURING blocks.a",
+        "REQUEST staff.cam NOT BUSY DURING blocks.a",
+        "IF staff.cam NOT FREE DURING blocks.a THEN { REQUEST staff.x FREE }",
+        "REQUEST staff.rob DO 'x' FOR 30m DURING blocks.a",
+        "REQUEST ANY_1_OF staff DO 'x' DURING blocks.a",
+        "AT_LEAST 1 x IN staff\nREQUEST x FREE",
+        "EXACTLY 1 x IN staff\nREQUEST x FREE",
+        "REQUEST ALL {staff.x + (AT_LEAST 1 staff)} FREE",
+        "REQUEST ALL {staff.a + AT_MOST 1 {staff.b + staff.c}} FREE",
+        "REQUEST ALL_OF staff.counselor DO 'x' DURING blocks.clinic_1",
+        "REQUEST staff.dylan DO 'x' ON EACH_OF dates.season",
+        "a: REQUEST staff.dylan DO 'x' DURING blocks.a\nb: REQUEST staff.dylan DO 'y' DURING "
+        "blocks.b\nGAP a TO b AT_LEAST 3",
     ],
 )
-def test_a_set_inside_a_set_takes_braces(text, message):
-    with pytest.raises(ast.SkedgeError, match=re.escape(message)):
+def test_what_skedge_no_longer_says_is_refused(text):
+    with pytest.raises(ast.SkedgeError):
         parse(text)
     (st,) = parse("REQUEST staff.dylan DO 'x' DURING blocks.a ON {2026-09-14 +2d}").lines
     assert ast.clause(st.clauses, ast.On).selector.expr.days == 2
@@ -311,10 +324,6 @@ def test_consecutive_goes_on_the_blocks():
     [
         ("REQUEST AT_LEAST 2 CONSECUTIVE staff.dylan DO 'x'", "CONSECUTIVE is about blocks"),
         (
-            "REQUEST staff.dylan DO 'x' DURING AT_LEAST 2 blocks CONSECUTIVE",
-            "CONSECUTIVE goes before the blocks: DURING AT_LEAST 2 CONSECUTIVE blocks",
-        ),
-        (
             "REQUEST staff.dylan DO 'x' DURING ALL CONSECUTIVE blocks",
             "after ANY, ANY n or a count",
         ),
@@ -324,19 +333,11 @@ def test_consecutive_goes_on_the_blocks():
             "{ REQUEST staff.dylan FREE }",
             "for a FOR to measure",
         ),
-        ("REQUEST AT_MOST 2 ANY staff DO 'break'", "in place of ANY: AT_MOST 2 staff"),
-        ("REQUEST AT_MOST 2 EACH staff DO 'break'", "EACH splits the request"),
-        ("REQUEST AT_LEAST 2h staff.cam DO 'x'", "a length goes on FOR: FOR AT_LEAST 2h"),
-        ("REQUEST staff.cam DO AT_LEAST 2h 'x'", "a length goes on FOR: DO 'x' FOR AT_LEAST 2h"),
-        ("REQUEST staff.cam DO AT_MOST 2 'x'", "count the blocks it is done in"),
-        ("REQUEST staff.cam NOT FREE DURING blocks.a", "write BUSY, not NOT FREE"),
-        ("REQUEST staff.cam NOT BUSY DURING blocks.a", "write FREE, not NOT BUSY"),
-        ("IF staff.cam NOT FREE DURING blocks.a THEN { REQUEST staff.x FREE }", "write BUSY"),
         ("REQUEST staff.cam FOR EXACTLY 30m DO 'x' DURING blocks.a", "FOR describes the activity"),
         ("REQUEST WITH staff.x staff.cam FREE DURING blocks.a", "so it goes after FREE"),
     ],
 )
-def test_old_spellings_say_the_new_ones(text, message):
+def test_misplaced_words_say_where_they_go(text, message):
     with pytest.raises(ast.SkedgeError) as e:
         parse(text)
     assert message in e.value.message
@@ -375,7 +376,6 @@ def test_a_day_offset_is_still_an_offset_and_not_a_duration():
             1,
             38,
         ),
-        ("REQUEST staff.rob DO 'x' FOR 30m DURING blocks.a", "FOR EXACTLY 30m", 1, 30),
         ("REQUEST staff.rob NOT DO AT_LEAST 1 activities.clinics", "right of NOT a set", 1, 26),
         ("morning: PREFER staff DO 'x' DURING AT_MOST 1 blocks", "expected one of", 1, 10),
         ("REQUEST AT_MOST 1 staff CONSECUTIVE", "expected one of", 1, 25),
@@ -473,16 +473,9 @@ def test_a_definition_with_a_quantifier_is_a_binding():
 @pytest.mark.parametrize(
     ("text", "message"),
     [
-        ("REQUEST ANY_1_OF staff DO 'x' DURING blocks.a", "write ANY 1, not ANY_1_OF"),
         ("REQUEST AT_LEAST 0 staff DO 'x' DURING blocks.a", "amount must be at least 1"),
         ("REQUEST EXACTLY 0 staff DO 'x' DURING blocks.a", "write NOT DO"),
         ("REQUEST ANY 0 staff DO 'x' DURING blocks.a", "ANY needs a number of 1 or more"),
-        ("AT_LEAST 1 x IN staff\nREQUEST x FREE", "picks with ANY 1, not AT_LEAST 1"),
-        ("EXACTLY 1 x IN staff\nREQUEST x FREE", "picks with ANY 1, not EXACTLY 1"),
-        (
-            "REQUEST ALL {staff.x + (AT_LEAST 1 staff)} FREE",
-            "a group is who is in, so it picks with ANY 1",
-        ),
         ("a: staff.x\na: staff.y\nREQUEST a DO 'x' DURING blocks.a", "'a' is defined twice"),
         ("c: staff.x\nREQUEST EACH c IN staff DO 'x' DURING blocks.a", "defined twice"),
         ("a: {b + staff.x}\nb: {a}\nREQUEST a DO 'x' DURING blocks.a", "in terms of itself"),
@@ -497,22 +490,6 @@ def test_new_errors(text, message):
     with pytest.raises(ast.SkedgeError) as info:
         parse(text)
     assert message in info.value.message
-
-
-@pytest.mark.parametrize(
-    ("text", "message"),
-    [
-        ("REQUEST ALL_OF staff.counselor DO 'x' DURING blocks.clinic_1", "write ALL, not ALL_OF"),
-        ("REQUEST staff.dylan DO 'x' ON EACH_OF dates.season", "write EACH, not EACH_OF"),
-        (
-            "each_of d IN dates.season\nREQUEST staff.dylan DO 'x' ON d",
-            "write EACH, not each_of",
-        ),
-    ],
-)
-def test_the_old_spellings_of_all_and_each_say_the_new_ones(text, message):
-    with pytest.raises(ast.SkedgeError, match=message):
-        parse(text)
 
 
 def test_a_role_straight_after_with_is_the_companys():
@@ -574,5 +551,3 @@ def test_a_group_needs_no_parentheses():
     group = bare.who.expr.right
     assert isinstance(group, ast.Group) and (group.quantifier, group.n) == (ast.ANY_OF, 1)
     assert ast.spoken(group.expr) == ast.spoken(wrapped.who.expr.right.expr)
-    with pytest.raises(ast.SkedgeError, match="not AT_MOST"):
-        parse("REQUEST ALL {staff.a + AT_MOST 1 {staff.b + staff.c}} FREE")

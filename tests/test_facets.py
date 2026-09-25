@@ -43,6 +43,6 @@ def test_facets_collect_staff_activities_dates(dataset):
 
 
 def test_invalid_request_keeps_its_error(dataset):
-    f = facets(req("REQUEST staff.dylan NOT FREE DURING blocks.clinic_1"), dataset)
-    assert not f.valid and "write BUSY" in f.error
+    f = facets(req("REQUEST staff.dylan FREE DURING blocks.nope"), dataset)
+    assert not f.valid and "blocks.nope" in f.error
     assert f.staff == frozenset()

@@ -94,8 +94,6 @@ def _check_line(line: ast.Line) -> None:
             _one_at_a_time(line.what, ast.clause(line.clauses, ast.During))
         return
     if isinstance(line, ast.Gap):
-        if not line.amount.duration:
-            raise _error("GAP needs a duration", line.amount.pos)
         return
     for pattern in ast.patterns(line):
         _check_clauses(pattern.clauses, pattern.what, matched=isinstance(line, ast.Score))

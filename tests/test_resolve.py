@@ -269,10 +269,8 @@ def test_a_span_on_its_own_is_every_date_of_it(dataset):
         dataset, "REQUEST staff.dylan FREE DURING blocks.clinic_1 ON ANY dates.session_1"
     )
     assert len(copy.statements[0].on.items) == 14
-    with pytest.raises(SkedgeError, match="unknown name 'staff.all'; write 'staff' for all"):
+    with pytest.raises(SkedgeError, match="unknown name 'staff.all'"):
         resolve(dataset, "REQUEST ANY 1 staff.all DO 'x' DURING blocks.clinic_1")
-    with pytest.raises(SkedgeError, match="write 'dates.session_1' for all of it"):
-        resolve(dataset, "REQUEST staff.dylan FREE ON ANY dates.session_1.all")
 
 
 def test_name_listing_matches_the_namespaces(dataset):
