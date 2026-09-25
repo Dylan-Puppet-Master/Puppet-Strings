@@ -1689,3 +1689,14 @@ def test_enter_after_a_whole_name_starts_a_new_line(window):
     QTest.keyClicks(box, "REQUEST staff.dyl")
     QTest.keyClick(box.completer.popup(), Qt.Key_Return)
     assert box.toPlainText() == "REQUEST staff.dylan"
+
+
+def test_only_resting_all_day_resolves_the_requests_again(window):
+    store = window.store
+    store.set_adjustment("vic", penalty=1)
+    store.set_adjustment("alesa", resting=Rest.MORNING)
+    assert not store.unresolved  # who is working is as it was
+    store.set_adjustment("vic", resting=Rest.ALL_DAY)
+    assert store.unresolved
+    store.errors  # noqa: B018 - asking is what resolves them
+    assert not store.unresolved and store.resolved

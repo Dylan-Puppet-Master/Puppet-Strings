@@ -38,6 +38,7 @@ class RequestStore:
         self.elsewhere: list[Request] = []
         self.facets: dict[str, Facets] = {}
         self.resolved: dict[str, tuple] = {}  # each request's copies, for the conflict finder
+        self.unresolved = False  # who is working changed since the requests were resolved
         # A group lives on the requests in it, so one just made holds nothing yet and would
         # vanish on the next read. These keep it in the pane until something joins it.
         self.empty_groups: list[str] = []
@@ -100,7 +101,7 @@ class RequestStore:
         self.requests = list(self.dataset.requests)
         here = {r.id for r in self.requests}
         self.elsewhere = [r for r in self.book.every() if r.id not in here]
-        self.facets, self.resolved = {}, {}
+        self.facets, self.resolved, self.unresolved = {}, {}, False
         for request in self.requests:
             self._index(request)
 
@@ -113,7 +114,7 @@ class RequestStore:
         """
         self.dataset = None
         self.requests, self.elsewhere = [], list(self.book.every())
-        self.facets, self.resolved = {}, {}
+        self.facets, self.resolved, self.unresolved = {}, {}, False
 
     def _index(self, request: Request) -> None:
         """Work out what one request means: its facets, and the copies it resolves to."""
@@ -130,6 +131,7 @@ class RequestStore:
         One scoped to other dates is read against the target date's sheets, which is as near
         as the window can get without loading its own day.
         """
+        self._settle()
         if request.id not in self.facets:
             self.facets[request.id] = resolve_request(request, self.dataset)[0]
         return self.facets[request.id]
@@ -139,6 +141,7 @@ class RequestStore:
         """Where the requests contradict each other, read off the resolved copies."""
         if self.dataset is None:
             return ()
+        self._settle()
         return find_conflicts(self.requests, self.resolved, self.dataset)
 
     @property
@@ -146,6 +149,7 @@ class RequestStore:
         """Where one request on its own asks for something the sheets rule out."""
         if self.dataset is None:
             return ()
+        self._settle()
         return find_errors(self.requests, self.resolved, self.dataset)
 
     def save(self, request: Request, original_id: str | None) -> Request:
@@ -186,6 +190,7 @@ class RequestStore:
         """The copies each request of the day resolved to, for a solve to use again."""
         from puppet_strings.solver.solve import Resolutions
 
+        self._settle()
         copies = {r.id: (r, self.resolved[r.id]) for r in self.requests if r.id in self.resolved}
         return Resolutions(self.dataset, copies)
 
@@ -251,12 +256,27 @@ class RequestStore:
     def _adjust(self, adjustments: list[Adjustment]) -> None:
         """Apply new adjustments to the loaded day, with nothing read or written.
 
-        The staff's RAL and resting blocks, and so the categories and what each request
-        resolves to, follow at once, which is what lets the dialog record several people
-        without a round trip to Google for each and the window skip a reload afterwards.
+        The staff's RAL and resting blocks, and so the categories, follow at once, which is
+        what lets the dialog record several people without a round trip to Google for each
+        and the window skip a reload afterwards.
+
+        What a request resolves to depends on who is working, and on nothing else an
+        adjustment changes: a short night or half a day off leaves every request as it
+        was. Someone resting all day, or back from it, changes it, and then the requests
+        are resolved again once, when something next asks, rather than on every Apply:
+        a day's requests take a second or two to resolve.
         """
+        was = self.dataset.staff_categories
         adjusted = replace(self.dataset, adjustments=tuple(adjustments))
         self.dataset = apply_exclusions(with_standing(adjusted, self.config.midday))
+        if self.dataset.staff_categories != was:
+            self.unresolved = True
+
+    def _settle(self) -> None:
+        """Resolve the requests again if who is working changed since they were."""
+        if not self.unresolved:
+            return
+        self.unresolved = False
         self.facets, self.resolved = {}, {}
         for request in self.requests:
             self._index(request)
