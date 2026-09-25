@@ -11,7 +11,10 @@ and `QUIET` for a note beside either. Keeping them here is what makes the red un
 editor and the red in the conflicts pane the same red.
 """
 
-from PySide6.QtGui import QColor, QPalette
+from itertools import product
+
+from PySide6.QtCore import QPointF, Qt, QTemporaryDir
+from PySide6.QtGui import QColor, QImage, QPainter, QPalette, QPolygonF
 from PySide6.QtWidgets import QApplication
 
 # The chrome: three depths of near-black, with the panes sitting a shade above the window
@@ -82,7 +85,56 @@ def apply(app: QApplication) -> None:
         colours.setColor(group, QPalette.HighlightedText, QColor(ON_HIGHLIGHT))
         colours.setColor(group, QPalette.Mid, QColor(LINE))
     app.setPalette(colours)
-    app.setStyleSheet(SHEET)
+    app.setStyleSheet(SHEET + _arrows_sheet())
+
+
+# Where the spin boxes' arrows are drawn to, kept for as long as the application runs.
+_ARROW_DIR: QTemporaryDir | None = None
+
+
+def _arrows_sheet() -> str:
+    """The up and down arrows of every spin box, drawn in TEXT, and in QUIET at either end.
+
+    A sheet that gives a spin box a border takes over its buttons as well, and Fusion then
+    paints their arrows near-black on near-black. A sheet can only give an arrow back as an
+    image, so the two are drawn here, once, rather than shipped as files.
+    """
+    global _ARROW_DIR
+    if _ARROW_DIR is None:
+        _ARROW_DIR = QTemporaryDir()
+    folder = _ARROW_DIR.path()
+    shapes = (("up", ((0, 4), (8, 4), (4, 0))), ("down", ((0, 0), (8, 0), (4, 4))))
+    for (name, points), (colour, dim) in product(shapes, ((TEXT, ""), (QUIET, "-off"))):
+        for scale, suffix in ((1, ""), (2, "@2x")):
+            image = QImage(9 * scale, 5 * scale, QImage.Format_ARGB32)
+            image.fill(Qt.transparent)
+            painter = QPainter(image)
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor(colour))
+            painter.drawPolygon(
+                QPolygonF([QPointF((x + 0.5) * scale, (y + 0.5) * scale) for x, y in points])
+            )
+            painter.end()
+            image.save(f"{folder}/{name}{dim}{suffix}.png")
+    return f"""
+QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {{
+    background: {SURFACE};
+    border-left: 1px solid {LINE};
+    width: 16px;
+}}
+QAbstractSpinBox::up-button {{ border-top-right-radius: 3px; }}
+QAbstractSpinBox::down-button {{ border-bottom-right-radius: 3px; }}
+QAbstractSpinBox::up-button:hover, QAbstractSpinBox::down-button:hover {{ background: {LINE}; }}
+QAbstractSpinBox::up-arrow {{ image: url({folder}/up.png); }}
+QAbstractSpinBox::down-arrow {{ image: url({folder}/down.png); }}
+QAbstractSpinBox::up-arrow:disabled, QAbstractSpinBox::up-arrow:off {{
+    image: url({folder}/up-off.png);
+}}
+QAbstractSpinBox::down-arrow:disabled, QAbstractSpinBox::down-arrow:off {{
+    image: url({folder}/down-off.png);
+}}
+"""
 
 
 # What the palette alone does not reach: the borders and paddings, the splitter and dock

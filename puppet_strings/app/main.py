@@ -6,8 +6,9 @@ from contextlib import suppress
 from datetime import date, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import QDate, Qt, QThread, QTimer, Signal
+from PySide6.QtCore import QDate, Qt, QThread, Signal
 from PySide6.QtWidgets import (
+    QAbstractSpinBox,
     QApplication,
     QCheckBox,
     QComboBox,
@@ -254,12 +255,10 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(QLabel("Target date "))
         self.date_edit = QDateEdit(QDate(date.today() + timedelta(days=1)))
         self.date_edit.setDisplayFormat("yyyy-MM-dd")
-        self.date_edit.setCalendarPopup(True)
+        # Typed, or set from the calendar pane; a button beside it was only ever misclicked.
+        self.date_edit.setButtonSymbols(QAbstractSpinBox.NoButtons)
         # a finished date, not every keystroke on the way to one
         self.date_edit.editingFinished.connect(self._target_changed)
-        self.date_edit.calendarWidget().clicked.connect(
-            lambda _: QTimer.singleShot(0, self._target_changed)
-        )
         toolbar.addWidget(self.date_edit)
         toolbar.addAction("Reload", self.reload)
         toolbar.addAction("Load offerings", self.load_offerings)
