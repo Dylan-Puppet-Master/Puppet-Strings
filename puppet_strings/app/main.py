@@ -281,14 +281,14 @@ class MainWindow(QMainWindow):
         self.errors_dock = QDockWidget("Errors", self)
         self.errors_dock.setWidget(self.errors)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.errors_dock)
-        messages_dock = QDockWidget("Messages", self)
-        messages_dock.setWidget(self.messages)
-        self.addDockWidget(Qt.BottomDockWidgetArea, messages_dock)
+        self.messages_dock = QDockWidget("Messages", self)
+        self.messages_dock.setWidget(self.messages)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.messages_dock)
         # Errors and Messages share the bottom as tabs along its top, and the tabs are their
         # titles: a title bar over them as well would say the same thing twice.
-        self.tabifyDockWidget(self.errors_dock, messages_dock)
+        self.tabifyDockWidget(self.errors_dock, self.messages_dock)
         self.setTabPosition(Qt.BottomDockWidgetArea, QTabWidget.North)
-        for dock in (self.errors_dock, messages_dock):
+        for dock in (self.errors_dock, self.messages_dock):
             dock.setTitleBarWidget(QWidget())
         self.errors_dock.raise_()
         self._say("Pick a target date and press Reload.")

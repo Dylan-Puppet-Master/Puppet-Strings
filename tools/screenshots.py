@@ -4,9 +4,10 @@
 
 Each is taken offscreen from a scratch copy of tests/fixtures, with a throwaway settings
 file, so nothing on this computer is read or changed: the request manager on 2026-09-16
-(app.png), name completion (completer.png), the errors pane with two clashes in it
-(conflicts.png), the sleep agreement dialog on a published day (same-day.png) and the
-canvas, with a group of its own moved beside the others and a card open (canvas.png).
+with the Messages tab up (app.png), name completion (completer.png), the errors pane with
+two clashes in it (conflicts.png), the sleep agreement dialog on a published day
+(same-day.png) and the canvas, with a group of its own moved beside the others and a card
+open (canvas.png).
 """
 
 import os
@@ -90,6 +91,7 @@ for row in range(w.proxy.rowCount()):
         w.table.selectionModel().setCurrentIndex(index, rows)
 w.editor.description_edit.setCursorPosition(0)
 w.table.resizeColumnsToContents()
+w.messages_dock.raise_()  # the errors pane has a picture of its own
 settle()
 w.grab().save(str(OUT / "app.png"))
 

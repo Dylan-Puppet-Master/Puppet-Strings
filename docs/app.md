@@ -80,7 +80,7 @@ Its **Requests** row hands the requests over and backs them up; see
 shown. The window remembers which one you used last. On the canvas, every request that passes
 the filters is a card, and each group is a frame of cards. The groups are laid out in rows,
 and `Ungrouped` stands apart to their left. Everything else stays where it is: the groups
-pane, the filters, the Namespaces and Calendar panes and the errors pane.
+pane, the filters, the Namespaces and Calendar panes, and the Errors and Messages tabs.
 
 ![The canvas](img/canvas.png)
 
@@ -175,6 +175,13 @@ The staff and activity filters use the names a request resolves to, so filtering
 `dylan` finds requests written for `staff.counselor` as well.
 
 ## Errors
+
+Along the bottom are two tabs, **Errors** and **Messages**.
+
+**Messages** keeps everything the window has said in the bar at its foot, which holds only
+the latest and runs it together on one line. Each message is kept with the time it was
+said, and each part on a line of its own: after a load, the requests read, whether the day
+is published, the conflicts, the errors and each warning about the sheets.
 
 **The errors pane.** Along the bottom, everything wrong with the requests that can be seen
 without solving. Two kinds of thing sit in it: **conflicts**, where two requests cannot
