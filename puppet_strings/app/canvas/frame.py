@@ -123,22 +123,29 @@ class GroupFrame(QGraphicsObject):
             painter.setPen(QColor(palette.QUIET))
             hint = "Double-click to add a request, or drop cards here"
             if self.total:
-                hint = f"{self.total} hidden by the filters. " + hint
-            painter.drawText(rect.adjusted(PAD, HEADER, -PAD, -PAD), Qt.AlignCenter, hint)
+                hint = f"{self.total} hidden by the filters\n{hint}"
+            painter.drawText(
+                rect.adjusted(PAD, HEADER, -PAD, -PAD), Qt.AlignCenter | Qt.TextWordWrap, hint
+            )
 
     def _paint_header(self, painter: QPainter) -> None:
+        """The title and its count on the left, the note under them, the button on the right.
+
+        The title gives way to the count and the button, not the other way round: in a
+        frame one card wide there is not room for a long name and all the rest.
+        """
+        button = self.button_rect()
+        count = str(self.shown) if self.shown == self.total else f"{self.shown} of {self.total}"
+        pill_w = QFontMetricsF(COUNT_FONT).horizontalAdvance(count) + 16
+        room = button.left() - 12 - pill_w - 10 - PAD
         painter.setFont(TITLE_FONT)
         painter.setPen(QColor(palette.INK if self.group != UNGROUPED else palette.QUIET))
-        button = self.button_rect()
-        room = button.left() - PAD - 70
         title = QFontMetricsF(TITLE_FONT).elidedText(self.title, Qt.ElideRight, room)
         drawn = painter.drawText(
             QRectF(PAD, 12, room, 30), Qt.AlignVCenter | Qt.TextDontClip, title
         )
         wide = drawn.width()  # as drawn, which at some zooms is not what the metrics say
-        count = str(self.shown) if self.shown == self.total else f"{self.shown} of {self.total}"
         painter.setFont(COUNT_FONT)
-        pill_w = QFontMetricsF(COUNT_FONT).horizontalAdvance(count) + 16
         pill = QRectF(PAD + wide + 10, 17, pill_w, 20)
         painter.setPen(Qt.NoPen)
         painter.setBrush(QColor(palette.LINE))
@@ -147,7 +154,9 @@ class GroupFrame(QGraphicsObject):
         painter.drawText(pill, Qt.AlignCenter, count)
         painter.setFont(NOTE_FONT)
         painter.setPen(QColor(palette.QUIET))
-        painter.drawText(QRectF(PAD, 42, button.left() - PAD, 18), Qt.AlignVCenter, self.note)
+        room = button.left() - 12 - PAD
+        note = QFontMetricsF(NOTE_FONT).elidedText(self.note, Qt.ElideRight, room)
+        painter.drawText(QRectF(PAD, 42, room, 18), Qt.AlignVCenter, note)
         fill = QColor(palette.HIGHLIGHT)
         fill.setAlpha(255 if self.over_button else 190)
         painter.setPen(Qt.NoPen)
