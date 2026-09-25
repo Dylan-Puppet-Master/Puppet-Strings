@@ -43,7 +43,7 @@ def test_any_one_and_not_do_the_rest_leaves_the_other_out():
                 "one",
                 "ANY 1 r IN {staff.dylan + staff.alesa}\n"
                 "REQUEST r DO 'rake leaves' DURING ANY blocks\n"
-                "REQUEST ALL {(staff.dylan + staff.alesa) - r} NOT DO 'rake leaves'",
+                "REQUEST ALL {{staff.dylan + staff.alesa} - r} NOT DO 'rake leaves'",
                 MUST,
             ),
             request("alesa", "REQUEST staff.alesa DO 'rake leaves' DURING blocks.clinic_1", MUST),
@@ -51,7 +51,7 @@ def test_any_one_and_not_do_the_rest_leaves_the_other_out():
                 "other",
                 "ANY 1 r IN {staff.tori + staff.brian}\n"
                 "REQUEST r DO 'rake leaves' DURING ANY blocks\n"
-                "REQUEST ALL {(staff.tori + staff.brian) - r} NOT DO 'rake leaves'",
+                "REQUEST ALL {{staff.tori + staff.brian} - r} NOT DO 'rake leaves'",
                 MUST,
             ),
             request("dylan", "REQUEST staff.dylan DO 'rake leaves' DURING blocks.clinic_2"),
@@ -334,7 +334,7 @@ def test_a_group_picks_one_and_not_do_keeps_the_other_out():
         ds,
         "ANY 1 v IN {staff.dylan + staff.cam}\n"
         "REQUEST ALL {staff.alesa + v} DO 'video' DURING ANY 1 blocks.all_clinics\n"
-        "REQUEST ALL {(staff.dylan + staff.cam) - v} NOT DO 'video'",
+        "REQUEST ALL {{staff.dylan + staff.cam} - v} NOT DO 'video'",
     )
     filming = {a.staff for a in rows(run(only), "video")}
     assert "alesa" in filming and len(filming & {"dylan", "cam"}) == 1

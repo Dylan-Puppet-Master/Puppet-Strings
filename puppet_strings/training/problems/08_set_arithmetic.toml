@@ -6,12 +6,12 @@ teaches = """
 {a + b}      everyone in a or b
 {a - b}      everyone in a, except those in b
 {a & b}      everyone in both a and b
-( )          groups; mixing different operators needs them
+{a - {b & c}} a set inside a set is in braces too; mixing operators needs them
 
 {staff - staff.counselors}
-{staff - (staff.directors + staff.counselors)}
+{staff - {staff.directors + staff.counselors}}
 {blocks - blocks.meals}
-{dates.season.tuesdays & (2026-07-21 .. dates.session_6.last)}   Tuesdays in that run
+{{2026-07-21 .. dates.session_6.last} & dates.season.tuesdays}   Tuesdays in that run
 """
 
 [[problem]]
@@ -55,15 +55,15 @@ title = "Non-counselor breaks"
 prompt = "Each staff member who is neither a director nor a counselor gets a 'break' in one of the clinic blocks."
 answer = "REQUEST EACH {staff - staff.directors - staff.counselors} DO 'break' DURING ANY 1 blocks.all_clinics"
 priority = "HIGH"
-alternatives = ["REQUEST EACH {staff - (staff.directors + staff.counselors)} DO 'break' DURING ANY 1 blocks.all_clinics"]
+alternatives = ["REQUEST EACH {staff - {staff.directors + staff.counselors}} DO 'break' DURING ANY 1 blocks.all_clinics"]
 wrong = ["REQUEST EACH {staff - staff.counselors} DO 'break' DURING ANY 1 blocks.all_clinics"]
 
 [[problem]]
 id = "sets-parentheses"
-title = "Parentheses"
-prompt = "Everyone except the counselors who are also MFGs stays off 'pool duty' today. Use parentheses."
-answer = "REQUEST ALL {staff - (staff.counselors & staff.mfgs)} NOT DO 'pool duty'"
-hints = ["{staff - (staff.counselors & staff.mfgs)}", "Mixing - and & needs parentheses, so there's no order of operations to remember."]
+title = "A set inside a set"
+prompt = "Everyone except the counselors who are also MFGs stays off 'pool duty' today. Use a set inside the set."
+answer = "REQUEST ALL {staff - {staff.counselors & staff.mfgs}} NOT DO 'pool duty'"
+hints = ["{staff - {staff.counselors & staff.mfgs}}", "Mixing - and & needs braces around one side, so there's no order of operations to remember."]
 explain = "Alan is the only counselor who is also an MFG, so this keeps everyone but Alan off pool duty."
 alternatives = ["REQUEST ALL {staff - staff.alan} NOT DO 'pool duty'"]
 wrong = ["REQUEST ALL {staff - staff.counselors} NOT DO 'pool duty'"]
@@ -112,7 +112,7 @@ id = "sets-two-of-non-directors"
 title = "Two helpers who aren't directors"
 prompt = "Two permanent heroes who aren't directors or EQ staff do 'canteen' during playstation."
 answer = "REQUEST ANY 2 {staff.permanent_heroes - staff.directors - staff.eq_staff} DO 'canteen' DURING blocks.playstation"
-alternatives = ["REQUEST ANY 2 {staff.permanent_heroes - (staff.directors + staff.eq_staff)} DO 'canteen' DURING blocks.playstation"]
+alternatives = ["REQUEST ANY 2 {staff.permanent_heroes - {staff.directors + staff.eq_staff}} DO 'canteen' DURING blocks.playstation"]
 wrong = ["REQUEST ANY 2 {staff.permanent_heroes - staff.directors} DO 'canteen' DURING blocks.playstation"]
 
 [[problem]]
@@ -126,7 +126,7 @@ wrong = ["REQUEST staff.kara NOT DO ANY activities.clinics.arts"]
 id = "sets-dates-minus"
 title = "Every weekday but today"
 prompt = "Hailey does 'hay delivery' during setup on every weekday of the session except the day being scheduled, each day separately."
-answer = "REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH {(2026-08-03 .. 2026-08-07) - dates.target}"
+answer = "REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH {{2026-08-03 .. 2026-08-07} - dates.target}"
 priority = "LOW"
 alternatives = ["REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH {2026-08-03 + 2026-08-05 + 2026-08-06 + 2026-08-07}"]
 wrong = ["REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH {2026-08-03 .. 2026-08-07}"]
@@ -135,11 +135,11 @@ wrong = ["REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH {20
 id = "sets-tuesdays-in-a-window"
 title = "Tuesdays, for a while"
 prompt = "On every Tuesday from July 21 to the end of this session, Hailey meets the 'farrier visit' during setup. Each Tuesday counts on its own."
-answer = "REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {dates.season.tuesdays & (2026-07-21 .. dates.session_6.last)}"
-hints = ["The dates wanted are in both sets: Tuesdays, and the run from July 21.", "& keeps what is in both: {dates.season.tuesdays & (2026-07-21 .. dates.session_6.last)}."]
+answer = "REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {{2026-07-21 .. dates.session_6.last} & dates.season.tuesdays}"
+hints = ["The dates wanted are in both sets: Tuesdays, and the run from July 21.", "& keeps what is in both: {{2026-07-21 .. dates.session_6.last} & dates.season.tuesdays}."]
 explain = "& is not 'and also': it keeps only the dates in both sets, here three Tuesdays. + would take every Tuesday of the season and every day of the run as well."
-alternatives = ["REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {(2026-07-21 .. dates.session_6.last) & dates.season.tuesdays}"]
-wrong = ["REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {dates.season.tuesdays + (2026-07-21 .. dates.session_6.last)}"]
+alternatives = ["REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {dates.season.tuesdays & {2026-07-21 .. dates.session_6.last}}"]
+wrong = ["REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {dates.season.tuesdays + {2026-07-21 .. dates.session_6.last}}"]
 
 [[problem]]
 id = "sets-meals-but-breakfast"

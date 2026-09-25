@@ -1,3 +1,4 @@
+import re
 from datetime import date
 
 import pytest
@@ -201,12 +202,12 @@ def test_nothing_else_can_be_named_after_a_namespace(text):
 
 def test_set_expressions():
     (st,) = parse(
-        "REQUEST staff.dylan DO 'x' DURING blocks.a ON ANY 1 {(dates.target - 6d) .. dates.target}"
+        "REQUEST staff.dylan DO 'x' DURING blocks.a ON ANY 1 {dates.target - 6d .. dates.target}"
     ).lines
     on = ast.clause(st.clauses, ast.On).selector.expr
     assert isinstance(on, ast.DateRange)
     assert on.start == ast.DateOffset(
-        ast.Ref("dates", "target", ast.Pos(1, 55)), -6, ast.Pos(1, 55)
+        ast.Ref("dates", "target", ast.Pos(1, 54)), -6, ast.Pos(1, 54)
     )
     assert on.end.name == "target"
     (st,) = parse(
@@ -216,9 +217,27 @@ def test_set_expressions():
     assert expr.op == "-" and expr.right.name == "counselor"
     assert expr.left.op == "-" and expr.left.left.name == ""
     (st,) = parse(
-        "REQUEST EACH {staff - (staff.counselor & staff.director)} DO 'x' DURING blocks.a"
+        "REQUEST EACH {staff - {staff.counselor & staff.director}} DO 'x' DURING blocks.a"
     ).lines
     assert st.who.expr.right.op == "&"
+    (st,) = parse(
+        "REQUEST staff.x DO 'x' ON EACH {{2026-07-21 .. dates.session_6.last} & dates.season.tuesdays}"
+    ).lines
+    on = ast.clause(st.clauses, ast.On).selector.expr
+    assert on.op == "&" and isinstance(on.left, ast.DateRange)
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        ("REQUEST ALL {staff - (staff.a & staff.b)} FREE", "goes in braces, {staff.a & staff.b}"),
+        ("REQUEST staff.x DO 'x' ON EACH {dates.season & (2026-07-21 .. dates.target)}", "braces"),
+        ("REQUEST staff.x DO 'x' ON EACH {dates.season & 2026-07-21 .. dates.target}", "a range"),
+    ],
+)
+def test_a_set_inside_a_set_takes_braces(text, message):
+    with pytest.raises(ast.SkedgeError, match=re.escape(message)):
+        parse(text)
     (st,) = parse("REQUEST staff.dylan DO 'x' DURING blocks.a ON {2026-09-14 +2d}").lines
     assert ast.clause(st.clauses, ast.On).selector.expr.days == 2
 

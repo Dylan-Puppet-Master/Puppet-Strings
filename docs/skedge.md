@@ -153,20 +153,27 @@ a request that silently never fires. A near miss is told the nearest real name.
 
 ### Combining sets
 
-Any expression goes in braces. `+` is union, `-` is difference, `&` is intersection, `..`
-is an inclusive date range, and a single date can be offset by days. Parentheses group, and
-mixing different operators requires them, so there is no precedence to remember:
+Any expression goes in braces, and so does every set inside one: braces are what a set
+is written in. `+` is union, `-` is difference, `&` is intersection, `..` is an inclusive
+date range, and a single date can be offset by days. Mixing different operators needs
+braces around one side, so there is no precedence to remember, and a range combined with
+anything else is in braces of its own:
 
 ```
 {staff - staff.director - staff.counselor}
-{staff - (staff.counselor & staff.lifeguard)}
-{(dates.target - 6d) .. dates.target}
+{staff - {staff.counselor & staff.lifeguard}}
+{dates.target - 6d .. dates.target}
+{{2026-07-21 .. dates.session_6.last} & dates.season.tuesdays}
 ```
+
+Parentheses are not for sets. They go around a group (below) and a condition
+(`IF (a AND b) OR c`), which are a choice and a test rather than a set.
 
 ### Choosing inside a set
 
 A quantifier can also go inside a set, on a part of it. That part is a **group**, taken
-`ALL` or `ANY n`, with parentheses around it if they help. A group says who is in, so it
+`ALL` or `ANY n`, with parentheses around it if they help: the parentheses mark the choice,
+not a set. A group says who is in, so it
 never counts. In a set taken whole, `ANY 1 {…}` adds whichever one the solver picks —
 "Alesa and one of these two":
 
@@ -600,8 +607,8 @@ staff.dylan FREE DURING blocks.lunch THEN
 }
 ```
 
-Mixing the two needs parentheses, the way mixing set operators does, so there is no
-precedence to remember: `IF (a AND b) OR c`. `AND` and `OR` are keywords like any other,
+Mixing the two needs parentheses, the way mixing set operators needs braces, so there is
+no precedence to remember: `IF (a AND b) OR c`. `AND` and `OR` are keywords like any other,
 so a line beginning with either continues the condition above it.
 
 ```skedge
@@ -632,13 +639,13 @@ ON ANY 1 dates.session_1
 Alesa is named outright, so she is always in it; `videographer` brings whichever of Dylan
 and Cam the solver picked, and it is the same one everywhere the name appears in the
 request. A chosen name can also be **taken away** from a whole set with `-`:
-`{(staff.dylan + staff.cam_vl) - videographer}` is whoever it did not pick, which is how
+`{{staff.dylan + staff.cam_vl} - videographer}` is whoever it did not pick, which is how
 the rest are forbidden:
 
 ```skedge
 ANY 1 videographer IN {staff.dylan + staff.cam_vl}
 REQUEST ALL {staff.alesa + videographer} DO 'Video KM Rope Swing' FOR EXACTLY 30m DURING ANY 1 blocks
-REQUEST ALL {(staff.dylan + staff.cam_vl) - videographer} NOT DO 'Video KM Rope Swing'
+REQUEST ALL {{staff.dylan + staff.cam_vl} - videographer} NOT DO 'Video KM Rope Swing'
 ```
 
 `&` asks what a chosen name has in common with something, which cannot be answered before
@@ -966,7 +973,7 @@ Each person should run each clinic at most once in any seven days; every repeat 
 point. Shares a tier with the preference request so the two trade off.
 
 ```skedge
-PREFER EACH staff DO EACH activities.clinics DURING AT_MOST 1 blocks ON ANY {(dates.target - 6d) .. dates.target}
+PREFER EACH staff DO EACH activities.clinics DURING AT_MOST 1 blocks ON ANY {dates.target - 6d .. dates.target}
 ```
 
 Priority `MEDIUM`, weight `0.5`.
@@ -1060,7 +1067,7 @@ forbidden.
 ```skedge
 ANY 1 r IN {staff.dylan + staff.alesa}
 REQUEST r DO 'rake leaves' DURING ANY blocks
-REQUEST ALL {(staff.dylan + staff.alesa) - r} NOT DO 'rake leaves'
+REQUEST ALL {{staff.dylan + staff.alesa} - r} NOT DO 'rake leaves'
 ```
 
 Priority `HIGH`.

@@ -98,7 +98,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (
             "REQUEST staff.dylan DO 'x' DURING {blocks.clinic_1 + blocks.clinic_2 & blocks.meals}",
             Priority.HIGH,
-            "mixed set operators need parentheses",
+            "mixed set operators need braces around one side",
             1,
             70,
         ),

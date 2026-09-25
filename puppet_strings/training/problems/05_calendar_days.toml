@@ -162,7 +162,7 @@ prompt = "On the day being scheduled or the day after, Ericka does 'first aid re
 answer = "REQUEST staff.ericka DO 'first aid restock' DURING blocks.rest_hour ON ANY 1 {dates.target .. dates.target + 1d}"
 alternatives = [
   "REQUEST staff.ericka DO 'first aid restock' DURING blocks.rest_hour ON ANY 1 {2026-08-04 + 2026-08-05}",
-  "REQUEST staff.ericka DO 'first aid restock' DURING blocks.rest_hour ON ANY 1 {dates.target + (dates.target + 1d)}",
+  "REQUEST staff.ericka DO 'first aid restock' DURING blocks.rest_hour ON ANY 1 {dates.target + dates.target + 1d}",
 ]
 wrong = ["REQUEST staff.ericka DO 'first aid restock' DURING blocks.rest_hour ON ANY 1 {dates.target - 1d .. dates.target}"]
 

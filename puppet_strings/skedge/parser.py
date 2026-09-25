@@ -94,6 +94,9 @@ def _position(error: UnexpectedInput, text: str) -> tuple[int, int]:
 
 
 def _describe(error: UnexpectedInput) -> str:
+    token = getattr(error, "token", None)
+    if token is not None and str(token) == "..":
+        return "a range is a set of its own, so it goes in braces: {{a .. b} & c}"
     expected = getattr(error, "expected", None) or getattr(error, "allowed", None)
     if expected:
         names = sorted({_TERMINAL_NAMES.get(t, t.lstrip("_")) for t in expected})
@@ -463,7 +466,11 @@ class _Builder(Transformer):
         ops = items[1::2]
         for op, right in zip(ops, items[2::2], strict=True):
             if str(op) != str(ops[0]):
-                raise ast.SkedgeError("mixed set operators need parentheses", op.line, op.column)
+                raise ast.SkedgeError(
+                    "mixed set operators need braces around one side: {a - {b & c}}",
+                    op.line,
+                    op.column,
+                )
             result = ast.SetOp(str(op), result, _atom(right), _pos(meta))
         return result
 
@@ -475,6 +482,11 @@ class _Builder(Transformer):
                 f"a group is who is in, so it picks with ANY {n}, not {bound} {n}", _pos(meta)
             )
         return ast.Group(kind, n, _atom(expr), _pos(meta), bound)
+
+    def parenthesized(self, meta, items):
+        written = ast.spoken(_atom(items[0]))
+        braced = written if written.startswith("{") else f"{{{written}}}"
+        raise _error(f"a set inside a set goes in braces, {braced}, not parentheses", _pos(meta))
 
     def date_range(self, meta, items):
         return ast.DateRange(_atom(items[0]), _atom(items[1]), _pos(meta))

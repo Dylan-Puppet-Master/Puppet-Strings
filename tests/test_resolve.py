@@ -186,8 +186,8 @@ def test_set_operators(dataset):
 
 
 def test_date_windows(dataset):
-    assert on(dataset, "{(dates.target - 6d) .. dates.target}") == dataset.session_dates[:4]
-    assert on(dataset, "{(dates.target + 1d) .. (dates.target + 10d)}") == dataset.session_dates[4:]
+    assert on(dataset, "{dates.target - 6d .. dates.target}") == dataset.session_dates[:4]
+    assert on(dataset, "{dates.target + 1d .. dates.target + 10d}") == dataset.session_dates[4:]
     assert on(dataset, "{2026-10-20 .. 2026-10-21}") == ()  # no such camp days
     assert on(dataset, "dates.session_1.fridays") == (date(2026, 9, 18), date(2026, 9, 25))
 

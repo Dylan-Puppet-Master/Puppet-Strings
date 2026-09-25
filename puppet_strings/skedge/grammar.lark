@@ -97,20 +97,24 @@ chooser     : (ALL | ANY | amount)? CONSECUTIVE? set_
 any_n       : ANY INT
             | ANY_N_OF
 
+// A set built from others is in braces, and so is every set inside it: {{a .. b} & c}. A
+// range is the whole of its braces. Parentheses are for a group, which is a choice rather
+// than a set; around a set they are parsed only to say it takes braces.
 ?set_       : REF | NAME | DATE | call | "{" setexpr "}"
-?setexpr    : range (SETOP range)*     -> setop
-?range      : primary ".." primary     -> date_range
-            | primary
-?primary    : date_atom OFFSET         -> date_offset
-            | date_atom
-            | "(" setexpr ")"
+?setexpr    : operand (SETOP operand)*   -> setop
+            | endpoint ".." endpoint     -> date_range
+?operand    : endpoint
+            | "{" setexpr "}"
+            | "(" setexpr ")"            -> parenthesized
             | "(" (ALL | amount | any_n) set_ ")"   -> group
             | (ALL | amount | any_n) set_           -> group
+?endpoint   : date_atom OFFSET           -> date_offset
+            | date_atom
 ?date_atom  : DATE | REF | NAME | call
 
 // Two more ways in, for the cells of the Mappings tab rather than for a request: what a
 // key or a value may be, and what stands in for a key with no row.
-mapping_domain  : "{" setexpr "}" | setexpr
+mapping_domain  : setexpr
 mapping_default : chooser
 
 // The keywords. A leading `_` keeps the token out of the tree, the way an anonymous string

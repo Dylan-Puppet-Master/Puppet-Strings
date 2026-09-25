@@ -706,7 +706,7 @@ def test_weights_trade_within_a_tier():
 PREFERENCE = (
     "PREFER EACH s IN staff DO EACH c IN activities.clinics MAXIMIZE mappings.preference(s, c)"
 )
-VARIETY = "PREFER EACH staff DO EACH activities.clinics DURING AT_MOST 1 blocks ON ANY {(dates.target - 6d) .. dates.target}"
+VARIETY = "PREFER EACH staff DO EACH activities.clinics DURING AT_MOST 1 blocks ON ANY {dates.target - 6d .. dates.target}"
 
 
 @pytest.mark.parametrize(
@@ -873,7 +873,7 @@ def test_a_counted_pattern_measures_clinics_without_starting_one():
 
 def test_a_duration_amount_sums_lengths_and_past_dates_count():
     yesterday = TARGET - timedelta(days=1)
-    text = "REQUEST staff.james DO 'dance practice' DURING ANY blocks.all_clinics ON ANY {(dates.target - 1d) .. dates.target} FOR AT_LEAST 2h"
+    text = "REQUEST staff.james DO 'dance practice' DURING ANY blocks.all_clinics ON ANY {dates.target - 1d .. dates.target} FOR AT_LEAST 2h"
     ds = dataset(
         [staff("James")],
         [],
@@ -1529,7 +1529,7 @@ def test_past_and_future_requests_are_inactive():
 
 def test_all_of_dates_are_enforced_every_day():
     yesterday = TARGET - timedelta(days=1)
-    text = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL {(dates.target - 1d) .. dates.target}"
+    text = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON ALL {dates.target - 1d .. dates.target}"
     done = dataset(
         [staff("Dylan")],
         [],

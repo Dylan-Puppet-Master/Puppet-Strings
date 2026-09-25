@@ -64,10 +64,10 @@ title = "One of the two"
 prompt = "Exactly one of Dylan and Alesa rakes leaves ('rake leaves') today, whenever. The other one doesn't."
 answer = "REQUEST ANY 1 {staff.dylan + staff.alesa} DO 'rake leaves' DURING ANY blocks\nREQUEST AT_MOST 1 {staff.dylan + staff.alesa} DO 'rake leaves' DURING ANY blocks"
 hints = ["Pick one of the two, and cap the two of them at one."]
-explain = "The cap counts its own set and nobody else: anyone else may still rake, if something asks them to. ANY 1 alone would let both of them. Naming the pick and forbidding the other says the same: ANY 1 r IN {…}, then REQUEST ALL {(staff.dylan + staff.alesa) - r} NOT DO 'rake leaves'."
+explain = "The cap counts its own set and nobody else: anyone else may still rake, if something asks them to. ANY 1 alone would let both of them. Naming the pick and forbidding the other says the same: ANY 1 r IN {…}, then REQUEST ALL {{staff.dylan + staff.alesa} - r} NOT DO 'rake leaves'."
 alternatives = [
   "REQUEST ANY 1 {staff.dylan + staff.alesa} DO 'rake leaves'\nREQUEST AT_MOST 1 {staff.dylan + staff.alesa} DO 'rake leaves'",
-  "ANY 1 r IN {staff.dylan + staff.alesa}\nREQUEST r DO 'rake leaves' DURING ANY blocks\nREQUEST ALL {(staff.dylan + staff.alesa) - r} NOT DO 'rake leaves'",
+  "ANY 1 r IN {staff.dylan + staff.alesa}\nREQUEST r DO 'rake leaves' DURING ANY blocks\nREQUEST ALL {{staff.dylan + staff.alesa} - r} NOT DO 'rake leaves'",
 ]
 wrong = ["REQUEST ANY 1 {staff.dylan + staff.alesa} DO 'rake leaves' DURING ANY blocks"]
 
@@ -177,7 +177,7 @@ title = "Three short breaks"
 prompt = "Each non-director, non-counselor staff member takes three 30-minute 'break's today, in three different blocks."
 answer = "REQUEST EACH {staff - staff.directors - staff.counselors} DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks"
 priority = "MUST_HAPPEN"
-alternatives = ["REQUEST EACH {staff - (staff.directors + staff.counselors)} DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks"]
+alternatives = ["REQUEST EACH {staff - {staff.directors + staff.counselors}} DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks"]
 wrong = ["REQUEST EACH {staff - staff.directors - staff.counselors} DO 'break' DURING ANY 3 blocks"]
 
 [[problem]]

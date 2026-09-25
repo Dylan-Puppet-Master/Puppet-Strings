@@ -176,20 +176,24 @@ chooser     : (ALL | ANY | amount)? CONSECUTIVE? set_
 any_n       : ANY INT
             | ANY_N_OF
 
+// A set built from others is in braces, and so is every set inside it: {{a .. b} & c}. A
+// range is the whole of its braces. Parentheses are for a group, which is a choice rather
+// than a set; around a set they are parsed only to say it takes braces.
 ?set_       : REF | NAME | DATE | call | "{" setexpr "}"
-?setexpr    : range (SETOP range)*     -> setop
-?range      : primary ".." primary     -> date_range
-            | primary
-?primary    : date_atom OFFSET         -> date_offset
-            | date_atom
-            | "(" setexpr ")"
+?setexpr    : operand (SETOP operand)*   -> setop
+            | endpoint ".." endpoint     -> date_range
+?operand    : endpoint
+            | "{" setexpr "}"
+            | "(" setexpr ")"            -> parenthesized
             | "(" (ALL | amount | any_n) set_ ")"   -> group
             | (ALL | amount | any_n) set_           -> group
+?endpoint   : date_atom OFFSET           -> date_offset
+            | date_atom
 ?date_atom  : DATE | REF | NAME | call
 
 // Two more ways in, for the cells of the Mappings tab rather than for a request: what a
 // key or a value may be, and what stands in for a key with no row.
-mapping_domain  : "{" setexpr "}" | setexpr
+mapping_domain  : setexpr
 mapping_default : chooser
 
 // The keywords. A leading `_` keeps the token out of the tree, the way an anonymous string
@@ -333,9 +337,12 @@ scaffold becomes `scaffolded`, needing a shadow or no checkoff becomes `shadow`.
 
 A set is a name, a variable, a date, a mapping call such as `mappings.buddy(c)` (§9.2),
 or an expression in braces. Inside braces `+`, `-` and
-`&` combine sets left to right and parentheses group; mixing two different operators
-without parentheses is an error, so there is no precedence to remember. `a .. b` is an
-inclusive date range, and a single date may be offset by whole days. An offset or range
+`&` combine sets left to right, and a set inside the expression is in braces of its own:
+`{a - {b & c}}`. Mixing two different operators without them is an error, so there is no
+precedence to remember. `a .. b` is an inclusive date range, and is the whole of its
+braces: combined with another set it is `{{a .. b} & c}`. A single date may be offset by
+whole days, `d + 6d`, with no grouping needed. Parentheses around a set are an error; they
+are for groups and conditions. An offset or range
 endpoint that is not a single date is an error.
 
 A **group** is a set with a quantifier in front of it, inside braces:
@@ -454,7 +461,7 @@ how the rest of a set is forbidden, what `EXACTLY` would have said:
 ```
 ANY 1 r IN {staff.dylan + staff.alesa}
 REQUEST r DO 'rake leaves'
-REQUEST ALL {(staff.dylan + staff.alesa) - r} NOT DO 'rake leaves'
+REQUEST ALL {{staff.dylan + staff.alesa} - r} NOT DO 'rake leaves'
 ```
 
 It may not be crossed with `&`.
@@ -863,7 +870,9 @@ parser, the validator and the solver report:
 | `expected a … name` | A name or variable from the wrong namespace. |
 | `unknown variable` | A bare identifier no `IN` binds. |
 | `variable bound twice` | Two bindings of one identifier. |
-| `mixed set operators need parentheses` | `{a + b & c}` and the like. |
+| `mixed set operators need braces around one side` | `{a + b & c}` and the like. |
+| `a set inside a set goes in braces` | `{a - (b & c)}`; the message writes it with braces. |
+| `a range is a set of its own, so it goes in braces` | `{a & b .. c}`. |
 | `mixed AND and OR need parentheses` | `IF a AND b OR c`. |
 | `AS_ROLE needs an activity` | `AS_ROLE` with a quoted task, `FREE` or `BUSY`. |
 | `FOR needs a quoted task` | `FOR` in a pattern with any other target. |
