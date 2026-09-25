@@ -14,7 +14,7 @@ from puppet_strings.skedge.validate import validate_request
 from puppet_strings.solver.compile import SCALE, Compiled, Compiler
 from puppet_strings.solver.result import Change, RequestOutcome, Result
 from puppet_strings.solver.structural import add_structural_constraints
-from puppet_strings.solver.tiers import Cancel, Cancelled, Deadline, solve_tiers
+from puppet_strings.solver.tiers import Cancel, Cancelled, solve_tiers
 from puppet_strings.solver.variables import Slot, Variables
 
 # Cancel and Cancelled live in tiers
@@ -72,8 +72,8 @@ def solve(
     `known` are copies already resolved, used for each request that is still as it was
     when they were made, against names that are still the same.
 
-    `time_limit_seconds` is the budget for all of this, building the model included, so a
-    solve takes about as long as the setting says however many tiers the requests use.
+    `tier_seconds_limit` is the budget each pass gets, so how long a solve takes depends on
+    how many tiers the requests use as well as on the setting.
     """
     config = config or Config()
     cancel = cancel or Cancel()
@@ -81,7 +81,6 @@ def solve(
     # has already done this; doing it again costs a substring search per request and means
     # a solve is right about who is here however its dataset was put together.
     dataset = apply_exclusions(dataset)
-    deadline = Deadline(config.time_limit_seconds)
     reuse = known.copies if known is not None and _same_names(known.dataset, dataset) else {}
     copies = []
     for request in dataset.requests:
@@ -110,7 +109,7 @@ def solve(
     placement = [
         iv.start - iv.block.start_minute for iv in variables.intervals.values() if iv.partial
     ]
-    outcome = solve_tiers(model, compiler.terms, placement, config, cancel, deadline)
+    outcome = solve_tiers(model, compiler.terms, placement, config, cancel)
     if not outcome.feasible:
         conflicts = tuple(
             compiler.compiled[i].id

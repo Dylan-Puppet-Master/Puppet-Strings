@@ -158,7 +158,7 @@ token          = "~/.config/puppet_strings/token.json"
 releases_url = "https://api.github.com/repos/Dylan-Puppet-Master/Puppet-Strings/releases/latest"
 
 [solver]
-time_limit_seconds = 30   # the whole solve, not each tier
+tier_seconds_limit = 15   # each pass, not the whole solve
 tidy_seconds = 2          # the cosmetic pass, which only neatens a working schedule
 workers = 8
 

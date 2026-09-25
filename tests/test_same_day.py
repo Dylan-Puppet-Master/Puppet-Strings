@@ -13,7 +13,7 @@ from puppet_strings.sheets.source import LoadError
 from puppet_strings.solver.solve import solve
 from tests.build import BLOCKS, OK, TARGET, clinic, dataset, published, request, resting, staff
 
-CONFIG = Config(time_limit_seconds=10, workers=4)
+CONFIG = Config(tier_seconds_limit=10, workers=4)
 ARCHERY = clinic("Archery 1 & 2", ("Archery 1 & 2", 4), category="weapons")
 RIFLERY = clinic("Riflery", ("Riflery", 4), category="weapons")
 ROPES = clinic("Gravity Zip Line", ("Gravity Zip Line 1st", 5), category="ropes")

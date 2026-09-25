@@ -38,7 +38,7 @@ OPEN_WINDOWS = []  # a window collected mid-solve would be destroyed off the mai
 
 def make_window(path, loaded=True):
     """A window on a copy of the fixtures, kept alive for the run."""
-    window = MainWindow(RequestStore(CsvSource(path), Config(time_limit_seconds=10)))
+    window = MainWindow(RequestStore(CsvSource(path), Config(tier_seconds_limit=10)))
     OPEN_WINDOWS.append(window)
     window.wait_for_calendar()
     window.date_edit.setDate(QDate(2026, 9, 16))

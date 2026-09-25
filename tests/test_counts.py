@@ -9,7 +9,7 @@ from puppet_strings.model import Priority
 from puppet_strings.solver.solve import solve
 from tests.build import OK, TARGET, clinic, dataset, published, request, staff
 
-CONFIG = Config(time_limit_seconds=10, workers=4)
+CONFIG = Config(tier_seconds_limit=10, workers=4)
 MUST = Priority.MUST_HAPPEN
 ARCHERY = clinic("Archery 1 & 2", ("Archery 1 & 2", 1), category="weapons")
 CANDLE = clinic("Candle Making", ("Candle making", 1))

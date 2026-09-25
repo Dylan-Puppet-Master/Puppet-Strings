@@ -54,7 +54,7 @@ def window_on(folder):
     if folder.exists():
         shutil.rmtree(folder)
     shutil.copytree("tests/fixtures", folder)
-    window = MainWindow(RequestStore(CsvSource(folder), Config(time_limit_seconds=10)))
+    window = MainWindow(RequestStore(CsvSource(folder), Config(tier_seconds_limit=10)))
     window.resize(1569, 860)
     window.show()
     window.date_edit.setDate(QDate(2026, 9, 16))

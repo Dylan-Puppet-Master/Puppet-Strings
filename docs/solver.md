@@ -93,8 +93,7 @@ of time keeps at least that schedule and says so rather than failing the solve:
 | Note | Means |
 |---|---|
 | tier X: could not prove this schedule optimal | The schedule stands; the solver simply ran out of time proving that no better one exists. The note says how much better one could have been. |
-| tier X: ran out of the budget without a schedule of its own | That tier found nothing new; the schedule from the tier before stands. |
-| tier X: the budget was spent before this tier ran | An earlier tier used the time up. The schedule stands, but this tier never got to improve it. |
+| tier X: ran out of its time without a schedule of its own | That tier found nothing new; the schedule from the tier before stands. |
 | placement pass ran out of time | A task shorter than its block may sit later in it than it needs to. |
 
 The first of those is the common one, and it is worth reading rather than worrying about.
@@ -104,24 +103,23 @@ score it reached, the best score it could not yet rule out, and the difference b
 them, in requests:
 
 ```
-tier MEDIUM: could not prove this schedule optimal in 30s; it is kept. It scores 42.0 and
-the best possible is somewhere up to 48.5, so at most 6.5 more requests' worth was on the
-table. Raise time_limit_seconds to let it finish the proof
+tier MEDIUM: could not prove this schedule optimal within its 15s; it is kept. It scores
+42.0 and the best possible is somewhere up to 48.5, so at most 6.5 more requests' worth was
+on the table. Raise tier_seconds_limit to let it finish the proof
 ```
 
 A request of weight 1 is worth 1.0, so "6.5 more requests' worth" is the size of what
 might have been missed. Often the answer is nothing at all: the best schedule is usually
 found in the first seconds and the rest of the time goes on the proof, so the same note
 with more time frequently reports the same score, now proven. The way to find out is to
-raise `time_limit_seconds` once and compare the scores.
+raise `tier_seconds_limit` once and compare the scores.
 
-`time_limit_seconds` is the budget for the **whole solve**, not for each pass: one clock
-starts when the solve does and every pass — building the model, the feasibility check, and
-each tier — takes what is left of it. So a solve takes about as long as the setting says,
-whatever the requests ask for, and raising it gives the time to whichever pass needs it.
+`tier_seconds_limit` is the budget for **each pass**, not for the solve as a whole: the
+feasibility check and every tier after it each start with the full amount, so a slow tier
+leaves the ones after it no worse off. A solve can therefore take as long as the setting
+times the number of tiers the day's requests use, plus `tidy_seconds`.
 
-`tidy_seconds` is held back from that budget for the placement pass, so a slow tier cannot
-leave the day's partial tasks sitting wherever they happened to land. Raise
-`time_limit_seconds` if the tier notes appear often, and `tidy_seconds` for the last one. If even the first pass
-finds nothing in that time, the solve stops and says so, since there is no schedule to
-fall back on.
+`tidy_seconds` is the placement pass's own, shorter budget, which is enough for it because
+it starts from a schedule that already works. Raise `tier_seconds_limit` if the tier notes
+appear often, and `tidy_seconds` for the last one. If even the first pass finds nothing in
+its time, the solve stops and says so, since there is no schedule to fall back on.

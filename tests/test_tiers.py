@@ -8,7 +8,7 @@ from puppet_strings.model import Priority
 from puppet_strings.solver.solve import Cancel, Cancelled, solve
 from tests.build import OK, clinic, dataset, request, staff
 
-CONFIG = Config(time_limit_seconds=10, workers=4)
+CONFIG = Config(tier_seconds_limit=10, workers=4)
 ARCHERY = clinic("Archery 1 & 2", ("Archery 1 & 2", 4), category="weapons")
 
 
@@ -61,7 +61,7 @@ def test_an_untimed_solve_reports_no_notes():
 
 def test_no_schedule_at_all_names_the_setting_to_raise(monkeypatch):
     monkeypatch.setattr(cp_model.CpSolver, "Solve", lambda self, model, *a, **k: cp_model.UNKNOWN)
-    with pytest.raises(RuntimeError, match="raise time_limit_seconds"):
+    with pytest.raises(RuntimeError, match="raise tier_seconds_limit"):
         solve(build(), CONFIG)
 
 
@@ -107,17 +107,17 @@ def test_an_unstopped_solve_is_unaffected():
 def unproven(score, bound, seconds=30):
     from puppet_strings.solver.tiers import _unproven
 
-    return _unproven(Priority.MEDIUM, score, bound, Config(time_limit_seconds=seconds))
+    return _unproven(Priority.MEDIUM, score, bound, Config(tier_seconds_limit=seconds))
 
 
 def test_an_unproven_tier_says_how_much_was_left_on_the_table():
     note = unproven(42000, 48500.0)
     assert note.startswith(
-        "tier MEDIUM: could not prove this schedule optimal within the solve's 30s; it is kept"
+        "tier MEDIUM: could not prove this schedule optimal within its 30s; it is kept"
     )
     assert "It scores 42.0" in note and "somewhere up to 48.5" in note
     assert "at most 6.5 more requests' worth" in note
-    assert "Raise time_limit_seconds" in note
+    assert "Raise tier_seconds_limit" in note
 
 
 def test_a_tier_that_is_all_but_proven_says_so_instead_of_a_number():
@@ -145,8 +145,8 @@ def test_a_timed_out_tier_carries_that_note(monkeypatch):
     assert any("could not prove this schedule optimal" in note for note in result.notes)
 
 
-def test_the_budget_is_for_the_whole_solve_not_each_pass(monkeypatch):
-    """Every pass asks the clock what is left, so the passes share one budget."""
+def test_the_budget_is_for_each_pass_not_the_whole_solve(monkeypatch):
+    """Every pass starts with the whole setting, so a slow one costs the others nothing."""
     asked = []
     real = cp_model.CpSolver.Solve
 
@@ -155,45 +155,11 @@ def test_the_budget_is_for_the_whole_solve_not_each_pass(monkeypatch):
         return real(self, model, *args, **kwargs)
 
     monkeypatch.setattr(cp_model.CpSolver, "Solve", note_the_limit)
-    result = solve(build(), Config(time_limit_seconds=10, tidy_seconds=5, workers=4))
+    result = solve(build(), Config(tier_seconds_limit=10, tidy_seconds=5, workers=4))
     assert result.feasible
     assert len(asked) > 2
-    # the first pass gets the budget less what is held back for the placement pass
-    assert 4.5 < asked[0] <= 5
-    assert asked[1] <= asked[0]  # and each pass after it gets less than the one before
-    assert asked[-1] <= 5  # the placement pass gets tidy_seconds at most
-    assert all(limit <= 5 for limit in asked[:-1])
-
-
-def test_a_deadline_hands_out_what_is_left_and_no_more():
-    from puppet_strings.solver.tiers import Deadline
-
-    solver = cp_model.CpSolver()
-    deadline = Deadline(30)
-    given = deadline.give(solver)
-    assert 29 < given <= 30
-    assert solver.parameters.max_time_in_seconds == given  # what it returns is what it set
-    assert 27 < deadline.give(solver, holding_back=2) <= 28
-    spent = Deadline(30, started=deadline.started - 40)
-    assert spent.remaining == 0  # never negative, however long ago the budget ran out
-    assert spent.give(solver) == 0
-
-
-def test_a_tier_with_no_budget_left_keeps_the_schedule_and_says_so(monkeypatch):
-    """A tier reached after the clock has run out is skipped, not given a zero-second pass."""
-    from puppet_strings.solver import tiers
-
-    real = tiers.Deadline.remaining.fget
-    calls = []
-
-    def running_out(self):
-        calls.append(None)
-        return real(self) if len(calls) <= 1 else 0.0  # only the first pass gets any time
-
-    monkeypatch.setattr(tiers.Deadline, "remaining", property(running_out))
-    result = solve(build(), CONFIG)
-    assert result.feasible and result.assignments
-    assert any("budget was spent before this tier ran" in note for note in result.notes)
+    assert all(limit == 10 for limit in asked[:-1])  # the feasibility pass and every tier
+    assert asked[-1] == 5  # the placement pass gets tidy_seconds
 
 
 def test_every_pass_after_the_first_starts_from_the_schedule_before_it(monkeypatch):

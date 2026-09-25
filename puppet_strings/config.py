@@ -56,7 +56,7 @@ class Config:
     midday: time = time(12, 0)
     date_order: str = MONTH_FIRST  # how to read 6/7/2026 on a sheet that writes dates so
     remainder: str = DEFAULT_REMAINDER
-    time_limit_seconds: float = 30.0
+    tier_seconds_limit: float = 15.0  # per pass, not for the solve as a whole
     tidy_seconds: float = 5.0
     workers: int = 8
     random_seed: int = 0
@@ -95,7 +95,9 @@ def load_config(path: Path | None = None) -> Config:
         midday=parse_time(day.get("midday", "12:00"), str(path)),
         date_order=_date_order(day.get("date_order", MONTH_FIRST), str(path)),
         remainder=data.get("views", {}).get("remainder", DEFAULT_REMAINDER),
-        time_limit_seconds=solver.get("time_limit_seconds", Config.time_limit_seconds),
+        # The old `time_limit_seconds` is not read as an alias: it was the budget for the
+        # whole solve, so its number means something else here and would multiply by tier.
+        tier_seconds_limit=solver.get("tier_seconds_limit", Config.tier_seconds_limit),
         tidy_seconds=solver.get("tidy_seconds", Config.tidy_seconds),
         workers=solver.get("workers", Config.workers),
         random_seed=solver.get("random_seed", Config.random_seed),

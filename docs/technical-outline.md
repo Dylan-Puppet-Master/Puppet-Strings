@@ -77,7 +77,7 @@ requests = "~/.config/puppet_strings/requests.sqlite"
 cache    = "~/.config/puppet_strings/sheets-cache.sqlite"   # "" for no cache
 
 [solver]
-time_limit_seconds = 30   # the whole solve, not each tier
+tier_seconds_limit = 15   # each pass, not the whole solve
 workers            = 8
 random_seed        = 0
 ```
@@ -421,7 +421,7 @@ Every request `q` gets `sat[q]`. `MUST_HAPPEN`: `sat[q]` is added with `model.Ad
 
 ### 4.4 Tiers
 
-Tier expressions are integer linear sums. Solve order: `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. After each tier: read the objective value `v`, add `tier_expr >= v`, clear the objective, set the next. `MUST_HAPPEN` requests never appear in an objective. One clock covers the whole solve (see §11): each pass takes what is left of `time_limit_seconds`, less the `tidy_seconds` held back for the placement pass. If a tier ends at the limit without proving optimality, its best found value becomes the bound and the report says so, with the gap it could not close. `num_workers` and `random_seed` are fixed for reproducible output.
+Tier expressions are integer linear sums. Solve order: `CLINIC`, `HIGH`, `MEDIUM`, `LOW`. After each tier: read the objective value `v`, add `tier_expr >= v`, clear the objective, set the next. `MUST_HAPPEN` requests never appear in an objective. Each pass gets its own clock (see §11): the feasibility check and every tier are given `tier_seconds_limit`, and the placement pass `tidy_seconds`. If a tier ends at the limit without proving optimality, its best found value becomes the bound and the report says so, with the gap it could not close. `num_workers` and `random_seed` are fixed for reproducible output.
 
 On `INFEASIBLE`, `solver.SufficientAssumptionsForInfeasibility()` returns the assumption indices; the report lists their request ids. An empty set means the structural constraints alone conflict (which the report says).
 
@@ -574,7 +574,7 @@ Assumptions added by this outline:
 25. **Authentication** was a service account only. Superseded 2026-09-19: OAuth as the Puppet Master, because a service account cannot browse Drive and the Configure pane needs to.
 26. **The desktop app** is PySide6. Confirmed.
 27. **Views** are overwritten per publish; per-date tabs are the durable record.
-28. **Solver determinism**: fixed seed and worker count; tier time limits default to 30 seconds.
+28. **Solver determinism**: fixed seed and worker count; each pass's time limit defaults to 15 seconds.
 
 ---
 
@@ -677,7 +677,7 @@ Recorded so the outline matches the code.
   returns anything but OPTIMAL or FEASIBLE keeps the previous snapshot, bounds its tier at
   the score that snapshot achieves, and adds a note. The cosmetic pass also hints the
   assignment booleans from the snapshot so it starts from the known schedule. Only the
-  first pass can fail the solve, and it names `time_limit_seconds`. The cosmetic pass
+  first pass can fail the solve, and it names `tier_seconds_limit`. The cosmetic pass
   gets its own short budget, `tidy_seconds` (default 2), because the hint makes the
   better schedule appear at once and the rest of the time goes on proving optimality.
   There was once a second cosmetic pass, dropping assignments nobody asked for; that is
@@ -915,14 +915,19 @@ Recorded so the outline matches the code.
   sit, which is what makes a duration in days worth writing: `GAP first TO second AT_LEAST
   40h` is the forty hours it says. Dates after the target hold nothing and cannot be one end
   of a gap; they are checked on the day they land on, when the other end is published.
-- **One clock for the whole solve** (Puppet Master, 2026-09-18). `time_limit_seconds` used
-  to be handed to every pass, so a day with five tiers could take five times the setting.
-  A `Deadline` now starts in `solve()`, before the model is built, and each pass asks it
-  what is left; `tidy_seconds` is held back so the cosmetic placement pass still runs. A
-  tier reached with nothing left is skipped with a note rather than given a zero-second
-  pass. The note for a tier that ran out of time says what it scored, the best it could not
-  rule out, and the gap between them in requests, because the schedule is kept either way
-  and the only question worth answering is how much might have been missed.
+- **A clock per pass, not one for the whole solve** (Puppet Master, 2026-09-24).
+  `time_limit_seconds` was one budget for everything, shared out by a `Deadline` that
+  started before the model was built (2026-09-18), which capped a solve at the setting but
+  meant a slow early tier left the late ones a zero-second pass and a note saying so. The
+  late tiers are the ones a Puppet Master reads the notes about, so the cap was being paid
+  for in the wrong place. `tier_seconds_limit` (default 15) is now handed to each pass
+  whole: the feasibility check and every tier start with the same amount, the placement
+  pass gets `tidy_seconds` rather than a hold-back, and the `Deadline` is gone. A day using
+  all five tiers can therefore run about five times the setting. The note for a tier that
+  ran out of time says what it scored, the best it could not rule out, and the gap between
+  them in requests, because the schedule is kept either way and the only question worth
+  answering is how much might have been missed. The old key is not read as an alias, since
+  its number meant a total and would multiply by tier if it were.
 - **Requests are their own spreadsheet, a tab per session** (Puppet Master, 2026-09-19).
   One tab of the config spreadsheet held every request the season had ever made, and every
   load read all of it: the 2026 season reached 2,024 rows, of which a day in session 4

@@ -21,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "tests" / "fixtures"
-SOLVE_SECONDS = 90  # the solver's own budget is 30s
+SOLVE_SECONDS = 180  # the solver's own budget is 15s a pass, and a day can use six
 WINDOW_SECONDS = 15
 
 

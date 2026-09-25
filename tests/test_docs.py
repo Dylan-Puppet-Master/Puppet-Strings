@@ -47,6 +47,6 @@ def test_doc_example_solves(dataset, name):
     offerings = tuple(r for r in dataset.requests if "clinic_import" in r.tags)
     example = as_written(skedge)
     single = replace(dataset, requests=offerings + _prerequisites(dataset, skedge) + (example,))
-    result = solve(single, Config(time_limit_seconds=10, tidy_seconds=1, workers=4))
+    result = solve(single, Config(tier_seconds_limit=10, tidy_seconds=1, workers=4))
     assert result.feasible
     assert result.assignments

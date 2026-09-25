@@ -24,7 +24,7 @@ from tests.build import (
 )
 from tests.conftest import family_camp
 
-CONFIG = Config(time_limit_seconds=10, workers=4)
+CONFIG = Config(tier_seconds_limit=10, workers=4)
 
 ARCHERY = clinic("Archery 1 & 2", ("Archery 1 & 2", 4), category="weapons")
 CANDLE = clinic("Candle Making", ("Candle making", 1))

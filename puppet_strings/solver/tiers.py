@@ -5,13 +5,12 @@ out of time keeps that schedule and adds a note rather than failing the solve. T
 also handed that schedule as its hint: with every tier before it held at its best, finding
 any schedule at all from nothing can take a late tier longer than the time it has left.
 
-`time_limit_seconds` is the budget for the whole solve, not for each pass: one clock runs
-from the moment the solve starts, and every pass gets what is left of it. The cosmetic
-placement pass is the exception, in that `tidy_seconds` of the budget is held back for it,
-so a slow tier cannot leave the day's partial tasks sitting wherever they happened to land.
+`tier_seconds_limit` is the budget for each pass, not for the solve as a whole: every pass
+starts with the same amount, so a slow tier cannot leave the ones after it nothing to work
+with. The cosmetic placement pass is the exception, and gets the shorter `tidy_seconds`,
+which is enough for it because it starts from a schedule that already works.
 """
 
-import time
 from dataclasses import dataclass, field
 
 from ortools.sat.python import cp_model
@@ -59,25 +58,6 @@ class Cancel:
             raise Cancelled
 
 
-@dataclass
-class Deadline:
-    """The solve's one clock. `seconds` is the whole budget; it starts running at once."""
-
-    seconds: float
-    started: float = field(default_factory=time.monotonic)
-
-    @property
-    def remaining(self) -> float:
-        """How much of the budget is left, never below zero."""
-        return max(0.0, self.seconds - (time.monotonic() - self.started))
-
-    def give(self, solver: cp_model.CpSolver, holding_back: float = 0.0) -> float:
-        """Hand the solver what is left, less anything held back. Returns what it got."""
-        seconds = max(0.0, self.remaining - holding_back)
-        solver.parameters.max_time_in_seconds = seconds
-        return seconds
-
-
 @dataclass(frozen=True)
 class TierOutcome:
     """The schedule the solver settled on, or the conflicting assumptions if infeasible."""
@@ -99,24 +79,17 @@ def solve_tiers(
     placement: list,
     config: Config,
     cancel: Cancel,
-    deadline: Deadline | None = None,
 ) -> TierOutcome:
     """Check feasibility (explaining conflicts), then maximize each tier in order.
 
     A cosmetic pass follows, minimizing the `placement` expressions (offsets from block
     starts) so that a task shorter than its block sits at the start of it unless a
-    constraint moves it. It starts from the schedule already found, so `tidy_seconds` of
-    the budget is enough for it: the improvement turns up at once, and only proving it
-    optimal takes long.
-
-    `deadline` is the solve's clock, which the caller starts before building the model, so
-    that building counts against the budget like everything else.
+    constraint moves it. It starts from the schedule already found, so `tidy_seconds` is
+    enough for it: the improvement turns up at once, and only proving it optimal takes long.
     """
-    deadline = deadline or Deadline(config.time_limit_seconds)
-    tidy = min(config.tidy_seconds, config.time_limit_seconds) if placement else 0.0
     solver = cp_model.CpSolver()
     solver.parameters.random_seed = config.random_seed
-    deadline.give(solver, holding_back=tidy)
+    solver.parameters.max_time_in_seconds = config.tier_seconds_limit
     solver.parameters.num_workers = 1
     cancel.watch(solver)
     status = solver.Solve(model)
@@ -125,9 +98,8 @@ def solve_tiers(
         return TierOutcome(False, conflicts=tuple(solver.SufficientAssumptionsForInfeasibility()))
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         raise RuntimeError(
-            f"no schedule found within the {config.time_limit_seconds:.0f}s budget, which "
-            "covers building the model as well as solving; raise time_limit_seconds in "
-            "config.toml"
+            f"no schedule found within the {config.tier_seconds_limit:.0f}s the first pass "
+            "is given; raise tier_seconds_limit in config.toml"
         )
     values = _snapshot(solver)
     solver.parameters.num_workers = config.workers
@@ -138,14 +110,7 @@ def solve_tiers(
         if not terms[tier]:
             continue
         expression = sum(coefficient * var for coefficient, var in terms[tier])
-        if deadline.give(solver, holding_back=tidy) <= 0:
-            scores[tier] = _total(terms[tier], values)
-            notes.append(
-                f"tier {tier.value}: the {config.time_limit_seconds:.0f}s budget was spent "
-                "before this tier ran; kept the schedule from the tier before"
-            )
-            model.Add(expression >= scores[tier])
-            continue
+        solver.parameters.max_time_in_seconds = config.tier_seconds_limit
         model.Maximize(expression)
         _hint(model, values)
         status = solver.Solve(model)
@@ -160,16 +125,14 @@ def solve_tiers(
         else:
             scores[tier] = _total(terms[tier], values)
             notes.append(
-                f"tier {tier.value}: ran out of the {config.time_limit_seconds:.0f}s budget "
+                f"tier {tier.value}: ran out of its {config.tier_seconds_limit:.0f}s "
                 "without a schedule of its own; kept the one from the tier before, which "
                 "still holds every request met so far"
             )
         model.Add(expression >= scores[tier])
 
     if placement:
-        # what was held back for it, or whatever is left if a tier overran its allowance
-        seconds = min(tidy, deadline.remaining)
-        values, placed = _minimize(model, solver, sum(placement), values, seconds)
+        values, placed = _minimize(model, solver, sum(placement), values, config.tidy_seconds)
         cancel.check()
         if not placed:
             notes.append("placement pass ran out of time; partial tasks may sit later in a block")
@@ -185,9 +148,9 @@ def _unproven(tier: Priority, score: int, bound: float, config: Config) -> str:
     which is the size the Puppet Master thinks in. A gap under a tenth of a request is
     rounding and says so.
     """
-    limit = f"{config.time_limit_seconds:.0f}s"
+    limit = f"{config.tier_seconds_limit:.0f}s"
     head = (
-        f"tier {tier.value}: could not prove this schedule optimal within the solve's "
+        f"tier {tier.value}: could not prove this schedule optimal within its "
         f"{limit}; it is kept"
     )
     if bound in (float("inf"), float("-inf")) or bound < score:
@@ -198,7 +161,7 @@ def _unproven(tier: Priority, score: int, bound: float, config: Config) -> str:
     return (
         f"{head}. It scores {score / SCALE:.1f} and the best possible is somewhere up to "
         f"{bound / SCALE:.1f}, so at most {gap:.1f} more requests' worth was on the table. "
-        f"Raise time_limit_seconds to let it finish the proof"
+        f"Raise tier_seconds_limit to let it finish the proof"
     )
 
 

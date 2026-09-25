@@ -42,7 +42,7 @@ def test_a_generated_request_still_fills_every_position(dataset):
 
     water = {r.id: r for r in generated_requests(dataset)}["offering:2026-09-16:canoe_1_2:clinic_1"]
     only = replace(dataset, requests=(replace(water, priority=Priority.MUST_HAPPEN),))
-    result = solve(only, Config(time_limit_seconds=10, workers=4))
+    result = solve(only, Config(tier_seconds_limit=10, workers=4))
     assert result.feasible
     filled = sorted(a.role for a in result.assignments if a.activity == "canoe_1_2")
     assert filled == ["first", "lifeguard"]
