@@ -1,6 +1,7 @@
 """The request editor: one field per request column, a Skedge editor, live validation."""
 
 import re
+from dataclasses import replace
 from datetime import date, datetime
 
 from PySide6.QtCore import QModelIndex, QRegularExpression, QStringListModel, Qt, QTimer, Signal
@@ -279,6 +280,14 @@ class RequestEditor(QWidget):
         self.priority_box.currentTextChanged.connect(self._priority_changed)
         self.weight_box.valueChanged.connect(self.timer.start)
         self.requester_edit.textChanged.connect(self.timer.start)
+        # A request just put in the fields is checked straight after they are shown rather
+        # than before, so a click on a row or a card opens it at once; see `_check_soon`.
+        self.soon = QTimer(self)
+        self.soon.setSingleShot(True)
+        self.soon.setInterval(30)
+        self.soon.timeout.connect(self.validate)
+        self.checked: dict[Request, object] = {}  # see `_validated`
+        self.checked_for: Dataset | None = None
         self.save_button.clicked.connect(self._save)
         self.delete_button.clicked.connect(self._delete)
         self.new_button.clicked.connect(self.new_requested.emit)
@@ -355,7 +364,7 @@ class RequestEditor(QWidget):
         self.created_label.setText(request.created.isoformat() if request.created else "")
         self.skedge_edit.setPlainText(request.skedge)
         self.delete_button.setEnabled(True)
-        self.validate()
+        self._check_soon()
 
     def show_group(self, group: str) -> None:
         """Say which shelf the request is on, or that it is on none."""
@@ -380,7 +389,18 @@ class RequestEditor(QWidget):
         self.created_label.setText(date.today().isoformat())
         self.skedge_edit.setPlainText("")
         self.delete_button.setEnabled(False)
-        self.validate()
+        self._check_soon()
+
+    def _check_soon(self) -> None:
+        """Check the request in the fields once they have been drawn.
+
+        Resolving a request can take a good fraction of a second, and done first it held
+        the fields back until it was over. Filling them also sets off the check that waits
+        for typing to stop, which would have done it all again: one check is enough.
+        """
+        self.timer.stop()
+        self._report("", ok=None)
+        self.soon.start()
 
     def current(self) -> Request:
         """The request as the fields describe it."""
@@ -403,9 +423,10 @@ class RequestEditor(QWidget):
         """Validate the fields; show the result under the editor."""
         if self.dataset is None:
             return self._report("No data loaded", ok=False)
+        self.soon.stop()
         request = self.current()
         try:
-            copies = validate_request(request, self.dataset)
+            copies = self._validated(request)
         except NoSession as e:  # right on a session's dates, so it can still be saved
             self._report(str(e), ok=None)
             self.save_button.setEnabled(True)
@@ -414,6 +435,25 @@ class RequestEditor(QWidget):
             return self._report(str(e), ok=False)
         keys = {c.key for c in copies if c.key}
         return self._report(f"Valid ({len(keys)} EACH copies)" if keys else "Valid", ok=True)
+
+    def _validated(self, request: Request) -> tuple:
+        """`validate_request`, remembered for the day loaded.
+
+        A request opened again, or typed back to how it was, is not resolved again. Its id
+        plays no part in it.
+        """
+        if self.checked_for is not self.dataset or len(self.checked) > 1000:
+            self.checked, self.checked_for = {}, self.dataset
+        key = replace(request, id="")
+        if key not in self.checked:
+            try:
+                self.checked[key] = validate_request(request, self.dataset)
+            except SkedgeError as e:
+                self.checked[key] = e
+        found = self.checked[key]
+        if isinstance(found, SkedgeError):
+            raise found.with_traceback(None)
+        return found
 
     def insert_name(self, text: str) -> None:
         """Insert a name at the cursor (from the names panel)."""

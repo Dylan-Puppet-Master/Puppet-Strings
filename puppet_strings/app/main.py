@@ -394,8 +394,15 @@ class MainWindow(QMainWindow):
         layout.insertWidget(0, self.filter_bar)
         self.views.setCurrentIndex(1 if canvas else 0)
         (self.canvas_action if canvas else self.table_action).setChecked(True)
+        # The table is sorted only while it is shown. A sort asks for every cell over and
+        # over, and each save sorted all of it again, table hidden or not: with hundreds of
+        # requests, that was most of the wait after clicking from one card to the next.
         if canvas:
+            self.proxy.sort(-1)
             self.canvas.setFocus()
+        else:
+            header = self.table.horizontalHeader()
+            self.table.sortByColumn(header.sortIndicatorSection(), header.sortIndicatorOrder())
         if remember:
             save_settings(replace(load_settings(), view=view))
 

@@ -18,22 +18,32 @@ def request_ids(data: QMimeData) -> list[str]:
 
 
 class RequestsModel(QAbstractTableModel):
-    """One row per request in the file, whatever date it is scoped to."""
+    """One row per request in the file, whatever date it is scoped to.
+
+    The rows are the store's requests as they were at the last `refresh`, which everything
+    that changes them calls. Sorting asks for every cell of every row, and the store makes
+    its list afresh each time it is asked: with hundreds of requests, asking it per cell
+    made every save wait a third of a second on a table that was often not even shown.
+    """
 
     def __init__(self, store: RequestStore) -> None:
         super().__init__()
         self.store = store
+        self.rows: list[Request] = list(store.every)
+        self.cells: dict[int, tuple[str, ...]] = {}  # each row's text, once asked for
 
     def refresh(self) -> None:
         """Tell views the store changed."""
         self.beginResetModel()
+        self.rows = list(self.store.every)
+        self.cells = {}
         self.endResetModel()
 
     def rowCount(self, parent=None) -> int:  # noqa: N802
         """Number of requests."""
         if parent is not None and parent.isValid():
             return 0
-        return len(self.store.every)
+        return len(self.rows)
 
     def columnCount(self, parent=None) -> int:  # noqa: N802
         """Number of columns."""
@@ -47,23 +57,26 @@ class RequestsModel(QAbstractTableModel):
 
     def data(self, index, role=Qt.DisplayRole):
         """Cell text, or the Request itself for UserRole."""
-        request = self.store.every[index.row()]
+        row = index.row()
         if role == Qt.UserRole:
-            return request
+            return self.rows[row]
         if role != Qt.DisplayRole:
             return None
-        return {
-            "id": request.id,
-            "priority": request.priority.value,
-            "group": request.group,
-            "tags": ", ".join(request.tags),
-            "requester": request.requester,
-            "description": request.description,
-        }[COLUMNS[index.column()]]
+        if row not in self.cells:
+            request = self.rows[row]
+            self.cells[row] = (  # in the order of COLUMNS
+                request.id,
+                request.priority.value,
+                request.group,
+                ", ".join(request.tags),
+                request.requester,
+                request.description,
+            )
+        return self.cells[row][index.column()]
 
     def request(self, request_id: str) -> Request | None:
         """The request with this id."""
-        return next((r for r in self.store.every if r.id == request_id), None)
+        return next((r for r in self.rows if r.id == request_id), None)
 
     def flags(self, index):
         """Rows can be picked up, which is how a request is moved to another group."""
@@ -75,8 +88,7 @@ class RequestsModel(QAbstractTableModel):
 
     def mimeData(self, indexes):  # noqa: N802
         """The ids of the rows being dragged, one per line."""
-        every = self.store.every
-        ids = dict.fromkeys(every[i.row()].id for i in indexes if i.isValid())
+        ids = dict.fromkeys(self.rows[i.row()].id for i in indexes if i.isValid())
         data = QMimeData()
         data.setData(REQUEST_IDS, "\n".join(ids).encode())
         return data
@@ -99,9 +111,12 @@ class RequestFilter(QSortFilterProxyModel):
     def set_filters(self, **filters) -> None:
         """Update any of the filter attributes and refilter."""
         keep_empty = ("text", "group")
+        self.beginFilterChange()
         for name, value in filters.items():
             setattr(self, name, value if name in keep_empty else value or None)
-        self.invalidate()
+        # Which rows pass, not their order: the rows kept stay sorted, and a sort is what
+        # costs, as it asks for every cell over and over.
+        self.endFilterChange(QSortFilterProxyModel.Direction.Rows)
 
     def _in_group(self, request: Request) -> bool:
         """Whether a request belongs on the shelf the groups pane is showing."""
@@ -113,7 +128,7 @@ class RequestFilter(QSortFilterProxyModel):
 
     def filterAcceptsRow(self, row, parent) -> bool:  # noqa: N802
         """Whether the request at this source row is on the group shown and passes the rest."""
-        request = self.store.every[row]
+        request = self.sourceModel().rows[row]
         return self._in_group(request) and self.passes(request)
 
     def passes(self, request: Request) -> bool:

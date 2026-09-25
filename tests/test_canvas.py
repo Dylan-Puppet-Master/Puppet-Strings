@@ -524,3 +524,15 @@ def test_table_and_canvas_sit_in_the_middle_of_the_toolbar(window):
         middle = (first.geometry().left() + last.geometry().right()) / 2
         assert abs(middle - bar.width() / 2) <= 2
     assert bar.widgetForAction(bar.actions()[-1]).isVisible()  # Configure, still on the bar
+
+
+def test_the_table_is_sorted_again_when_it_comes_back(window):
+    header = window.table.horizontalHeader()
+    window.show_view(TABLE)
+    window.table.sortByColumn(1, Qt.DescendingOrder)  # by priority
+    window.show_view(CANVAS)
+    assert window.proxy.sortColumn() == -1  # not sorted while nobody can see it
+    window.show_view(TABLE)
+    assert window.proxy.sortColumn() == 1
+    assert window.proxy.sortOrder() == Qt.DescendingOrder
+    assert header.sortIndicatorSection() == 1
