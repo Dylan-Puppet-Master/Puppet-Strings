@@ -76,7 +76,7 @@ everyone at camp, `blocks` every block, `activities.clinics` every clinic and
 called `staff`, `activities`, `blocks`, `dates`, `roles` or `mappings`.
 
 A name is either one thing or a set, and sets are always plural or collective
-(`blocks`, `dates.session_1.mondays`). There is no `blocks.any`: "any block" is
+(`blocks`, `dates.mondays`). There is no `blocks.any`: "any block" is
 `ANY blocks`, and "two blocks" is `ANY 2 blocks`, so how a set is taken is
 always visible.
 
@@ -112,9 +112,9 @@ name is a span, a week or a date; nothing in the tree is only there to hold the 
 
 **Only the names with `target` in them follow the date on the toolbar.** `dates.target` is
 that date, `dates.session_target` is the session it falls in, and
-`dates.session_target.week_target` is the week of that session it falls in. They carry the
-same names as any other session and week, so `dates.session_target.mondays` is every Monday
-of the session being scheduled. Every other date name says outright which span it means, and
+`dates.session_target.week_target` is the week of that session it falls in, so
+`{dates.session_target & dates.mondays}` is every Monday of the session being scheduled.
+Every other date name says outright which span it means, and
 reads the same whenever you open it.
 
 A date outside the main season, such as a day of Family Camp, is in no session, so on that
@@ -122,31 +122,31 @@ date `dates.session_target` names nothing. A request that uses it is shown as in
 is left out of that day's solve; it can still be saved, and it applies again on the next
 date that is in a session.
 
-Every span carries these:
+The days of the week are sets of their own, over the whole season:
 
 | Name | Holds |
 |---|---|
-| `dates.session_4` | Every date in it. |
-| `dates.session_4.first`, `.last` | Its first and last date. |
-| `dates.session_4.mondays` … `.sundays` | Every Monday of it. |
+| `dates.mondays` … `dates.sundays` | Every Monday of the season, and so on. |
+| `dates.weekdays` | Every Monday to Friday of the season. |
+| `dates.weekends` | Every Saturday and Sunday of the season. |
 
-A week is short enough to reach each weekday once, so inside a week the weekday is a
-single date:
+A span has no day names of its own, and no first or last day. Its days are what it shares
+with one of these, written with `&`:
 
-| Name | Holds |
+| Written | Holds |
 |---|---|
-| `dates.session_4.week_2.monday` | One date: that week's Monday. |
-| `dates.session_4.week_2.first`, `.last` | That week's first and last date. |
+| `{dates.session_2 & dates.thursdays}` | Every Thursday of session 2. |
+| `{dates.session_2.week_1 & dates.sundays}` | The Sunday of its first week, which is the day it starts. |
+| `{dates.session_1.week_2 & dates.thursdays}` | The second Thursday of session 1. |
+| `{dates.session_3 & dates.weekdays}` | Every weekday of session 3. |
 
-And `dates.target` is the date being scheduled, which is the date every request is about
+That is a set even when it holds one date, so it takes a quantifier after `ON`. And
+`dates.target` is the date being scheduled, which is the date every request is about
 unless it says `ON` something else.
 
 ```skedge
-REQUEST ALL staff.director DO 'session opening' DURING ANY 1 blocks ON dates.session_2.first
+REQUEST ALL staff.director DO 'session opening' DURING ANY 1 blocks ON EACH {dates.session_2.week_1 & dates.sundays}
 ```
-
-**There is no `first_monday` or `last_friday`.** A week's weekday says the same thing and
-says it once: the second Thursday of a session is `dates.session_1.week_2.thursday`.
 
 A name a span never reaches does not exist, and using it is a validation error rather than
 a request that silently never fires. A near miss is told the nearest real name.
@@ -163,7 +163,7 @@ anything else is in braces of its own:
 {staff - staff.director - staff.counselor}
 {staff - {staff.counselor & staff.lifeguard}}
 {dates.target - 6d .. dates.target}
-{{2026-07-21 .. dates.session_6.last} & dates.season.tuesdays}
+{{2026-07-21 .. 2026-08-08} & dates.tuesdays}
 ```
 
 Parentheses are not for sets. They go around a group (below) and a condition
@@ -203,7 +203,7 @@ A group is added with `+`. `(ALL s)` may be taken away or crossed like `s`, but
 ## Saying what happens: `<who> DO <what>`
 
 ```skedge
-REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 1 blocks ON EACH dates.session_1.mondays
+REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 1 blocks ON EACH {dates.session_1 & dates.mondays}
 ```
 
 Read it in three steps, always in this order:
@@ -459,7 +459,7 @@ activities.clinics DURING AT_MOST 1 {…}`.
 give it a soft priority:
 
 ```skedge
-REQUEST EACH staff.office NOT DO 'break' DURING EACH {blocks.breakfast + blocks.lunch} ON EACH dates.season.fridays
+REQUEST EACH staff.office NOT DO 'break' DURING EACH {blocks.breakfast + blocks.lunch} ON EACH dates.fridays
 ```
 
 That is one small request per person, per meal, per Friday. Each break at a meal fails
@@ -895,7 +895,7 @@ Priority `MUST_HAPPEN`.
 ### Lucy and Tom take out the garbage together every Monday
 
 ```skedge
-REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 1 blocks ON EACH dates.session_1.mondays
+REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 1 blocks ON EACH {dates.session_1 & dates.mondays}
 ```
 
 Priority `HIGH`.
@@ -903,7 +903,7 @@ Priority `HIGH`.
 ### Lucy or Tom takes out the garbage every Monday
 
 ```skedge
-REQUEST ANY 1 {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY blocks ON EACH dates.season.mondays
+REQUEST ANY 1 {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY blocks ON EACH dates.mondays
 ```
 
 Priority `HIGH`.
@@ -1112,7 +1112,7 @@ Priority `MUST_HAPPEN`.
 ### A review with every director, on the second Thursday
 
 ```skedge
-REQUEST ALL staff.director DO 'mid-session review' DURING ANY 1 blocks ON dates.session_1.week_2.thursday
+REQUEST ALL staff.director DO 'mid-session review' DURING ANY 1 blocks ON EACH {dates.session_1.week_2 & dates.thursdays}
 ```
 
 Priority `MEDIUM`.

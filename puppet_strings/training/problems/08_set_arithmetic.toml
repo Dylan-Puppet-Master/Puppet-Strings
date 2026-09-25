@@ -11,7 +11,7 @@ teaches = """
 {staff - staff.counselors}
 {staff - {staff.directors + staff.counselors}}
 {blocks - blocks.meals}
-{{2026-07-21 .. dates.session_6.last} & dates.season.tuesdays}   Tuesdays in that run
+{{2026-07-21 .. 2026-08-08} & dates.tuesdays}   Tuesdays in that run
 """
 
 [[problem]]
@@ -135,11 +135,11 @@ wrong = ["REQUEST staff.hailey DO 'hay delivery' DURING blocks.setup ON EACH {20
 id = "sets-tuesdays-in-a-window"
 title = "Tuesdays, for a while"
 prompt = "On every Tuesday from July 21 to the end of this session, Hailey meets the 'farrier visit' during setup. Each Tuesday counts on its own."
-answer = "REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {{2026-07-21 .. dates.session_6.last} & dates.season.tuesdays}"
-hints = ["The dates wanted are in both sets: Tuesdays, and the run from July 21.", "& keeps what is in both: {{2026-07-21 .. dates.session_6.last} & dates.season.tuesdays}."]
+answer = "REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {{2026-07-21 .. 2026-08-08} & dates.tuesdays}"
+hints = ["The dates wanted are in both sets: Tuesdays, and the run from July 21.", "& keeps what is in both: {{2026-07-21 .. 2026-08-08} & dates.tuesdays}."]
 explain = "& is not 'and also': it keeps only the dates in both sets, here three Tuesdays. + would take every Tuesday of the season and every day of the run as well."
-alternatives = ["REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {dates.season.tuesdays & {2026-07-21 .. dates.session_6.last}}"]
-wrong = ["REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {dates.season.tuesdays + {2026-07-21 .. dates.session_6.last}}"]
+alternatives = ["REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {dates.tuesdays & {2026-07-21 .. 2026-08-08}}"]
+wrong = ["REQUEST staff.hailey DO 'farrier visit' DURING blocks.setup ON EACH {dates.tuesdays + {2026-07-21 .. 2026-08-08}}"]
 
 [[problem]]
 id = "sets-meals-but-breakfast"

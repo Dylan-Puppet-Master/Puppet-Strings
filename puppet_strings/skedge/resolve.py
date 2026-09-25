@@ -438,18 +438,23 @@ def date_names(dataset: Dataset) -> dict[str, Named]:
 
         dates.season                     every camp day
         dates.session_4                  every date of session 4
-        dates.session_4.mondays          every Monday of it
         dates.session_4.week_2           every date of its second week
-        dates.session_4.week_2.monday    one date
         dates.family_camp                a span that is not a numbered session
+
+    The days of the week are season-wide sets beside them, `dates.mondays` … `dates.sundays`,
+    `dates.weekdays` and `dates.weekends`, and a span's are what it shares with those:
+    `{dates.thursdays & dates.session_2}`. A span has no names of its own for its days, nor
+    for its first and last, so a day is said one way only.
 
     Those names are the same on every day of the season. The ones with `target` in them
     follow the date being scheduled: `dates.target` itself, the session it falls in,
     `dates.session_target`, and the week of that session it falls in, `week_target`. A date
     outside the main season has no session, so there the session names do not exist.
     """
+    season = dataset.season_dates
     names = {TARGET: Named(frozenset({dataset.target}), True)}
-    _add(names, "season", _span_names(dataset.season_dates))
+    names.update(_days_of_the_week(season))
+    _add(names, "season", {WHOLE: Named(frozenset(season), False)})
     for span in dataset.spans:
         _add(names, span.date_name, _one_span(dataset, span))
     if dataset.session is not None:
@@ -457,66 +462,36 @@ def date_names(dataset: Dataset) -> dict[str, Named]:
     return names
 
 
+def _days_of_the_week(season: tuple[date, ...]) -> dict[str, Named]:
+    """`mondays` … `sundays`, `weekdays` and `weekends`: the season's days, by the calendar."""
+    names = {
+        f"{WEEKDAYS[number]}s": Named(frozenset(d for d in season if d.weekday() == number), False)
+        for number in range(7)
+    }
+    names["weekdays"] = Named(frozenset(d for d in season if d.weekday() < 5), False)
+    names["weekends"] = Named(frozenset(d for d in season if d.weekday() >= 5), False)
+    return names
+
+
 def _target_session(dataset: Dataset) -> dict[str, Named]:
     """The session the target falls in, as its number names it, and its week holding the target."""
-    session = dataset.this_span
-    names = _one_span(dataset, session)
-    _add(names, f"{WEEK_PREFIX}{TARGET}", _week_names(dataset.week_dates))
+    names = _one_span(dataset, dataset.this_span)
+    names[f"{WEEK_PREFIX}{TARGET}"] = Named(frozenset(dataset.week_dates), False)
     return names
 
 
 def _one_span(dataset: Dataset, span) -> dict[str, Named]:
-    """One span's own names, with its weeks nested underneath."""
-    names = _span_names(dataset.span_dates(span))
+    """One span's dates, with its weeks nested underneath."""
+    names = {WHOLE: Named(frozenset(dataset.span_dates(span)), False)}
     for week, dates in dataset.span_weeks(span).items():
-        _add(names, f"{WEEK_PREFIX}{week}", _week_names(dates))
+        names[f"{WEEK_PREFIX}{week}"] = Named(frozenset(dates), False)
     return names
-
-
-def _span_names(dates: tuple[date, ...]) -> dict[str, Named]:
-    """The names any run of dates carries: the whole run, its ends, and its weekdays.
-
-    There is no `first_monday` or `last_friday`. One of them meant a date and its plural
-    meant one date per session, a letter apart, and which of them existed depended on how
-    long the season happened to be. A week's weekday says the same thing and says it once.
-    """
-    names = {WHOLE: Named(frozenset(dates), False)}
-    if not dates:
-        return names
-    names["first"], names["last"] = _one(dates[0]), _one(dates[-1])
-    for weekday, days in _by_weekday(dates).items():
-        names[f"{weekday}s"] = Named(frozenset(days), False)
-    return names
-
-
-def _week_names(dates: tuple[date, ...]) -> dict[str, Named]:
-    """A week's names.
-
-    A week reaches each weekday at most once, so `monday` is the one Monday there is.
-    """
-    names = {WHOLE: Named(frozenset(dates), False)}
-    if dates:
-        names["first"], names["last"] = _one(dates[0]), _one(dates[-1])
-    for weekday, days in _by_weekday(dates).items():
-        names[weekday] = _one(days[0])
-    return names
-
-
-def _by_weekday(dates: tuple[date, ...]) -> dict[str, list[date]]:
-    by_weekday: dict[str, list[date]] = {}
-    for day in dates:
-        by_weekday.setdefault(WEEKDAYS[day.weekday()], []).append(day)
-    return by_weekday
 
 
 def _add(names: dict[str, Named], scope: str, under: dict[str, Named]) -> None:
     """Graft a span's names under a scope; its own name is the scope with nothing after it."""
     for name, named in under.items():
         names[f"{scope}.{name}" if name else scope] = named
-
-
-def _one(day: date) -> Named:
-    return Named(frozenset({day}), True)
 
 
 def name_listing(dataset: Dataset) -> dict[str, list[tuple[str, str]]]:

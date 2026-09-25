@@ -54,7 +54,7 @@ the same words are a **pattern**: they match assignments, and nothing in them is
 |---|---|
 | Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `THEN`, `AND`, `OR`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `BUSY`, `DURING`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL`, `ANY`, `EACH`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
 | Quantifier | `ALL`, `EACH`, `ANY`, a choice `ANY n`, and a count: `AT_LEAST n`, `AT_MOST n` or `EXACTLY n`, for any whole `n` from 1 |
-| Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session_4.week_2.monday` |
+| Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session_4.week_2` |
 | Variable, label | A bare identifier: `s`, `morning`. A label or a definition is followed by a colon. |
 | Quoted task | Single quotes, any text but a quote: `'archery maintenance'` |
 | Date | `2026-06-14` |
@@ -285,27 +285,23 @@ same names, and a span's weeks are its days seven at a time from the start.
 |---|---|---|
 | `dates.target` | item | the date being scheduled |
 | `dates.season` | set | every date the Calendar sheet covers |
+| `dates.mondays` … `dates.sundays` | set | every date of the season falling on that weekday |
+| `dates.weekdays`, `dates.weekends` | set | every Monday to Friday, and every Saturday and Sunday, of the season |
 | `dates.session_1` … `dates.session_20` | set | a `main season` row, numbered in sheet order |
 | `dates.<name>` | set | any other row, by its `name` column normalized |
 | `dates.<span>.week_1` … `.week_20` | set | that week of that span |
 | `dates.session_target` | set | the session `dates.target` falls in; absent outside the main season |
 | `dates.session_target.week_target` | set | the week of that session `dates.target` falls in |
 
-| Name within any span | Kind | Holds |
-|---|---|---|
-| `mondays` … `sundays` | set | every date of the span falling on that weekday |
-| `first`, `last` | item | the span's first and last date |
-
-| Name within a week | Kind | Holds |
-|---|---|---|
-| `monday` … `sunday` | item | that weekday of the week |
-| `first`, `last` | item | the week's first and last date |
+A span has no names for its days or for its first and last date. Its days are written as
+what it shares with the season's: `{dates.session_2 & dates.thursdays}` is every Thursday of
+session 2, and `{dates.session_2.week_1 & dates.sundays}` is the Sunday it starts on. That is
+a set, even holding one date, so after `ON` it takes a quantifier.
 
 A name exists only if the span reaches it: `dates.session_2.week_2` is a name only
 when session 2 runs to a second week. At most 20 main season rows and 20 weeks per span.
 
-There are no `first_monday` / `last_friday` names and no cross-session `first_mondays`
-sets: a week's weekday is how an occurrence is named. Only `dates.target`,
+Only `dates.target`,
 `dates.session_target` and its `week_target` follow the date being scheduled; every other
 date name says outright which span it means. A request naming `dates.session_target` on a
 date in no session is invalid on that date and is left out of its solve, not an error that

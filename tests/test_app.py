@@ -186,17 +186,18 @@ def test_completer_finds_a_name_without_its_namespace(window):
     assert completions(editor) == ["roles.second"]
 
 
-def test_a_bare_word_never_suggests_a_date(window):
-    """A date is written as a date or picked off the calendar; the season would bury a name."""
+def test_a_bare_word_suggests_a_date_name(window):
+    """With no day names under every span, the dates are few enough to offer like the rest."""
     editor = window.editor
     editor.clear()
     QTest.keyClicks(editor.skedge_edit, "ON mond")
-    assert completions(editor) == []
-    QTest.keyClicks(editor.skedge_edit, "ay")
-    assert not editor.skedge_edit.completer.popup().isVisible()
+    assert completions(editor) == ["dates.mondays"]
     editor.skedge_edit.setPlainText("")
-    QTest.keyClicks(editor.skedge_edit, "ON dates.session_1.mond")
-    assert completions(editor) == ["dates.session_1.mondays"]
+    QTest.keyClicks(editor.skedge_edit, "ON weeke")
+    assert completions(editor) == ["dates.weekends"]
+    editor.skedge_edit.setPlainText("")
+    QTest.keyClicks(editor.skedge_edit, "ON session_2")
+    assert completions(editor) == ["dates.session_2", "dates.session_2.week_1"]
 
 
 def test_moving_the_cursor_does_not_open_the_completer(window):
@@ -262,10 +263,10 @@ def test_completer_narrows_as_the_name_is_typed(window):
 def test_choosing_a_completion_replaces_what_was_typed(window):
     editor = window.editor
     editor.clear()
-    QTest.keyClicks(editor.skedge_edit, "ON dates.session_1.week_2.thu")
-    assert "dates.session_1.week_2.thursday" in completions(editor)
-    editor.skedge_edit.completer.activated.emit("dates.session_1.week_2.thursday")
-    assert editor.skedge_edit.toPlainText() == "ON dates.session_1.week_2.thursday"
+    QTest.keyClicks(editor.skedge_edit, "ON dates.session_1.we")
+    assert "dates.session_1.week_2" in completions(editor)
+    editor.skedge_edit.completer.activated.emit("dates.session_1.week_2")
+    assert editor.skedge_edit.toPlainText() == "ON dates.session_1.week_2"
 
 
 def test_completer_stays_shut_for_plain_words_and_dates(window):
@@ -319,15 +320,15 @@ def test_namespaces_panel_nests_dotted_names(window):
     one = child(dates, "dates.session_1")  # a span is a name: every date of it
     assert one.data(0, Qt.UserRole) == "dates.session_1" and one.text(1) == "14 dates"
     week = child(one, "dates.session_1.week_2")
-    monday = child(week, "dates.session_1.week_2.monday")
-    assert monday.text(1) == "2026-09-21 (Monday)"
+    assert week.text(1) == "7 dates" and not week.childCount()
+    assert child(dates, "dates.mondays").text(1) == "3 dates"
     window.editor.clear()
     window.names.setCurrentItem(dates)  # not a name: nothing is inserted
     window.names._pick_current()
     assert window.editor.skedge_edit.toPlainText() == ""
-    window.names.setCurrentItem(monday)
+    window.names.setCurrentItem(week)
     window.names._pick_current()
-    assert window.editor.skedge_edit.toPlainText() == "dates.session_1.week_2.monday"
+    assert window.editor.skedge_edit.toPlainText() == "dates.session_1.week_2"
 
 
 def test_calendar_click_inserts_a_date(window):

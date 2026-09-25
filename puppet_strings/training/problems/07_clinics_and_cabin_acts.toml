@@ -182,7 +182,6 @@ id = "clinic-embroidery-wednesday"
 title = "Wednesday stitching"
 prompt = "Embroidery runs during clinic 2 on Wednesday."
 answer = "REQUEST activities.clinics.embroidery DURING blocks.clinic_2 ON 2026-08-05"
-alternatives = ["REQUEST activities.clinics.embroidery DURING blocks.clinic_2 ON dates.session_6.week_1.wednesday"]
 wrong = ["REQUEST activities.clinics.embroidery DURING blocks.clinic_2"]
 
 [[problem]]

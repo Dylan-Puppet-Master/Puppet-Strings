@@ -142,8 +142,7 @@ wrong = ["REQUEST staff.gabe DO 'salad bar' DURING ALL blocks.meals"]
 id = "together-on-wednesday"
 title = "Wednesday together"
 prompt = "On Wednesday, the directors all have a 'budget meeting' during rest hour."
-answer = "REQUEST ALL staff.directors DO 'budget meeting' DURING blocks.rest_hour ON dates.session_6.week_1.wednesday"
-alternatives = ["REQUEST ALL staff.directors DO 'budget meeting' DURING blocks.rest_hour ON 2026-08-05"]
+answer = "REQUEST ALL staff.directors DO 'budget meeting' DURING blocks.rest_hour ON 2026-08-05"
 wrong = ["REQUEST ALL staff.directors DO 'budget meeting' DURING blocks.rest_hour"]
 
 [[problem]]

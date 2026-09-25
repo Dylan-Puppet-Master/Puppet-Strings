@@ -69,7 +69,7 @@ def test_each_of_expands_into_keyed_copies(dataset):
     ]
     dated = resolve(
         dataset,
-        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON EACH dates.session_1.mondays",
+        "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON EACH {dates.session_1 & dates.mondays}",
     )
     assert [c.key for c in dated] == ["2026-09-14", "2026-09-21"]
     assert (
@@ -189,7 +189,10 @@ def test_date_windows(dataset):
     assert on(dataset, "{dates.target - 6d .. dates.target}") == dataset.session_dates[:4]
     assert on(dataset, "{dates.target + 1d .. dates.target + 10d}") == dataset.session_dates[4:]
     assert on(dataset, "{2026-10-20 .. 2026-10-21}") == ()  # no such camp days
-    assert on(dataset, "dates.session_1.fridays") == (date(2026, 9, 18), date(2026, 9, 25))
+    assert on(dataset, "{dates.session_1 & dates.fridays}") == (
+        date(2026, 9, 18),
+        date(2026, 9, 25),
+    )
 
 
 def test_date_scopes(dataset):
@@ -197,32 +200,42 @@ def test_date_scopes(dataset):
     assert on(dataset, "dates.session_1") == dataset.session_dates
     assert on(dataset, "dates.session_2") == dataset.span_dates(dataset.sessions[2])
     assert len(on(dataset, "dates.season")) == 21
-    assert on(dataset, "dates.session_1.first", item=True) == (date(2026, 9, 13),)
-    assert on(dataset, "dates.season.last", item=True) == (date(2026, 10, 3),)
-    assert on(dataset, "dates.session_1.week_1.thursday", item=True) == (date(2026, 9, 17),)
-    assert on(dataset, "dates.session_1.week_2.thursday", item=True) == (date(2026, 9, 24),)
-    assert on(dataset, "dates.session_1.thursdays") == (date(2026, 9, 17), date(2026, 9, 24))
-    # the nth-weekday names are gone: a week's weekday says it, and says it once
-    with pytest.raises(SkedgeError, match="unknown name 'dates.session_1.second_thursday'"):
-        on(dataset, "dates.session_1.second_thursday", item=True)
-    with pytest.raises(SkedgeError, match="unknown name 'dates.season.first_mondays'"):
-        on(dataset, "dates.season.first_mondays")
+    assert on(dataset, "{dates.session_1.week_1 & dates.thursdays}") == (date(2026, 9, 17),)
+    assert on(dataset, "{dates.session_1.week_2 & dates.thursdays}") == (date(2026, 9, 24),)
+    assert on(dataset, "{dates.session_1 & dates.thursdays}") == (
+        date(2026, 9, 17),
+        date(2026, 9, 24),
+    )
+    # a span names none of its days, nor its ends: they are said with the season's days
+    for name in ("dates.session_1.thursdays", "dates.session_1.first", "dates.season.last"):
+        with pytest.raises(SkedgeError, match=f"unknown name '{name}'"):
+            on(dataset, name)
     with pytest.raises(SkedgeError, match="needs a quantifier"):
         resolve(
             dataset,
-            "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON dates.session_1.mondays",
+            "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1 ON {dates.session_1 & dates.mondays}",
         )
 
 
+def test_the_days_of_the_week_are_the_seasons(dataset):
+    """The season runs from Sunday 2026-09-13 to Saturday 2026-10-03: three of each day."""
+    season = on(dataset, "dates.season")
+    assert on(dataset, "dates.mondays") == tuple(d for d in season if d.weekday() == 0)
+    assert on(dataset, "dates.sundays") == (date(2026, 9, 13), date(2026, 9, 20), date(2026, 9, 27))
+    assert on(dataset, "dates.weekdays") == tuple(d for d in season if d.weekday() < 5)
+    assert on(dataset, "dates.weekends") == tuple(d for d in season if d.weekday() >= 5)
+    assert len(on(dataset, "dates.weekdays")) == 15 and len(on(dataset, "dates.weekends")) == 6
+
+
 def test_weeks_of_a_session(dataset):
-    """A session holds its weeks, and a week holds one of each weekday."""
+    """A session holds its weeks, and a week has no names under it."""
     assert on(dataset, "dates.session_1.week_1") == dataset.session_dates[:7]
     assert on(dataset, "dates.session_1.week_2") == dataset.session_dates[7:]
     assert on(dataset, "dates.session_1.week_1") == dataset.week_dates
-    assert on(dataset, "dates.session_1.week_2.monday", item=True) == (date(2026, 9, 21),)
-    assert on(dataset, "dates.session_2.week_1.monday", item=True) == (date(2026, 9, 28),)
-    assert on(dataset, "dates.session_1.week_1.first", item=True) == (date(2026, 9, 13),)
-    assert on(dataset, "dates.session_1.week_1.last", item=True) == (date(2026, 9, 19),)
+    assert on(dataset, "{dates.session_2.week_1 & dates.mondays}") == (date(2026, 9, 28),)
+    for name in ("dates.session_1.week_2.monday", "dates.session_1.week_1.first"):
+        with pytest.raises(SkedgeError, match=f"unknown name '{name}'"):
+            on(dataset, name)
     with pytest.raises(SkedgeError, match="unknown name 'dates.session_2.week_2'"):
         on(dataset, "dates.session_2.week_2")
     with pytest.raises(SkedgeError, match="did you mean 'dates.session_1.week_1'"):
@@ -232,13 +245,11 @@ def test_weeks_of_a_session(dataset):
 def test_the_target_session_and_week_follow_the_target(dataset):
     """On 2026-09-16 the target is in session one's first week."""
     assert on(dataset, "dates.session_target") == on(dataset, "dates.session_1")
-    assert on(dataset, "dates.session_target.mondays") == on(dataset, "dates.session_1.mondays")
-    assert on(dataset, "dates.session_target.week_2.monday", item=True) == (date(2026, 9, 21),)
+    assert on(dataset, "dates.session_target.week_2") == on(dataset, "dates.session_1.week_2")
     assert on(dataset, "dates.session_target.week_target") == dataset.session_dates[:7]
-    assert on(dataset, "dates.session_target.week_target.friday", item=True) == (date(2026, 9, 18),)
     later = replace(dataset, target=date(2026, 9, 29))
     assert on(later, "dates.session_target") == on(later, "dates.session_2")
-    assert on(later, "dates.session_target.week_target.monday", item=True) == (date(2026, 9, 28),)
+    assert on(later, "dates.session_target.week_target") == on(later, "dates.session_2.week_1")
 
 
 def test_a_date_in_no_session_has_no_target_session(dataset):
@@ -281,9 +292,9 @@ def test_name_listing_matches_the_namespaces(dataset):
     assert ("clinics", "category, 16 members") in listing["activities"]
     assert ("cabin_acts", "category, 4 members") in listing["activities"]
     assert ("cabin_acts.m1", "cabin M1") in listing["activities"]
-    assert ("session_1.week_2.thursday", "2026-09-24 (Thursday)") in listing["dates"]
-    assert ("session_2.week_1.monday", "2026-09-28 (Monday)") in listing["dates"]
-    assert ("season.mondays", "3 dates") in listing["dates"]
+    assert ("session_1.week_2", "7 dates") in listing["dates"]
+    assert ("mondays", "3 dates") in listing["dates"]
+    assert ("weekdays", "15 dates") in listing["dates"]
     assert ("trainee", "trainee") in listing["roles"]
     assert ("preference", "staff, activities.clinics -> 1 to 5") in listing["mappings"]
     assert ("buddy", "staff.counselor -> {staff - staff.counselor}") in listing["mappings"]

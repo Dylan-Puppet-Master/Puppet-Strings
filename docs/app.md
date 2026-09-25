@@ -242,10 +242,7 @@ everything in it.
 name, Escape closes the list. The names offered are exactly the ones the validator
 accepts, so anything the list gives you is spelled right.
 
-Dates are the one exception: they are only offered once `dates.` has been typed. A date is
-usually written as a date or picked off the calendar pane, and a season's worth of them
-answering to a bare word would bury whatever else was being looked for. Keywords are not
-looked up either, so `do` is a word being written rather than a search.
+Keywords are not looked up, so `do` is a word being written rather than a search.
 
 **Namespaces.** The panel on the right lists every valid name with a one-line note: a staff
 member's name, how many members a category has, a block's times, a date. Press Enter, or

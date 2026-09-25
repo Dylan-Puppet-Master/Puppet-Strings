@@ -45,7 +45,7 @@ class Pos:
 
 @dataclass(frozen=True)
 class Ref:
-    """A dotted name, `staff.rob` or `dates.session_4.mondays`, or a whole namespace, `staff`."""
+    """A dotted name, `staff.rob` or `dates.session_4.week_2`, or a whole namespace, `staff`."""
 
     namespace: str
     name: str

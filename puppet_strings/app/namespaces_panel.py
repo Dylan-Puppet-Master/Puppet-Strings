@@ -1,6 +1,6 @@
 """A tree of every valid Skedge name, by namespace.
 
-Names nest on their dots, so `dates.session_4.week_2.monday` is four levels deep
+Names nest on their dots, so `activities.clinics.riflery` is three levels deep
 rather than one line among hundreds. A node that is a name in its own right carries what it
 stands for beside it, as a branch does for everything under it: `dates.session_4.week_2`
 is every date of that week, as `staff` is everyone. A node that is only a step on the way

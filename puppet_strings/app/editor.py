@@ -120,17 +120,12 @@ class SkedgeEdit(QPlainTextEdit):
     Typing `dylan` offers `staff.dylan`: the namespace is part of the name, but it is not
     what anybody has in mind when they go looking for somebody, and typing `staff.` first
     to find out how a name is spelled is a thing to remember rather than a help.
-
-    The dates are the exception, and are only suggested once `dates.` has been typed. A
-    date is written as a date most of the time, the calendar pane beside the box is how one
-    is picked, and a bare word offering half the season buries the name being looked for.
     """
 
     save_requested = Signal()  # Ctrl+S, which the popup would otherwise swallow
 
     # \Z rather than $, which also matches before a newline and so reads past a line's end
     PARTIAL_NAME = re.compile(r"[a-z_][a-z0-9_]*(\.[a-z0-9_]*)*\Z")
-    DATES = "dates."
     SHORTEST = 2  # letters before a bare word suggests anything; one letter is every name
 
     def __init__(self) -> None:
@@ -147,10 +142,7 @@ class SkedgeEdit(QPlainTextEdit):
         self.names = QStringListModel([], self.completer)
         self.completer.setModel(self.names)
         self.completer.activated.connect(self._insert_completion)
-        self.every: list[str] = []
-        self.but_dates: list[str] = []
         self.whole: set[str] = set()  # names, namespaces and branches, each finished as typed
-        self.showing: list[str] | None = None
 
     def set_dataset(self, dataset: Dataset | None) -> None:
         """Suggest every name the dataset has, or none without one."""
@@ -159,18 +151,8 @@ class SkedgeEdit(QPlainTextEdit):
 
     def set_names(self, names: list[str]) -> None:
         """The names to suggest, as `namespace.name`. Reuses the model, leaving no garbage."""
-        self.every = list(names)
-        self.but_dates = [n for n in self.every if not n.startswith(self.DATES)]
-        parts = (n.split(".") for n in self.every)
+        parts = (n.split(".") for n in names)
         self.whole = {".".join(p[:i]) for p in parts for i in range(1, len(p) + 1)}
-        self.showing = None
-        self.names.setStringList(self.every)
-
-    def _offer(self, names: list[str]) -> None:
-        """Put a list in the completer's model, if it is not the one already there."""
-        if self.showing is names:
-            return
-        self.showing = names
         self.names.setStringList(names)
         self.completer.setCompletionPrefix("")  # the old prefix was narrowing the old list
 
@@ -210,7 +192,6 @@ class SkedgeEdit(QPlainTextEdit):
         if match is None or not self._worth_offering(match.group()):
             popup.hide()
             return
-        self._offer(self.every if "." in match.group() else self.but_dates)
         if match.group() != self.completer.completionPrefix():
             self.completer.setCompletionPrefix(match.group())
             # A name or namespace already written in full picks nothing, so Enter ends the

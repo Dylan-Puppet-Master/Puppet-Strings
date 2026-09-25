@@ -15,7 +15,7 @@ def test_every_doc_example_parses(name):
 def test_requirement_shape_and_positions():
     (st,) = parse(
         "REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' "
-        "DURING AT_LEAST 1 blocks ON EACH dates.session_1.mondays"
+        "DURING AT_LEAST 1 blocks ON EACH dates.mondays"
     ).lines
     assert isinstance(st, ast.Requirement) and not st.negated and st.label is None
     assert st.who.quantifier == ast.ALL and st.who.pos == ast.Pos(1, 9)
@@ -27,7 +27,7 @@ def test_requirement_shape_and_positions():
     assert during.expr == ast.Ref("blocks", "", ast.Pos(1, 78))
     on = ast.clause(st.clauses, ast.On).selector
     assert on.quantifier == ast.EACH and on.var is None
-    assert on.expr == ast.Ref("dates", "session_1.mondays", ast.Pos(1, 93))
+    assert on.expr == ast.Ref("dates", "mondays", ast.Pos(1, 93))
 
 
 def test_negation_and_free():
@@ -213,7 +213,7 @@ def test_set_expressions():
     ).lines
     assert st.who.expr.right.op == "&"
     (st,) = parse(
-        "REQUEST staff.x DO 'x' ON EACH {{2026-07-21 .. dates.session_6.last} & dates.season.tuesdays}"
+        "REQUEST staff.x DO 'x' ON EACH {{2026-07-21 .. 2026-08-08} & dates.tuesdays}"
     ).lines
     on = ast.clause(st.clauses, ast.On).selector.expr
     assert on.op == "&" and isinstance(on.left, ast.DateRange)

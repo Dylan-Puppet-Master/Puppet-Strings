@@ -243,8 +243,8 @@ starts on the day your weeks start therefore lines up with the calendar, and the
 manager's calendar shows each row's `S<session>` and `W<week>` down the left-hand side, so
 you can see at a glance whether it does.
 
-`dates.session_4.mondays` is every Monday of session 4,
-`dates.session_4.week_2.monday` is the one Monday of its second week, and
+`dates.session_4.week_2` is the second week of session 4,
+`{dates.session_4 & dates.mondays}` is every Monday of it, and
 `dates.season` is every date the sheet covers. See
 [Dates](skedge.md#dates) for the full list of date names.
 

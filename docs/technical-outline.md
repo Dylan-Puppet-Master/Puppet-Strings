@@ -1012,3 +1012,10 @@ Recorded so the outline matches the code.
   the `dates` namespace flat, sessions and weeks are named by digit, `dates.session_4.week_2`
   rather than `dates.session_four.week_two`, and a file written the old way is rewritten
   when it is opened.
+- **The days of the week are the season's, and spans name no days** (Puppet Master,
+  2026-09-24). Every span and week carried its own weekday names, `first` and `last`, so the
+  same day had several names and the tree was too busy to offer in the completer.
+  `dates.mondays` … `dates.sundays`, `dates.weekdays` and `dates.weekends` are now sets over
+  the season, and a span's days are written with `&`: `{dates.session_2 & dates.thursdays}`,
+  or `{dates.session_2.week_1 & dates.sundays}` for the day it starts. The saved requests
+  were rewritten to match, and the completer offers date names like any others.
