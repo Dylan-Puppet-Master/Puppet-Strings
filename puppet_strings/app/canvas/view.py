@@ -41,9 +41,10 @@ from PySide6.QtCore import (
     QVariantAnimation,
     Signal,
 )
-from PySide6.QtGui import QColor, QDrag, QPainter, QTransform
+from PySide6.QtGui import QBrush, QColor, QDrag, QPainter, QPixmap, QTransform
 from PySide6.QtWidgets import (
     QFrame,
+    QGraphicsItem,
     QGraphicsProxyWidget,
     QGraphicsScene,
     QGraphicsView,
@@ -841,6 +842,7 @@ class Canvas(QGraphicsView):
         if press["pan"] or press["kind"] in (None, "frame"):
             if first:
                 self.viewport().setCursor(Qt.ClosedHandCursor)
+                self._hold_still(True)
             self.following = False
             last = press.get("last", press["pos"])
             step = pos - last
@@ -869,6 +871,7 @@ class Canvas(QGraphicsView):
             return
         press, self.press = self.press, None
         self.panning = False
+        self._hold_still(False)
         self.viewport().unsetCursor()
         if press is None:
             super().mouseReleaseEvent(event)
@@ -893,6 +896,21 @@ class Canvas(QGraphicsView):
         elif kind in (None, "frame", "group"):
             self.deactivate()
             self.scene().clearSelection()
+
+    def _hold_still(self, panning: bool) -> None:
+        """Keep each card and frame as a picture while the canvas is dragged about.
+
+        A drag only slides things along, so the pictures are moved rather than every card
+        painted over again, shadows and text and all, on each move of the mouse. Not kept
+        otherwise: a zoom would paint every picture afresh, which costs more than painting
+        the cards straight onto the canvas.
+        """
+        mode = QGraphicsItem.DeviceCoordinateCache if panning else QGraphicsItem.NoCache
+        for item in [*self.cards.values(), *self.frames.values()]:
+            item.setCacheMode(mode)
+        self.setCacheMode(QGraphicsView.CacheBackground if panning else QGraphicsView.CacheNone)
+        if not panning:
+            self.resetCachedContent()
 
     def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
         """Double-click in a frame for a new request there; on the bare canvas, see it all."""
@@ -1151,24 +1169,41 @@ class Canvas(QGraphicsView):
     # -- painting and placing -------------------------------------------------------------
 
     def drawBackground(self, painter: QPainter, rect: QRectF) -> None:  # noqa: N802
-        """A dotted surface, its dots spaced for the zoom so they never turn to a haze."""
+        """A dotted surface, its dots spaced for the zoom so they never turn to a haze.
+
+        The dots are one tiled fill, not a dot at a time: a zoomed-out view holds thousands
+        of them, and drawing each on every frame of a drag was most of what a frame cost.
+        """
         painter.fillRect(rect, BACKGROUND)
         spacing = 32.0
         if spacing * self.zoom < 14:
             spacing *= 4 ** max(0, floor(log(14 / (spacing * self.zoom), 4)) + 1)
-        left = floor(rect.left() / spacing) * spacing
-        top = floor(rect.top() / spacing) * spacing
-        dot = QColor(DOT)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(dot)
-        radius = 1.3 / self.zoom
-        y = top
-        while y < rect.bottom():
-            x = left
-            while x < rect.right():
-                painter.drawEllipse(QPointF(x, y), radius, radius)
-                x += spacing
-            y += spacing
+        step = max(4, round(spacing * self.zoom))  # in pixels on screen
+        to_screen = painter.worldTransform()
+        origin = to_screen.map(QPointF(0, 0))  # where the dots line up
+        brush = QBrush(self._dot_tile(step))
+        brush.setTransform(QTransform.fromTranslate(origin.x() - step / 2, origin.y() - step / 2))
+        painter.save()
+        painter.resetTransform()
+        painter.fillRect(to_screen.mapRect(rect), brush)
+        painter.restore()
+
+    def _dot_tile(self, step: int) -> QPixmap:
+        """One dot in the middle of a square of background, `step` pixels a side."""
+        ratio = self.devicePixelRatioF()
+        key = (step, ratio)
+        if getattr(self, "_tile_key", None) != key:
+            tile = QPixmap(round(step * ratio), round(step * ratio))
+            tile.setDevicePixelRatio(ratio)
+            tile.fill(BACKGROUND)
+            dots = QPainter(tile)
+            dots.setRenderHint(QPainter.Antialiasing)
+            dots.setPen(Qt.NoPen)
+            dots.setBrush(DOT)
+            dots.drawEllipse(QPointF(step / 2, step / 2), 1.3, 1.3)
+            dots.end()
+            self._tile, self._tile_key = tile, key
+        return self._tile
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         """Keep the controls in their corners, and everything in view if it was."""
