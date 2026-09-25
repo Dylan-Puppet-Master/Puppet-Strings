@@ -128,7 +128,8 @@ class SkedgeEdit(QPlainTextEdit):
 
     save_requested = Signal()  # Ctrl+S, which the popup would otherwise swallow
 
-    PARTIAL_NAME = re.compile(r"[a-z_][a-z0-9_]*(\.[a-z0-9_]*)*$")
+    # \Z rather than $, which also matches before a newline and so reads past a line's end
+    PARTIAL_NAME = re.compile(r"[a-z_][a-z0-9_]*(\.[a-z0-9_]*)*\Z")
     DATES = "dates."
     SHORTEST = 2  # letters before a bare word suggests anything; one letter is every name
 

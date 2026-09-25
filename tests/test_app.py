@@ -1595,6 +1595,8 @@ def test_enter_after_a_whole_name_starts_a_new_line(window):
         QTest.keyClick(box.completer.popup(), Qt.Key_Return)
         assert box.toPlainText() == text + "\n"
         assert not box.completer.popup().isVisible()
+        box.suggest()  # the line has ended, so there is no name left to look up
+        assert not box.completer.popup().isVisible()
     box.setPlainText("")
     QTest.keyClicks(box, "REQUEST staff")
     QTest.keyClick(box.completer.popup(), Qt.Key_Down)
