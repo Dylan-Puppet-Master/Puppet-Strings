@@ -417,6 +417,11 @@ The names are the board of the day being scheduled. Each act is under the half i
 its cabin, so `activities.cabin_acts.at_cabin_act.p4` is P4's act today, and a cabin has a
 name only on a day it has an act.
 
+A checkbox on the board's cards names the day's acts it is ticked on, in either half: a
+"Lvl 2 on Ground" checkbox is `activities.cabin_acts.lvl_2_on_ground`, and one labeled
+"Van" is `activities.cabin_acts.van`. The name is there on a day nobody ticked the box,
+as a set of nothing.
+
 A day's clinics are asked for the same way, but a clinic can run more than once a day, in
 different blocks, so what is asked for is an **offering**: one clinic in the block the
 Offerings tab puts it in. `activities.clinics.offerings.clinic_2.archery_1_2` is archery

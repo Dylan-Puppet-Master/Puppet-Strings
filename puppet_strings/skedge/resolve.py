@@ -402,6 +402,10 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
     write a date into one. `activities.cabin_acts` is today's acts, and `at_cabin_act` and
     `at_rest_hour` each half of them, so each half is asked for on its own.
 
+    A checkbox on the board names today's acts it is ticked on, whichever half they are in:
+    `activities.cabin_acts.lvl_2_on_ground`. The name is there whenever any board has the
+    checkbox, so that a day nobody ticked it is an empty set rather than an unknown name.
+
     `activities.clinics.offerings` is the day's Offerings tab (`offering_names`). Its items
     are clinics at a time rather than clinics, so it is in none of the sets above it.
     """
@@ -410,6 +414,17 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
     halves = {
         AT_CABIN_ACT: {i: a for i, a in today.items() if not a.rest_hour},
         AT_REST_HOUR: {i: a for i, a in today.items() if a.rest_hour},
+    }
+    boxes = {
+        normalize(label) for a in dataset.activities.values() if a.cabin for label in a.checkboxes
+    } - {"", *halves}
+    ticked = {
+        box: frozenset(
+            i
+            for i, a in today.items()
+            if any(on and normalize(label) == box for label, on in a.checkboxes.items())
+        )
+        for box in boxes
     }
     names = {WHOLE: Named(frozenset(dataset.activities), False)}
     _add(
@@ -430,6 +445,7 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
         {
             WHOLE: Named(frozenset(today), False),
             **{half: Named(frozenset(acts), False) for half, acts in halves.items()},
+            **{box: Named(acts, False) for box, acts in ticked.items()},
             **{
                 f"{half}.{normalize(a.cabin)}": Named(frozenset({i}), True)
                 for half, acts in halves.items()

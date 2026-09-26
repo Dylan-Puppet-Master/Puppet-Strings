@@ -155,6 +155,18 @@ class Activity:
         """The position with this role, if any."""
         return next((p for p in self.positions if p.role == role), None)
 
+    @property
+    def checkboxes(self) -> dict[str, bool]:
+        """The card's checkboxes by label, ticked or not.
+
+        A sheet writes a checkbox as TRUE or FALSE, so a label with either beside it is one.
+        """
+        return {
+            label: value.strip().upper() == "TRUE"
+            for label, value in self.card
+            if value.strip().upper() in ("TRUE", "FALSE")
+        }
+
 
 @dataclass(frozen=True)
 class Block:

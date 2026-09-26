@@ -27,7 +27,8 @@ CABIN_ACTS = "cabin_acts"
 
 # The two kinds of cabin act, under `activities.cabin_acts`: most run in the cabin act
 # block, and a few the board moves to rest hour. Each of the day's acts is under one of
-# them by its cabin: `activities.cabin_acts.at_cabin_act.p4`.
+# them by its cabin: `activities.cabin_acts.at_cabin_act.p4`. Beside them, each checkbox on
+# the board names the acts it is ticked on: `activities.cabin_acts.lvl_2_on_ground`.
 AT_CABIN_ACT = "at_cabin_act"
 AT_REST_HOUR = "at_rest_hour"
 

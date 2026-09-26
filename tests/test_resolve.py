@@ -423,6 +423,41 @@ def test_each_act_is_named_under_the_block_the_days_board_puts_it_in(
             assert that_day.activities[copy.statements[0].what.items[0]].name == name
 
 
+def with_cards(dataset, today=(), other_days=()):
+    """The dataset with these cards on today's cabin acts and on every other day's."""
+    activities = {
+        i: replace(a, card=today if a.day == dataset.target else other_days) if a.cabin else a
+        for i, a in dataset.activities.items()
+    }
+    return replace(dataset, activities=activities)
+
+
+def acts_named(dataset, name):
+    copies = resolve(dataset, f"REQUEST EACH {name} DURING blocks.cabin_act")
+    return [c.statements[0].what.items[0] for c in copies]
+
+
+def test_a_checkbox_names_the_acts_it_is_ticked_on(dataset):
+    card = (("Location", "Gaga Ball"), ("Van", "FALSE"), ("Lvl 2 on Ground", "TRUE"))
+    ticked = with_cards(dataset, today=card)
+    assert acts_named(ticked, "activities.cabin_acts.lvl_2_on_ground") == [
+        "cabin_act_m2_2026_09_16"
+    ]
+    assert acts_named(ticked, "activities.cabin_acts.van") == []
+    with pytest.raises(SkedgeError, match="unknown name 'activities.cabin_acts.location'"):
+        acts_named(ticked, "activities.cabin_acts.location")
+
+
+def test_a_checkbox_is_a_name_on_a_day_nobody_ticked_it(dataset):
+    elsewhere = with_cards(dataset, other_days=(("Lvl 2 on Ground", "TRUE"),))
+    assert acts_named(elsewhere, "activities.cabin_acts.lvl_2_on_ground") == []
+
+
+def test_a_checkbox_cannot_take_a_halfs_name(dataset):
+    clash = with_cards(dataset, today=(("At Cabin Act", "FALSE"),))
+    assert acts_named(clash, "activities.cabin_acts.at_cabin_act") == ["cabin_act_m2_2026_09_16"]
+
+
 def test_a_cabin_has_no_name_on_a_day_its_act_is_not_there(dataset):
     with pytest.raises(SkedgeError, match="unknown name 'activities.cabin_acts.at_cabin_act.p4'"):
         resolve(dataset, "REQUEST activities.cabin_acts.at_cabin_act.p4 DURING blocks.cabin_act")
