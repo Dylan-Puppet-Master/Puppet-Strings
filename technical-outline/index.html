@@ -1,0 +1,2768 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Staff schedule automation for Camp Augusta">
+      
+      
+      
+      
+        <link rel="prev" href="../solver/">
+      
+      
+        <link rel="next" href="../development/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Design - Puppet Strings</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#puppet-strings-technical-outline" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Puppet Strings" class="md-header__button md-logo" aria-label="Puppet Strings" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Puppet Strings
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Design
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Puppet Strings" class="md-nav__button md-logo" aria-label="Puppet Strings" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Puppet Strings
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install and set up
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sheets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The sheets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The request manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning Skedge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../same-day/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Same-day changes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skedge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How the solver decides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Authentication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Command line
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-desktop-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5 Desktop application
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-data-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Data Schemas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Data Schemas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-clinic_data-existing-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Clinic_Data (existing, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-skills-existing-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Skills (existing, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-staff-categories-existing-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Staff Categories (existing, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-offerings-existing-in-clinic_schedule-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Offerings (existing, in Clinic_Schedule, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-blocks-new-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Blocks (new, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-calendar-new-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 Calendar (new, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#27-requests-local-file-read-and-written" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.7 Requests (local file, read and written)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#28-mappings-new-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.8 Mappings (new, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#29-the-schedules-tree-new-read-and-written" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.9 The schedules tree (new, read and written)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-package-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Package Layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-skedge-to-cp-sat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Skedge to CP-SAT
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Skedge to CP-SAT">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-variables-and-structural-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Variables and structural constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-verb-compilation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Verb compilation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-tiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Tiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-worked-example-counselor-hours" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Worked example: counselor hours
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-worked-example-scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.6 Worked example: scoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-milestones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Milestones
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-testing-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Testing Approach
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-documentation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Documentation Plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-code-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Code Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Assumptions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-questions-for-the-puppet-master" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Questions for the Puppet Master
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-changes-made-during-the-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Changes Made During the Build
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Authentication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Command line
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-desktop-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5 Desktop application
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-data-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Data Schemas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Data Schemas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-clinic_data-existing-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Clinic_Data (existing, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-skills-existing-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Skills (existing, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-staff-categories-existing-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Staff Categories (existing, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-offerings-existing-in-clinic_schedule-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Offerings (existing, in Clinic_Schedule, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-blocks-new-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Blocks (new, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-calendar-new-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 Calendar (new, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#27-requests-local-file-read-and-written" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.7 Requests (local file, read and written)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#28-mappings-new-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.8 Mappings (new, read)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#29-the-schedules-tree-new-read-and-written" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.9 The schedules tree (new, read and written)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-package-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Package Layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-skedge-to-cp-sat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Skedge to CP-SAT
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Skedge to CP-SAT">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-variables-and-structural-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Variables and structural constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-verb-compilation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Verb compilation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-tiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Tiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-worked-example-counselor-hours" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Worked example: counselor hours
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-worked-example-scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.6 Worked example: scoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-milestones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Milestones
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-testing-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Testing Approach
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-documentation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Documentation Plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-code-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Code Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-assumptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Assumptions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-questions-for-the-puppet-master" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Questions for the Puppet Master
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-changes-made-during-the-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Changes Made During the Build
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="puppet-strings-technical-outline">Puppet Strings: Technical Outline<a class="headerlink" href="#puppet-strings-technical-outline" title="Permanent link">&para;</a></h1>
+<p>Status: <strong>approved 2026-09-15</strong>, with the Puppet Master's answers folded in (see §10).</p>
+<p>The Skedge language was redesigned on 2026-09-17. Where this outline shows request
+syntax (<code>TASK</code>, <code>FORBID</code>, <code>AVOID</code>, <code>ACROSS</code>, <code>PER … BEYOND</code>), the
+<a href="../spec/">Skedge specification</a> is now the definition and the <a href="../skedge/">reference</a>
+the readable version; the pipeline, sheets and solver structure below still hold.</p>
+<p>This outline was written after reading the four existing sheets (Clinic_Data, Clinic_Schedule, Skills, Staff Categories). Where the sheets differ from the proposal, this document follows the sheets and says so. Every assumption is collected in §9; open questions are in §10.</p>
+<hr />
+<h2 id="1-architecture">1. Architecture<a class="headerlink" href="#1-architecture" title="Permanent link">&para;</a></h2>
+<h3 id="11-overview">1.1 Overview<a class="headerlink" href="#11-overview" title="Permanent link">&para;</a></h3>
+<p>Puppet Strings is one Python package, <code>puppet_strings</code>, exposed two ways: a command line tool and a desktop window. Both call the same library functions. Google Sheets holds everything but the requests, which are one SQLite file on the Puppet Master's computer (<code>requests.sqlite</code>; see §2.7). Beside it in the config folder are credentials, a config file, a cache of Google Sheets tabs kept until Drive says they changed (<code>sheets-cache.sqlite</code>), and the Skedge parser's tables (<code>parser.cache</code>, rebuilt whenever the grammar changes).</p>
+<div class="highlight"><pre><span></span><code> Google Sheets                          Puppet Master's laptop
+ ─────────────────────────              ──────────────────────────────────────────────
+ Clinic_Data      ─┐                    ┌──────────────┐     ┌──────────────────────┐
+ Skills            │  gspread (read)    │ sheets/      │     │ app/  (PySide6 GUI)  │
+ Staff Categories  ├───────────────────►│ load_dataset │◄────┤ cli/  (puppet-strings)│
+ Offerings tab     │                    └──────┬───────┘     └──────────┬───────────┘
+ Blocks, Calendar  │                           │ Dataset                │
+ Mappings         ┘                           ▼                        │
+ Published (past) ─────────────────────► skedge/ parse+validate         │
+                                               │ Declarations           │
+                                               ▼                        │
+                                         solver/ (CP-SAT)               │
+                                               │ Result                 │
+ Published (target) ◄──── gspread (write) ─ publish/ ◄──────────────────┘
+</code></pre></div>
+<ul>
+<li><strong>The solver runs locally</strong>, on whichever machine runs the tool. OR-Tools cannot run inside Google Apps Script, and a server would add hosting, secrets, and uptime to the Puppet Master's job. A solve for one day is expected to take seconds.</li>
+<li><strong>Google Sheets is read when it changed.</strong> Each spreadsheet's Drive <code>version</code> comes back with the folder listings a load already makes, and a tab read at that version is read off disk (<code>sheets/cache.py</code>). The requests are a local file, written on every save (<code>requests_db.py</code>).</li>
+<li><strong>One code path for data.</strong> Sheet readers return plain tables (<code>list[list[str]]</code>). The same parsers turn tables from Google Sheets or from CSV files into domain objects, so tests and offline runs use CSV fixtures with no other changes.</li>
+</ul>
+<h3 id="12-authentication">1.2 Authentication<a class="headerlink" href="#12-authentication" title="Permanent link">&para;</a></h3>
+<p><strong>OAuth as the Puppet Master.</strong> Revised 2026-09-19; it was a service account until then.</p>
+<ol>
+<li>A one-time setup creates a Google Cloud project, enables the Sheets and Drive APIs, and downloads a Desktop app OAuth client JSON to <code>~/.config/puppet_strings/oauth_client.json</code>.</li>
+<li>The first run of the app opens a browser for consent and writes the token to <code>~/.config/puppet_strings/token.json</code>, mode 600. Every run afterwards refreshes it silently; the Configure pane signs in again as a different account, or signs out.</li>
+<li><code>gspread.authorize(credentials)</code> reads the sheets, and the same credentials authorize a plain <code>AuthorizedSession</code> against Drive v3 <code>files.list</code> for browsing (<code>puppet_strings/drive.py</code>).</li>
+</ol>
+<p>Scopes: <code>spreadsheets</code>, <code>drive.metadata.readonly</code>, <code>userinfo.email</code>, <code>openid</code>.</p>
+<p>The service account is why this changed: it has no My Drive, nothing shared with it and no shared drives, so it could never back a Drive browser, and every new sheet had to be shared with an address nobody recognises. A service account key at <code>[auth] credentials</code> is still honoured when nobody is signed in, so an existing install keeps working.</p>
+<h3 id="13-configuration">1.3 Configuration<a class="headerlink" href="#13-configuration" title="Permanent link">&para;</a></h3>
+<p><code>~/.config/puppet_strings/config.toml</code> (path overridable with <code>PUPPET_STRINGS_CONFIG</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="k">[sheets]</span>
+<span class="n">clinic_data</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">"1bcCFIBqL77HbPiY1nOM2cqzZ0YC9fhRcdBi4TwZS0-E"</span>
+<span class="n">clinic_schedule</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">"1h_iOC7oqe43QFkpgoS-D-oFzP_r8G1EtDmrxvc83-o8"</span><span class="w">   </span><span class="c1"># Offerings tab only</span>
+<span class="n">skills</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="s2">"1SAjIEMtNwdpDWcKkBp8wrEt9BjQJ6kaeHW00zJcBQPs"</span>
+<span class="n">staff_categories</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"1Z92mJG-AbXKBX_jq5DKztNLVDXPUyL-licZWGvkVPXs"</span>
+<span class="n">config</span><span class="w">           </span><span class="o">=</span><span class="w"> </span><span class="s2">"&lt;new spreadsheet: Blocks, Calendar, Mappings&gt;"</span>
+<span class="n">published</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s2">"&lt;new spreadsheet: one tab per published date&gt;"</span>
+
+<span class="c1"># Chosen in the Configure pane and kept in settings.json instead, which wins over these.</span>
+<span class="k">[folders]</span>
+<span class="n">cabin_acts</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s2">"&lt;folder: one cabin act sheet per session and week&gt;"</span>
+
+<span class="k">[auth]</span>
+<span class="n">client_secrets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"~/.config/puppet_strings/oauth_client.json"</span>
+<span class="n">token</span><span class="w">          </span><span class="o">=</span><span class="w"> </span><span class="s2">"~/.config/puppet_strings/token.json"</span>
+<span class="n">credentials</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">"~/.config/puppet_strings/service_account.json"</span><span class="w">   </span><span class="c1"># legacy fallback</span>
+
+<span class="k">[storage]</span>
+<span class="n">requests</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"~/.config/puppet_strings/requests.sqlite"</span>
+<span class="n">cache</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">"~/.config/puppet_strings/sheets-cache.sqlite"</span><span class="w">   </span><span class="c1"># "" for no cache</span>
+
+<span class="k">[solver]</span>
+<span class="n">tier_seconds_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span><span class="w">   </span><span class="c1"># each pass, not the whole solve</span>
+<span class="n">workers</span><span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="mi">8</span>
+<span class="n">random_seed</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<h3 id="14-command-line">1.4 Command line<a class="headerlink" href="#14-command-line" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>puppet-strings validate</code></td>
+<td>Parse and validate every request the target date loads against current names. Prints errors with request id, line, column.</td>
+</tr>
+<tr>
+<td><code>puppet-strings names</code></td>
+<td>Print every valid name per namespace.</td>
+</tr>
+<tr>
+<td><code>puppet-strings solve --date 2026-09-16 [--publish]</code></td>
+<td>Load data, solve, print the schedule and report. With <code>--publish</code>, write the day's own spreadsheet.</td>
+</tr>
+<tr>
+<td><code>puppet-strings export-fixtures DIR</code></td>
+<td>Download every sheet tab as CSV, and copy the requests to <code>DIR/requests.sqlite</code>. Used to refresh test fixtures and to work offline.</td>
+</tr>
+<tr>
+<td><code>puppet-strings export-requests FILE</code></td>
+<td>Copy the requests to a file for another Puppet Master.</td>
+</tr>
+<tr>
+<td><code>puppet-strings import-requests FILE</code></td>
+<td>Replace the requests with that file's, keeping the old ones in <code>requests.before-import.sqlite</code>.</td>
+</tr>
+<tr>
+<td><code>puppet-strings self-check</code></td>
+<td>Import every module the app can reach, including what only signing in to Google loads. The release build runs it on each packaged executable first.</td>
+</tr>
+<tr>
+<td><code>puppet-strings app</code></td>
+<td>Open the desktop request manager.</td>
+</tr>
+</tbody>
+</table>
+<p>Every command accepts <code>--fixtures DIR</code> to read CSVs instead of Google Sheets, and the requests in <code>DIR/requests.sqlite</code> instead of this computer's; <code>--no-cache</code> reads every sheet from Google.</p>
+<h3 id="15-desktop-application">1.5 Desktop application<a class="headerlink" href="#15-desktop-application" title="Permanent link">&para;</a></h3>
+<p><strong>PySide6 (Qt for Python).</strong> Reasons: mature, documented, native windows, and it ships the widgets this app needs without extra libraries: a table with sorting and filtering (<code>QTableView</code> + <code>QSortFilterProxyModel</code>), a plain-text editor with syntax highlighting (<code>QPlainTextEdit</code> + <code>QSyntaxHighlighter</code>), and a calendar (<code>QCalendarWidget</code>). The GUI is a thin layer: it calls <code>skedge.validate</code>, <code>sheets.requests.save</code>, and <code>solver.solve</code>, and holds no logic of its own. Replacing it with a web UI later would not touch the library.</p>
+<p>Alternatives considered: Tkinter (no usable code editor widget), Textual (terminal only, less intuitive for a non-programmer), NiceGUI/Streamlit (browser-based, awkward for live validation while typing).</p>
+<hr />
+<h2 id="2-data-schemas">2. Data Schemas<a class="headerlink" href="#2-data-schemas" title="Permanent link">&para;</a></h2>
+<p>Names are normalized as follows (this extends the proposal's rule because clinic names contain <code>&amp;</code>, <code>/</code>, <code>:</code>, <code>(</code>, <code>)</code> and <code>'</code>): trim, lowercase, replace every run of characters outside <code>a–z 0–9</code> with one underscore, strip leading and trailing underscores, and prefix <code>_</code> if the result starts with a digit.</p>
+<table>
+<thead>
+<tr>
+<th>Sheet value</th>
+<th>Identifier</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Mary Kate</code></td>
+<td><code>staff.mary_kate</code></td>
+</tr>
+<tr>
+<td><code>Cam VL</code></td>
+<td><code>staff.cam_vl</code></td>
+</tr>
+<tr>
+<td><code>Archery 1 &amp; 2</code></td>
+<td><code>activities.clinics.archery_1_2</code></td>
+</tr>
+<tr>
+<td><code>Blacksmithing (DBL)</code></td>
+<td><code>activities.clinics.blacksmithing_dbl</code></td>
+</tr>
+<tr>
+<td><code>Crow's Nest (DBL)</code></td>
+<td><code>activities.clinics.crow_s_nest_dbl</code></td>
+</tr>
+<tr>
+<td><code>Village HERO</code></td>
+<td><code>staff.village_hero</code></td>
+</tr>
+</tbody>
+</table>
+<p>The validator rejects collisions within a namespace. The desktop app and <code>puppet-strings names</code> show the identifier next to each sheet value.</p>
+<h3 id="21-clinic_data-existing-read">2.1 Clinic_Data (existing, read)<a class="headerlink" href="#21-clinic_data-existing-read" title="Permanent link">&para;</a></h3>
+<p>The spreadsheet has one tab per category (Arts, Outdoor, Rolling, …) and one combined tab with a <code>Category</code> column. The loader reads <strong>only the combined tab</strong> (the first tab whose header contains <code>Category</code>). The per-category tabs are for people. <code>LG_Required</code> moves to the combined tab as an optional column.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Clinic_Name</code></td>
+<td>text</td>
+<td>Activity name. Trailing spaces are trimmed (<code>Archery 3</code>).</td>
+</tr>
+<tr>
+<td><code>Slots</code></td>
+<td>int</td>
+<td>Camper slots. Displayed only; not used by the solver.</td>
+</tr>
+<tr>
+<td><code>Staff_Required</code> or <code>Staff_Requested</code></td>
+<td>int</td>
+<td>Number of positions. Both header spellings exist and are accepted.</td>
+</tr>
+<tr>
+<td><code>RAL_Required</code></td>
+<td>digit string</td>
+<td><strong>One digit per position</strong>, in position order: <code>53</code> means 1st needs RAL 5, 2nd needs RAL 3; <code>543</code> covers three positions. Exactly <code>Staff_Required</code> digits; any other length is a load error naming the row (the current sheet has four such rows to fix).</td>
+</tr>
+<tr>
+<td><code>LG_Required</code></td>
+<td>int, optional</td>
+<td>Lifeguards in addition to <code>Staff_Required</code>, each a position needing the <code>LIFEGUARD</code> skill at RAL 5. Blank means 0.</td>
+</tr>
+<tr>
+<td><code>Category</code></td>
+<td>text, optional</td>
+<td>Present on the combined tab; otherwise the tab name is used. Becomes <code>activities.clinics.&lt;category&gt;</code> (<code>activities.clinics.ropes</code>, <code>activities.clinics.arts</code>).</td>
+</tr>
+</tbody>
+</table>
+<p>Built-in: <code>activities.clinics</code> = every row. Positions are <code>roles.first</code>, <code>roles.second</code>, <code>roles.third</code> for <code>Staff_Required</code> = 1, 2, 3, followed by <code>roles.lifeguard</code>, <code>roles.lifeguard_2</code> for <code>LG_Required</code> = 1, 2.</p>
+<h3 id="22-skills-existing-read">2.2 Skills (existing, read)<a class="headerlink" href="#22-skills-existing-read" title="Permanent link">&para;</a></h3>
+<p><strong>Main tab.</strong> Three header rows and one row per staff member.</p>
+<table>
+<thead>
+<tr>
+<th>Row</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Skill group (<code>Ropes</code>, <code>Circus</code>, …). Merged cells. Ignored by the loader.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Skill name (<code>Canopy Tour</code>, <code>Ground Belay</code>, <code>Candle making</code>). A blank cell marks a date column, which is skipped.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Rank (<code>1st</code>, <code>2nd</code>, <code>1st CW</code>, <code>3rd</code>) or blank.</td>
+</tr>
+</tbody>
+</table>
+<p>Column A is the staff name, column B is <code>RAL (+ date of incident)</code> and column C is a count that the loader ignores. A skill's full name is <code>"{row 2} {row 3}".strip()</code>, which matches the sheet's own <code>Skill_Name</code> column on its third tab: <code>Canopy Tour 1st</code>, <code>Ground Belay 1st CW</code>, <code>Leap of Faith</code>, <code>LIFEGUARD</code>, <code>Any</code>.</p>
+<p>The RAL cell is parsed as its leading integer, so <code>4 (6/12)</code> reads as 4.</p>
+<p>Cell values map to a status:</p>
+<table>
+<thead>
+<tr>
+<th>Cell value</th>
+<th>Status</th>
+<th>Can fill a position</th>
+<th><code>roles.trainee</code> resolves to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>✓</code>, <code>WCF</code></td>
+<td>checked off</td>
+<td>yes</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td><code>Trainer</code></td>
+<td>checked off, <strong>trainer for this skill</strong>, can supervise a scaffold</td>
+<td>yes</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td><code>w/ scaf</code>, <code>w/scaf</code>, <code>Brief scaf</code></td>
+<td>needs scaffold</td>
+<td>no</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td><code>w/ shadow</code></td>
+<td>needs shadow</td>
+<td>no</td>
+<td>shadow</td>
+</tr>
+<tr>
+<td>blank, <code>Past Ex</code>, <code>Interested</code>, <code>.</code></td>
+<td>not checked off</td>
+<td>no</td>
+<td>shadow</td>
+</tr>
+<tr>
+<td>anything else (<code>Yes</code>, a date)</td>
+<td>unknown, treated as not checked off, listed in the load warnings</td>
+<td>no</td>
+<td>shadow</td>
+</tr>
+</tbody>
+</table>
+<p>The mapping is one table at the top of <code>sheets/skills.py</code>. A planned "competent facilitator" status, which also supervises scaffolds, is one added row there: the status carries a <code>can_scaffold</code> flag, and the scaffold constraint reads that flag rather than the word <code>Trainer</code>.</p>
+<p>The staff roster (<code>staff</code>) is the set of rows on this tab.</p>
+<p><strong>Position skills tab</strong> (<code>Clinic_Name | 1st | 2nd | 3rd</code>). Maps each clinic position to the skill it requires. A blank cell, or the value <code>Any</code>, means the position needs no checkoff (every staff member holds <code>Any</code>). A clinic absent from this tab has no eligible staff and is reported as unstaffable when offered.</p>
+<p><strong>Derived tab</strong> (<code>Skill | Rank | Skill_Name | staff…</code>). Not read; the loader derives the same information from the main tab.</p>
+<h3 id="23-staff-categories-existing-read">2.3 Staff Categories (existing, read)<a class="headerlink" href="#23-staff-categories-existing-read" title="Permanent link">&para;</a></h3>
+<p>One column per category. Row 1 is the category name; the cells below list members. Every member must be a Skills row. Each column becomes <code>staff.&lt;category&gt;</code> (<code>staff.counselor</code>, <code>staff.director</code>, <code>staff.ropes_level_2</code>, <code>staff.village_hero</code>). A column headed <code>etc.</code> or left blank is skipped.</p>
+<p>Built-in: <code>staff</code>. Derived: <code>staff.clinic_trainers</code> = everyone with at least one <code>Trainer</code> cell on the Skills tab, unless a Staff Categories column of that name exists, which then wins.</p>
+<h3 id="24-offerings-existing-in-clinic_schedule-read">2.4 Offerings (existing, in Clinic_Schedule, read)<a class="headerlink" href="#24-offerings-existing-in-clinic_schedule-read" title="Permanent link">&para;</a></h3>
+<p>Layout as it exists today:</p>
+<table>
+<thead>
+<tr>
+<th>Row</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Weekday name, merged (<code>THURSDAY</code>).</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>Clinic 1 | | | Clinic 2 | slots | staff | Clinic 3 | … | Clinic 4 | …</code></td>
+</tr>
+<tr>
+<td>3…</td>
+<td>Category headings in capitals (<code>WEAPONS</code>), clinic names, blank rows. Columns B/C, E/F, … are lookups and are ignored.</td>
+</tr>
+<tr>
+<td>totals</td>
+<td>A row of numbers. Ignored.</td>
+</tr>
+<tr>
+<td><code>Cancelled</code></td>
+<td>Merged row. Everything below it is ignored.</td>
+</tr>
+</tbody>
+</table>
+<p>The loader finds the columns whose row-2 header normalizes to a block id (<code>Clinic 1</code> → <code>blocks.clinic_1</code>) and reads each non-blank cell that is a known clinic name. Cells that match a category name or are numeric are skipped; any other unknown text is a load error naming the cell.</p>
+<p>The tab carries no date. The target date comes from <code>--date</code> (default: tomorrow). The loader warns if the weekday in row 1 does not match the target date.</p>
+<p>A clinic whose name ends in <code>(DBL)</code> and that appears in two adjacent clinic blocks is one instance: the same staff hold both blocks. See §10.</p>
+<h3 id="25-blocks-new-read">2.5 Blocks (new, read)<a class="headerlink" href="#25-blocks-new-read" title="Permanent link">&para;</a></h3>
+<p>One row per time block, as in the proposal.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>block_id</code></td>
+<td>identifier</td>
+<td><code>clinic_1</code></td>
+</tr>
+<tr>
+<td><code>start</code></td>
+<td>HH:MM</td>
+<td><code>09:15</code></td>
+</tr>
+<tr>
+<td><code>end</code></td>
+<td>HH:MM</td>
+<td><code>10:30</code></td>
+</tr>
+<tr>
+<td><code>day_types</code></td>
+<td>comma list</td>
+<td><code>regular</code></td>
+</tr>
+<tr>
+<td><code>categories</code></td>
+<td>comma list</td>
+<td><code>any, all_clinics</code></td>
+</tr>
+<tr>
+<td><code>display_group</code></td>
+<td>text, optional</td>
+<td><code>break_then_work_projects</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>blocks.any</code> is added automatically. A block exists on a date only if the date's day type is in <code>day_types</code>. Overlap is computed from <code>start</code>/<code>end</code>.</p>
+<h3 id="26-calendar-new-read">2.6 Calendar (new, read)<a class="headerlink" href="#26-calendar-new-read" title="Permanent link">&para;</a></h3>
+<p>One row per <strong>span</strong>: a run of days from <code>start date</code> to <code>end date</code> running one programme.
+This is the "session calendar" the proposal names as the source of the <code>dates</code> namespace
+but does not define.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>text, unique</td>
+<td><code>Session 1</code></td>
+</tr>
+<tr>
+<td><code>start date</code></td>
+<td>ISO date</td>
+<td><code>2026-06-14</code></td>
+</tr>
+<tr>
+<td><code>end date</code></td>
+<td>ISO date, on or after the start</td>
+<td><code>2026-06-27</code></td>
+</tr>
+<tr>
+<td><code>program type</code></td>
+<td><code>main season</code> or <code>other</code></td>
+<td><code>main season</code></td>
+</tr>
+</tbody>
+</table>
+<p>Main season rows are numbered in sheet order, and that number is the name: session 3 is
+<code>dates.session_3</code> and its second week <code>dates.session_3.week_2</code>. Anything
+else is <code>dates.&lt;name&gt;</code>. Weeks are not written down — a span's week is its days
+seven at a time from the start — and nor are day types: a date is <code>weekday</code> or <code>weekend</code> by
+the calendar and <code>first_day</code> or <code>last_day</code> at the ends of its span, which is what the
+Blocks sheet's <code>day_types</code> and <code>program_type</code> columns are matched against.</p>
+<p>See <a href="../skedge/#dates">Dates</a>; this table was rewritten on 2026-09-18 with the date
+redesign (§11) and again on 2026-09-19 to spans.</p>
+<h3 id="27-requests-local-file-read-and-written">2.7 Requests (local file, read and written)<a class="headerlink" href="#27-requests-local-file-read-and-written" title="Permanent link">&para;</a></h3>
+<p>One SQLite file, <code>requests.sqlite</code>, with a <code>requests</code> table and a <code>meta</code> table holding the
+format version. Each request has a <strong>scope</strong> — day, week, session or season — kept as the
+dates it covers, and a load of a date reads every request whose scope covers it, through an
+index on those dates. Export and import copy the whole file.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Rules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>text</td>
+<td>The primary key: unique in the file, stable, <code>kebab-case</code>.</td>
+</tr>
+<tr>
+<td><code>scope</code></td>
+<td><code>day</code> <code>week</code> <code>session</code> <code>season</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>first</code>, <code>last</code></td>
+<td>ISO dates</td>
+<td>The days the scope covers, both included. The season is its calendar year.</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>text</td>
+<td></td>
+</tr>
+<tr>
+<td><code>skedge</code></td>
+<td>multi-line text</td>
+<td></td>
+</tr>
+<tr>
+<td><code>priority</code></td>
+<td><code>MUST_HAPPEN</code> <code>CLINIC</code> <code>HIGH</code> <code>MEDIUM</code> <code>LOW</code></td>
+<td><code>STABILITY</code> is refused.</td>
+</tr>
+<tr>
+<td><code>weight</code></td>
+<td>real</td>
+<td>Positive; always 1 with <code>MUST_HAPPEN</code>.</td>
+</tr>
+<tr>
+<td><code>tags</code>, <code>group</code>, <code>requester</code></td>
+<td>text</td>
+<td>Tags comma-separated.</td>
+</tr>
+<tr>
+<td><code>created</code></td>
+<td>ISO date or null</td>
+<td>Set by the app on creation.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="28-mappings-new-read">2.8 Mappings (new, read)<a class="headerlink" href="#28-mappings-new-read" title="Permanent link">&para;</a></h3>
+<p>An index tab <code>Mappings</code> plus one data tab per mapping. (These were <em>metrics</em> until
+2026-09-22, when a mapping that gives a name rather than a number was needed for buddy
+HEROs; a metric is now a numeric mapping.)</p>
+<p><code>Mappings</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Example</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mapping</code></td>
+<td><code>enjoyment</code></td>
+<td><code>buddy</code></td>
+</tr>
+<tr>
+<td><code>keys</code></td>
+<td><code>staff, activities.clinics</code></td>
+<td><code>staff.counselor</code></td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>numeric</code></td>
+<td><code>{staff - staff.counselor}</code></td>
+</tr>
+<tr>
+<td><code>scale_min</code></td>
+<td><code>1</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>scale_max</code></td>
+<td><code>5</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>default</code></td>
+<td><code>3</code></td>
+<td><code>ANY 1 {staff - staff.counselor - staff.director}</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>keys</code> and <code>value</code> are Skedge sets (or a bare namespace), so what a call may take and
+give is checked like any other name. <code>mapping_enjoyment</code>:</p>
+<table>
+<thead>
+<tr>
+<th>key1</th>
+<th>key2</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dylan</td>
+<td>Archery 1 &amp; 2</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Dylan</td>
+<td>Candle Making</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<p>Keys and values are sheet names, not identifiers, so the Puppet Master can paste from other sheets. Normalized score = <code>(value − scale_min) / (scale_max − scale_min)</code>. A key with no row takes the <code>default</code>. Values outside the scale, and cells outside their sets, are load errors. The <a href="../sheets/#mappings-config-spreadsheet">sheets page</a> is the full reference.</p>
+<h3 id="29-the-schedules-tree-new-read-and-written">2.9 The schedules tree (new, read and written)<a class="headerlink" href="#29-the-schedules-tree-new-read-and-written" title="Permanent link">&para;</a></h3>
+<p>Revised 2026-09-19; it was one spreadsheet of dated tabs until then. One Drive folder tree
+under the <code>schedules</code> root chosen in the Configure pane: <code>&lt;year&gt;/&lt;Program Type&gt;/&lt;span
+name&gt;/</code>, holding one <code>Staff Categories</code> spreadsheet and one spreadsheet per day named
+<code>&lt;Weekday&gt;_&lt;week of the span&gt;</code>. Every part of the path is read off the Calendar sheet.</p>
+<p>A day's spreadsheet holds <code>Offerings</code> (started from the Clinic Schedule template when the
+day is made), <code>Assignments</code>, <code>Staff View</code>, <code>Clinic View</code>, <code>Report</code>, and <code>Changes</code> after a
+same-day re-solve. <code>Assignments</code> is the canonical record and what the solver reads back as
+fixed past assignments; an empty one means the day is set up but not solved.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>staff</code></td>
+<td><code>Dylan</code></td>
+</tr>
+<tr>
+<td><code>activity</code></td>
+<td><code>Archery 1 &amp; 2</code> or <code>'counselor hour'</code></td>
+</tr>
+<tr>
+<td><code>role</code></td>
+<td><code>first</code>, <code>shadow</code>, <code>scaffolded</code>, or blank for ad hoc tasks</td>
+</tr>
+<tr>
+<td><code>block</code></td>
+<td><code>clinic_2</code></td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>offering</code>, or the request id that required it</td>
+</tr>
+</tbody>
+</table>
+<p>Three further tabs are overwritten on every publish and hold the latest date only: <code>Staff View</code>, <code>Clinic View</code>, <code>Report</code>. Older views can be regenerated from the date tabs with <code>puppet-strings solve --date … --publish</code> only if the date is not yet published; a <code>--views-only</code> flag re-renders views from an existing tab without solving.</p>
+<ul>
+<li><strong>Staff View</strong>: one row per staff member, one column per block (blocks sharing a <code>display_group</code> merge into one column). A staff member with no assignment in <code>blocks.playstation</code> shows <code>Available</code>.</li>
+<li><strong>Clinic View</strong>: one row per clinic somebody is on, one column per clinic block, position holders in order (1st above 2nd), trainees after them marked <code>(shadow)</code> or <code>(scaffolded)</code>. Coloured one colour per clinic block column and one per Clinic_Data category (<code>publish/palette.py</code>); <code>Styled</code> carries the fills and <code>SheetsSource.style</code> sends them in one <code>batch_format</code>.</li>
+<li><strong>Report</strong>: one row per unsatisfied soft request (<code>id</code>, <code>priority</code>, <code>description</code>) and, for an infeasible run, the conflicting <code>MUST_HAPPEN</code> ids.</li>
+</ul>
+<p>Republishing a date overwrites its tab after a confirmation prompt.</p>
+<hr />
+<h2 id="3-package-layout">3. Package Layout<a class="headerlink" href="#3-package-layout" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>puppet_strings/
+├── __init__.py
+├── config.py            # config.toml loading, paths
+├── names.py             # normalize(), Namespace lookup, collision check
+├── model.py             # dataclasses: Staff, Activity, Position, Block, CalendarDay,
+│                        #   Request, Assignment, MappingTable, Dataset
+├── sheets/
+│   ├── source.py        # Table = list[list[str]]; SheetsSource (gspread), CsvSource
+│   ├── clinic_data.py   # one parse function per sheet, table -&gt; model objects
+│   ├── skills.py
+│   ├── categories.py
+│   ├── offerings.py
+│   ├── blocks.py
+│   ├── calendar.py
+│   ├── requests.py      # read and write
+│   ├── mappings.py
+│   ├── published.py     # read past dates; write date tab and views
+│   └── load.py          # load_dataset(source, target_date) -&gt; Dataset
+├── skedge/
+│   ├── grammar.lark     # the grammar from the proposal
+│   ├── ast.py           # Declaration, Line, Clause, Verb, Selector nodes
+│   ├── parser.py        # text -&gt; AST (Lark transformer)
+│   ├── scope.py         # clause scoping, defaults, EACH expansion
+│   ├── resolve.py       # selectors -&gt; item sets and alternatives, using a Dataset
+│   └── validate.py      # every rule in proposal §8; SkedgeError(line, column, message)
+├── solver/
+│   ├── variables.py     # eligible assignment tuples -&gt; BoolVar; FREE literals
+│   ├── structural.py    # implicit constraints (proposal rules 1–8, plus §4.2 here)
+│   ├── compile.py       # one function per verb: TASK, FORBID, PREFER, AVOID, GAP
+│   ├── tiers.py         # lexicographic solve loop, integer scaling
+│   ├── solve.py         # solve(dataset) -&gt; Result
+│   └── result.py        # Result, Schedule, UnsatisfiedRequest, Conflict
+├── publish/
+│   └── views.py         # staff view and clinic view as tables
+├── cli.py               # argparse entry points
+└── app/                 # PySide6
+    ├── main.py          # window, menu, solve/publish actions
+    ├── request_table.py # model + proxy filters (date, priority, staff, activity, scope)
+    ├── editor.py        # Skedge editor, highlighter, live validation
+    └── namespaces_panel.py # browsable tree of valid names
+
+tests/
+├── fixtures/            # CSV export of each tab, trimmed to ~15 staff and ~25 clinics
+├── test_names.py
+├── test_sheets_*.py     # one per parser
+├── test_parser.py       # every proposal example parses
+├── test_validate.py     # every rule in proposal §8
+├── test_solver_*.py     # one per verb, plus test_scenarios.py for the required scenarios
+└── test_views.py
+
+docs/                    # MkDocs Material
+mkdocs.yml
+pyproject.toml           # package, dependencies, ruff, pytest config
+.github/workflows/ci.yml       # ruff + pytest on push and PR
+.github/workflows/docs.yml     # mkdocs gh-deploy on push to main
+</code></pre></div>
+<p>Dependencies: <code>ortools</code>, <code>lark</code>, <code>gspread</code>, <code>PySide6</code>. Development: <code>pytest</code>, <code>ruff</code>, <code>mkdocs-material</code>. Python 3.12.</p>
+<hr />
+<h2 id="4-skedge-to-cp-sat">4. Skedge to CP-SAT<a class="headerlink" href="#4-skedge-to-cp-sat" title="Permanent link">&para;</a></h2>
+<h3 id="41-pipeline">4.1 Pipeline<a class="headerlink" href="#41-pipeline" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Parse</strong> each request's <code>.skedge</code> with Lark into an AST of lines and clauses.</li>
+<li><strong>Scope</strong>: attach clauses to verbs (same line, or verb-less line), apply defaults (<code>ON EACH dates.session</code>, <code>ACROSS staff</code>), reject duplicates.</li>
+<li><strong>Expand <code>EACH</code></strong> into independent declaration copies (Cartesian product when several clauses use it). Each copy gets its own satisfaction literal and reports under <code>id[copy-key]</code>, for example <code>counselor-hours[dylan]</code>.</li>
+<li><strong>Resolve</strong> every selector against the <code>Dataset</code> into item sets; normalize <code>OR</code>/<code>AND</code> to alternatives; apply quantifiers.</li>
+<li><strong>Apply the time horizon</strong> (proposal §7): past dates become constants from Published Schedules, future dates are dropped, deferrable tasks are marked.</li>
+<li><strong>Compile</strong> to CP-SAT constraints and tier objective terms.</li>
+<li><strong>Solve</strong> tiers lexicographically; extract the schedule and report.</li>
+</ol>
+<h3 id="42-variables-and-structural-constraints">4.2 Variables and structural constraints<a class="headerlink" href="#42-variables-and-structural-constraints" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>x[s, a, r, d, b]</code>: <code>BoolVar</code> for each staff <code>s</code>, activity <code>a</code>, role <code>r</code>, date <code>d</code> (target only), block <code>b</code> where the Skills status allows <code>s</code> in <code>r</code> for <code>a</code> and RAL is met. Ad hoc tasks (<code>'counselor hour'</code>) and <code>FREE</code> have <code>r = None</code> and no eligibility filter. Trainee variables exist only for offered instances.</li>
+<li><code>free[s, d, b]</code>: true iff no <code>x</code> for <code>s</code> overlaps block <code>b</code> on <code>d</code>. Encoded as <code>free + sum(x overlapping b) == 1</code> when blocks in the overlap set are pairwise exclusive (always true after the no-double-booking constraint).</li>
+<li><strong>No double booking</strong>: for each staff and block, <code>sum(x[s, *, *, d, b]) &lt;= 1</code>; for each pair of overlapping blocks, <code>sum over both &lt;= 1</code>.</li>
+<li><strong>One holder per position, one instance per block</strong>: <code>sum_s x[s, a, p, d, b] &lt;= 1</code> for every position <code>p</code>. (Implied by the proposal, stated here.)</li>
+<li><strong>Offered clinics are staffed</strong>: a standing <code>CLINIC</code> request, <code>REQUEST EACH activities.clinics.offerings</code>, resolves each offering <code>(a, b)</code> of the target date to <code>REQUEST activities.clinics.a DURING blocks.b</code>, one copy per offering.</li>
+<li><strong>Lifeguards</strong> are ordinary positions with skill <code>LIFEGUARD</code> and RAL 5, so eligibility (rule 2) covers them.</li>
+<li><strong>Trainees</strong>: <code>x[s, a, shadow, d, b] → filled[a, d, b]</code>, where <code>filled</code> is the AND of the position-filled literals. <code>x[s, a, scaffolded, d, b] → OR(x[t, a, p, d, b] for trainers t of p's skill)</code>. At most one trainee per instance.</li>
+<li><strong>Past dates</strong>: no variables. Lookups return Python <code>True</code>/<code>False</code>; compile functions fold constants.</li>
+</ul>
+<h3 id="43-verb-compilation">4.3 Verb compilation<a class="headerlink" href="#43-verb-compilation" title="Permanent link">&para;</a></h3>
+<p>Every request <code>q</code> gets <code>sat[q]</code>. <code>MUST_HAPPEN</code>: <code>sat[q]</code> is added with <code>model.AddAssumption</code>. Soft: <code>+ weight × 1000 × sat[q]</code> in the request's tier.</p>
+<p><strong>Selectors → choice literals.</strong> For each clause of a <code>TASK</code>, the resolver yields items and alternatives. The compiler creates <code>chosen[item]</code> per item and, when <code>OR</code>/<code>AND</code> produced several alternatives, <code>alt[i]</code> per alternative with <code>sum(alt) == sat</code> and <code>chosen[item] ⇔ OR(alt[i] for i containing item)</code>. Quantifiers on plain sets need no alternative enumeration:</p>
+<table>
+<thead>
+<tr>
+<th>Quantifier</th>
+<th>Constraint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ANY</code></td>
+<td><code>sum(chosen) == sat</code></td>
+</tr>
+<tr>
+<td><code>ALL</code></td>
+<td><code>chosen[item] == sat</code> for every item</td>
+</tr>
+<tr>
+<td><code>n OF</code></td>
+<td><code>sum(chosen) == n × sat</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>TASK &lt;target&gt;</code>.</strong> For every combination of staff <code>s</code>, date <code>d</code>, block <code>b</code>, role <code>r</code> across the four clauses: <code>x[s, a, r, d, b]</code> is enforced by <code>[chosen_staff[s], chosen_date[d], chosen_block[b], chosen_role[r]]</code>. For a positioned activity without <code>ROLE</code>: <code>sum(x[s, a, p, d, b] for s in pool) == 1</code> per position <code>p</code>, enforced by <code>[chosen_date[d], chosen_block[b], sat]</code>. <code>TASK FREE</code> enforces <code>free[s, d, b]</code> instead of <code>x</code>.</p>
+<p><strong><code>FOR &lt;duration&gt; [CONTINUOUS]</code>.</strong> <code>y[b]</code> per block in the union of <code>DURING</code> blocks; <code>sum(minutes[b] × y[b]) &gt;= remaining</code> enforced by <code>sat</code>, where <code>remaining = duration − minutes already published in the window</code>. <code>y[b]</code> enforces the assignments. <code>CONTINUOUS</code>: every run of adjacent blocks long enough becomes an alternative literal; <code>sum(run) == sat</code>; a run enforces its blocks' <code>y</code>.</p>
+<p><strong>Deferrable <code>TASK</code></strong> (window includes future dates): <code>sat</code> is free with <code>+1</code> scaled unit (one thousandth of a weight-1 request) as incentive; on the window's last date it is enforced at its priority. With <code>FOR</code>, non-final dates instead bound <code>sum(minutes × y) &lt;= remaining</code> and reward <code>+1</code> unit per scheduled minute, so partial progress counts.</p>
+<p><strong><code>FORBID &lt;target&gt;</code>.</strong> Every matched <code>x</code> gets <code>x == 0</code> enforced by <code>sat</code>.</p>
+<p><strong><code>PREFER</code> / <code>AVOID</code>.</strong> Each matched <code>x</code> contributes <code>± round(1000 × weight × score) × x</code> to the tier, where <code>score</code> is 1 or the normalized metric value. <code>PREFER FREE</code> uses <code>free</code> literals.</p>
+<p><strong><code>AVOID … PER &lt;fields&gt; BEYOND n</code>.</strong> Matched <code>x</code> are grouped by the listed fields (past published assignments in the window enter as constants). Per group: <code>excess = IntVar(0, len(group))</code>, <code>excess &gt;= fixed_count + sum(group) − n</code>, contribution <code>− round(1000 × weight) × excess</code>.</p>
+<p><strong><code>GAP a b &lt;cmp&gt; duration</code>.</strong> Both labels must be <code>TASK</code> verbs with a single-block <code>DURING</code> (no <code>FOR</code>, no <code>ALL</code>, no <code>n OF</code>; validation error otherwise). For every pair of blocks <code>(b1, b2)</code> where the gap from <code>end(b1)</code> to <code>start(b2)</code> fails the comparison, or <code>b2</code> does not start after <code>b1</code> ends: <code>AddBoolOr([chosen_a[b1].Not(), chosen_b[b2].Not()])</code>.</p>
+<h3 id="44-tiers">4.4 Tiers<a class="headerlink" href="#44-tiers" title="Permanent link">&para;</a></h3>
+<p>Tier expressions are integer linear sums. Solve order: <code>CLINIC</code>, <code>HIGH</code>, <code>MEDIUM</code>, <code>LOW</code>. After each tier: read the objective value <code>v</code>, add <code>tier_expr &gt;= v</code>, clear the objective, set the next. <code>MUST_HAPPEN</code> requests never appear in an objective. Each pass gets its own clock (see §11): the feasibility check and every tier are given <code>tier_seconds_limit</code>, and the placement pass <code>tidy_seconds</code>. If a tier ends at the limit without proving optimality, its best found value becomes the bound and the report says so, with the gap it could not close. <code>num_workers</code> and <code>random_seed</code> are fixed for reproducible output.</p>
+<p>On <code>INFEASIBLE</code>, <code>solver.SufficientAssumptionsForInfeasibility()</code> returns the assumption indices; the report lists their request ids. An empty set means the structural constraints alone conflict (which the report says).</p>
+<h3 id="45-worked-example-counselor-hours">4.5 Worked example: counselor hours<a class="headerlink" href="#45-worked-example-counselor-hours" title="Permanent link">&para;</a></h3>
+<p>Request <code>counselor-hours</code>, <code>MUST_HAPPEN</code>:</p>
+<div class="highlight"><pre><span></span><code>ACROSS EACH staff.counselor
+TASK 'counselor hour' DURING {blocks.clinic_1 OR blocks.clinic_2} AS morning
+TASK 'counselor hour' DURING {blocks.clinic_3 OR blocks.clinic_4} AS afternoon
+GAP morning afternoon &lt;= 5h
+</code></pre></div>
+<p>Blocks (from the Blocks sheet): <code>clinic_1</code> 09:15–10:30, <code>clinic_2</code> 10:45–12:00, <code>clinic_3</code> 14:00–15:15, <code>clinic_4</code> 15:45–17:00. Target date 2026-09-16. Counselors: Dylan, James, Paul.</p>
+<p>Step 3 expands <code>EACH</code> into three copies. For Dylan's copy (<code>counselor-hours[dylan]</code>), with <code>ON</code> defaulted to <code>EACH dates.session</code> and then narrowed by the time horizon to the target date:</p>
+<div class="highlight"><pre><span></span><code><span class="n">sat</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">NewBoolVar</span><span class="p">(</span><span class="s2">"sat:counselor-hours[dylan]"</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">AddAssumption</span><span class="p">(</span><span class="n">sat</span><span class="p">)</span>  <span class="c1"># MUST_HAPPEN</span>
+
+<span class="c1"># morning: {clinic_1 OR clinic_2} -&gt; two singleton alternatives, so chosen == alt</span>
+<span class="n">m1</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">NewBoolVar</span><span class="p">(</span><span class="s2">"morning:clinic_1"</span><span class="p">)</span>
+<span class="n">m2</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">NewBoolVar</span><span class="p">(</span><span class="s2">"morning:clinic_2"</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="n">m1</span> <span class="o">+</span> <span class="n">m2</span> <span class="o">==</span> <span class="n">sat</span><span class="p">)</span>  <span class="c1"># ANY</span>
+<span class="n">model</span><span class="o">.</span><span class="n">AddImplication</span><span class="p">(</span><span class="n">m1</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="s2">"dylan"</span><span class="p">,</span> <span class="s2">"counselor hour"</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="s2">"clinic_1"</span><span class="p">])</span>
+<span class="n">model</span><span class="o">.</span><span class="n">AddImplication</span><span class="p">(</span><span class="n">m2</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="s2">"dylan"</span><span class="p">,</span> <span class="s2">"counselor hour"</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="s2">"clinic_2"</span><span class="p">])</span>
+
+<span class="c1"># afternoon: same shape over clinic_3, clinic_4</span>
+<span class="n">a3</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">NewBoolVar</span><span class="p">(</span><span class="s2">"afternoon:clinic_3"</span><span class="p">)</span>
+<span class="n">a4</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">NewBoolVar</span><span class="p">(</span><span class="s2">"afternoon:clinic_4"</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="n">a3</span> <span class="o">+</span> <span class="n">a4</span> <span class="o">==</span> <span class="n">sat</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">AddImplication</span><span class="p">(</span><span class="n">a3</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="s2">"dylan"</span><span class="p">,</span> <span class="s2">"counselor hour"</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="s2">"clinic_3"</span><span class="p">])</span>
+<span class="n">model</span><span class="o">.</span><span class="n">AddImplication</span><span class="p">(</span><span class="n">a4</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="s2">"dylan"</span><span class="p">,</span> <span class="s2">"counselor hour"</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="s2">"clinic_4"</span><span class="p">])</span>
+
+<span class="c1"># GAP morning afternoon &lt;= 5h: end(morning) -&gt; start(afternoon)</span>
+<span class="c1">#   clinic_1 -&gt; clinic_3: 10:30 -&gt; 14:00 = 3h30   ok</span>
+<span class="c1">#   clinic_1 -&gt; clinic_4: 10:30 -&gt; 15:45 = 5h15   violates</span>
+<span class="c1">#   clinic_2 -&gt; clinic_3: 12:00 -&gt; 14:00 = 2h00   ok</span>
+<span class="c1">#   clinic_2 -&gt; clinic_4: 12:00 -&gt; 15:45 = 3h45   ok</span>
+<span class="n">model</span><span class="o">.</span><span class="n">AddBoolOr</span><span class="p">([</span><span class="n">m1</span><span class="o">.</span><span class="n">Not</span><span class="p">(),</span> <span class="n">a4</span><span class="o">.</span><span class="n">Not</span><span class="p">()])</span>
+</code></pre></div>
+<p>The <code>x</code> variables for <code>'counselor hour'</code> share the no-double-booking constraints with clinic assignments, so choosing <code>m1</code> keeps Dylan off every clinic in <code>clinic_1</code>. If Dylan is also pinned to Archery in both <code>clinic_1</code> and <code>clinic_2</code> by a <code>MUST_HAPPEN</code> request, the model is infeasible and the report names <code>counselor-hours[dylan]</code> and the pin's id.</p>
+<h3 id="46-worked-example-scoring">4.6 Worked example: scoring<a class="headerlink" href="#46-worked-example-scoring" title="Permanent link">&para;</a></h3>
+<p><code>clinic-enjoyment</code> (<code>MEDIUM</code>, weight 1, <code>~ metrics.enjoyment</code> on a 1–5 scale) and <code>clinic-variety</code> (<code>MEDIUM</code>, weight 0.5, <code>PER staff activity BEYOND 1</code> over the rolling week). Dylan ran archery yesterday (a constant from Published Schedules).</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Coefficient (scaled by 1000)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>x[dylan, archery, first, today, clinic_2]</code> enjoyment 5 → normalized 1.0</td>
+<td><code>+1000</code></td>
+</tr>
+<tr>
+<td><code>x[dylan, candle_making, first, today, clinic_2]</code> enjoyment 3 → 0.5</td>
+<td><code>+500</code></td>
+</tr>
+<tr>
+<td><code>excess[dylan, archery]</code> with <code>excess &gt;= 1 + x[archery] − 1</code></td>
+<td><code>−500</code></td>
+</tr>
+</tbody>
+</table>
+<p>Archery: <code>1000 − 500 = 500</code>. Candle making: <code>500</code>. A tie, as in the proposal's table.</p>
+<hr />
+<h2 id="5-milestones">5. Milestones<a class="headerlink" href="#5-milestones" title="Permanent link">&para;</a></h2>
+<p>Each milestone ends with passing <code>ruff check</code>, <code>ruff format --check</code>, and <code>pytest</code>.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Milestone</th>
+<th>Deliverable</th>
+<th>Testable outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Scaffold</td>
+<td><code>pyproject.toml</code>, package skeleton, CI workflow, <code>export-fixtures</code> command, trimmed CSV fixtures committed.</td>
+<td>CI green on an empty test suite. Fixtures load as tables.</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Data layer</td>
+<td><code>model.py</code>, <code>names.py</code>, every <code>sheets/*</code> parser, <code>load_dataset</code>.</td>
+<td>Each parser has a test against its fixture. RAL digit strings, Skills statuses, <code>(DBL)</code> merging, identifier collisions, and unknown Offerings cells are covered. <code>puppet-strings names --fixtures</code> prints every namespace.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Skedge</td>
+<td>grammar, parser, scope, resolve, validate.</td>
+<td>Every proposal example parses to the expected AST and resolves to the expected alternatives. Every rule in proposal §8 has a failing-input test with line and column asserted. <code>puppet-strings validate --fixtures</code> works.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Solver core</td>
+<td>variables, structural constraints, <code>TASK</code> (with <code>FREE</code>, <code>ROLE</code>, positions), <code>FORBID</code>, tiers, assumptions, report.</td>
+<td>Scenarios: infeasible <code>MUST_HAPPEN</code> pair reports both ids; unstaffable offered clinic is reported and the rest is scheduled; trainee added without filling a position; scaffold only with a trainer; lifeguard minimum. <code>puppet-strings solve --fixtures</code> prints a schedule.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Objectives and time</td>
+<td><code>PREFER</code>, <code>AVOID</code>, metrics, <code>PER … BEYOND</code>, <code>GAP</code>, <code>FOR</code>/<code>CONTINUOUS</code>, past constants, deferral.</td>
+<td>Scenarios: tradeoff outcomes at weights 0.25, 0.5, 1; <code>GAP</code> rejects the 5h15 pair; deferrable task optional then enforced; past assignments count toward <code>BEYOND</code>; <code>FOR EXACTLY 2h</code> sums across non-adjacent blocks; <code>CONTINUOUS</code> does not.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Sheets integration</td>
+<td><code>SheetsSource</code>, Requests read/write, Published read/write, views, <code>--publish</code>.</td>
+<td>View rendering tested on fixtures (display groups merge, <code>Available</code>, position order, trainee labels). Manual test against a copy of the real sheets; a written checklist for it is part of the docs.</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Desktop app</td>
+<td>request table with filters, editor with live validation, names panel, solve and publish buttons.</td>
+<td>Manual checklist. Unit tests for the filter proxy and the highlighter's token rules.</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Docs and README</td>
+<td>MkDocs Material site: install, setup (Google Cloud steps), user guide, Skedge reference with every proposal example, this outline, developer guide. README with overview and install steps.</td>
+<td><code>mkdocs build --strict</code> passes in CI; site deploys to GitHub Pages on push to <code>main</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Milestones 3 and 4 are where the proposal's required scenario tests live; both are testable entirely offline.</p>
+<hr />
+<h2 id="6-testing-approach">6. Testing Approach<a class="headerlink" href="#6-testing-approach" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Fixtures are real exports, trimmed by hand to a small staff and clinic set that still exercises every case (multi-position ropes clinics, a water clinic with <code>LG_Required</code>, a trainer, a <code>w/ shadow</code> and a <code>w/ scaf</code> staff member, a <code>(DBL)</code> clinic, an unstaffable clinic).</li>
+<li>Solver tests build a <code>Dataset</code> in Python from small literal tables rather than from the full fixtures, so each test states the exact situation it checks.</li>
+<li>Parser tests compare ASTs with dataclass equality. Validation tests assert <code>(line, column)</code> of the error.</li>
+<li>The scoring tests read the objective value back from CP-SAT and compare against the hand-computed table in §4.6.</li>
+</ul>
+<hr />
+<h2 id="7-documentation-plan">7. Documentation Plan<a class="headerlink" href="#7-documentation-plan" title="Permanent link">&para;</a></h2>
+<p>MkDocs Material with the following navigation:</p>
+<ol>
+<li>Home: what Puppet Strings does, one screenshot, one diagram.</li>
+<li>Install: Python, <code>pipx install</code>, config file, Google Cloud setup with screenshots.</li>
+<li>Sheets: every schema from §2, with what each column means for the Puppet Master.</li>
+<li>Requests app: creating, editing, filtering, validating, solving, publishing.</li>
+<li>Skedge reference: language rules, every construct, every example from the proposal with its priority and weight, the validation error list.</li>
+<li>How the solver decides: priorities, weights, the worked tradeoff.</li>
+<li>Design: this outline, kept current.</li>
+<li>Development: layout, running tests, refreshing fixtures, releasing.</li>
+</ol>
+<p>Deployment: <code>docs.yml</code> runs <code>mkdocs gh-deploy --force</code> on push to <code>main</code>.</p>
+<hr />
+<h2 id="8-code-conventions">8. Code Conventions<a class="headerlink" href="#8-code-conventions" title="Permanent link">&para;</a></h2>
+<p>Per the proposal: PEP 8 via <code>ruff</code>, docstrings on public functions, return-early, no duplication. Additions:</p>
+<ul>
+<li>Dataclasses with <code>frozen=True</code> for model objects.</li>
+<li>Parsers are pure functions <code>parse_&lt;sheet&gt;(table) -&gt; objects</code>; they never call gspread.</li>
+<li>Errors that a Puppet Master must act on (<code>LoadError</code>, <code>SkedgeError</code>) carry sheet, cell or line/column, and a plain-language message. Internal errors are plain exceptions.</li>
+<li>No global state. The <code>Dataset</code> is passed explicitly.</li>
+</ul>
+<hr />
+<h2 id="9-assumptions">9. Assumptions<a class="headerlink" href="#9-assumptions" title="Permanent link">&para;</a></h2>
+<p>Defaults from "Unresolved Decisions":</p>
+<ol>
+<li><strong>Scaffolder</strong>: the supervising trainer is one of the staff filling a required position, not an extra person.</li>
+<li><strong>Training instances</strong>: <code>roles.trainee</code> attaches only to an offered clinic instance; the solver never creates instances for training.</li>
+<li><strong>Counselors' third break</strong>: not modeled. Counselor hours give two breaks; no third break is generated. The Puppet Master can add a <code>TASK 'break'</code> request for counselors later without code changes.</li>
+<li><strong><code>GAP</code> measurement</strong>: end of the first task to start of the second.</li>
+<li><strong>Variety across sessions</strong>: repetition windows ignore dates outside the active session.</li>
+</ol>
+<p>Assumptions added by this outline:</p>
+<ol>
+<li><strong>Name normalization</strong> replaces every non-alphanumeric run with one underscore (§2). The proposal's rule covered spaces only.</li>
+<li><strong>RAL_Required</strong> is a digit string with exactly one digit per position. Confirmed; rows with the wrong length are load errors.</li>
+<li><strong>Skills statuses</strong> map as in §2.2. <code>WCF</code> is a checkoff, <code>Brief scaf</code> needs a scaffold. Unknown values are treated as not checked off and reported. Confirmed.</li>
+<li><strong>Trainers are per skill</strong>: a scaffold requires a position holder whose status for that position's skill can scaffold (<code>Trainer</code> today). <code>staff.clinic_trainers</code> is derived from the Skills tab. Confirmed.</li>
+<li><strong><code>roles.trainee</code> resolution</strong> uses the staff member's status for the clinic's <strong>first position</strong> skill.</li>
+<li><strong>A blank or <code>Any</code> position skill</strong> means no checkoff required.</li>
+<li><strong><code>LG_Required</code></strong> counts extra lifeguard positions beyond <code>Staff_Required</code>, each requiring <code>LIFEGUARD</code> at RAL 5. Confirmed by the Puppet Master on 2026-09-16.</li>
+<li><strong>Trainee capacity</strong> is one per instance; Clinic_Data has no override column, so none is read.</li>
+<li><strong><code>(DBL)</code> clinics</strong> span two adjacent clinic blocks: one instance, same staff in both blocks. Confirmed.</li>
+<li><strong>Offerings date</strong> is the <code>--date</code> argument; the tab's weekday header is only checked, not parsed into a date.</li>
+<li><strong>The staff roster</strong> is the Skills main tab. Staff Categories members must appear there.</li>
+<li><strong>Category names</strong> are used as-is: <code>staff.counselor</code>, <code>activities.clinics.ropes</code>. The proposal's <code>staff.counselors</code> and <code>activities.clinics.any_ropes</code> become whatever the sheets say; documentation examples will use the real names.</li>
+<li><strong>Activities are clinics only.</strong> Clinic_Data lists no playstations or evening programs. <code>blocks.playstation</code> is just a block.</li>
+<li><strong>New sheets</strong>: Blocks, Calendar, Requests, Metrics live in one new config spreadsheet; Published Schedules is a second new spreadsheet. <code>Calendar</code> is an addition beyond the proposal.</li>
+<li><strong>Metric misses</strong> score the metric's <code>default</code> column, or <code>scale_min</code> when that column
+    is blank, which is the original score-nothing behavior. Values and defaults outside the
+    declared scale are load errors.</li>
+<li><strong>Deferral incentive</strong> is one scaled unit (0.001 of a weight-1 request) per satisfied deferrable task, or per minute for <code>FOR</code> tasks.</li>
+<li><strong><code>GAP</code> labels</strong> must be single-block <code>TASK</code>s on the same date.</li>
+<li><strong><code>EACH</code> copies</strong> each count as one satisfied request in their tier, and report as <code>id[item]</code>.</li>
+<li><strong>Ad hoc task names</strong> are shared across requests: two requests using <code>'break'</code> refer to the same activity, so double-booking applies between them.</li>
+<li><strong>Authentication</strong> was a service account only. Superseded 2026-09-19: OAuth as the Puppet Master, because a service account cannot browse Drive and the Configure pane needs to.</li>
+<li><strong>The desktop app</strong> is PySide6. Confirmed.</li>
+<li><strong>Views</strong> are overwritten per publish; per-date tabs are the durable record.</li>
+<li><strong>Solver determinism</strong>: fixed seed and worker count; each pass's time limit defaults to 15 seconds.</li>
+</ol>
+<hr />
+<h2 id="10-questions-for-the-puppet-master">10. Questions for the Puppet Master<a class="headerlink" href="#10-questions-for-the-puppet-master" title="Permanent link">&para;</a></h2>
+<p>Answered 2026-09-15. Kept for the record.</p>
+<ol>
+<li><strong><code>(DBL)</code></strong>: a clinic spanning two adjacent clinic blocks. Confirmed.</li>
+<li><strong>Skills vocabulary</strong>: <code>WCF</code> = "with competent facilitator", treated as a checkoff for now; <code>Brief scaf</code> = <code>w/ scaf</code>. A "competent facilitator" status that can also scaffold is planned.</li>
+<li><strong>Trainers</strong>: scaffolding requires a <code>Trainer</code> mark on the specific skill. Confirmed.</li>
+<li><strong>RAL digit strings</strong>: <code>53</code> means 1st needs 5 and 2nd needs 3. A single digit on a two-position clinic is a data error.</li>
+<li><strong>Lifeguards</strong>: answered 2026-09-16. A lifeguard is an additional person: one facilitator plus one lifeguard is <code>Staff_Required</code> 1, <code>LG_Required</code> 1. All lifeguards need RAL 5.</li>
+<li><strong>Zero-slot rows</strong> (<code>Craft Fairy</code>, <code>Lvl. 2 on Ground</code>, <code>Battle Royale Setup/Breakdown</code>) are staffed like any clinic. Confirmed.</li>
+<li><strong>Hand-written <code>CLINIC</code> priority</strong>: unanswered; default kept (reserved for generated offerings).</li>
+<li><strong>Scope</strong>: derived from the <code>ON</code> clause. Confirmed.</li>
+<li><strong>GUI toolkit</strong>: PySide6. Confirmed.</li>
+<li><strong>Credentials</strong>: service account. Superseded 2026-09-19 by signing in as the Puppet Master; see 1.2.</li>
+</ol>
+<p>Standing direction from the Puppet Master: the Google Sheets formats are not fixed. When the current layout would force convoluted parsing, change the sheet instead, and document the change. The code must be clear enough for the Puppet Master to update without an LLM.</p>
+<hr />
+<h2 id="11-changes-made-during-the-build">11. Changes Made During the Build<a class="headerlink" href="#11-changes-made-during-the-build" title="Permanent link">&para;</a></h2>
+<p>Recorded so the outline matches the code.</p>
+<ul>
+<li><strong>Tidiness pass.</strong> After the last tier, the solver minimizes the number of assignments
+  so that nothing is scheduled that no request asked for (otherwise ad hoc tasks such as
+  counselor hours could appear in extra blocks at no cost).</li>
+<li><strong><code>PREFER</code>/<code>AVOID</code> never score their own <code>sat</code>.</strong> Only <code>TASK</code> and <code>FORBID</code> copies add
+  <code>weight × sat</code> to a tier; scoring verbs add their matched assignments only.</li>
+<li><strong>Deferral incentive</strong> is one scaled unit per satisfied deferrable copy, or per block
+  scheduled for a deferrable <code>FOR</code> task, in the request's own tier (<code>CLINIC</code> for hard
+  requests).</li>
+<li><strong><code>(DBL)</code> assignments count once</strong> in <code>PREFER</code>, <code>AVOID</code> and <code>PER … BEYOND</code>, both for
+  today's variables and for published rows.</li>
+<li><strong>The default <code>ON EACH dates.session</code> is shared</strong> by every verb in a declaration, so
+  multi-verb requests expand to one copy per date rather than one per date pair.</li>
+<li><strong><code>EACH</code> copy keys</strong> are the chosen items in source order, dates omitted:
+  <code>counselor-hours[dylan]</code>.</li>
+<li><strong><code>GAP</code> compares block times only</strong>; both tasks are assumed to be on the same date.</li>
+<li><strong>Instances for hand-written <code>REQUEST activities.clinics.x</code></strong> are created for the target date if no
+  offering exists in that block, so a request can run an unlisted clinic.</li>
+<li><strong>Filter verbs (<code>FORBID</code>, plain <code>PREFER</code>/<code>AVOID</code>) look at the target date only.</strong>
+  <code>PER … BEYOND</code> windows include published past dates.</li>
+<li><strong>Ad hoc task names are shared across requests</strong>: two requests using <code>'break'</code> refer to
+  the same activity.</li>
+<li><strong>Request scope is gone</strong> (Puppet Master, 2026-09-18). The app used to label each
+  request season / session / week / day / pin, derived from the dates it resolved to. It
+  was never defined anywhere the Puppet Master could read, and a request naming a date the
+  Calendar sheet does not have resolved to no dates at all and so was labelled <code>season</code> —
+  the widest possible reach for a request that reaches nothing. The dates themselves are
+  still a facet (<code>app/facets.py</code>), and the date filter asks the same question honestly.</li>
+<li><strong>Tab names are configurable</strong> under <code>[tabs]</code> in <code>config.toml</code>, with defaults in
+  <code>config.py</code>.</li>
+<li><strong>Lifeguards are positions</strong>, not a count over facilitators: <code>LG_Required</code> adds
+  <code>roles.lifeguard</code> (and <code>roles.lifeguard_2</code>) positions requiring <code>LIFEGUARD</code> at RAL 5.</li>
+<li><strong>Recurring dates and staff pairing</strong> (Puppet Master, 2026-09-16), both inside the
+  existing grammar. A weekday name now holds every such date of the session rather than
+  only the target's week, so <code>ON EACH dates.monday</code> is a weekly request; ordinal names
+  (<code>dates.second_thursday</code>, <code>dates.last_friday</code>) were added to the <code>dates</code> namespace and existed
+  only when the session reaches them. For <code>FORBID</code>, <code>PREFER</code> and <code>AVOID</code>, an <code>ACROSS</code>
+  alternative holding several staff (<code>{staff.a AND staff.b}</code>) matches them as a group: one
+  match per instance, whose literal is the AND of each member's presence there, reified
+  with <code>AddMinEquality</code>. <code>AND</code> elsewhere on those verbs is a validation error, and a
+  staff-keyed metric cannot score a group. <code>POSITION_ROLES</code> is now an alias of <code>ORDINALS</code>.</li>
+<li><strong><code>EACH</code> is allowed on <code>FORBID</code>, <code>PREFER</code> and <code>AVOID</code></strong> (Puppet Master, 2026-09-16); only
+  <code>ALL</code> and <code>n OF</code> are refused, since those choose rather than filter. <code>EACH</code> is not
+  redundant there: it splits the declaration, so <code>PER</code> counts per person rather than over
+  the pool. <code>STABILITY</code> is refused on the Requests sheet and left out of the app's
+  dropdowns, via <code>WRITABLE_PRIORITIES</code>.</li>
+<li><strong>A quoted task happens only where a TASK selected it</strong> (Puppet Master, 2026-09-16).
+  <code>Compiler</code> records, per ad hoc slot, the conjunction of clause literals that selects it,
+  and <code>close_adhoc_tasks</code> then adds <code>x -&gt; OR(selectors)</code>, or pins <code>x</code> to zero when nothing
+  selects it. Without it <code>DURING</code> on a <code>TASK</code> was a floor rather than a total, so a
+  <code>PREFER</code> covering more blocks than the task needed bought extra occurrences and
+  <code>PREFER</code> over a set stopped matching <code>AVOID</code> over its complement. Clinics keep the old
+  rule, because two offerings of one clinic in different blocks must coexist. A filter
+  verb naming a quoted task that no <code>TASK</code> asks for is now a <code>RequestError</code>, since it
+  would otherwise be a silent no-op. (Since 2026-09-25 that request, like any that does
+  not validate, is left out of the solve with a note in the report instead.)</li>
+<li><strong>Same-day changes</strong> (Puppet Master, 2026-09-16). Rests and RAL penalties are per-date
+  data on a new optional <code>Adjustments</code> tab, applied to <code>Staff</code> at load time as
+  <code>resting_blocks</code> and a reduced <code>ral</code>; <code>resting</code> is <code>all day</code>, <code>morning</code> or <code>afternoon</code>,
+  with a block belonging to the half it starts in, split at <code>config.midday</code>. Someone
+  resting all day also drops out of every staff category, so mandatory requests over
+  <code>staff</code> stop demanding anything of them, and <code>add_structural_constraints</code> pins a
+  resting block's variables to zero in case a request names them directly. <code>load_dataset</code> reads the target's own
+  published tab as <code>Dataset.baseline</code>. <code>solve(..., same_day=True)</code> rewards each kept
+  baseline assignment in a new <code>STABILITY</code> tier between <code>CLINIC</code> and <code>HIGH</code>, hints those
+  variables, and returns a <code>Change</code> per staff member and block that differs.</li>
+<li><strong>One name listing</strong> (<code>resolve.name_listing</code>) feeds the <code>names</code> command, the app's names
+  panel and the editor's completer, built from the same table the resolver validates
+  against so the three cannot drift apart. The completer is a <code>QCompleter</code> on the Skedge
+  box, opened by a <code>namespace.</code> prefix. Its model is created once and refilled, because a
+  replaced Qt object can be collected inside the solver thread and destroyed off the main
+  thread, which crashes the process.</li>
+<li><strong>No pass can lose a working schedule.</strong> <code>solve_tiers</code> snapshots the solution after
+  every successful pass (<code>ResponseProto().solution</code>, indexed by variable) and returns a
+  <code>TierOutcome.value(var)</code> lookup instead of the live solver. A tier or cosmetic pass that
+  returns anything but OPTIMAL or FEASIBLE keeps the previous snapshot, bounds its tier at
+  the score that snapshot achieves, and adds a note. The cosmetic pass also hints the
+  assignment booleans from the snapshot so it starts from the known schedule. Only the
+  first pass can fail the solve, and it names <code>tier_seconds_limit</code>. The cosmetic pass
+  gets its own short budget, <code>tidy_seconds</code> (default 2), because the hint makes the
+  better schedule appear at once and the rest of the time goes on proving optimality.
+  There was once a second cosmetic pass, dropping assignments nobody asked for; that is
+  now a constraint built into the model, so it holds however long the solve takes.</li>
+<li><strong>Requests have tags</strong> (comma-separated column). Offerings are no longer generated
+  inside the solver: <strong>Load offerings</strong> (app button or <code>load-offerings</code> command) writes
+  one <code>CLINIC</code> request per offering to the Requests sheet, tagged <code>generated</code>, with ids
+  <code>offering:&lt;date&gt;:&lt;activity&gt;:&lt;block&gt;</code>. The request names every position of the clinic,
+  <code>AS_ROLE EACH {roles.first + roles.second + …}</code> (facilitators then lifeguards), so the
+  positions the clinic wants are written down rather than implied by the structural
+  constraints alone. <code>EACH</code> gives each position its own choice of person and so its own
+  copy; the copies cannot diverge, because filling one position of an instance fills them
+  all. A <code>Result</code> lists an outcome per copy (<code>&lt;request id&gt;[&lt;key&gt;]</code>); <code>publish.views.report</code>
+  collapses them to one row per request, keeping the failed copies' keys in the
+  description, so an unstaffable clinic is one row rather than one per position.
+  Loading first removes the date's generated rows. The solver
+  warns when no generated requests exist for the target date. Clinic instances come only
+  from <code>TASK</code> statements; a <code>(DBL)</code> clinic asked for with <code>DURING ALL</code> of two blocks is
+  one instance.</li>
+<li><strong>Partial blocks replace display groups</strong> (Puppet Master, 2026-09-16). Blocks are the
+  real periods of the day. Every assignment is a CP-SAT interval; a clinic fills its
+  block, an ad hoc <code>FOR</code> task has a movable start and a variable length inside its
+  block, and one <code>AddNoOverlap</code> per person replaces the per-block double-booking
+  constraints. Several partial tasks may share a block. <code>n OF</code> with <code>FOR</code> means <code>n</code>
+  blocks each holding the full duration. <code>GAP</code> constrains real start and end times.
+  The tidiness pass also minimizes task minutes and offsets from block starts. The Staff
+  View joins a block's tasks with ", then " and labels unused time <code>DYOW/WPs</code>
+  (configurable). The published tab gained <code>start</code> and <code>minutes</code> columns; the Blocks
+  sheet lost <code>display_group</code>.</li>
+<li><strong>The <code>date</code> namespace is built from session and week numbers</strong> (2026-09-18). The
+  Calendar sheet's <code>session</code> column holds a number rather than a name, and a new <code>week</code>
+  column numbers the days within each session. Every date name is then a span or a name
+  inside one: <code>dates.season</code>, <code>dates.session_4</code>, <code>dates.session_4.week_2</code>, and
+  <code>dates.session_4.week_2.monday</code>. <code>dates.session_1</code> is the session holding the
+  target date and <code>dates.session_1.week_1</code> the week; the old <code>dates.session_all</code>,
+  <code>dates.season</code> and <code>date.&lt;session name&gt;.all</code> are gone. A span carries <code>first</code>,
+  <code>last</code>, the weekday sets and the counted occurrences; a week, reaching each weekday
+  once, carries the weekday as a single date. An unknown name now suggests the nearest
+  real one. The request manager's calendar labels each row <code>S&lt;session&gt;</code> / <code>W&lt;week&gt;</code> in
+  place of the ISO week of the year, and the names panel nests on the dots.</li>
+<li><strong>Requests belong to groups</strong> (Puppet Master, 2026-09-18). A <code>groups</code> column on the
+  Requests sheet holds the groups a request is in, comma-separated, and the request
+  manager switches between them in a pane of its own: <code>All requests</code>, <code>Ungrouped</code>, the
+  two default groups (Special daily requests, Special weekly requests) and whatever the
+  Puppet Master makes. Generated clinic requests are in no group, being too many and
+  already marked by their tag. A group lives on its requests, so making one
+  declares nothing; the filters narrow within the group rather than replacing it. A
+  <code>requester</code> column records who asked, as a staff name, checked like any other name.
+  Saving a request that says nothing about the date being scheduled asks first.</li>
+<li><strong>A request block holds any number of statements</strong> (Puppet Master, 2026-09-18). <code>PREFER</code>
+  no longer has to stand alone: a declaration may mix <code>REQUEST</code> and <code>PREFER</code> statements, so
+  one piece of plain English that needs several statements stays one request, with one
+  description, priority and weight, and one binding, condition and set of gaps. The
+  compiler splits them: the requirements share the declaration's <code>sat</code> literal exactly as
+  before and are what the report names, and each preference adds its own objective terms in
+  the declaration's tier afterwards, where <code>_collapse</code> cannot see them. <code>PREFER</code> in a
+  <code>MUST_HAPPEN</code> declaration is still refused — there is no tier above the hard one to weigh
+  it in.</li>
+<li><strong>Conflicts are found without solving</strong> (Puppet Master, 2026-09-18). <code>app/conflicts.py</code>
+  reads the resolved copies the store already keeps and turns every <em>forced</em> statement into
+  a claim on a slot — one staff member, one date, one block. A statement is forced when it
+  leaves the solver no choice: <code>who</code>, <code>ON</code> and <code>DURING</code> are all <code>ALL</code> (or a single item,
+  or an <code>EACH</code> copy) and a <code>DO</code> names one activity or task. Claims on a slot are then
+  compared: free against do, do against not-do, free against not-free, and do against do by
+  minutes, since partial tasks share a block. The pane groups them by slot. Nothing that
+  leaves the solver room — <code>ANY n</code>, <code>PREFER</code>, an undated <code>DURING</code> — makes a claim, which
+  is what keeps the pane quiet enough to be worth reading.</li>
+<li><strong>A publish is six write requests</strong> (Puppet Master, 2026-09-22). Google counts write
+  requests against sixty a minute per person, and a publish sent a clear and an update per
+  tab, a format call per bold row, and one each for the merge, the unmerge, the freeze and
+  the widths — around forty on the sample day and past sixty on a real one, which is a 429
+  in the middle of writing a schedule. <code>Source.write_many</code> clears and refills every tab of
+  a spreadsheet in two requests (<code>values_batch_clear</code>, <code>values_batch_update</code>), and <code>style</code>
+  sends one <code>batch_update</code> for the shape of the sheet and one <code>batch_format</code> for the
+  painting, however many rows and fills it holds. A publish is six requests and a save of a
+  request is two. Anything Google refuses for coming too fast (429, 503) waits 5, 15 then
+  30 seconds and asks again, which is what its own answer asks for; the publish runs on a
+  worker with a panel up, so the waiting is visible and the window keeps painting.</li>
+<li><strong>A load reads the day; a solve reads the days behind it</strong> (Puppet Master, 2026-09-22).
+  What was published on past days is read by the solver alone — <code>variables.was_free</code>,
+  <code>was_member</code>, and patterns counting back over a session — and there is a spreadsheet of
+  them per day of the season so far, so a reload in August was spending most of its time
+  fetching what the window never looks at. <code>load_dataset(..., history=False)</code> reads only
+  the target's own day, which is what <code>baseline</code> and the Same-day toggle need;
+  <code>read_history</code> fills in the rest and is called on the way into a solve
+  (<code>RequestStore.for_solving</code>). The request manager then prefetches it on a worker as soon
+  as a load finishes, so Solve is usually already holding what it needs. A prefetch
+  installs its answer only if the dataset it was asked about is still the one loaded,
+  since a Dataset is frozen and swapping one for another is a single assignment. A reload
+  is then flat in the age of the season: about a dozen API calls in August as in June.</li>
+<li><strong>A read is one request</strong> (Puppet Master, 2026-09-22). <code>read_many</code> asked Google what
+  tabs a spreadsheet had before asking for the values, which is a second round trip per
+  spreadsheet — and a load opens one spreadsheet per published day and per cabin act
+  sheet, so by late August that question was half the traffic of a reload. The values are
+  now asked for outright and the tab list is fetched only when that fails, which is the
+  one time the answer says anything: it is what names the missing tab. <code>_walk</code> also
+  remembers where each folder of the tree is, prefixes included, so looking back over four
+  spans walks <code>2027/Main Season</code> once rather than four times, and <code>discover</code> runs once per
+  root and year. Measured over a modelled season, a reload 70 published days in goes from
+  143 API calls to 73.</li>
+<li><strong>ANY n chooses, and a count measures</strong> (Puppet Master, 2026-09-24). <code>ANY 1</code> and
+  <code>AT_LEAST 1</code> had come to mean the same thing in a requirement and different things
+  elsewhere, and <code>EXACTLY</code> meant "pick n and forbid the rest" in a requirement but "exactly
+  n" in a test. Now <code>ANY n</code> picks: once for the statement, shared by everything in it,
+  forbidding nothing. It is what a <code>REQUEST</code>, a binding line, a group and a mapping's
+  default choose with, and <code>ANY</code> with no number stays a pool. <code>AT_LEAST</code>, <code>AT_MOST</code> and
+  <code>EXACTLY</code> measure, in tests, <code>PREFER</code>s, <code>FOR</code> and <code>WITH</code>; a <code>REQUEST</code> takes <code>AT_MOST</code> as a
+  cap and refuses the other two, <code>EXACTLY</code> because the forbidding it did is written with
+  <code>NOT DO</code>: a bound name may now be taken from a whole set, <code>{s - x}</code> (<code>Choice.minus</code>,
+  <code>Compiler._less</code>). A pick in a requirement compiles as before; one beside a cap is named
+  (<code>_pick_…</code>) and shared the way a binding line is, and a pick of blocks over pooled dates is
+  counted as occurrences, as a count of them was. There is no <code>PREFER</code> for "as many as
+  possible": that is <code>EACH</code> at a soft priority. Saved requests are rewritten on their next
+  load (syntax 8), and only by the passes after the version the file records, since the role
+  pass of syntax 6 is not safe to make twice; an imported file keeps its own version. A
+  version 5 binding line written for a shared choice goes back inline. A choice after a
+  choice of several, which was each one's own, and an <code>EXACTLY</code> in a requirement are left
+  for somebody to rewrite.</li>
+<li><strong>FOR says how it is bounded</strong> (Puppet Master, 2026-09-24). A bare <code>FOR 30m</code> meant exactly,
+  the one quantity in the language that went without its bound, and over pooled blocks
+  <code>FOR 2h</code> read as "at least" to most people while meaning "exactly". <code>FOR</code> now takes
+  <code>EXACTLY</code>, <code>AT_LEAST</code> or <code>AT_MOST</code>; a bare length is refused with the new spelling, and a
+  request saved in syntax 6 gains its <code>EXACTLY</code> on its next load (syntax 7).</li>
+<li><strong>WITH says in which role</strong> (Puppet Master, 2026-09-24). <code>WITH staff.alan AS_ROLE
+  roles.first</code> is Alan first on the same instance: an <code>AS_ROLE</code> straight after a <code>WITH</code>'s or
+  <code>WITHOUT</code>'s set is theirs, which the grammar takes as part of the clause, and the company
+  check counts partners only in those roles (<code>Variables.members</code>). Before, such an <code>AS_ROLE</code>
+  was the subject's, so a request saved in syntax 5 has it moved in front of the <code>WITH</code> on
+  its next load (syntax 6).</li>
+<li><strong>A count goes on the set it counts</strong> (Puppet Master, 2026-09-23). An activity has no
+  quantity of its own; the blocks, the dates and the people come in numbers. So a count is
+  written directly in front of the set it counts — <code>DURING EXACTLY 3 blocks</code>,
+  <code>AT_MOST 2 staff.counselor</code> — rather than after <code>REQUEST</code>, far from what it measures, or
+  after <code>DO</code>, where it read as a quantity of the activity. A length goes on <code>FOR</code>, which
+  measures within one unit of the blocks: each block when they are taken one at a time,
+  their total when they are pooled with <code>ANY</code>. <code>ANY n</code> is gone: a number is always a
+  count, <code>ANY</code> is always a pool, and a binding line names exactly which, <code>EXACTLY n x IN</code>.
+  <code>NOT FREE</code> is <code>BUSY</code>, which was what it meant; with it gone, a count right of <code>NOT</code> is
+  refused, since what it could say reads better as a count of what does happen. <code>ALL</code> is
+  one unit inside every count, which is what lets <code>ALL {…} DURING EXACTLY 1 blocks</code>
+  mean one block together. <code>DURING</code> and <code>ON</code> still go anywhere; <code>AS_ROLE</code>, <code>FOR</code>, <code>WITH</code>
+  and <code>WITHOUT</code> go after the verb, and the counts nest by role — who, what, dates,
+  blocks — rather than by where they were written. A statement with no count but one
+  <code>AT_LEAST</code>, or with only one-item counts outside it, still compiles as the requirement it
+  always was (<code>resolve._chosen_once</code>); anything else is a <code>Tally</code>, compiled by
+  <code>Compiler._enforce_levels</code>, <code>_reify_levels</code> and <code>_tally_miss</code>, which choose for
+  <code>AT_LEAST</code>, count reified holds for <code>AT_MOST</code>, and do both for <code>EXACTLY</code>. A <code>FOR</code> over a
+  pool lets one of its pieces be cut short (<code>_allow_partial</code>). A block is a block on a
+  date, so over dates pooled with <code>ANY</code> a count of blocks counts each block on each of them
+  (<code>Compiler._counted</code>): "at most eight clinics a session" is <code>DURING AT_MOST 8 blocks
+  ON ANY &lt;session&gt;</code>, and runs of blocks stay within a day.</li>
+<li><strong>Every set says how it is taken, and CONSECUTIVE is on the blocks</strong> (Puppet Master,
+  2026-09-23). A set right of <code>NOT</code> or in a pattern is matched rather than chosen, and was
+  the one kind of set written with no word in front of it; it now takes <code>ANY</code>, with no
+  number, and a bare set there is an error. Right of <code>NOT</code>, <code>ALL</code> means "not all of these
+  together", since <code>NOT</code> turns round the positive request to its right: <code>_forbid_together</code>
+  forbids, per person, the conjunction over every combination of the <code>ALL</code> items, past
+  dates counting as facts. <code>ANY n</code> stays an error there, "not in two of them" being a count.
+  <code>CONSECUTIVE</code> moved again, onto the blocks, which are what is in a row: <code>DURING ANY 2
+  CONSECUTIVE blocks</code> chooses, and a count measured in runs says <code>DURING ANY
+  CONSECUTIVE blocks</code>, where <code>AT_LEAST 3 CONSECUTIVE s DO …</code> read as three consecutive
+  people. An amount may also follow <code>DO</code> when the subject is one person per copy, <code>s DO
+  AT_LEAST 3 …</code>. Saved requests are rewritten on their next load by <code>skedge.upgrade</code>,
+  which works on the parse tree, where the old spellings still parse; the requests file
+  records the syntax version it is written in, so this happens once.</li>
+<li><strong>CONSECUTIVE comes right after what it is about</strong> (Puppet Master, 2026-09-22). "Two
+  blocks" and "two blocks in a row" differ by one word, and were written two different
+  ways: a requirement, and a counted pattern. <code>DURING ANY n &lt;blocks&gt; CONSECUTIVE</code> now
+  chooses n adjacent blocks in the requirement itself, and the count's <code>CONSECUTIVE</code> moves
+  from after the pattern, where <code>ON {…} CONSECUTIVE</code> read as consecutive dates, to after
+  the amount. The old place is still parsed, only to say where it goes now. The compiler
+  keeps the block choice's literals and picks exactly one run of adjacent blocks
+  (<code>_adjacent</code>), each block chosen when the run holding it is, so everything else a
+  requirement does with a choice (partners, deferral, <code>ALL</code> staff together) is
+  unchanged; <code>_loose</code> leaves such a choice alone, since which blocks it picks matters.</li>
+<li><strong>EXCLUDE takes somebody out of the day</strong> (Puppet Master, 2026-09-22). A day off is not
+  something to ask the solver for, so <code>EXCLUDE &lt;who&gt; DO '&lt;label&gt;' [DURING] [ON]</code> is applied
+  rather than compiled. <code>puppet_strings/exclude.py</code> resolves every <code>EXCLUDE</code> on the sheet
+  and returns the Dataset those days leave behind: the blocks go into <code>resting</code>, so
+  <code>Dataset.holds</code> is false and no variable is ever made for them; somebody out for a whole
+  day drops out of every staff category, which is what keeps a <code>MUST_HAPPEN</code> rule written
+  about <code>staff</code> from asking anything of them and is why the day still solves; and
+  <code>Dataset.excluded</code> carries the label for the published views. The pass is idempotent and
+  runs at the end of <code>load_dataset</code>, in <code>solve()</code> and in <code>RequestStore.current</code>, so a
+  Dataset is never seen with somebody in a day they are not in. The compiler drops
+  <code>Exclusion</code> statements, and a copy holding nothing else is done rather than inactive, so
+  the report has nothing to say about it.</li>
+<li><strong>An update can be an archive</strong> (Puppet Master, 2026-09-21). The Linux release is a
+  tar.gz carrying the executable, the icon and an <code>install.sh</code> that writes the desktop
+  entry. <code>install()</code> unpacks an archive (<code>tarfile</code>, <code>filter="data"</code>), puts the executable
+  inside it where the running one is, and refreshes the icon beside it <em>if one is already
+  there</em>. The desktop entry is left alone: it names that folder, which is where the new
+  executable went. A bare executable, which is what Windows and macOS release, is moved
+  into place as it is.</li>
+<li><strong>The staff view is formatted too</strong> (Puppet Master, 2026-09-21). It is the sheet
+  everybody at camp opens, most of them looking for one row of it, so <code>staff_view</code> returns
+  a <code>Styled</code> like <code>clinic_view</code>: title, bold headings, a frozen corner (two rows and the
+  name column), the clinic view's block colours on the headings, banding on every other
+  row, wrapped cells and column widths. <code>Styled</code> carries <code>freeze_columns</code>, <code>wrap</code> and
+  <code>column_widths</code> for it, the last going out as one <code>updateDimensionProperties</code> batch.</li>
+<li><strong>The errors pane holds more than conflicts</strong> (Puppet Master, 2026-09-21). Two requests
+  disagreeing is not the only thing that is wrong on paper and invisible until a solve:
+  <code>REQUEST staff.henry DO activities.clinics.aerial_silks DURING blocks.clinic_3</code> validates
+  -- every name in it exists -- and is still impossible if Henry has no checkoff, or if the
+  day's Offerings tab does not run aerial silks in clinic 3. <code>app/errors.py</code> reads the same
+  resolved copies the conflict finder does and asks those two questions of every settled
+  <code>REQUEST … DO</code>; <code>app/errors_panel.py</code> shows conflicts and errors in one tree, since both
+  name a slot and the requests to go and look at. Both checks are skipped where the solver
+  has a choice, and the offering check is skipped entirely when the day offers nothing at
+  all, which is one thing to see to rather than a pane full of the same sentence.</li>
+<li><strong>Only what must happen can conflict</strong> (Puppet Master, 2026-09-21). <code>find_conflicts</code>
+  reads the <code>MUST_HAPPEN</code> requests and no others. A conflict is a day that cannot be built,
+  which takes two promises that cannot both be kept; a softer request crossing another is
+  settled by dropping the cheaper one, and the day comes out regardless. Everything below
+  <code>MUST_HAPPEN</code> is the solver's to weigh and the report's to explain.</li>
+<li><strong>A drag is welcomed at the door and judged at the table</strong> (Puppet Master, 2026-09-21).
+  <code>GroupList.dragEnterEvent</code> asks only whether the mime type is a set of requests; which
+  row the pointer is over is the move's and the drop's question. A widget that ignores a
+  drag enter is told nothing more about that drag, so judging the enter by the row under it
+  would leave every group undroppable whenever the pointer crossed into the list over <code>All
+  requests</code> -- the row at the top, and so the one most drags come in over. <code>dragMoveEvent</code>
+  calls Qt's own first, which is what starts the scrolling when a drag is held at the edge
+  of a list too long to show at once.</li>
+<li><strong>Keywords read in either case</strong> (Puppet Master, 2026-09-21). Every keyword is its own
+  terminal at priority 5, written <code>/WORD\b/i</code>, rather than an anonymous string. The <code>i</code>
+  makes <code>request</code> and <code>REQUEST</code> one word; the priority puts it above <code>NAME</code>, which lower
+  case would otherwise be lexed as; and the <code>\b</code> keeps it to whole words, so <code>format</code> is a
+  variable and not <code>FOR</code> followed by <code>mat</code>. The parser upper-cases what a quantifier or a
+  bound token says before comparing it, so the tree holds one spelling however it was
+  typed. The highlighter matches case-insensitively for the same reason.</li>
+<li><strong>A gap reaches back into the published days</strong> (Puppet Master, 2026-09-21). <code>Made</code> times
+  are counted from midnight on the target date, which puts yesterday at a negative time, and
+  a labeled requirement satisfied by a published day contributes that day's real start and
+  end (<code>_was_made</code>). A <code>GAP</code> is therefore a distance between two assignments wherever they
+  sit, which is what makes a duration in days worth writing: <code>GAP first TO second AT_LEAST
+  40h</code> is the forty hours it says. Dates after the target hold nothing and cannot be one end
+  of a gap; they are checked on the day they land on, when the other end is published.</li>
+<li><strong>A clock per pass, not one for the whole solve</strong> (Puppet Master, 2026-09-24).
+  <code>time_limit_seconds</code> was one budget for everything, shared out by a <code>Deadline</code> that
+  started before the model was built (2026-09-18), which capped a solve at the setting but
+  meant a slow early tier left the late ones a zero-second pass and a note saying so. The
+  late tiers are the ones a Puppet Master reads the notes about, so the cap was being paid
+  for in the wrong place. <code>tier_seconds_limit</code> (default 15) is now handed to each pass
+  whole: the feasibility check and every tier start with the same amount, the placement
+  pass gets <code>tidy_seconds</code> rather than a hold-back, and the <code>Deadline</code> is gone. A day using
+  all five tiers can therefore run about five times the setting. The note for a tier that
+  ran out of time says what it scored, the best it could not rule out, and the gap between
+  them in requests, because the schedule is kept either way and the only question worth
+  answering is how much might have been missed. The old key is not read as an alias, since
+  its number meant a total and would multiply by tier if it were.</li>
+<li><strong>Requests are their own spreadsheet, a tab per session</strong> (Puppet Master, 2026-09-19).
+  One tab of the config spreadsheet held every request the season had ever made, and every
+  load read all of it: the 2026 season reached 2,024 rows, of which a day in session 4
+  needs 552. Requests are now a <code>Requests</code> spreadsheet beside Config and Skills, found by
+  name like the rest, holding <code>Season Requests</code> for what crosses sessions and two tabs per
+  span — <code>S4 Clinics</code> for what Load offerings writes, <code>S4 Special</code> for what was asked of
+  that session. A load reads three of them. Which tab a request is on is its <code>home</code>, read
+  off the tab it came from and written back to it rather than kept in a column, so moving
+  a request between sessions is a cut and paste; the editor's <code>on tab</code> box is how a new one
+  goes to the season's tab instead of the session's. <code>puppet-strings split-requests</code> makes
+  the spreadsheet out of the old tab, reading each id for the span it names and leaving
+  anything it cannot place on the season's tab, where every load goes on reading it.</li>
+<li><strong>A request sits on one shelf, and its id is not its description</strong> (Puppet Master,
+  2026-09-19). A request belonged to any number of groups, ticked off in the editor, which
+  made the editor and the pane two places to decide the same thing and made "which group is
+  this in" a list rather than an answer. A request now has one <code>group</code>, or none. It joins
+  the group the pane is showing when it is made, and it is moved by dragging its row onto
+  another group's label, so the pane is the only place a group is decided; the editor's
+  checklist is gone and a <code>group</code> line reports where it sits. Right-clicking a group sets
+  the Requests tab its <em>new</em> requests are written to, kept in settings.json because a group
+  is a label its requests carry and there is no row anywhere to hang a default on. The
+  sheet's <code>groups</code> column becomes <code>group</code>; an old one holding several is read as the first.
+  Ids are the next free number on the request's tab — <code>s4-1</code>, <code>season-2</code> — rather than a
+  slug of the description, because a description is for people, is allowed to be empty, and
+  gets rewritten the moment somebody words it better, none of which an id may do.</li>
+<li><strong>A statement may run over several lines, and a bound name may be added into a set</strong>
+  (Puppet Master, 2026-09-19). Both came from one request that read perfectly and would not
+  compile. A newline is no longer the end of a statement when the next line begins with a
+  word that continues one — <code>DO</code>, <code>DURING</code>, <code>ON</code>, <code>FOR</code>, a set operator, a closing brace —
+  which keeps the grammar LALR by deciding it in the lexer: <code>_CONTINUES</code> matches those
+  newlines and is ignored, and <code>_NL</code> gets the rest. <code>EACH</code>, <code>ANY n</code> and bare names are
+  deliberately not continuations, since each of them can begin a line of its own.
+  <code>ANY 1 v IN {…}</code> could only be used as a whole selector, so "Charlton with either
+  Dylan or Donny" had no natural wording; a bound name can now be added into a set with <code>+</code>,
+  which resolves to a <code>Choice</code> carrying <code>parts</code> — the items named here, plus whatever each
+  part chose. The solver already spoke in a dict of item to literal, so joining them is
+  merging two dicts, and the binding's own literals are what keep it the same person
+  throughout. Only <code>+</code>, and only <code>ALL</code>: <code>-</code> and <code>&amp;</code> ask what a chosen name is not, and
+  taking <code>n</code> of such a set is choosing out of something still being chosen.</li>
+<li><strong><code>ANY n</code>, groups, clauses in any order, and named sets</strong> (2026-09-22). <code>ANY_n_OF</code> read
+  like nothing else in a declarative language and not like its own <code>AT_LEAST n</code>, so it is
+  now <code>ANY n</code>: an <code>ANY</code> keyword and an <code>INT</code>. The old spelling is still lexed, only to be
+  told <code>write ANY 1, not ANY_1_OF</code>. A quantifier may now also go on a part of a set, in
+  parentheses: an <code>ast.Group</code>. Taken whole, a set's groups are flattened (<code>ALL</code>) or
+  become <code>parts</code> (<code>ANY n</code>), so <code>ALL {x + (ANY 1 s)}</code> compiles to exactly what the binding
+  line did. Under <code>ANY n</code> each group is one unit of the choice, held in <code>Choice.units</code>: the
+  solver gives each a literal alongside the plain items' and chooses the group's own members
+  under it. Under <code>EACH</code> each group is a copy. Items reached twice are merged with an OR,
+  where <code>parts</code> used to overwrite. Clauses may now sit anywhere around the subject, verb and
+  object, which meant one <code>clauses</code> rule used at every gap and one clause rule for
+  requirements and patterns alike; the pool-only quantifier rule moved from the grammar to
+  the builder, which says why rather than what it expected. The line-continuation rule was
+  turned round to match: rather than listing the words that continue a statement,
+  <code>_CONTINUES</code> lists the few that can begin a line — a statement keyword, a binding, a name
+  and a colon — and every other newline is nothing. <code>name: &lt;set&gt;</code> is an <code>ast.Definition</code>,
+  written into the lines that use it by the parser, so nothing downstream knows it was
+  there; <code>name: ANY n &lt;set&gt;</code> and <code>name: EACH &lt;set&gt;</code> are binding lines.</li>
+<li><strong>Requests live on the Puppet Master's computer; Google Sheets are cached by version</strong>
+  (Puppet Master, 2026-09-23). Nobody edits requests outside Puppet Strings and only one
+  Puppet Master schedules at a time, so requests are one SQLite file, handed over with
+  Export and Import in the Configure pane or <code>export-requests</code> / <code>import-requests</code>. An import
+  is checked whole before it replaces anything, and keeps what it replaced beside the file.
+  A fixture folder carries its own <code>requests.sqlite</code>. The sheets themselves are kept in a
+  cache keyed by spreadsheet id and Drive <code>version</code>, which the folder listings a load already
+  makes return for free. A listed version is trusted for a minute, about one load, so every
+  load lists again without anything having to say when a load begins; anything Puppet
+  Strings writes drops its entry at once. Drive can be a moment late counting an edit, which is what Clear in the Configure pane and <code>--no-cache</code> are for.</li>
+<li><strong>Requests are scoped, not filed in lists</strong> (Puppet Master, 2026-09-23). A request was
+  filed in a named list — the season's, a session's Special, a day's Clinics — and a load
+  read three of them, which meant a list for every session and every day the season had.
+  A request now has a scope, a day, a week, a session or the season, kept as the dates it
+  covers; a load reads whatever covers its date, one indexed query however long the season
+  runs. A new request is scoped to its session and a generated one to its day. Ids are
+  unique across the whole file, numbered per scope (<code>s4-3</code>, <code>s4w2-1</code>, <code>jun08-1</code>,
+  <code>season-2</code>), and a save writes the one request it changed rather than rewriting lists.
+  The file's format went from 1 to 2 with no conversion: it was a beta.</li>
+<li><strong><code>ALL</code> and <code>EACH</code>, and dates numbered in digits</strong> (Puppet Master, 2026-09-23). Once
+  <code>ANY_n_OF</code> became <code>ANY n</code>, <code>ALL_OF</code> and <code>EACH_OF</code> were the only keywords left with an
+  <code>_OF</code>, so they are <code>ALL</code> and <code>EACH</code>. The lexer still reads the old spellings as the same
+  tokens, so the builder can say <code>write ALL, not ALL_OF</code> and <code>skedge/upgrade.py</code> can find
+  and rewrite them; saved requests are rewritten on their next load (syntax 4). <code>all</code> and
+  <code>each</code> are now keywords and so cannot be a name on their own, though <code>blocks</code> and
+  <code>all_staff</code> are untouched: a dotted name is one token, and a keyword ends at <code>\b</code>. With
+  the <code>dates</code> namespace flat, sessions and weeks are named by digit, <code>dates.session_4.week_2</code>
+  rather than <code>dates.session_four.week_two</code>, and a file written the old way is rewritten
+  when it is opened.</li>
+<li><strong>The days of the week are the season's, and spans name no days</strong> (Puppet Master,
+  2026-09-24). Every span and week carried its own weekday names, <code>first</code> and <code>last</code>, so the
+  same day had several names and the tree was too busy to offer in the completer.
+  <code>dates.mondays</code> … <code>dates.sundays</code>, <code>dates.weekdays</code> and <code>dates.weekends</code> are now sets over
+  the season, and a span's days are written with <code>&amp;</code>: <code>{dates.session_2 &amp; dates.thursdays}</code>,
+  or <code>{dates.session_2.week_1 &amp; dates.sundays}</code> for the day it starts. The saved requests
+  were rewritten to match, and the completer offers date names like any others.</li>
+<li><strong>Offerings are names, not requests</strong> (Puppet Master, 2026-09-25). Every load made one
+  <code>CLINIC</code> request per row of the Offerings tab, tagged <code>clinic_import</code>, with its own
+  rules: never saved, not deletable, an edited one read in place of the one made. They
+  filled the request manager with requests nobody changed. The Offerings tab is now names,
+  under <code>activities.clinics.offerings</code> beside the clinics themselves, as the cabin act board
+  is under <code>activities.cabin_acts</code>: <code>offerings.clinic_2.archery_1_2</code> and
+  <code>offerings.clinic_2</code>. An offering asked for with no subject is its clinic in its block:
+  one standing <code>REQUEST EACH activities.clinics.offerings</code> does what the generated requests
+  did, and <code>generate.py</code> is gone.
+  An offering says when it runs, so it takes no clauses and goes nowhere but there. No
+  saved request had been an edited clinic, so nothing was rewritten; the standing request
+  was added to the Puppet Master's requests file.</li>
+<li><strong>Cabin acts are named by the day's board</strong> (Puppet Master, 2026-09-25). A cabin act was
+  named by its cabin alone, <code>activities.cabin_acts.p4</code>, standing for its act on whichever
+  day a request was about. With the offerings the target date's own names, the cabin acts
+  are too: <code>activities.cabin_acts</code> and its two halves are that day's acts, and each act is
+  under its half by its cabin, <code>activities.cabin_acts.at_cabin_act.p4</code>. A cabin has a name
+  only on a day it has an act. The saved requests naming a cabin were all for one day's act
+  in the cabin act block, and were rewritten to <code>at_cabin_act</code>.</li>
+<li><strong>ACROSS says a FOR is a total</strong> (Puppet Master, 2026-09-25). Whether <code>FOR</code> was the length
+  of each piece or what the pieces added up to hung on how the blocks were taken: <code>DURING
+  ANY 3 blocks</code> made it each piece and <code>DURING ANY blocks</code> the total, one digit apart, and
+  no <code>DURING</code> at all or an <code>ON ANY</code> made it a total too. A total over a chosen number of
+  blocks could not be written. Now <code>DURING</code> always makes <code>FOR</code> each piece and <code>ACROSS</code>, in
+  its place, makes it the total (<code>During.across</code>, <code>resolve._phrase</code>). <code>ACROSS</code> takes the
+  blocks as <code>DURING</code> does, and a pick, count or <code>ALL</code> of them is a <code>Tally.pieces</code>: how many
+  of the pooled blocks hold a piece, counted beside the total (<code>Compiler._pieces_hold</code>),
+  with any piece free to be cut short. With <code>DURING</code>, a length no block is long enough for is
+  refused, since it was meant as a total. The training problems and docs that pooled a
+  <code>FOR</code> were rewritten; no saved request did.</li>
+<li><strong>ACROSS takes dates too, and its set whole</strong> (Puppet Master, 2026-09-25). <code>ON ANY</code> read
+  as "one of these dates, whichever", but where the statement counted or measured it meant
+  all of them together: <code>DURING AT_MOST 3 blocks ON ANY dates.session_1</code> was a cap over the
+  session. <code>ACROSS &lt;dates&gt;</code> in place of <code>ON</code> now says so, and <code>ON ANY</code> with a count, a <code>FOR</code>
+  or a pick of several blocks over more than one date is refused (<code>resolve._adds_up</code>).
+  Without them the two are the same pool. <code>ACROSS</code> is one clause for blocks or dates, told
+  apart by the names in its set once the definitions are in (<code>parser._place_across</code>); on the
+  first line it is dates, for every statement. Its set is taken whole, so <code>ACROSS ANY
+  blocks</code> is now <code>ACROSS blocks</code> and <code>ACROSS ANY CONSECUTIVE</code> is <code>ACROSS CONSECUTIVE</code>; an
+  <code>ACROSS</code> of dates takes no quantifier at all, a pick or count of dates being <code>ON</code>'s. The
+  training problems, docs, the test fixtures and one saved request (a copy of the file
+  before is <code>requests.before-across-dates.sqlite</code>) were rewritten.</li>
+<li><strong>No THEN</strong> (Puppet Master, 2026-09-25). An <code>IF</code> or <code>UNLESS</code> is always followed by the
+  braces of its block, so <code>THEN</code> between them said nothing the brace did not. It is gone:
+  <code>IF &lt;test&gt; { … }</code>. The brace cannot be read as part of the test, since a test's sets are
+  whole before it, and one on the next line carries on the <code>IF</code> as any other line does. The
+  training problems, docs, tests and the three saved requests with an <code>IF</code> (a copy of the
+  file before is <code>requests.before-no-then.sqlite</code>) were rewritten.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

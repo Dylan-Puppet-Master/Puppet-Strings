@@ -1,0 +1,2694 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Staff schedule automation for Camp Augusta">
+      
+      
+      
+      
+        <link rel="prev" href="../skedge/">
+      
+      
+        <link rel="next" href="../solver/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Skedge specification - Puppet Strings</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#skedge-specification" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Puppet Strings" class="md-header__button md-logo" aria-label="Puppet Strings" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Puppet Strings
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Skedge specification
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Puppet Strings" class="md-nav__button md-logo" aria-label="Puppet Strings" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Puppet Strings
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install and set up
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sheets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The sheets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The request manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning Skedge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../same-day/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Same-day changes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skedge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge specification
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Scope
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-lexical-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Lexical structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-grammar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Grammar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Names
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Names">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-dates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Dates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-sets-quantifiers-and-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Sets, quantifiers and variables
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Sets, quantifiers and variables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-set-expressions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Set expressions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-quantifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Quantifiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Variables
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-what-happens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. What happens
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. What happens">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-lengths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Lengths
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Patterns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Statements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Statements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-exclude" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 EXCLUDE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Mappings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-declarations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Declarations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Declarations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 GAP
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-what-can-exist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. What can exist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-priorities-and-scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Priorities and scoring
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-what-the-solver-enforces-regardless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. What the solver enforces regardless
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-time-horizon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Time horizon
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-left-to-the-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Left to the implementation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How the solver decides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical-outline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Scope
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-lexical-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Lexical structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-grammar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Grammar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Names
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Names">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-dates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Dates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-sets-quantifiers-and-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Sets, quantifiers and variables
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Sets, quantifiers and variables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-set-expressions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Set expressions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-quantifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Quantifiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Variables
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-what-happens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. What happens
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. What happens">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-lengths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Lengths
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Patterns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Statements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Statements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-exclude" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 EXCLUDE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Mappings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-declarations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Declarations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Declarations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 GAP
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-what-can-exist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. What can exist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-priorities-and-scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Priorities and scoring
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-what-the-solver-enforces-regardless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. What the solver enforces regardless
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-time-horizon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Time horizon
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-left-to-the-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Left to the implementation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="skedge-specification">Skedge specification<a class="headerlink" href="#skedge-specification" title="Permanent link">&para;</a></h1>
+<p>This is the normative definition of Skedge, the language requests are written in. It says
+what every construct means and what is rejected. <a href="../skedge/">Skedge reference</a> is the
+readable version, with worked examples; where the two disagree, this document is right.</p>
+<p>Parts of the language are checked mechanically against the code: the grammar below is the
+grammar the parser uses, every error message listed here exists in the source, and every
+<code>skedge</code> block in either document is parsed and validated by the test suite. A change to
+one that is not made to the other fails the suite.</p>
+<h2 id="1-scope">1. Scope<a class="headerlink" href="#1-scope" title="Permanent link">&para;</a></h2>
+<p>A <strong>request</strong> is one Skedge declaration plus the fields the request manager keeps with it:
+an id, a description, a priority, a weight, tags and a date. This document defines the
+declaration and the meaning the solver gives it. The sheets that supply the names are in
+<a href="../sheets/">The sheets</a>; the tiers a priority selects are in
+<a href="../solver/">How the solver decides</a>.</p>
+<h2 id="2-the-model">2. The model<a class="headerlink" href="#2-the-model" title="Permanent link">&para;</a></h2>
+<p>An <strong>assignment</strong> is one staff member doing one activity in one role in one block on one
+date:</p>
+<div class="highlight"><pre><span></span><code>(staff, activity, role, date, block)
+</code></pre></div>
+<p>An <strong>instance</strong> is one activity in one block on one date; the assignments on it are the
+people working it together.</p>
+<p>An assignment has a <strong>length</strong>. A clinic assignment is as long as its block. A quoted-task
+assignment is as long as its block unless <code>FOR</code> gives a shorter length, in which case the
+solver also chooses where in the block it sits.</p>
+<p>In any block, a staff member is <strong>busy</strong> if they hold an assignment in it, <strong>free</strong> if they
+are working that day and hold none, and neither if they are resting through it.</p>
+<p>Skedge has two statements.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUEST</code></td>
+<td>A constraint that is either met or not met.</td>
+</tr>
+<tr>
+<td><code>PREFER</code></td>
+<td>A soft constraint that can be partly met: how close the day comes to a count or a length.</td>
+</tr>
+</tbody>
+</table>
+<p>Both say what happens — <code>&lt;who&gt; DO &lt;what&gt; …</code>, <code>&lt;who&gt; FREE …</code> or <code>&lt;who&gt; BUSY …</code> — with every
+set in it taken whole, pooled or counted (§6). Right of <code>NOT</code>, and in a <code>PREFER … MAXIMIZE</code>,
+the same words are a <strong>pattern</strong>: they match assignments, and nothing in them is counted
+(§8).</p>
+<h2 id="3-lexical-structure">3. Lexical structure<a class="headerlink" href="#3-lexical-structure" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Form</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Keyword</td>
+<td>Either case, upper by convention: <code>REQUEST</code>, <code>PREFER</code>, <code>IF</code>, <code>UNLESS</code>, <code>AND</code>, <code>OR</code>, <code>GAP</code>, <code>TO</code>, <code>DO</code>, <code>EXCLUDE</code>, <code>NOT</code>, <code>FREE</code>, <code>BUSY</code>, <code>DURING</code>, <code>ACROSS</code>, <code>ON</code>, <code>AS_ROLE</code>, <code>FOR</code>, <code>WITH</code>, <code>WITHOUT</code>, <code>IN</code>, <code>ALL</code>, <code>ANY</code>, <code>EACH</code>, <code>AT_LEAST</code>, <code>AT_MOST</code>, <code>EXACTLY</code>, <code>CONSECUTIVE</code>, <code>MAXIMIZE</code>, <code>MINIMIZE</code></td>
+</tr>
+<tr>
+<td>Quantifier</td>
+<td><code>ALL</code>, <code>EACH</code>, <code>ANY</code>, a choice <code>ANY n</code>, and a count: <code>AT_LEAST n</code>, <code>AT_MOST n</code> or <code>EXACTLY n</code>, for any whole <code>n</code> from 1</td>
+</tr>
+<tr>
+<td>Name</td>
+<td>Dotted, lower case, digits and underscores; any depth: <code>staff.mary_kate</code>, <code>dates.session_4.week_2</code></td>
+</tr>
+<tr>
+<td>Variable, label</td>
+<td>A bare identifier: <code>s</code>, <code>morning</code>. A label or a definition is followed by a colon.</td>
+</tr>
+<tr>
+<td>Quoted task</td>
+<td>Single quotes, any text but a quote: <code>'archery maintenance'</code></td>
+</tr>
+<tr>
+<td>Date</td>
+<td><code>2026-06-14</code></td>
+</tr>
+<tr>
+<td>Day offset</td>
+<td>A sign, a number and <code>d</code>: <code>- 6d</code>, <code>+2d</code></td>
+</tr>
+<tr>
+<td>Duration</td>
+<td>A number and <code>m</code>, <code>h</code> or <code>d</code>: <code>30m</code>, <code>2h</code>, <code>1.5h</code>, <code>2d</code></td>
+</tr>
+<tr>
+<td>Set expression</td>
+<td>In braces: <code>+</code> union, <code>-</code> difference, <code>&amp;</code> intersection, <code>..</code> date range, <code>( )</code> group</td>
+</tr>
+<tr>
+<td>Comment</td>
+<td><code>#</code> to the end of the line</td>
+</tr>
+</tbody>
+</table>
+<p>Spaces and tabs separate tokens and are otherwise ignored. A line break ends a line; blank
+lines are ignored. A declaration is one or more lines.</p>
+<p>A duration must be a whole number of minutes: <code>1.5h</code> is 90 minutes, <code>1d</code> is 1,440, and
+<code>1.25m</code> is an error.</p>
+<h2 id="4-grammar">4. Grammar<a class="headerlink" href="#4-grammar" title="Permanent link">&para;</a></h2>
+<p>The parser reads this grammar, in <a href="https://lark-parser.readthedocs.io">Lark</a> EBNF (LALR).</p>
+<div class="highlight"><pre><span></span><code>// Skedge grammar. See docs/skedge.md for the language reference.
+//
+// Every keyword is case-insensitive: `REQUEST` and `request` are one word. Upper case is
+// the convention, and is what the docs and the examples are written in, but nobody should
+// have a request refused over a shift key. Names, variables and labels stay lower case,
+// and so cannot be spelled like a keyword: `on` reads as `ON` whatever was meant by it.
+//
+// Each keyword is a terminal of its own at a priority above NAME, and ends in `\b` so that
+// it only ever takes a whole word: `format` is a name, not `FOR` and then `mat`.
+
+// An ON or an ACROSS of dates on the first line is every statement's: written once, where
+// they would each repeat it. Only the first, since one starting any later line carries on
+// the statement above it.
+start       : _NL* ((on | across) _NL+)? line (_NL+ line)* _NL*
+?line       : binding | define | define_task | if_ | unless | labeled | request | prefer | gap
+            | exclude
+
+binding     : (EACH | any_n) NAME _IN set_
+// A name for a set, written once and meaning the same wherever it is used. With ANY n or
+// EACH in front it is a binding line spelled the other way round.
+define      : NAME ":" (ALL | EACH | any_n)? set_
+// A name for a quoted task, to write after DO wherever the task is meant.
+define_task : NAME ":" STRING
+// A condition is for the statements in its block, and only those. A block holds statements
+// and further IFs, on lines of their own or all on one.
+if_         : _IF _NL* condition block
+unless      : _UNLESS _NL* condition block
+block       : "{" _NL* (_inner _NL*)+ "}"
+_inner      : if_ | unless | labeled | request | prefer | exclude
+labeled     : NAME ":" request
+// With no length, the second is only after the first: AT_LEAST 0m.
+gap         : _GAP NAME _TO NAME length?
+
+// A statement is its subject, verb and object in that order, with its clauses around them.
+// DURING, ACROSS and ON may go anywhere; AS_ROLE, FOR, WITH and WITHOUT describe the activity, so
+// the builder refuses them before the verb, which is why the verb is kept in the tree.
+request     : _REQUEST _clauses chooser _clauses DO _clauses do_target _clauses               -&gt; request_do
+            | _REQUEST _clauses chooser _clauses                                             -&gt; request_activity
+            | _REQUEST _clauses chooser _clauses FREE _clauses                                -&gt; request_free
+            | _REQUEST _clauses chooser _clauses BUSY _clauses                                -&gt; request_busy
+            | _REQUEST _clauses chooser _clauses _NOT DO _clauses do_target _clauses          -&gt; request_not_do
+prefer      : _PREFER pattern                                                               -&gt; prefer_count
+            | _PREFER pattern goal _clauses                                                 -&gt; prefer_score
+            | _PREFER _clauses goal pattern                                                 -&gt; prefer_score
+
+// Who is not at camp for part of a day, and what to write where they would have been.
+// It takes a quoted label rather than an activity: they are not doing anything here.
+exclude     : _EXCLUDE _clauses chooser _clauses DO _clauses STRING _clauses
+
+// A condition is one test, or several joined by AND or by OR. Mixing the two needs
+// parentheses, as mixing set operators does, so there is no precedence to remember.
+?condition  : term ((AND | OR) _NL* term)*        -&gt; junction
+?term       : test | "(" _NL* condition ")"
+// With no subject a test is of activities running, whoever holds them, as `REQUEST
+// &lt;activity&gt;` asks for one to run.
+test        : pattern
+            | _clauses chooser _clauses                                             -&gt; test_runs
+
+pattern     : _clauses chooser _clauses DO _clauses do_target _clauses               -&gt; pattern_doing
+            | _clauses chooser _clauses FREE _clauses                               -&gt; pattern_free
+            | _clauses chooser _clauses BUSY _clauses                               -&gt; pattern_busy
+goal        : (MAXIMIZE | MINIMIZE) call
+call        : REF "(" arg ("," arg)* ")"
+?arg        : NAME | REF
+
+// A count: AT_LEAST, AT_MOST or EXACTLY and a number, in front of the set it counts. A length
+// is bounded the same way, and is a GAP's.
+amount      : BOUND INT
+length      : BOUND DURATION
+
+?do_target  : chooser | STRING
+_clauses    : clause*
+?clause     : during | across | on | as_role | for_ | with_ | without
+during      : _DURING chooser
+// The blocks or the dates every count and FOR adds up over, taken whole as one pool. Over
+// blocks a FOR is what the pieces in them come to, where with DURING it is each piece's
+// length; over dates, a count or a FOR is of all of them together.
+across      : _ACROSS chooser
+on          : _ON chooser
+as_role     : _AS_ROLE chooser
+// A length says how it is bounded.
+for_        : _FOR BOUND DURATION
+// Who is alongside: one name, or several with ALL or a count to say how many, and with an
+// AS_ROLE straight after them, in which role. That AS_ROLE is theirs, not the subject's,
+// which is why the parser takes it here rather than as a clause of its own.
+with_       : _WITH chooser as_role?
+without     : _WITHOUT chooser as_role?
+
+// ANY with no number is any of these: the set is one pool. ANY n chooses n of it, once for
+// the statement. A count measures, in front of the set it counts. CONSECUTIVE is about
+// blocks, after DURING or ACROSS: `ANY 2 CONSECUTIVE blocks` picks blocks in a row, and
+// `ACROSS CONSECUTIVE blocks` adds up a FOR over each run.
+chooser     : (ALL | ANY | amount)? CONSECUTIVE? set_
+            | any_n CONSECUTIVE? set_
+            | EACH set_
+            | EACH NAME _IN set_
+any_n       : ANY INT
+
+// A set built from others is in braces, and so is every set inside it: {{a .. b} &amp; c}. A
+// range is the whole of its braces. Parentheses are for a group, which is a choice rather
+// than a set.
+?set_       : REF | NAME | DATE | call | "{" setexpr "}"
+?setexpr    : operand (SETOP operand)*   -&gt; setop
+            | endpoint ".." endpoint     -&gt; date_range
+?operand    : endpoint
+            | "{" setexpr "}"
+            | "(" (ALL | any_n) set_ ")"   -&gt; group
+            | (ALL | any_n) set_           -&gt; group
+?endpoint   : date_atom OFFSET           -&gt; date_offset
+            | date_atom
+?date_atom  : DATE | REF | NAME | call
+
+// Two more ways in, for the cells of the Mappings tab rather than for a request: what a
+// key or a value may be, and what stands in for a key with no row.
+mapping_domain  : setexpr
+mapping_default : chooser
+
+// The keywords. A leading `_` keeps the token out of the tree, the way an anonymous string
+// would; `.5` puts them above NAME, which lower case would otherwise be read as.
+_REQUEST.5  : /REQUEST\b/i
+_EXCLUDE.5  : /EXCLUDE\b/i
+_PREFER.5   : /PREFER\b/i
+_IF.5       : /IF\b/i
+_UNLESS.5   : /UNLESS\b/i
+_GAP.5      : /GAP\b/i
+_TO.5       : /TO\b/i
+DO.5        : /DO\b/i
+_NOT.5      : /NOT\b/i
+_IN.5       : /IN\b/i
+_DURING.5   : /DURING\b/i
+_ACROSS.5   : /ACROSS\b/i
+_ON.5       : /ON\b/i
+_AS_ROLE.5  : /AS_ROLE\b/i
+_FOR.5      : /FOR\b/i
+_WITH.5     : /WITH\b/i
+_WITHOUT.5  : /WITHOUT\b/i
+BOUND.5     : /AT_LEAST\b/i | /AT_MOST\b/i | /EXACTLY\b/i
+ALL.5       : /ALL\b/i
+EACH.5      : /EACH\b/i
+ANY.5       : /ANY\b/i
+FREE.5      : /FREE\b/i
+BUSY.5      : /BUSY\b/i
+MAXIMIZE.5  : /MAXIMIZE\b/i
+MINIMIZE.5  : /MINIMIZE\b/i
+CONSECUTIVE.5 : /CONSECUTIVE\b/i
+AND.5       : /AND\b/i
+OR.5        : /OR\b/i
+
+SETOP       : "+" | "-" | "&amp;"
+OFFSET.2    : /[+-][ \t]*\d+d/
+DATE.3      : /\d{4}-\d{2}-\d{2}/
+DURATION.2  : /\d+(\.\d+)?[mhd]/
+STRING      : /'[^']*'/
+REF.2       : /[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)+/
+NAME        : /[a-z_][a-z0-9_]*/
+
+COMMENT     : /#[^\n]*/
+
+// A statement may be written over as many lines as it reads well on. A new line starts a new
+// statement only where one can start: at REQUEST, PREFER, EXCLUDE, IF, UNLESS or GAP, at a
+// binding (`EACH x IN`, `ANY n x IN`), or at a name and a colon. Anywhere else the
+
+// newline before it is nothing, so the line carries on the statement above it. The
+// lookahead spells out how `binding`, `define` and `labeled` begin, so it changes with them.
+_CONTINUES  : /(\r?\n[ \t]*)+(?![ \t\r\n]|(?i:REQUEST|PREFER|EXCLUDE|IF|UNLESS|GAP)\b|(?i:EACH|ANY[ \t]+\d+)[ \t]+[a-z_][a-z0-9_]*[ \t]+(?i:IN)\b|[a-z_][a-z0-9_]*[ \t]*:|$)/
+_NL         : /(\r?\n[ \t]*)+/
+%import common.INT
+%import common.WS_INLINE
+%ignore WS_INLINE
+%ignore COMMENT
+%ignore _CONTINUES
+</code></pre></div>
+<h2 id="5-names">5. Names<a class="headerlink" href="#5-names" title="Permanent link">&para;</a></h2>
+<p>A sheet value becomes an identifier by lower casing it, replacing every run of characters
+that are not letters or digits with one underscore, dropping underscores at the ends, and
+prefixing <code>_</code> if the result would start with a digit. <code>Archery 1 &amp; 2</code> becomes
+<code>archery_1_2</code>. Two values in one namespace that normalize alike, or a sheet value that
+normalizes to a built-in name, are a load error.</p>
+<table>
+<thead>
+<tr>
+<th>Namespace</th>
+<th>Holds</th>
+<th>Built in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>staff</code></td>
+<td>Staff members, staff categories</td>
+<td><code>staff</code>, <code>staff.clinic_trainers</code></td>
+</tr>
+<tr>
+<td><code>activities</code></td>
+<td>Clinics under <code>clinics</code>, with the day's offerings under <code>clinics.offerings</code>; the day's cabin acts under <code>cabin_acts</code></td>
+<td><code>activities</code>, <code>activities.clinics</code>, <code>activities.clinics.offerings</code>, <code>activities.cabin_acts</code></td>
+</tr>
+<tr>
+<td><code>blocks</code></td>
+<td>Blocks, block categories</td>
+<td><code>blocks</code></td>
+</tr>
+<tr>
+<td><code>dates</code></td>
+<td></td>
+<td><code>dates.target</code>, and the scopes below</td>
+</tr>
+<tr>
+<td><code>roles</code></td>
+<td></td>
+<td><code>roles.first</code> … <code>roles.sixth</code>, <code>roles.lifeguard</code>, <code>roles.lifeguard_2</code> …, <code>roles.shadow</code>, <code>roles.scaffolded</code>, <code>roles.trainee</code></td>
+</tr>
+<tr>
+<td><code>mappings</code></td>
+<td>The mappings on the Mappings tab</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>A namespace is plural because it holds many names. <code>activities</code> has a branch per kind of
+activity, so <code>activities.clinics.archery_1_2</code> is a clinic and
+<code>activities.cabin_acts.at_cabin_act.p4</code> is a cabin act; only <code>activities</code> is both.</p>
+<p>The cabin act names are <code>dates.target</code>'s board. <code>activities.cabin_acts</code> is the day's acts,
+<code>activities.cabin_acts.at_cabin_act</code> those in the cabin act block and
+<code>activities.cabin_acts.at_rest_hour</code> those the board moves to rest hour, and each act is an
+item under its half by its cabin: <code>activities.cabin_acts.at_rest_hour.p2</code>. A cabin has a
+name only on a day it has an act, under the half its act is in that day.</p>
+<p>An <strong>offering</strong> is one row of the Offerings tab: a clinic and the block it runs in, or the
+two blocks of a double. <code>activities.clinics.offerings.clinic_2.archery_1_2</code> is archery as
+offered in clinic 2, an item; <code>activities.clinics.offerings.clinic_2</code> is everything offered
+then, a set. A double is under both of its blocks, and is the same item by either name.
+There are offerings only for <code>dates.target</code>. An offering is a clinic at a time, not a
+clinic, so no offering is in <code>activities.clinics</code> or <code>activities</code>.</p>
+<p>Every name is either an <strong>item</strong> (one thing: <code>staff.rob</code>, <code>blocks.clinic_1</code>, <code>dates.target</code>)
+or a <strong>set</strong> (<code>staff.counselor</code>, <code>blocks</code>). Set names are plural or collective; there is
+no name that means "any one of": that is what <code>ANY</code> and a count are for.</p>
+<p>A staff category, and <code>staff</code>, hold only the people working on <code>dates.target</code>: someone
+resting all day is in no category, though their own name still resolves. <code>staff</code> is the
+union of the span's Staff Categories columns, not the Skills sheet's rows; a staff member in
+no category is away for that span and is treated as resting all day.</p>
+<p>A skill is not a name. What a skill may be asked for is a position on an activity, which
+carries the skill it needs, so <code>REQUEST &lt;activity&gt;</code> asks for people with those skills
+without naming any of them.</p>
+<h3 id="51-dates">5.1 Dates<a class="headerlink" href="#51-dates" title="Permanent link">&para;</a></h3>
+<p>Date names are nested spans. A <strong>span</strong> is one row of the Calendar sheet: a run of days
+from its <code>start date</code> to its <code>end date</code>, running one <code>program type</code>. A date cell is read
+however the sheet displays it; a numeric date that could be read both ways follows
+<code>date_order</code> in <code>config.toml</code>. Every span carries the
+same names, and a span's weeks are its days seven at a time from the start.</p>
+<table>
+<thead>
+<tr>
+<th>Span</th>
+<th>Kind</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dates.target</code></td>
+<td>item</td>
+<td>the date being scheduled</td>
+</tr>
+<tr>
+<td><code>dates.season</code></td>
+<td>set</td>
+<td>every date the Calendar sheet covers</td>
+</tr>
+<tr>
+<td><code>dates.mondays</code> … <code>dates.sundays</code></td>
+<td>set</td>
+<td>every date of the season falling on that weekday</td>
+</tr>
+<tr>
+<td><code>dates.weekdays</code>, <code>dates.weekends</code></td>
+<td>set</td>
+<td>every Monday to Friday, and every Saturday and Sunday, of the season</td>
+</tr>
+<tr>
+<td><code>dates.session_1</code> … <code>dates.session_20</code></td>
+<td>set</td>
+<td>a <code>main season</code> row, numbered in sheet order</td>
+</tr>
+<tr>
+<td><code>dates.&lt;name&gt;</code></td>
+<td>set</td>
+<td>any other row, by its <code>name</code> column normalized</td>
+</tr>
+<tr>
+<td><code>dates.&lt;span&gt;.week_1</code> … <code>.week_20</code></td>
+<td>set</td>
+<td>that week of that span</td>
+</tr>
+<tr>
+<td><code>dates.session_target</code></td>
+<td>set</td>
+<td>the session <code>dates.target</code> falls in; absent outside the main season</td>
+</tr>
+<tr>
+<td><code>dates.session_target.week_target</code></td>
+<td>set</td>
+<td>the week of that session <code>dates.target</code> falls in</td>
+</tr>
+</tbody>
+</table>
+<p>A span has no names for its days or for its first and last date. Its days are written as
+what it shares with the season's: <code>{dates.session_2 &amp; dates.thursdays}</code> is every Thursday of
+session 2, and <code>{dates.session_2.week_1 &amp; dates.sundays}</code> is the Sunday it starts on. That is
+a set, even holding one date, so after <code>ON</code> it takes a quantifier.</p>
+<p>A name exists only if the span reaches it: <code>dates.session_2.week_2</code> is a name only
+when session 2 runs to a second week. At most 20 main season rows and 20 weeks per span.</p>
+<p>Only <code>dates.target</code>,
+<code>dates.session_target</code> and its <code>week_target</code> follow the date being scheduled; every other
+date name says outright which span it means. A request naming <code>dates.session_target</code> on a
+date in no session is invalid on that date and is left out of its solve, not an error that
+stops it.</p>
+<p><code>roles.trainee</code> resolves per staff member from the Skills sheet: checked off or needing a
+scaffold becomes <code>scaffolded</code>, needing a shadow or no checkoff becomes <code>shadow</code>.</p>
+<p><code>puppet-strings names</code> prints every name that currently exists.</p>
+<h2 id="6-sets-quantifiers-and-variables">6. Sets, quantifiers and variables<a class="headerlink" href="#6-sets-quantifiers-and-variables" title="Permanent link">&para;</a></h2>
+<h3 id="61-set-expressions">6.1 Set expressions<a class="headerlink" href="#61-set-expressions" title="Permanent link">&para;</a></h3>
+<p>A set is a name, a variable, a date, a mapping call such as <code>mappings.buddy(c)</code> (§9.2),
+or an expression in braces. Inside braces <code>+</code>, <code>-</code> and
+<code>&amp;</code> combine sets left to right, and a set inside the expression is in braces of its own:
+<code>{a - {b &amp; c}}</code>. Mixing two different operators without them is an error, so there is no
+precedence to remember. <code>a .. b</code> is an inclusive date range, and is the whole of its
+braces: combined with another set it is <code>{{a .. b} &amp; c}</code>. A single date may be offset by
+whole days, <code>d + 6d</code>, with no grouping needed. Parentheses around a set are an error; they
+are for groups and conditions. An offset or range
+endpoint that is not a single date is an error.</p>
+<p>A <strong>group</strong> is a set with a quantifier in front of it, inside braces:
+<code>{staff.charlton + ANY 1 {staff.dylan + staff.donny}}</code>, parentheses around it optional.
+It is one part of the set it stands in, and says who is in it, so it is taken <code>ALL</code> or
+<code>ANY n</code>, never counted:</p>
+<ul>
+<li>In a set taken whole (<code>ALL</code>, or with no quantifier), <code>(ALL s)</code> adds every member
+  of <code>s</code>, and <code>(ANY n s)</code> adds <code>n</code> members of <code>s</code>, chosen. So
+  <code>ALL {staff.charlton + (ANY 1 {staff.dylan + staff.donny})}</code> is Charlton and one of
+  the other two, the same as a binding line <code>ANY 1 x IN {staff.dylan + staff.donny}</code>
+  and <code>ALL {staff.charlton + x}</code>. The one not chosen is not ruled out.</li>
+<li>In a choice or a count, each group is one of the things chosen or counted, all of it:
+  <code>ANY 1 {staff.lucy + (ALL {staff.tom + staff.charles})}</code> is Lucy, or else Tom and
+  Charles together. In a count a group is taken whole, so it takes <code>ALL</code>.</li>
+<li>In <code>EACH</code>, each group is one copy: <code>EACH {staff.lucy + (ALL {staff.tom +
+  staff.charles})}</code> is one request for Lucy and one for Tom and Charles together.</li>
+</ul>
+<p>A group is added with <code>+</code> only. <code>(ALL s)</code> may also be taken away or crossed, where it is
+just <code>s</code>; <code>(ANY n s)</code> may not, since what it holds is not known until the solver
+chooses.</p>
+<h3 id="62-quantifiers">6.2 Quantifiers<a class="headerlink" href="#62-quantifiers" title="Permanent link">&para;</a></h3>
+<p>Every set in a statement carries a quantifier; an item takes none.</p>
+<table>
+<thead>
+<tr>
+<th>Quantifier</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ALL s</code></td>
+<td>Every member of <code>s</code>, together, as one unit.</td>
+</tr>
+<tr>
+<td><code>ANY s</code></td>
+<td>Any of these: <code>s</code> is one pool, matched by any of its members.</td>
+</tr>
+<tr>
+<td><code>ANY n s</code></td>
+<td>A <strong>choice</strong>: <code>n</code> members of <code>s</code>, picked by the solver once for the statement, which then holds for each of them as if they had been named.</td>
+</tr>
+<tr>
+<td><code>AT_LEAST n s</code>, <code>AT_MOST n s</code>, <code>EXACTLY n s</code></td>
+<td>A <strong>count</strong>: how many members of <code>s</code> the rest of the statement holds for, compared so with <code>n</code>.</td>
+</tr>
+<tr>
+<td><code>EACH s</code></td>
+<td>The declaration is copied once per member, each copy a separate request.</td>
+</tr>
+</tbody>
+</table>
+<p><code>n</code> is 1 or more. <strong>A choice picks and a count measures.</strong> A positive <code>REQUEST</code> asks for
+something to happen, so it picks with <code>ANY n</code>; a test, a <code>PREFER</code>, a <code>FOR</code> and a <code>WITH</code>
+measure what happens, and count. <code>AT_LEAST n</code> in a <code>REQUEST</code> is an error, since <code>ANY n</code>
+says it; so is <code>EXACTLY n</code>, which would also forbid the rest, and is written as a choice
+and a <code>NOT DO</code> (§6.3). The count a <code>REQUEST</code> takes is <code>AT_MOST</code>, a cap. <code>ANY n</code> in a test or
+a <code>PREFER</code> is an error: they measure.</p>
+<p>A choice never forbids: <code>ANY 1 {staff.dylan + staff.alesa} DO 'rake leaves'</code> is one of
+those two raking, and says nothing about the other. A count counts the members of the set
+it stands in front of, and nothing else. <code>AT_LEAST 3</code> holds with three or with four;
+<code>AT_MOST</code> and <code>EXACTLY</code> rule the rest out, so a statement with either can forbid. On one
+item a count of 1 is that item, which is how a <code>PREFER</code> weighs one thing; a larger count
+there is an error. A pool never forbids either: <code>ANY {blocks.clinic_1 + blocks.clinic_2}</code>
+holds when the thing happens in at least one of them, and says nothing against both.</p>
+<p>Evaluation order is fixed:</p>
+<ol>
+<li>Every <code>EACH</code> in the declaration splits it into copies, one per member; several give
+   every combination. Each copy is an independent request with its own satisfaction,
+   reported under <code>id[item, …]</code>. <code>EACH</code> over an empty set gives no copies, and the
+   request is inactive.</li>
+<li>Within a copy, each choice is made once, and the whole statement holds for what it
+   picked: <code>ANY 2 staff.counselor DO 'x' DURING ANY 1 blocks</code> is two counselors in one
+   block. The counts of a test or a <code>PREFER</code> apply one inside the other in this order,
+   wherever each is written: the subject, the activity, <code>ON</code>, <code>DURING</code>. So <code>IF AT_MOST 2
+   staff.counselor DO 'break' DURING AT_LEAST 3 blocks</code> holds when at most two
+   counselors have three breaks or more each.</li>
+<li>A set taken <code>ALL</code> is one unit inside every choice and count:
+   <code>ALL {staff.lucy + staff.tom} DO … DURING ANY 1 blocks</code> is one block that both
+   of them work. <code>EACH</code> gives each of them a block of their own.</li>
+<li>A pool is innermost: it is matched by any of its members for each combination of the
+   units and chosen or counted items around it. <code>ALL {staff.lucy + staff.tom} DO … DURING
+   ANY blocks</code> gives each of them a block, not necessarily the same one.</li>
+</ol>
+<p><code>ANY</code> on the blocks of a statement is at least one of them, so for one person it is the
+same as <code>ANY 1</code>; it differs only where rules 3 and 4 differ: a choice sits outside the
+units, a pool inside them.</p>
+<p><strong><code>ACROSS</code> dates.</strong> <code>ACROSS &lt;dates&gt;</code>, in place of <code>ON</code>, is the dates taken whole as one
+pool, over which every count and <code>FOR</code> of the statement adds up. <code>ON ANY &lt;dates&gt;</code> is the
+same pool read as "one of these dates": a count, a <code>FOR</code>, or <code>ANY n</code> blocks for n of 2 or
+more over more than one date is an error there, and takes <code>ACROSS</code>. Without them the two
+are the same. An <code>ACROSS</code> of dates takes no quantifier: <code>ANY</code> is already what it does, and
+a pick or a count of the dates themselves is written with <code>ON</code>. On the first line, an
+<code>ACROSS</code> is every statement's, as an <code>ON</code> is, and is of dates.</p>
+<p><strong>A block is a block on a date.</strong> Blocks happen every day, so <code>ACROSS</code> a statement's
+dates, a count of its blocks counts each block on each of those dates:
+<code>DURING AT_MOST 8 blocks.all_clinics ACROSS dates.session_1</code> is at most eight clinic
+blocks over the session, clinic 1 on Monday and clinic 1 on Tuesday being two. Everywhere
+else the blocks are counted on one date at a time — the dates are one date, split with
+<code>EACH</code>, or counted outside the blocks by rule 2 — except under <code>ALL</code> dates, one unit by
+rule 3, where a block counts when the rest holds in it on every one of them. A count of
+blocks over pooled dates takes no group. <code>ANY n</code> of blocks <code>ACROSS</code> dates is a pick of
+blocks on those dates, the same way: <code>DURING ANY 2 blocks ACROSS dates.session_1</code>
+is two blocks in the session, on one day or two.</p>
+<p>The activity and <code>AS_ROLE</code> take one thing at a time, since a person does one thing in a
+block. <code>ALL</code> of several activities needs the blocks pooled or counted, and <code>AS_ROLE</code> takes
+a role, <code>ANY</code> or <code>EACH</code>. A choice or a count of activities is of different ones:
+<code>DO ANY 2 activities.clinics DURING ANY blocks</code> is two different clinics.</p>
+<p><code>CONSECUTIVE</code> goes on the blocks, after <code>ANY</code>, <code>ANY n</code> or a count. <code>DURING ANY 2
+CONSECUTIVE blocks</code> picks two adjacent blocks. <code>DURING AT_LEAST 2 CONSECUTIVE
+blocks</code> holds when some <strong>run</strong> of adjacent blocks the rest holds for reaches 2,
+<code>AT_MOST</code> when no run exceeds it, and <code>EXACTLY</code> when both do. Blocks are adjacent when they
+are next to each other in the Blocks sheet, on one date. <code>ACROSS CONSECUTIVE blocks</code>
+pools each run on its own, for a <code>FOR</code> to add up (§7.1). A run never crosses from one date
+to the next.</p>
+<h3 id="63-variables">6.3 Variables<a class="headerlink" href="#63-variables" title="Permanent link">&para;</a></h3>
+<p><code>EACH x IN s</code> names the member each copy is about. <code>x</code> can then stand wherever a set
+can, and as a mapping argument. Written inline, <code>x</code> is visible in that statement. Written on
+a line of its own, it is visible in every line of the declaration:</p>
+<table>
+<thead>
+<tr>
+<th>Binding line</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EACH x IN s</code></td>
+<td>One copy of the declaration per member of <code>s</code>, with <code>x</code> that member.</td>
+</tr>
+<tr>
+<td><code>ANY n x IN s</code></td>
+<td><code>x</code> is <code>n</code> members of <code>s</code>, chosen once for the whole declaration. With <code>n</code> of 1, <code>x</code> is an item; otherwise a set, which takes a quantifier where it is used.</td>
+</tr>
+</tbody>
+</table>
+<p>A binding line is the only way for two lines of a declaration to be about the same
+person, block or date. It names particular items, so it picks with <code>ANY n</code> and is never
+counted.</p>
+<p>A chosen name may be added into a set with <code>+</code>, and taken away from a set with <code>-</code>:
+<code>{s - x}</code> is the members of <code>s</code> it did not pick, each in or out as the choice goes. That is
+how the rest of a set is forbidden, what <code>EXACTLY</code> would have said:</p>
+<div class="highlight"><pre><span></span><code>ANY 1 r IN {staff.dylan + staff.alesa}
+REQUEST r DO 'rake leaves'
+REQUEST ALL {{staff.dylan + staff.alesa} - r} NOT DO 'rake leaves'
+</code></pre></div>
+<p>It may not be crossed with <code>&amp;</code>.</p>
+<p>A <strong>definition</strong> gives a set a name: <code>office_elves: {staff.emily + staff.tori}</code>. The name
+then stands for that set wherever a set can, in every line of the declaration, before or
+after the definition, and in other definitions. It is written in where it is used, so it
+chooses nothing on its own: a group inside it chooses afresh wherever it is used. The name
+is nobody else's: a definition may not share it with a variable, a label or another
+definition, and may not be defined in terms of itself.</p>
+<p>A definition may also name a quoted task: <code>duty: 'on duty'</code>. The name then stands for the
+task after <code>DO</code>, in any line of the declaration, and nowhere else: not in a set, and with no
+quantifier, since it is one task.</p>
+<p>With a quantifier after the colon, a definition is a binding line spelled the other way
+round: <code>videographer: ANY 1 {staff.dylan + staff.donny}</code> is
+<code>ANY 1 videographer IN {staff.dylan + staff.donny}</code>, and <code>c: EACH staff.counselor</code> is
+<code>EACH c IN staff.counselor</code>. <code>x: ALL s</code> is <code>x: s</code>.</p>
+<h2 id="7-what-happens">7. What happens<a class="headerlink" href="#7-what-happens" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Holds for a staff member, a block and a date when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;who&gt; DO &lt;what&gt; [clauses]</code></td>
+<td>the staff member holds an assignment to the activity there, passing the clauses</td>
+</tr>
+<tr>
+<td><code>&lt;who&gt; FREE [clauses]</code></td>
+<td>the staff member is working and holds nothing there</td>
+</tr>
+<tr>
+<td><code>&lt;who&gt; BUSY [clauses]</code></td>
+<td>the staff member holds something there</td>
+</tr>
+<tr>
+<td><code>&lt;who&gt; NOT DO &lt;what&gt; [clauses]</code></td>
+<td>the staff member holds <strong>no</strong> assignment matching the pattern (§8)</td>
+</tr>
+</tbody>
+</table>
+<p><code>&lt;what&gt;</code> is an activity or a <code>'quoted task'</code>. "Anything at all" is not a target: nothing to
+do is <code>FREE</code>, something to do is <code>BUSY</code>, and someone resting is neither.</p>
+<p><code>REQUEST &lt;activity&gt; [clauses]</code>, with no subject, is <code>REQUEST ANY staff DO &lt;activity&gt;</code>: the
+activity runs, staffed from its positions. <code>REQUEST &lt;offering&gt;</code> is the same for the
+offering's clinic, <code>DURING</code> its block, or <code>ALL</code> of a double's two, <code>ON dates.target</code>. An
+offering takes no clauses and no subject, and is one at a time, so all of a day's clinics
+are <code>REQUEST EACH activities.clinics.offerings</code>. An offering anywhere else, or in a set with other activities, is an error.</p>
+<p>A missing <code>ON</code> is <code>ON dates.target</code>, everywhere in the language. A missing <code>DURING</code> is
+<code>ANY</code> of the blocks the date has: <code>REQUEST staff.rob DO 'x'</code> is at least once today.</p>
+<p>Everything to the right of <code>NOT</code> describes the situation that must not happen. It is a
+pattern (§8): sets there are pools and take <code>ANY</code>, <code>DURING</code> may be left out to mean every
+block, and <code>EACH</code> splits as anywhere, apart from <code>WITH</code> and <code>WITHOUT</code> (§8). A set there may
+also take <code>ALL</code>, of plain names with no group or chosen name in it: what is forbidden is
+then the positive request the words to the right of <code>NOT</code> make, with an assignment for
+every combination of the <code>ALL</code> items, a part taken <code>ANY</code> matched by any of its items. Any
+one combination on its own is allowed. Past dates count, as facts. A count is an error to
+the right of <code>NOT</code>, and so is <code>ANY n</code>: what they could say is clearer as a cap on what does
+happen, so "not in two or more" is <code>DURING AT_MOST 1</code>. The subject to the left of <code>NOT</code> is
+who the <code>NOT</code> is about, taken whole or chosen with <code>ANY n</code>, so
+<code>ANY 1 {staff.lucy + staff.tom} NOT DO 'break'</code> is "one of them, picked by the solver,
+takes no break" and <code>ALL {…} NOT DO</code> is "none of them does".</p>
+<p>Clauses of a statement:</p>
+<table>
+<thead>
+<tr>
+<th>Clause</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DURING &lt;blocks&gt;</code>, <code>ON &lt;dates&gt;</code></td>
+<td>When.</td>
+</tr>
+<tr>
+<td><code>ACROSS &lt;blocks&gt;</code></td>
+<td>When, in place of <code>DURING</code>, with the <code>FOR</code> a total over the blocks (§7.1).</td>
+</tr>
+<tr>
+<td><code>AS_ROLE &lt;role&gt;</code></td>
+<td>In that role. Without it, any position of the activity; a trainee role only when named.</td>
+</tr>
+<tr>
+<td><code>FOR AT_LEAST\|AT_MOST\|EXACTLY &lt;duration&gt;</code></td>
+<td>How long (§7.1).</td>
+</tr>
+<tr>
+<td><code>WITH &lt;staff&gt;</code></td>
+<td>Enough others from the set are on the same instance (§8).</td>
+</tr>
+<tr>
+<td><code>WITHOUT &lt;staff&gt;</code></td>
+<td>Not enough are.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="71-lengths">7.1 Lengths<a class="headerlink" href="#71-lengths" title="Permanent link">&para;</a></h3>
+<p>With <code>DURING</code>, <code>FOR</code> is the length of each quoted-task piece, however the blocks are taken.
+A piece never leaves its block: <code>DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks</code> is three
+breaks of 30 minutes, and <code>FOR EXACTLY 45m DURING ANY blocks</code> is one piece of 45 minutes
+in any block. A length no block of the statement is long enough for is an error.</p>
+<p>With <code>ACROSS</code> in place of <code>DURING</code>, <code>FOR</code> is what the pieces add up to over the blocks.
+<code>ACROSS</code> takes its set whole as a pool, with no <code>ANY</code>: <code>DO 'video editing' FOR AT_LEAST 2h
+ACROSS blocks</code> is two hours in whichever blocks. Dates <code>ACROSS</code> and pooled people are
+added up with them. <code>ACROSS CONSECUTIVE</code> adds up each run
+on its own, a run being one staff member's blocks. <code>ANY n</code>, <code>ALL</code> or a count after <code>ACROSS</code>
+says how many of the blocks hold a piece: <code>FOR EXACTLY 2h ACROSS ANY 3 blocks</code> is two hours
+in three pieces, and <code>FOR AT_LEAST 2h ACROSS AT_MOST 3 blocks</code> is two hours in no more than
+three. Those pieces are counted a day at a time, so over several dates <code>ACROSS</code> pools the
+blocks. <code>ACROSS</code> needs a <code>FOR</code>, and takes no <code>ANY n CONSECUTIVE</code> or group.</p>
+<p><code>FOR</code> always says how the length is bounded, <code>EXACTLY</code>, <code>AT_LEAST</code> or <code>AT_MOST</code>, as a
+count does; a bare <code>FOR 2h</code> is an error. A quoted task with
+no <code>FOR</code> fills its block. Under <code>ACROSS</code> the pieces fill their blocks, all but one, which
+may be cut short: to what remains, or under <code>AT_LEAST</code> to any length that reaches it. Where
+<code>ACROSS</code> counts the pieces, any of them may be cut short.</p>
+<p>An activity, <code>FREE</code> or <code>BUSY</code> fills its blocks, so a <code>FOR</code> on one adds the lengths of the
+blocks up and takes <code>ACROSS</code>: <code>EACH staff.counselor FREE FOR AT_LEAST 2h ACROSS
+blocks.all_clinics</code>.</p>
+<h2 id="8-patterns">8. Patterns<a class="headerlink" href="#8-patterns" title="Permanent link">&para;</a></h2>
+<p>Right of <code>NOT</code>, and in a <code>PREFER … MAXIMIZE</code> or <code>MINIMIZE</code>, the words describe the
+assignments to match. <code>&lt;who&gt; DO &lt;what&gt; [clauses]</code> matches every assignment that passes all
+of its parts; <code>&lt;who&gt; FREE [clauses]</code> and <code>&lt;who&gt; BUSY [clauses]</code> match every (staff, block,
+date) in which the staff member is free, or busy. A clause left out does not filter, except
+<code>ON</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Passes an assignment when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;who&gt;</code></td>
+<td>its staff member is in the pool</td>
+</tr>
+<tr>
+<td><code>DO &lt;what&gt;</code></td>
+<td>its activity is in the pool, or is that quoted task</td>
+</tr>
+<tr>
+<td><code>DURING</code>, <code>ON</code>, <code>AS_ROLE</code></td>
+<td>its block, date, role is in the pool</td>
+</tr>
+<tr>
+<td><code>FOR &lt;bound&gt; &lt;duration&gt;</code></td>
+<td>its length compares so with the duration</td>
+</tr>
+<tr>
+<td><code>WITH &lt;staff&gt;</code></td>
+<td>enough others in the set hold an assignment on the same instance</td>
+</tr>
+<tr>
+<td><code>WITHOUT &lt;staff&gt;</code></td>
+<td>not enough do</td>
+</tr>
+</tbody>
+</table>
+<p>In a pattern a set is a <strong>pool</strong>: the pattern matches an assignment whose field is any
+member. A pool says so with <code>ANY</code>: <code>ANY staff.counselor</code>. A set with no quantifier is an
+error in a pattern; an item still takes none, and whether a name is an item is a question
+about the name, not the day, so <code>activities.cabin_acts.at_rest_hour</code> takes <code>ANY</code> even on a
+day it comes to one act. <code>EACH</code> splits the declaration as anywhere. A count,
+<code>ANY n</code> and an <code>(ANY n …)</code> group are errors in a pattern, and so is <code>ALL</code> in a score, which
+matches one assignment at a time.</p>
+<p><code>WITH</code> and <code>WITHOUT</code> count company rather than match it. They take one name, or a set with
+<code>ALL</code> or a count to say how many is enough: <code>WITH staff.vic</code> is Vic, <code>WITH AT_LEAST 2
+staff.mfgs</code> at least two MFGs, <code>WITH ALL staff.mfgs</code> every MFG. A set of several with no
+quantifier is an error, and so are <code>EACH</code> and <code>ANY</code>. This holds on both sides of <code>NOT</code>.</p>
+<p>An <code>AS_ROLE</code> written straight after the set of a <code>WITH</code> or <code>WITHOUT</code> is theirs: it says which
+role the others hold on the instance, a role, <code>ANY</code> of several or <code>EACH</code>, and counts them
+only in it. <code>WITH staff.alan AS_ROLE roles.first</code> is Alan, first on the same instance. The
+subject's own <code>AS_ROLE</code> goes anywhere else after the verb, so that it is not read as theirs.</p>
+<p><code>WITH</code> and <code>WITHOUT</code> are exact opposites: <code>WITHOUT AT_LEAST 1 staff.mfgs</code> is no MFG,
+<code>WITHOUT ALL staff.mfgs</code> is not every MFG. "Others" excludes the assignment's own staff
+member, so <code>ALL</code> does not ask anyone to be alongside themselves, and counts any role,
+trainees included. For a quoted task shorter than its block, "the same instance" also means
+the same start time. <code>AS_ROLE</code> needs an activity; <code>FOR</code> in a pattern needs a quoted task;
+<code>WITH</code>, <code>WITHOUT</code> and <code>AS_ROLE</code> cannot follow <code>FREE</code> or <code>BUSY</code>.</p>
+<h2 id="9-statements">9. Statements<a class="headerlink" href="#9-statements" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Statement</th>
+<th>Met</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUEST &lt;statement&gt;</code></td>
+<td>when it holds</td>
+</tr>
+<tr>
+<td><code>PREFER &lt;statement&gt;</code></td>
+<td>by degree: the closer it comes to its outermost count, or to its <code>FOR</code>, the better</td>
+</tr>
+<tr>
+<td><code>PREFER &lt;pattern&gt; MAXIMIZE mappings.x(args)</code></td>
+<td>by degree: each match earns the mapping's value</td>
+</tr>
+<tr>
+<td><code>PREFER &lt;pattern&gt; MINIMIZE mappings.x(args)</code></td>
+<td>by degree: each match costs the mapping's value</td>
+</tr>
+<tr>
+<td><code>EXCLUDE &lt;who&gt; DO '&lt;label&gt;' [DURING] [ON]</code></td>
+<td>not met or unmet: applied (§9.2)</td>
+</tr>
+</tbody>
+</table>
+<p>A <code>REQUEST</code> is all or nothing. To get partial credit from a <code>REQUEST</code>, split it with
+<code>EACH</code>: each copy is then met or not on its own. That is how "avoid" is written:
+<code>REQUEST EACH staff.office NOT DO 'break' DURING EACH {blocks.breakfast + blocks.lunch}</code>
+at a soft priority is one small request per person per block.</p>
+<p>There is no <code>PREFER</code> for "as many as possible": that is <code>EACH</code> at a soft priority,
+<code>REQUEST EACH staff.support DO 'lifeguard' DURING blocks.rest_hour</code>, each one who does it a
+request met. "At least two, and more if possible" is that and a <code>REQUEST ANY 2 …</code> beside
+it, in two declarations, since they matter differently.</p>
+<p>A <code>PREFER</code> needs something to come close to: a count, or a <code>FOR</code>. Its <strong>miss</strong> is how far
+the outermost count is from its <code>n</code>, the things below it counted as met or not, or how far
+its <code>FOR</code> is from its duration, in hours. A soft wish that something happen at all is a
+<code>REQUEST</code> at a soft priority, or a count of 1: <code>PREFER staff.dylan DO … DURING AT_LEAST 1
+blocks.clinic_2</code>.</p>
+<h3 id="91-exclude">9.1 EXCLUDE<a class="headerlink" href="#91-exclude" title="Permanent link">&para;</a></h3>
+<p><code>EXCLUDE &lt;who&gt; DO '&lt;label&gt;' [DURING &lt;blocks&gt;] [ON &lt;dates&gt;]</code> says that these people are not
+at camp for those blocks on those dates. <code>DURING</code> left out is every block the date has;
+<code>ON</code> left out is the date being scheduled. It is applied rather than solved:</p>
+<ul>
+<li>No assignment of theirs exists in those blocks, and no statement of any kind reaches
+  them there. It is the same state the Adjustments sheet's <code>resting</code> puts somebody in.</li>
+<li>Somebody excluded from every block a date has is in no staff category on that date, so a
+  <code>REQUEST</code> written about a category asks nothing of them. Somebody excluded from part of
+  a date stays in their categories.</li>
+<li><code>&lt;label&gt;</code> is what the published views write where their assignments would have been.</li>
+</ul>
+<p>Nothing in an <code>EXCLUDE</code> is chosen or counted, so <code>ANY</code> and a count are refused in every
+position. It takes no
+clause but <code>DURING</code> and <code>ON</code>, holds no <code>IF</code>, no <code>GAP</code> and no label, is the only statement
+in its declaration, and its priority is <code>MUST_HAPPEN</code>.</p>
+<h3 id="92-mappings">9.2 Mappings<a class="headerlink" href="#92-mappings" title="Permanent link">&para;</a></h3>
+<p>A mapping call names its keys: <code>mappings.preference(s, c)</code>. Each argument is an item or a
+variable bound by <code>EACH</code>. The Mappings tab gives each key a set, and the arguments must
+agree with those sets in number, in namespace, and in membership. The one exception is a
+staff member not working that day: they are in no category, so membership can't be judged
+and isn't checked.</p>
+<p>A mapping whose <code>value</code> is <code>numeric</code> goes only after <code>MAXIMIZE</code> or <code>MINIMIZE</code>. Its value
+is normalized to 0–1 against the mapping's declared scale. A key it has no row for takes
+the mapping's default, which is the bottom of its scale unless the Mappings tab says
+otherwise.</p>
+<p>Any other mapping gives a name from the set its <code>value</code> names, and a call to it is a set
+expression: it can stand wherever a set can, as a <code>set_</code> or inside <code>{…}</code>. The namespace a
+call gives is the namespace of its <code>value</code>. What it stands for is:</p>
+<ul>
+<li>the name its row gives, if there is a row and that name is in the <code>value</code> set that day.
+  A row naming somebody not working that day is passed over.</li>
+<li>otherwise the mapping's default, a Skedge phrase such as <code>ANY 1 {staff.office}</code>. A
+  call standing alone with no quantifier stands for the whole phrase, quantifier and all.
+  Anywhere else (inside <code>{…}</code>, or after a quantifier), a default that is a choice is an
+  error, because the solver hasn't chosen yet and the set can't be worked out. <code>ALL</code>
+  and single-name defaults are their sets.</li>
+<li>with neither a row nor a default, an error.</li>
+</ul>
+<p>The Mappings tab is checked when the day loads: every key and value cell must name a name
+in its set, and the default must be within the <code>value</code> set. The same exception applies to
+staff not working that day.</p>
+<h2 id="10-declarations">10. Declarations<a class="headerlink" href="#10-declarations" title="Permanent link">&para;</a></h2>
+<p>A declaration is lines of these kinds, in any order.</p>
+<table>
+<thead>
+<tr>
+<th>Line</th>
+<th>Form</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Statement</td>
+<td><code>[label:] REQUEST …</code> or <code>PREFER …</code></td>
+<td>§9. Only a positive <code>REQUEST … DO</code> may be labeled.</td>
+</tr>
+<tr>
+<td>Binding</td>
+<td><code>EACH x IN s</code>, <code>ANY n x IN s</code>, <code>x: ANY n s</code>, <code>x: EACH s</code></td>
+<td>§6.3.</td>
+</tr>
+<tr>
+<td>Definition</td>
+<td><code>x: s</code>, <code>x: '&lt;task&gt;'</code></td>
+<td>A name for a set, or for a quoted task (§6.3).</td>
+</tr>
+<tr>
+<td>Condition</td>
+<td><code>IF &lt;test&gt; { … }</code></td>
+<td>The statements in the braces apply only when this holds.</td>
+</tr>
+<tr>
+<td>Negative condition</td>
+<td><code>UNLESS &lt;test&gt; { … }</code></td>
+<td>The statements in the braces apply only when this does not hold.</td>
+</tr>
+<tr>
+<td>Shared dates</td>
+<td><code>ON &lt;dates&gt;</code> or <code>ACROSS &lt;dates&gt;</code>, on the first line only</td>
+<td>Goes on every <code>REQUEST</code>, <code>PREFER</code> and <code>EXCLUDE</code>; none may have its own.</td>
+</tr>
+<tr>
+<td>Gap</td>
+<td><code>GAP a TO b [&lt;amount&gt;]</code></td>
+<td>Relates the assignments of the <code>REQUEST</code> labeled <code>a</code> to those of the one labeled <code>b</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>The braces hold statements, labeled or not, and further conditions, which apply only when
+every condition around them holds; bindings, definitions and gaps go outside them. A
+statement outside every condition always applies. A gap holds only when both of its
+statements apply. The braces may be spread over lines, indented or not, or all on one.</p>
+<p>A test is a statement that says what happens, true or false of the day, past dates and
+today — with no count and no <code>FOR</code> it holds when it happens at all — or several tests
+joined by <code>AND</code> (all hold) or by <code>OR</code> (at least one does). Parentheses group, and mixing
+<code>AND</code> with <code>OR</code> requires them.</p>
+<p>The subject, the verb and the object keep their order: who, then <code>DO</code>, <code>FREE</code> or <code>BUSY</code>,
+then what. <code>DURING</code> and <code>ON</code> may go anywhere in a statement, before the subject included.
+<code>AS_ROLE</code>, <code>FOR</code>, <code>WITH</code> and <code>WITHOUT</code> describe the activity, so they go after the verb,
+before or after the object. <code>MAXIMIZE</code> or <code>MINIMIZE</code> goes before or after the pattern it
+weighs.</p>
+<p>A line may be written over as many lines as it reads well on. A new line starts a new line
+of the declaration only where one can start: at <code>REQUEST</code>, <code>PREFER</code>, <code>EXCLUDE</code>, <code>IF</code>,
+<code>UNLESS</code> or <code>GAP</code>, at a binding (<code>EACH x IN</code>, <code>ANY n x IN</code>), or at a name followed by a
+colon. Anywhere else it carries on the line above. A line may also end in <code>IF</code>, <code>UNLESS</code>,
+<code>AND</code>, <code>OR</code> or <code>(</code>.</p>
+<p>A declaration needs at least one statement, takes any number of conditions, and may mix
+<code>REQUEST</code> and <code>PREFER</code> statements freely: one piece of plain English often needs several
+statements, and they belong together under one description, one priority and one weight.</p>
+<p>Its <code>REQUEST</code> statements stand or fall together: the declaration is met when all of them
+and all its gaps hold, or when its condition says they do not apply, and that is what the
+report names. Its <code>PREFER</code> statements are weighed one by one in the declaration's tier,
+whether or not the requirements are met. A condition governs both.</p>
+<h3 id="101-gap">10.1 GAP<a class="headerlink" href="#101-gap" title="Permanent link">&para;</a></h3>
+<p><code>GAP a TO b [&lt;bound&gt; &lt;duration&gt;]</code> compares the assignments of the two labeled
+requirements. Every assignment of <code>a</code> must end before any of <code>b</code> starts, and the time from
+the end of the last <code>a</code> to the start of the first <code>b</code> must meet the bound. With no bound it
+is only that order, as <code>AT_LEAST 0m</code> is, which is the one place a zero amount is allowed. The times compared are real
+starts and ends, so a task shorter than its block may sit anywhere in it to satisfy a gap.</p>
+<p>A gap spans days. Times are counted from midnight on the date being scheduled, so an
+assignment on a published day behind it is a negative time: 16:00 yesterday is −480. A
+requirement whose <code>ON</code> reaches back is met by what that day already holds, and the gap is
+measured from it, which is how <code>AT_LEAST 40h</code> between two meetings is read against the
+meeting that actually happened.</p>
+<p>A date <em>after</em> the one being scheduled holds nothing yet and so cannot be one end of a
+gap. A requirement that defers to such a date is checked on the day it lands on, by which
+time it is a published assignment like any other.</p>
+<h2 id="11-what-can-exist">11. What can exist<a class="headerlink" href="#11-what-can-exist" title="Permanent link">&para;</a></h2>
+<p>Only a positive <code>REQUEST</code> makes things happen. <code>NOT</code>, <code>AT_MOST</code>, <code>PREFER</code>, <code>IF</code> and
+<code>UNLESS</code> steer what is otherwise asked for and never create an assignment.</p>
+<ol>
+<li>A clinic instance runs only if a <code>REQUEST … DO</code> names it, by itself or in a set taken
+   <code>ALL</code>. A pool or a count of activities, or a <code>FOR</code> <code>ACROSS</code> their blocks, counts the clinics that run
+   and asks for none of its own. Rule 13.4 then staffs the rest of it.</li>
+<li>A trainee or quoted-task assignment exists only where a positive <code>REQUEST</code> asks for it,
+   one that does not only cap it with <code>AT_MOST</code>, or as the <code>WITH</code> partner one of those
+   needs.</li>
+<li>A <code>REQUEST</code> whose condition says it does not apply asks for nothing.</li>
+<li>Nothing exists in a block an <code>EXCLUDE</code> has taken somebody out of, whatever asks for it.</li>
+</ol>
+<p>A quoted task named in a pattern or a <code>NOT DO</code> that no positive <code>REQUEST</code> in any request
+names is an error, not a line that does nothing.</p>
+<h2 id="12-priorities-and-scoring">12. Priorities and scoring<a class="headerlink" href="#12-priorities-and-scoring" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MUST_HAPPEN</code></td>
+<td>Hard. If the hard requests cannot all hold, the solver reports the conflicting ids and produces no schedule.</td>
+</tr>
+<tr>
+<td><code>CLINIC</code></td>
+<td>Soft, first tier. Staffing the offered clinics.</td>
+</tr>
+<tr>
+<td><code>STABILITY</code></td>
+<td>Soft, second tier, set by the solver during a same-day change and not writable on a request.</td>
+</tr>
+<tr>
+<td><code>HIGH</code>, <code>MEDIUM</code>, <code>LOW</code></td>
+<td>Soft, in that order.</td>
+</tr>
+</tbody>
+</table>
+<p><code>REQUEST</code> may have any priority. <code>PREFER</code> may not be <code>MUST_HAPPEN</code>, in a declaration of its
+own or beside requirements: there is no tier above the hard one to weigh a preference in,
+and a cap that must hold is a <code>REQUEST</code> with <code>AT_MOST</code>.</p>
+<p>Soft tiers are solved lexicographically: a tier's score is maximized, fixed as a floor, and
+the next tier is then maximized. No amount of a lower tier outweighs a higher one.</p>
+<p>Within a tier, a declaration (or each <code>EACH</code> copy of it) contributes:</p>
+<table>
+<thead>
+<tr>
+<th>Statement</th>
+<th>Contribution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUEST</code></td>
+<td>1 if the declaration is met, 0 otherwise</td>
+</tr>
+<tr>
+<td><code>PREFER</code> with a count or a <code>FOR</code></td>
+<td>minus its <strong>miss</strong> (§9), in things counted, or in hours for a <code>FOR</code></td>
+</tr>
+<tr>
+<td><code>PREFER … MAXIMIZE</code></td>
+<td>the sum of the mapping's value over the matches</td>
+</tr>
+<tr>
+<td><code>PREFER … MINIMIZE</code></td>
+<td>minus that sum</td>
+</tr>
+</tbody>
+</table>
+<p>Each contribution is multiplied by the request's weight, a positive number defaulting to 1
+and not allowed on <code>MUST_HAPPEN</code>. Priority decides whether two requests can trade at all;
+weight decides the rate when they can.</p>
+<h2 id="13-what-the-solver-enforces-regardless">13. What the solver enforces regardless<a class="headerlink" href="#13-what-the-solver-enforces-regardless" title="Permanent link">&para;</a></h2>
+<p>These come from the sheets and are never written as requests.</p>
+<ol>
+<li>A staff member's assignments never overlap in time.</li>
+<li>A position is filled only by someone whose Skills row shows the checkoff and whose RAL
+   that day meets the position's minimum.</li>
+<li>Someone resting holds nothing in the blocks they are resting through, and is not free
+   in them either.</li>
+<li>A clinic runs fully staffed or not at all, and each position holds one person.</li>
+<li>A clinic whose name ends in <code>(DBL)</code> keeps the same staff across both of its blocks.</li>
+<li>Lifeguard positions are extra positions requiring the <code>LIFEGUARD</code> skill at RAL 5.</li>
+<li>A trainee never fills a position. A shadow needs the instance fully staffed; a
+   scaffolded trainee needs a position holder who is a trainer on that position's skill.
+   One trainee per instance.</li>
+</ol>
+<h2 id="14-time-horizon">14. Time horizon<a class="headerlink" href="#14-time-horizon" title="Permanent link">&para;</a></h2>
+<p>The solver schedules <code>dates.target</code>.</p>
+<ul>
+<li><strong>Past dates</strong> with a published schedule are facts. They cannot change, and they count
+  exactly as today's assignments do, in every statement, pattern, condition and count.</li>
+<li><strong>Future dates</strong> hold nothing yet.</li>
+<li><strong>Excluded blocks</strong> (§9.1) hold nothing for the person excluded from them, on any date.</li>
+<li>A request all of whose dates are past, or all future, is inactive.</li>
+<li>A positive <code>REQUEST</code> that could still be met on later dates is <strong>deferrable</strong>: one whose
+  <code>ON</code> is pooled or chosen with <code>ANY n</code> and can still reach later dates, or an <code>ACROSS</code>
+  over dates that reach past the target. Today it must only stay reachable:
+  what is still missing after today may not exceed what the later dates can hold. A later
+  date holds nothing for a staff member resting through it or a block that does not exist
+  on it. On the last date that can hold anything, the whole remainder is due. Until then
+  the solver has a small incentive to act early.</li>
+<li><code>ALL</code> dates, <code>NOT</code> and <code>AT_MOST</code> are enforced every day.</li>
+<li>The solver keeps no memory between days. A choice made on an earlier day is known only
+  through the published schedule, which is why past dates count as facts.</li>
+</ul>
+<h2 id="15-errors">15. Errors<a class="headerlink" href="#15-errors" title="Permanent link">&para;</a></h2>
+<p>Every error names the line and column. The parser reports what it expected, which covers a
+label on a <code>PREFER</code> and <code>MAXIMIZE</code> without a mapping call. The parser, the validator and
+the solver report:</p>
+<table>
+<thead>
+<tr>
+<th>Message</th>
+<th>Condition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>a declaration needs at least one statement</code></td>
+<td>Only bindings, definitions, conditions or <code>GAP</code> lines.</td>
+</tr>
+<tr>
+<td><code>ANY needs a number of 1 or more</code></td>
+<td><code>ANY 0 staff.x</code>.</td>
+</tr>
+<tr>
+<td><code>to pick</code></td>
+<td><code>AT_LEAST n</code> on a set a <code>REQUEST</code> chooses from; the message gives <code>ANY n</code>.</td>
+</tr>
+<tr>
+<td><code>EXACTLY forbids the rest; pick with ANY</code></td>
+<td><code>EXACTLY n</code> on a set a <code>REQUEST</code> chooses from.</td>
+</tr>
+<tr>
+<td><code>measures, so it counts with AT_LEAST, AT_MOST or EXACTLY</code></td>
+<td><code>ANY n</code> in a test or a <code>PREFER</code>.</td>
+</tr>
+<tr>
+<td><code>amount must be at least 1</code></td>
+<td><code>AT_LEAST 0</code>.</td>
+</tr>
+<tr>
+<td><code>write NOT DO</code></td>
+<td><code>AT_MOST 0</code>, <code>EXACTLY 0</code>.</td>
+</tr>
+<tr>
+<td><code>a count counts the members of a set, and</code></td>
+<td>A count of 2 or more on one item: <code>AT_LEAST 2 staff.charlton</code>.</td>
+</tr>
+<tr>
+<td><code>a group in a count is taken whole, so it takes ALL</code></td>
+<td>An <code>(ANY n …)</code> group inside a count.</td>
+</tr>
+<tr>
+<td><code>a count of blocks over pooled dates counts each block on each date</code></td>
+<td><code>DURING AT_MOST 3 {blocks.a + (ALL …)} ON ANY …</code>.</td>
+</tr>
+<tr>
+<td><code>a pattern matches one assignment at a time</code></td>
+<td><code>ALL</code>, <code>ANY n</code>, a count or a group in the pattern of a <code>PREFER … MAXIMIZE</code>, other than after <code>WITH</code> or <code>WITHOUT</code>.</td>
+</tr>
+<tr>
+<td><code>right of NOT a set takes ANY, for any of these</code></td>
+<td>A count, <code>ANY n</code> or an <code>(ANY n …)</code> group to the right of <code>NOT</code>, other than after <code>WITH</code> or <code>WITHOUT</code>.</td>
+</tr>
+<tr>
+<td><code>ALL right of NOT takes names, not groups or chosen names</code></td>
+<td><code>NOT DO … ALL {staff.x + (ANY 1 …)}</code> and the like.</td>
+</tr>
+<tr>
+<td><code>a set here is matched, so it takes ANY</code></td>
+<td>A set with no quantifier in a pattern or to the right of <code>NOT</code>.</td>
+</tr>
+<tr>
+<td><code>left of NOT the subject is who the NOT is about</code></td>
+<td><code>ANY</code> as the subject of a <code>NOT</code>.</td>
+</tr>
+<tr>
+<td><code>left of NOT the subject is chosen, so it takes ANY</code></td>
+<td><code>AT_LEAST 1 staff.x NOT DO …</code>; the message gives <code>ANY n</code>.</td>
+</tr>
+<tr>
+<td><code>ANY pools names, not groups or chosen names</code></td>
+<td><code>ANY {staff.x + (ALL …)}</code>, or <code>ANY</code> of a set holding a bound name.</td>
+</tr>
+<tr>
+<td><code>is defined twice</code></td>
+<td>Two definitions of one name, or a definition sharing its name with a variable or label.</td>
+</tr>
+<tr>
+<td><code>is defined in terms of itself</code></td>
+<td><code>a: {staff.x + b}</code> and <code>b: {staff.y + a}</code>.</td>
+</tr>
+<tr>
+<td><code>names a task, which goes after DO, not in a set</code></td>
+<td>A task's name used in a set, or after <code>WITH</code>.</td>
+</tr>
+<tr>
+<td><code>names one task, so no quantifier</code></td>
+<td><code>DO ANY duty</code>, where <code>duty</code> names a task.</td>
+</tr>
+<tr>
+<td><code>names one item at a time, and</code></td>
+<td><code>EACH x IN</code> a set holding a group.</td>
+</tr>
+<tr>
+<td><code>CONSECUTIVE counts blocks one at a time, so no groups</code></td>
+<td>A group in <code>DURING … CONSECUTIVE …</code>.</td>
+</tr>
+<tr>
+<td><code>CONSECUTIVE comes after ANY, ANY n or a count</code></td>
+<td><code>DURING ALL CONSECUTIVE …</code> or <code>CONSECUTIVE</code> with no quantifier.</td>
+</tr>
+<tr>
+<td><code>CONSECUTIVE is about blocks, so it goes after DURING or ACROSS</code></td>
+<td><code>CONSECUTIVE</code> in any clause but <code>DURING</code> or <code>ACROSS</code>, or on a subject or activity.</td>
+</tr>
+<tr>
+<td><code>ANY CONSECUTIVE is a run of blocks to add a FOR up over</code></td>
+<td><code>DURING ANY CONSECUTIVE …</code>; the message gives <code>ACROSS</code>, and <code>ANY n</code> for blocks in a row.</td>
+</tr>
+<tr>
+<td><code>ACROSS adds up a FOR over the blocks; with no FOR, write DURING</code></td>
+<td><code>ACROSS</code> with no <code>FOR</code>.</td>
+</tr>
+<tr>
+<td><code>ACROSS adds up over a run with CONSECUTIVE alone</code></td>
+<td><code>ACROSS ANY n CONSECUTIVE …</code> or <code>ACROSS AT_MOST n CONSECUTIVE …</code>.</td>
+</tr>
+<tr>
+<td><code>ACROSS pools its set already, so it takes no ANY</code></td>
+<td><code>ACROSS ANY &lt;set&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>ACROSS adds up over blocks or over dates</code></td>
+<td>An <code>ACROSS</code> whose set is neither blocks nor dates, or both, or a mapping's value.</td>
+</tr>
+<tr>
+<td><code>ACROSS takes its dates whole</code></td>
+<td><code>ANY n</code>, <code>ALL</code>, <code>EACH</code> or a count after an <code>ACROSS</code> of dates.</td>
+</tr>
+<tr>
+<td><code>an ACROSS on the first line is over the dates of every statement below it</code></td>
+<td>An <code>ACROSS</code> of blocks on the first line.</td>
+</tr>
+<tr>
+<td><code>ON ANY is on one of these dates; to count or add up over all of them</code></td>
+<td>A count, a <code>FOR</code> or <code>ANY n</code> blocks (n of 2 or more) with <code>ON ANY</code> more than one date.</td>
+</tr>
+<tr>
+<td><code>right of NOT nothing is added up, so the dates take ON ANY</code></td>
+<td><code>NOT DO … ACROSS &lt;dates&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>a score adds nothing up, so the dates take ON ANY</code></td>
+<td>An <code>ACROSS</code> of dates in the pattern of a <code>PREFER … MAXIMIZE</code>.</td>
+</tr>
+<tr>
+<td><code>ACROSS adds up over blocks taken one by one, so no groups</code></td>
+<td>A group or a bound name in the blocks of an <code>ACROSS</code> that picks or counts them.</td>
+</tr>
+<tr>
+<td><code>the pieces of an ACROSS are counted a day at a time</code></td>
+<td><code>ACROSS ANY n</code>, <code>ALL</code> or a count of blocks over several dates.</td>
+</tr>
+<tr>
+<td><code>right of NOT each piece is matched on its own</code></td>
+<td><code>NOT DO … ACROSS …</code>.</td>
+</tr>
+<tr>
+<td><code>a score adds nothing up, so the blocks take DURING, not ACROSS</code></td>
+<td><code>ACROSS</code> in the pattern of a <code>PREFER … MAXIMIZE</code>.</td>
+</tr>
+<tr>
+<td><code>right of NOT there are no blocks to choose, so no CONSECUTIVE</code></td>
+<td><code>NOT DO … DURING ANY CONSECUTIVE …</code>; the message gives the count that limits a run instead.</td>
+</tr>
+<tr>
+<td><code>a score counts no runs, so no CONSECUTIVE</code></td>
+<td><code>CONSECUTIVE</code> in the pattern of a <code>PREFER … MAXIMIZE</code>.</td>
+</tr>
+<tr>
+<td><code>needs a quantifier: ALL, ANY, ANY n, EACH or a count</code></td>
+<td>A set with no quantifier in a statement.</td>
+</tr>
+<tr>
+<td><code>is one item and takes no quantifier</code></td>
+<td><code>ANY staff.rob</code>; <code>WITH AT_LEAST 1 staff.vic</code>; <code>ALL blocks.clinic_1</code> right of <code>NOT</code>.</td>
+</tr>
+<tr>
+<td><code>needs a quantifier: ALL or a count</code></td>
+<td><code>WITH</code> or <code>WITHOUT</code> a set of several, with no quantifier.</td>
+</tr>
+<tr>
+<td><code>counts who is alongside, so it takes ALL or a count</code></td>
+<td><code>WITH EACH staff.mfgs</code> or <code>WITH ANY staff.mfgs</code>; likewise <code>WITHOUT</code>.</td>
+</tr>
+<tr>
+<td><code>an offering already says when it runs, so it takes nothing more</code></td>
+<td>Any clause on <code>REQUEST &lt;offering&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>an offering is asked for on its own</code></td>
+<td>An offering after <code>DO</code>, after <code>NOT DO</code>, or in a pattern.</td>
+</tr>
+<tr>
+<td><code>one offering at a time</code></td>
+<td><code>ALL</code>, <code>ANY</code> or a count of offerings.</td>
+</tr>
+<tr>
+<td><code>an offering is asked for apart from other activities</code></td>
+<td><code>EACH</code> of a set holding offerings and activities.</td>
+</tr>
+<tr>
+<td><code>one activity at a time</code></td>
+<td><code>ALL</code> of several activities in blocks that are not pooled or counted, or a group on the activity.</td>
+</tr>
+<tr>
+<td><code>one role at a time: AS_ROLE takes a role, ANY or EACH</code></td>
+<td><code>ALL</code> of several roles, or a count of them.</td>
+</tr>
+<tr>
+<td><code>describes the activity, so it goes after</code></td>
+<td><code>AS_ROLE</code>, <code>FOR</code>, <code>WITH</code> or <code>WITHOUT</code> before the verb; the message names the clause and the verb.</td>
+</tr>
+<tr>
+<td><code>an activity, FREE or BUSY fills its blocks, so a FOR on it adds the blocks</code></td>
+<td>Such a <code>FOR</code> with <code>DURING</code>, or with neither <code>DURING</code> nor <code>ACROSS</code>.</td>
+</tr>
+<tr>
+<td><code>FOR is the length of each piece; to add the pieces up, write ACROSS</code></td>
+<td>A <code>FOR</code> with <code>DURING</code> longer than every block the statement is about; the message gives <code>ACROSS</code>.</td>
+</tr>
+<tr>
+<td><code>PREFER is weighed by how close it comes, so it needs a count or a FOR length</code></td>
+<td>A <code>PREFER</code> with neither.</td>
+</tr>
+<tr>
+<td><code>a GAP is measured from what a REQUEST makes</code></td>
+<td>A labeled <code>REQUEST</code> with a cap, <code>ANY n</code> blocks over several dates, or an <code>ACROSS</code> of blocks.</td>
+</tr>
+<tr>
+<td><code>given twice</code></td>
+<td>A clause repeated in one statement.</td>
+</tr>
+<tr>
+<td><code>the ON on the first line gives this its dates already</code></td>
+<td>A statement with its own <code>ON</code> under an <code>ON</code> on the first line.</td>
+</tr>
+<tr>
+<td><code>is a namespace, so it can't name anything else</code></td>
+<td>A variable, label or definition called <code>staff</code>, <code>blocks</code> or another namespace.</td>
+</tr>
+<tr>
+<td><code>unknown … name</code></td>
+<td>A name that does not exist in its namespace.</td>
+</tr>
+<tr>
+<td><code>expected a … name</code></td>
+<td>A name or variable from the wrong namespace.</td>
+</tr>
+<tr>
+<td><code>unknown variable</code></td>
+<td>A bare identifier no <code>IN</code> binds.</td>
+</tr>
+<tr>
+<td><code>variable bound twice</code></td>
+<td>Two bindings of one identifier.</td>
+</tr>
+<tr>
+<td><code>mixed set operators need braces around one side</code></td>
+<td><code>{a + b &amp; c}</code> and the like.</td>
+</tr>
+<tr>
+<td><code>mixed AND and OR need parentheses</code></td>
+<td><code>IF a AND b OR c</code>.</td>
+</tr>
+<tr>
+<td><code>AS_ROLE needs an activity</code></td>
+<td><code>AS_ROLE</code> with a quoted task, <code>FREE</code> or <code>BUSY</code>.</td>
+</tr>
+<tr>
+<td><code>FOR needs a quoted task</code></td>
+<td><code>FOR</code> in a pattern with any other target.</td>
+</tr>
+<tr>
+<td><code>FREE and BUSY have no instance</code></td>
+<td><code>WITH</code> or <code>WITHOUT</code> after <code>FREE</code> or <code>BUSY</code>.</td>
+</tr>
+<tr>
+<td><code>wrong number of arguments</code></td>
+<td>A mapping call with more or fewer arguments than the mapping has keys.</td>
+</tr>
+<tr>
+<td><code>takes a name from</code></td>
+<td>A mapping argument from the wrong namespace.</td>
+</tr>
+<tr>
+<td><code>is not in it</code></td>
+<td>A mapping argument outside its key's set.</td>
+</tr>
+<tr>
+<td><code>mapping argument must be one item</code></td>
+<td>A set, or a variable bound to several, as an argument.</td>
+</tr>
+<tr>
+<td><code>gives one from</code></td>
+<td>A mapping call where a name from another namespace belongs.</td>
+</tr>
+<tr>
+<td><code>gives a number, not a name</code></td>
+<td>A numeric mapping called where a set belongs.</td>
+</tr>
+<tr>
+<td><code>there is nothing to maximize or minimize</code></td>
+<td><code>MAXIMIZE</code> or <code>MINIMIZE</code> of a mapping that gives names.</td>
+</tr>
+<tr>
+<td><code>and no default</code></td>
+<td>A mapping call whose key has no row, of a mapping with no default.</td>
+</tr>
+<tr>
+<td><code>its default is a choice</code></td>
+<td>A call falling back to an <code>ANY n</code> default inside a set or after a quantifier.</td>
+</tr>
+<tr>
+<td><code>a default is one choice, so it takes ALL or ANY n</code></td>
+<td>A default written with <code>EACH</code>, <code>ANY</code> or a count.</td>
+</tr>
+<tr>
+<td><code>a default of more than one name needs ALL or ANY n</code></td>
+<td>A default of several names with no quantifier.</td>
+</tr>
+<tr>
+<td><code>PREFER needs a priority it can be weighed at</code></td>
+<td>A <code>PREFER</code> in a <code>MUST_HAPPEN</code> declaration; use a <code>REQUEST</code>, with <code>AT_MOST</code> for a cap.</td>
+</tr>
+<tr>
+<td><code>weight must be positive</code></td>
+<td>A weight of zero or less.</td>
+</tr>
+<tr>
+<td><code>unknown requester</code></td>
+<td>A <code>requester</code> field naming nobody on the Skills sheet.</td>
+</tr>
+<tr>
+<td><code>weight is not allowed with MUST_HAPPEN</code></td>
+<td>A weight on a hard request.</td>
+</tr>
+<tr>
+<td><code>only REQUEST … DO can be labeled</code></td>
+<td>A label on a <code>NOT</code>, <code>FREE</code> or <code>BUSY</code> <code>REQUEST</code>.</td>
+</tr>
+<tr>
+<td><code>undefined label</code></td>
+<td><code>GAP</code> naming a label that no statement defines.</td>
+</tr>
+<tr>
+<td><code>defined twice</code></td>
+<td>Two statements with the same label.</td>
+</tr>
+<tr>
+<td><code>EXCLUDE is a fact about the day, so it is MUST_HAPPEN</code></td>
+<td>An <code>EXCLUDE</code> at any other priority.</td>
+</tr>
+<tr>
+<td><code>EXCLUDE stands on its own line and its own request</code></td>
+<td>An <code>EXCLUDE</code> beside any other line but a definition.</td>
+</tr>
+<tr>
+<td><code>EXCLUDE says who is away, so nothing in it is chosen, counted or ANY</code></td>
+<td>A count, <code>ANY</code>, <code>ANY n</code> or an <code>(ANY n …)</code> group anywhere in an <code>EXCLUDE</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>| <code>EXCLUDE takes DURING and ON, not</code> | Any other clause on an <code>EXCLUDE</code>; the message names it. |
+| <code>date range ends before it starts</code> | A backwards range. |
+| <code>needs a single date here</code> | An offset or range endpoint that is a set of dates. |
+| <code>invalid date</code> | A date that is not a date. |
+| <code>no request asks for</code> | A quoted task that no positive <code>REQUEST</code> asks for. |</p>
+<h2 id="16-left-to-the-implementation">16. Left to the implementation<a class="headerlink" href="#16-left-to-the-implementation" title="Permanent link">&para;</a></h2>
+<p>The language does not decide these, and a future version may change them without any
+declaration meaning something different:</p>
+<ul>
+<li>Which optimal schedule is chosen when several score the same.</li>
+<li>How long the solver spends on each tier, and what it reports when it runs out of time.</li>
+<li>That a task shorter than its block sits as early in it as the constraints allow.</li>
+<li>The scale factor the objective uses internally, and the size of the incentive to do a
+  deferrable request early.</li>
+<li>How <code>EACH</code> copies, counts and pools are encoded. They need not be enumerated.</li>
+<li>Which piece of a <code>FOR</code> <code>ACROSS</code> blocks is the one cut short, and how short.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

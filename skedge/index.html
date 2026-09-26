@@ -1,0 +1,3178 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Staff schedule automation for Camp Augusta">
+      
+      
+      
+      
+        <link rel="prev" href="../same-day/">
+      
+      
+        <link rel="next" href="../spec/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Skedge reference - Puppet Strings</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#skedge-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Puppet Strings" class="md-header__button md-logo" aria-label="Puppet Strings" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Puppet Strings
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Skedge reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Puppet Strings" class="md-nav__button md-logo" aria-label="Puppet Strings" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Puppet Strings
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install and set up
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sheets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The sheets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The request manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning Skedge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../same-day/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Same-day changes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#skedge-in-one-minute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skedge in one minute
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Names
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Names">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#combining-sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combining sets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choosing-inside-a-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing inside a set
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#saying-what-happens-who-do-what" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Saying what happens: &lt;who&gt; DO &lt;what&gt;
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Saying what happens: &lt;who&gt; DO &lt;what&gt;">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-and-counting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing and counting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Choosing and counting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#blocks-across-days" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blocks across days
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#blocks-in-a-row" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blocks in a row
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lengths-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lengths: FOR
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asking-for-an-activity-without-naming-anybody" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asking for an activity without naming anybody
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-do-free-and-busy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOT DO, FREE and BUSY
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#with-and-without" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WITH and WITHOUT
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prefer-how-close" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PREFER: how close
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PREFER: how close">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mappings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#several-lines-variables-if-unless-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Several lines: variables, IF, UNLESS, GAP
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Several lines: variables, IF, UNLESS, GAP">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#naming-a-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming a set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-the-clauses-go" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the clauses go
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-statement-over-several-lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A statement over several lines
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#one-request-several-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One request, several statements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-makes-things-happen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What makes things happen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#priorities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Priorities
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exclude-somebody-who-is-not-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EXCLUDE: somebody who is not here
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#time-horizon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Time horizon
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clinic-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clinic assignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pinning-a-staff-member-to-a-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pinning a staff member to a position
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lucy-and-tom-take-out-the-garbage-together-every-monday" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lucy and Tom take out the garbage together every Monday
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lucy-or-tom-takes-out-the-garbage-every-monday" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lucy or Tom takes out the garbage every Monday
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#two-of-three-people-twice-in-a-day" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two of three people, twice in a day
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#each-of-three-people-some-day-this-week-during-playstation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Each of three people, some day this week, during playstation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#both-clinics-if-possible-some-day-in-session-two" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Both clinics if possible, some day in session two
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keeping-someone-off-an-activity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keeping someone off an activity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#staff-run-clinics-they-prefer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Staff run clinics they prefer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clinic-variety-over-a-rolling-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clinic variety over a rolling week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotate-ropes-positions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotate ropes positions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#balance-clinic-workload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Balance clinic workload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#never-more-than-three-clinics-in-a-row" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Never more than three clinics in a row
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#counselor-hours-with-a-maximum-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Counselor hours with a maximum gap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#non-counselor-breaks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-counselor breaks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#breaks-at-meal-times" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breaks at meal times
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#never-more-than-two-people-on-break-at-once" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Never more than two people on break at once
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#two-hours-of-video-editing-in-one-go" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two hours of video editing in one go
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exactly-one-of-two-people-rakes-the-leaves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exactly one of two people rakes the leaves
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#at-least-two-lifeguards-more-if-possible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        At least two lifeguards, more if possible
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#playstation-availability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Playstation availability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#day-off" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Day off
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-review-with-every-director-on-the-second-thursday" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A review with every director, on the second Thursday
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keeping-two-staff-off-the-same-clinic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keeping two staff off the same clinic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#if-rob-is-on-ropes-vic-must-be-too" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        If Rob is on ropes, Vic must be too
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-three-clinics-in-a-row-a-free-block" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        After three clinics in a row, a free block
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-same-person-sets-up-and-tears-down" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The same person sets up and tears down
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#grammar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grammar
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How the solver decides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical-outline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#skedge-in-one-minute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skedge in one minute
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Names
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Names">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#combining-sets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combining sets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choosing-inside-a-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing inside a set
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#saying-what-happens-who-do-what" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Saying what happens: &lt;who&gt; DO &lt;what&gt;
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Saying what happens: &lt;who&gt; DO &lt;what&gt;">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-and-counting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing and counting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Choosing and counting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#blocks-across-days" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blocks across days
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#blocks-in-a-row" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blocks in a row
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lengths-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lengths: FOR
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asking-for-an-activity-without-naming-anybody" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asking for an activity without naming anybody
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-do-free-and-busy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOT DO, FREE and BUSY
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#with-and-without" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WITH and WITHOUT
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prefer-how-close" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PREFER: how close
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PREFER: how close">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mappings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#several-lines-variables-if-unless-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Several lines: variables, IF, UNLESS, GAP
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Several lines: variables, IF, UNLESS, GAP">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#naming-a-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming a set
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-the-clauses-go" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the clauses go
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-statement-over-several-lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A statement over several lines
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#one-request-several-statements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One request, several statements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-makes-things-happen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What makes things happen
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#priorities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Priorities
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exclude-somebody-who-is-not-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EXCLUDE: somebody who is not here
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#time-horizon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Time horizon
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clinic-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clinic assignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pinning-a-staff-member-to-a-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pinning a staff member to a position
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lucy-and-tom-take-out-the-garbage-together-every-monday" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lucy and Tom take out the garbage together every Monday
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lucy-or-tom-takes-out-the-garbage-every-monday" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lucy or Tom takes out the garbage every Monday
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#two-of-three-people-twice-in-a-day" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two of three people, twice in a day
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#each-of-three-people-some-day-this-week-during-playstation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Each of three people, some day this week, during playstation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#both-clinics-if-possible-some-day-in-session-two" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Both clinics if possible, some day in session two
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keeping-someone-off-an-activity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keeping someone off an activity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#staff-run-clinics-they-prefer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Staff run clinics they prefer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clinic-variety-over-a-rolling-week" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clinic variety over a rolling week
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotate-ropes-positions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotate ropes positions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#balance-clinic-workload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Balance clinic workload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#never-more-than-three-clinics-in-a-row" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Never more than three clinics in a row
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#counselor-hours-with-a-maximum-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Counselor hours with a maximum gap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#non-counselor-breaks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-counselor breaks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#breaks-at-meal-times" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breaks at meal times
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#never-more-than-two-people-on-break-at-once" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Never more than two people on break at once
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#two-hours-of-video-editing-in-one-go" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two hours of video editing in one go
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#exactly-one-of-two-people-rakes-the-leaves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exactly one of two people rakes the leaves
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#at-least-two-lifeguards-more-if-possible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        At least two lifeguards, more if possible
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#playstation-availability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Playstation availability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#day-off" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Day off
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-review-with-every-director-on-the-second-thursday" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A review with every director, on the second Thursday
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keeping-two-staff-off-the-same-clinic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keeping two staff off the same clinic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#if-rob-is-on-ropes-vic-must-be-too" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        If Rob is on ropes, Vic must be too
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-three-clinics-in-a-row-a-free-block" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        After three clinics in a row, a free block
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-same-person-sets-up-and-tears-down" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The same person sets up and tears down
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#grammar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grammar
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="skedge-reference">Skedge reference<a class="headerlink" href="#skedge-reference" title="Permanent link">&para;</a></h1>
+<p>Skedge is the language requests are written in. A request reads as a sentence with a subject, a verb and an object:</p>
+<div class="highlight"><pre><span></span><code>REQUEST staff.dylan DO 'archery maintenance' DURING ANY blocks ON ANY {2026-09-14 .. 2026-09-18}
+</code></pre></div>
+<p>This page is the readable version, with worked examples. For the exact rules, including
+the grammar and every error the validator reports, see the
+<a href="../spec/">Skedge specification</a>.</p>
+<h2 id="skedge-in-one-minute">Skedge in one minute<a class="headerlink" href="#skedge-in-one-minute" title="Permanent link">&para;</a></h2>
+<p>An <strong>assignment</strong> is one staff member doing one activity in one role in one block on one
+date. There are two statements:</p>
+<table>
+<thead>
+<tr>
+<th>Statement</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUEST</code></td>
+<td>A constraint that is either met or not met. Its priority says how much it matters; <code>MUST_HAPPEN</code> makes it hard.</td>
+</tr>
+<tr>
+<td><code>PREFER</code></td>
+<td>A soft constraint that can be partly met: how close the day comes to a count or a length.</td>
+</tr>
+</tbody>
+</table>
+<p>Each says what happens, in one of three forms:</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;who&gt; DO &lt;what&gt; DURING &lt;blocks&gt; ON &lt;dates&gt;</code></td>
+<td>These people do this, then.</td>
+</tr>
+<tr>
+<td><code>&lt;who&gt; FREE …</code></td>
+<td>They have nothing to do.</td>
+</tr>
+<tr>
+<td><code>&lt;who&gt; BUSY …</code></td>
+<td>They have something to do, whatever it is.</td>
+</tr>
+<tr>
+<td><code>&lt;what&gt; DURING &lt;blocks&gt; ON &lt;dates&gt;</code></td>
+<td>This activity happens, then. It names nobody, because the activity already says who may run it.</td>
+</tr>
+</tbody>
+</table>
+<p>Every set of names says out loud how it is meant:</p>
+<table>
+<thead>
+<tr>
+<th>Quantifier</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ALL {staff.lucy + staff.tom}</code></td>
+<td>Both of them, together, all or nothing.</td>
+</tr>
+<tr>
+<td><code>ANY {staff.lucy + staff.tom}</code></td>
+<td>Either of them: any of these will do.</td>
+</tr>
+<tr>
+<td><code>ANY 1 {staff.lucy + staff.tom}</code></td>
+<td>A <strong>choice</strong>: the solver picks one of them, and the statement is about that one.</td>
+</tr>
+<tr>
+<td><code>EACH {staff.lucy + staff.tom}</code></td>
+<td>A separate request for each of them, each met or not on its own.</td>
+</tr>
+<tr>
+<td><code>AT_LEAST 1 {staff.lucy + staff.tom}</code></td>
+<td>A <strong>count</strong>: it measures how many of them. <code>AT_MOST</code> and <code>EXACTLY</code> count the same way.</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>ANY n</code> chooses, and a count measures.</strong> A <code>REQUEST</code> asks for something to happen, so it
+picks with <code>ANY n</code>; a test, a <code>PREFER</code>, a <code>FOR</code> and a <code>WITH</code> measure what happens, so they
+count. The one count a <code>REQUEST</code> takes is <code>AT_MOST</code>, which is a cap. Either way the number
+goes directly in front of the set it is about, and a length goes on <code>FOR</code>. A single thing
+(<code>staff.rob</code>, <code>blocks.clinic_1</code>, <code>2026-09-21</code>) needs no quantifier, and takes none. A
+missing <code>ON</code> means the day being scheduled, and a missing <code>DURING</code> any block of it.</p>
+<p><code>NOT DO</code> forbids, <code>WITH</code> / <code>WITHOUT</code> say who is alongside, <code>IF</code> / <code>UNLESS</code> make the
+statements in the braces after them conditional (<code>AND</code> / <code>OR</code> join conditions), <code>GAP</code> puts time between two requirements, and
+<code>EXCLUDE</code> takes somebody out of the day altogether. That is the whole language.</p>
+<p>Keywords are written in upper case here and everywhere else, which is what makes a request
+skimmable, but they are read in either case: <code>request staff.dylan do 'x' during
+blocks.clinic_1</code> is the same request, and the editor colours it the same. Names, variables
+and labels are lower case, so none of them may be spelled like a keyword — <code>on</code> is <code>ON</code>,
+whatever was meant by it.</p>
+<h2 id="names">Names<a class="headerlink" href="#names" title="Permanent link">&para;</a></h2>
+<p>Names are dotted, lowercase <code>snake_case</code>. Sheet values become identifiers by the rule in
+<a href="../sheets/">The sheets</a>. <code>puppet-strings names</code> lists them all.</p>
+<table>
+<thead>
+<tr>
+<th>Namespace</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>staff</code></td>
+<td>Staff members and staff categories, plus <code>staff.clinic_trainers</code></td>
+</tr>
+<tr>
+<td><code>activity</code></td>
+<td>Clinics and their categories (<code>activities.clinics.ropes</code>), the day's offerings (<code>activities.clinics.offerings.clinic_2.archery_1_2</code>), and the day's cabin acts (<code>activities.cabin_acts.at_cabin_act.p4</code>)</td>
+</tr>
+<tr>
+<td><code>block</code></td>
+<td>Blocks and block categories (<code>blocks.meals</code>)</td>
+</tr>
+<tr>
+<td><code>date</code></td>
+<td><code>dates.target</code>, and the nested scopes below</td>
+</tr>
+<tr>
+<td><code>role</code></td>
+<td><code>roles.first</code>, <code>roles.second</code>, …; <code>roles.lifeguard</code>, <code>roles.lifeguard_2</code>; <code>roles.shadow</code>, <code>roles.scaffolded</code>, <code>roles.trainee</code></td>
+</tr>
+<tr>
+<td><code>mapping</code></td>
+<td>Mapping tables, such as <code>mappings.preference</code> and <code>mappings.buddy</code></td>
+</tr>
+</tbody>
+</table>
+<p>A namespace or a branch of one, written on its own, is everything under it: <code>staff</code> is
+everyone at camp, <code>blocks</code> every block, <code>activities.clinics</code> every clinic and
+<code>dates.session_4</code> every date of session 4. So no variable, label or definition can be
+called <code>staff</code>, <code>activities</code>, <code>blocks</code>, <code>dates</code>, <code>roles</code> or <code>mappings</code>.</p>
+<p>A name is either one thing or a set, and sets are always plural or collective
+(<code>blocks</code>, <code>dates.mondays</code>). There is no <code>blocks.any</code>: "any block" is
+<code>ANY blocks</code>, and "two blocks" is <code>ANY 2 blocks</code>, so how a set is taken is
+always visible.</p>
+<p>A staff category holds only the people working on the day being scheduled. Someone resting
+all day is in no category, though their own name still works.</p>
+<p><code>staff</code> is everyone the span's Staff Categories sheet names, not everyone on the Skills
+sheet. Skills keeps every person who has ever worked here; the Staff Categories sheet says
+who is here this span.</p>
+<p>There is no name for "anyone checked off on a skill". Asking for a skill is asking for
+somebody to do a thing that needs it, and the thing already says so: that is what an
+activity's positions are. See
+<a href="#asking-for-an-activity-without-naming-anybody">asking for an activity without naming anybody</a>.</p>
+<h3 id="dates">Dates<a class="headerlink" href="#dates" title="Permanent link">&para;</a></h3>
+<p>Date names are the Calendar sheet read out loud. Each row of that sheet is a <strong>span</strong> — a
+session, or any other run of days camp runs — and every span carries exactly the same
+names, so what can be said of one can be said of any other.</p>
+<table>
+<thead>
+<tr>
+<th>Span</th>
+<th>Written</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The season</td>
+<td><code>dates.season</code></td>
+<td>Every date the Calendar sheet covers.</td>
+</tr>
+<tr>
+<td>A session</td>
+<td><code>dates.session_4</code></td>
+<td>Every date of session 4.</td>
+</tr>
+<tr>
+<td>Anything else</td>
+<td><code>dates.family_camp</code></td>
+<td>Every date of that row.</td>
+</tr>
+<tr>
+<td>A week of a span</td>
+<td><code>dates.session_4.week_2</code></td>
+<td>Every date of its second week.</td>
+</tr>
+</tbody>
+</table>
+<p>Main season rows are numbered in sheet order and named by number — <code>session_1</code>,
+<code>session_2</code> … — and so are weeks: <code>week_1</code>, <code>week_2</code> …. Any other row is named after
+its <code>name</code> column, so a row called Family Camp is <code>dates.family_camp</code>. Every step of a date
+name is a span, a week or a date; nothing in the tree is only there to hold the rest.</p>
+<p><strong>Only the names with <code>target</code> in them follow the date on the toolbar.</strong> <code>dates.target</code> is
+that date, <code>dates.session_target</code> is the session it falls in, and
+<code>dates.session_target.week_target</code> is the week of that session it falls in, so
+<code>{dates.session_target &amp; dates.mondays}</code> is every Monday of the session being scheduled.
+Every other date name says outright which span it means, and
+reads the same whenever you open it.</p>
+<p>A date outside the main season, such as a day of Family Camp, is in no session, so on that
+date <code>dates.session_target</code> names nothing. A request that uses it is shown as invalid and
+is left out of that day's solve; it can still be saved, and it applies again on the next
+date that is in a session.</p>
+<p>The days of the week are sets of their own, over the whole season:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dates.mondays</code> … <code>dates.sundays</code></td>
+<td>Every Monday of the season, and so on.</td>
+</tr>
+<tr>
+<td><code>dates.weekdays</code></td>
+<td>Every Monday to Friday of the season.</td>
+</tr>
+<tr>
+<td><code>dates.weekends</code></td>
+<td>Every Saturday and Sunday of the season.</td>
+</tr>
+</tbody>
+</table>
+<p>A span has no day names of its own, and no first or last day. Its days are what it shares
+with one of these, written with <code>&amp;</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Written</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{dates.session_2 &amp; dates.thursdays}</code></td>
+<td>Every Thursday of session 2.</td>
+</tr>
+<tr>
+<td><code>{dates.session_2.week_1 &amp; dates.sundays}</code></td>
+<td>The Sunday of its first week, which is the day it starts.</td>
+</tr>
+<tr>
+<td><code>{dates.session_1.week_2 &amp; dates.thursdays}</code></td>
+<td>The second Thursday of session 1.</td>
+</tr>
+<tr>
+<td><code>{dates.session_3 &amp; dates.weekdays}</code></td>
+<td>Every weekday of session 3.</td>
+</tr>
+</tbody>
+</table>
+<p>That is a set even when it holds one date, so it takes a quantifier after <code>ON</code>. And
+<code>dates.target</code> is the date being scheduled, which is the date every request is about
+unless it says <code>ON</code> something else.</p>
+<div class="highlight"><pre><span></span><code>REQUEST ALL staff.director DO 'session opening' DURING ANY 1 blocks ON EACH {dates.session_2.week_1 &amp; dates.sundays}
+</code></pre></div>
+<p>A name a span never reaches does not exist, and using it is a validation error rather than
+a request that silently never fires. A near miss is told the nearest real name.</p>
+<h3 id="combining-sets">Combining sets<a class="headerlink" href="#combining-sets" title="Permanent link">&para;</a></h3>
+<p>Any expression goes in braces, and so does every set inside one: braces are what a set
+is written in. <code>+</code> is union, <code>-</code> is difference, <code>&amp;</code> is intersection, <code>..</code> is an inclusive
+date range, and a single date can be offset by days. Mixing different operators needs
+braces around one side, so there is no precedence to remember, and a range combined with
+anything else is in braces of its own:</p>
+<div class="highlight"><pre><span></span><code>{staff - staff.director - staff.counselor}
+{staff - {staff.counselor &amp; staff.lifeguard}}
+{dates.target - 6d .. dates.target}
+{{2026-07-21 .. 2026-08-08} &amp; dates.tuesdays}
+</code></pre></div>
+<p>Parentheses are not for sets. They go around a group (below) and a condition
+(<code>IF (a AND b) OR c</code>), which are a choice and a test rather than a set.</p>
+<h3 id="choosing-inside-a-set">Choosing inside a set<a class="headerlink" href="#choosing-inside-a-set" title="Permanent link">&para;</a></h3>
+<p>A quantifier can also go inside a set, on a part of it. That part is a <strong>group</strong>, taken
+<code>ALL</code> or <code>ANY n</code>, with parentheses around it if they help: the parentheses mark the choice,
+not a set. A group says who is in, so it
+never counts. In a set taken whole, <code>ANY 1 {…}</code> adds whichever one the solver picks —
+"Alesa and one of these two":</p>
+<div class="highlight"><pre><span></span><code>REQUEST ALL {staff.alesa + ANY 1 {staff.dylan + staff.cam_vl}}
+DO 'Video KM Rope Swing' FOR EXACTLY 30m
+DURING ANY 1 blocks
+</code></pre></div>
+<p>The one not picked is free to join in. To keep them out, name the choice with a
+<a href="#several-lines-variables-if-unless-gap">binding line</a> and forbid the rest with <code>NOT DO</code>.</p>
+<p>In a choice, each group is one of the things chosen from, all of it, so <code>(ALL …)</code> keeps
+people together — "Lucy, or else Tom and Charles together":</p>
+<div class="highlight"><pre><span></span><code>REQUEST ANY 1 {staff.lucy + (ALL {staff.tom + staff.charles})} DO 'take out garbage' DURING ANY 1 blocks
+</code></pre></div>
+<p>In <code>EACH</code>, each group is one of the separate requests: <code>EACH {staff.lucy +
+(ALL {staff.tom + staff.charles})}</code> is one request for Lucy and one for Tom and Charles
+together.</p>
+<p>A group is added with <code>+</code>. <code>(ALL s)</code> may be taken away or crossed like <code>s</code>, but
+<code>(ANY n s)</code> may not: what it holds is not known until the solver has chosen.</p>
+<h2 id="saying-what-happens-who-do-what">Saying what happens: <code>&lt;who&gt; DO &lt;what&gt;</code><a class="headerlink" href="#saying-what-happens-who-do-what" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 1 blocks ON EACH {dates.session_1 &amp; dates.mondays}
+</code></pre></div>
+<p>Read it in three steps, always in this order:</p>
+<ol>
+<li><strong><code>EACH</code> splits.</strong> There is one separate request per Monday.</li>
+<li><strong><code>ALL</code> makes one unit.</strong> Lucy and Tom are taken together, as one.</li>
+<li><strong><code>ANY n</code> chooses once.</strong> One block is picked for the statement, and Lucy and Tom both
+   take out the garbage in it, so they do it together.</li>
+</ol>
+<p><code>EACH</code> in its place would give each of them a request of their own, and so a block of
+their own.</p>
+<p>The difference between the quantifiers, on one example:</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUEST staff.rob DO activities.clinics.ropes_course AS_ROLE roles.first DURING ALL {blocks.clinic_1 + blocks.clinic_2} ON 2026-09-28</code></td>
+<td>Rob is first on ropes in both clinics. One request: both or it is not met.</td>
+</tr>
+<tr>
+<td><code>… DURING ANY {blocks.clinic_1 + blocks.clinic_2} …</code></td>
+<td>Rob is first on ropes in clinic 1 or clinic 2, or both. One request.</td>
+</tr>
+<tr>
+<td><code>… DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2} …</code></td>
+<td>In one of them, whichever the solver picks. The other is left open.</td>
+</tr>
+<tr>
+<td><code>… DURING EACH {blocks.clinic_1 + blocks.clinic_2} …</code></td>
+<td>Two requests, one per clinic. Rob may end up with neither, one or both, and each counts on its own.</td>
+</tr>
+</tbody>
+</table>
+<p>At <code>MUST_HAPPEN</code>, <code>ALL</code> and <code>EACH</code> come to the same schedule. They differ when the
+request is soft: <code>ALL</code> earns nothing for half, <code>EACH</code> earns half.</p>
+<table>
+<thead>
+<tr>
+<th>Clause</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DURING &lt;blocks&gt;</code></td>
+<td>When in the day. Left out: any block of the day.</td>
+</tr>
+<tr>
+<td><code>ACROSS &lt;blocks&gt;</code></td>
+<td>When in the day, in place of <code>DURING</code>, with the <code>FOR</code> a total over the blocks (<a href="#lengths-for">lengths</a>).</td>
+</tr>
+<tr>
+<td><code>ON &lt;dates&gt;</code></td>
+<td>Which dates. Left out: the day being scheduled.</td>
+</tr>
+<tr>
+<td><code>ACROSS &lt;dates&gt;</code></td>
+<td>Which dates, in place of <code>ON</code>, taken together: counts and lengths add up over all of them (<a href="#blocks-across-days">blocks across days</a>).</td>
+</tr>
+<tr>
+<td><code>AS_ROLE &lt;role&gt;</code></td>
+<td>In that position or trainee role. Left out: any position.</td>
+</tr>
+<tr>
+<td><code>FOR &lt;bound&gt; &lt;duration&gt;</code></td>
+<td>How long (<a href="#lengths-for">lengths</a>): <code>FOR EXACTLY 30m</code>, <code>FOR AT_LEAST 2h</code>. Left out, a task fills its block.</td>
+</tr>
+<tr>
+<td><code>WITH &lt;staff&gt;</code></td>
+<td>That person is working the same clinic or task alongside; of a set, a count or <code>ALL</code> says how many of it.</td>
+</tr>
+<tr>
+<td><code>WITHOUT &lt;staff&gt;</code></td>
+<td>The opposite of <code>WITH</code> the same.</td>
+</tr>
+</tbody>
+</table>
+<p><code>DURING</code>, <code>ACROSS</code> and <code>ON</code> go anywhere in a statement, even before the subject. <code>AS_ROLE</code>, <code>FOR</code>,
+<code>WITH</code> and <code>WITHOUT</code> describe the activity, so they go after <code>DO</code>, <code>FREE</code> or <code>BUSY</code>:</p>
+<div class="highlight"><pre><span></span><code>REQUEST DURING blocks.clinic_1 staff.rob DO 'break' FOR EXACTLY 30m ON 2026-09-16
+</code></pre></div>
+<p>An ad hoc task such as <code>'break'</code> has no positions, skills or camper slots; it occupies
+staff time only. <code>'break' FOR EXACTLY 30m</code> is a 30-minute break somewhere inside one block, the
+Staff View labels the rest of the block <code>DYOW/WPs</code>, and several short tasks can share a
+block.</p>
+<h3 id="choosing-and-counting">Choosing and counting<a class="headerlink" href="#choosing-and-counting" title="Permanent link">&para;</a></h3>
+<p><code>ANY n</code> <strong>chooses</strong>: the solver picks n of the set, and the statement holds for the ones it
+picked, as if they had been named. A count — <code>AT_LEAST</code>, <code>AT_MOST</code> or <code>EXACTLY</code> and a
+number — <strong>measures</strong>: it says how many of the set the rest of the statement holds for.</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUEST ANY 3 staff.support DO 'lifeguard' DURING blocks.rest_hour</code></td>
+<td>Three support staff lifeguard at rest hour, whichever three the solver picks.</td>
+</tr>
+<tr>
+<td><code>REQUEST EACH staff.village_hero DO 'break' DURING ANY 3 blocks</code></td>
+<td>Every village hero has a break in three blocks, each their own three.</td>
+</tr>
+<tr>
+<td><code>REQUEST staff.rob DO ANY 2 activities.clinics ACROSS dates.session_1</code></td>
+<td>Rob runs two different clinics this session.</td>
+</tr>
+<tr>
+<td><code>REQUEST AT_MOST 2 staff DO 'break' DURING EACH blocks</code></td>
+<td>A cap: never more than two people on break in the same block.</td>
+</tr>
+<tr>
+<td><code>IF AT_LEAST 2 staff.counselor DO 'break' DURING ANY blocks</code></td>
+<td>A test: two or more counselors have a break today.</td>
+</tr>
+</tbody>
+</table>
+<p>A choice never forbids. <code>ANY 1 {staff.dylan + staff.alesa} DO 'rake leaves'</code> picks one of
+them to rake and says nothing about the other, or about who else rakes. So a <code>REQUEST</code>
+refuses <code>AT_LEAST n</code>, which would say the same as <code>ANY n</code>, and <code>EXACTLY n</code>, which would
+also forbid the rest: pick with <code>ANY n</code>, and forbid the rest with <code>NOT DO</code>, as
+<a href="#exactly-one-of-two-people-rakes-the-leaves">one of the examples</a> does. <code>AT_MOST</code>
+forbids, which is what makes it a cap, and it is the one count a <code>REQUEST</code> takes.</p>
+<p>"At least two, more if possible" is two requests: a choice that must happen, and a wish
+for everyone else at a soft priority, where each person who joins is one more request met:</p>
+<div class="highlight"><pre><span></span><code>REQUEST ANY 2 staff.support DO 'lifeguard' DURING blocks.rest_hour
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>REQUEST EACH staff.support DO 'lifeguard' DURING blocks.rest_hour
+</code></pre></div>
+<p>An activity has no quantity of its own: it is the blocks, the dates and the people that
+come in numbers. So a choice of activities picks different ones, and "three breaks" is a
+choice of the blocks they are in.</p>
+<p>A choice is made once, and every part of the statement shares it: <code>ANY 2 staff.counselor
+DO 'x' DURING ANY 1 blocks</code> is two counselors in the same block. <code>EACH</code> makes a copy
+of the statement per item, and each copy chooses for itself, which is how every village
+hero above gets their own three blocks. <code>ALL</code> is one unit, which is what put Lucy and Tom
+in the same block above.</p>
+<p>Where a cap, a test or a <code>PREFER</code> counts two sets, the counts go one inside the other in
+this order, whatever order they are written in: who, what, the dates, the blocks.
+<code>IF AT_MOST 2 staff.counselor DO 'break' DURING AT_LEAST 3 blocks</code> holds when at most
+two counselors break three or more times.</p>
+<h4 id="blocks-across-days">Blocks across days<a class="headerlink" href="#blocks-across-days" title="Permanent link">&para;</a></h4>
+<p>A block happens every day, so clinic 1 on Monday and clinic 1 on Tuesday are two blocks.
+<code>ACROSS</code> in place of <code>ON</code> takes the dates together, and a count of blocks then counts every
+block on every one of them, which is how a number of times over a week or a session is
+written:</p>
+<div class="highlight"><pre><span></span><code>REQUEST staff.dylan DO ANY activities.clinics AS_ROLE roles.first DURING AT_MOST 8 blocks.all_clinics ACROSS dates.session_1
+</code></pre></div>
+<p>Dylan facilitates at most eight clinics in the session, however they fall across its days.
+How the dates are taken decides what a count of blocks is over:</p>
+<table>
+<thead>
+<tr>
+<th>Written</th>
+<th>A count of blocks is over</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ACROSS dates.session_1</code></td>
+<td>every block of every day together: <code>AT_MOST 1</code> is once in the whole session at most</td>
+</tr>
+<tr>
+<td><code>ON EACH dates.session_1</code></td>
+<td>each day on its own, as a separate request: <code>AT_MOST 1</code> is at most once a day</td>
+</tr>
+<tr>
+<td><code>ON ALL dates.session_1</code></td>
+<td>the days as one unit: a block counts when it happens on every one of them</td>
+</tr>
+</tbody>
+</table>
+<p><code>ON ANY dates.session_1</code> is one of the days, whichever: <code>REQUEST staff.dylan DO 'x' DURING
+ANY 1 blocks ON ANY dates.session_1</code> is once, some day this session. A count, a <code>FOR</code>, or a
+pick of several blocks over several dates is of all of them together, so it takes <code>ACROSS</code>,
+and with <code>ON ANY</code> it is an error. <code>ANY n</code> of blocks <code>ACROSS</code> dates picks n blocks on those
+dates, clinic 1 on Monday and clinic 1 on Tuesday being two of them.</p>
+<p>An <code>ACROSS</code> of dates takes them whole, with no <code>ANY</code> in front: to pick or count the dates
+themselves, write <code>ON ANY 2 …</code> or <code>ON AT_MOST 2 …</code>. Written on the first line, it is every
+statement's, as an <code>ON</code> there is:</p>
+<div class="highlight"><pre><span></span><code>ACROSS dates.session_1
+
+EACH h IN staff.village_hero
+
+REQUEST h DO ANY 3 activities.clinics AS_ROLE roles.first DURING AT_MOST 3 blocks
+PREFER h DO ANY activities.clinics AS_ROLE roles.first DURING AT_LEAST 1 blocks
+</code></pre></div>
+<p>Each village hero is first on three different clinics this session, in no more than three
+blocks, and is first on at least one if it can be managed.</p>
+<p>Blocks in a row stay within a day: the last block of one day and the first of the next are
+not next to each other.</p>
+<p><code>ANY</code> is the other way to take a set: any of these will do. It is not a number, so it
+says nothing about how many:</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH staff DO ANY activities.clinics DURING AT_MOST 1 CONSECUTIVE blocks
+</code></pre></div>
+<p>This counts the blocks, and the clinics only say which blocks those are: blocks in which
+they run a clinic, any clinic. A count asks how many; <code>ANY</code> says what counts.</p>
+<p>A pool is not a choice. <code>DURING ANY blocks</code> is "in any of them", and <code>DURING ANY 1
+blocks</code> is "in the one the solver picks". For one person the two come to the same;
+they differ over who shares. <code>ALL {staff.dylan + staff.sarah} DO 'x' DURING ANY
+blocks</code> gives each of them a block, not necessarily the same one; <code>DURING ANY 1
+blocks</code> picks one block for them both.</p>
+<h3 id="blocks-in-a-row">Blocks in a row<a class="headerlink" href="#blocks-in-a-row" title="Permanent link">&para;</a></h3>
+<p><code>CONSECUTIVE</code> after <code>ANY n</code> on the blocks picks blocks that are next to each other, and
+after a count counts them:</p>
+<div class="highlight"><pre><span></span><code>REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 2 CONSECUTIVE blocks
+</code></pre></div>
+<p>Lucy and Tom take out the garbage together, in two blocks one after the other. Blocks are
+next to each other when they are next to each other in the Blocks sheet, so
+<code>ANY 2 CONSECUTIVE blocks.all_clinics</code> may be clinic 1 and 2, but not clinic 2 and 3
+with lunch between them. <code>AT_MOST</code> caps the longest run:</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH staff DO 'break' DURING AT_MOST 1 CONSECUTIVE blocks
+</code></pre></div>
+<p>Nobody has a break in two blocks in a row.</p>
+<p><code>CONSECUTIVE</code> is always about blocks, since blocks are what can be in a row, so it only
+ever goes in a <code>DURING</code> or an <code>ACROSS</code> of blocks, just before them. <code>ACROSS CONSECUTIVE</code>
+adds a <code>FOR</code> up over each run of blocks, below.</p>
+<h3 id="lengths-for">Lengths: <code>FOR</code><a class="headerlink" href="#lengths-for" title="Permanent link">&para;</a></h3>
+<p><code>FOR</code> says how long. Which length it is depends only on the word before the blocks:</p>
+<ul>
+<li>With <code>DURING</code>, <code>FOR</code> is the length of <strong>each piece</strong>, however the blocks are taken.</li>
+<li>With <code>ACROSS</code> in place of <code>DURING</code>, <code>FOR</code> is what <strong>the pieces add up to</strong>.</li>
+</ul>
+<p><code>ACROSS</code> takes a set of blocks whole, as a pool, with no <code>ANY</code> in front of it. <code>ANY n</code> or a
+count after it says how many of them get a piece:</p>
+<table>
+<thead>
+<tr>
+<th>You mean</th>
+<th>Write</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Three breaks of 30 minutes</td>
+<td><code>REQUEST staff.cam_vl DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks</code></td>
+</tr>
+<tr>
+<td>One piece of 45 minutes, in any block</td>
+<td><code>REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 45m DURING ANY blocks</code></td>
+</tr>
+<tr>
+<td>Two hours in total, split over any blocks</td>
+<td><code>REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS blocks</code></td>
+</tr>
+<tr>
+<td>Two hours split over three blocks</td>
+<td><code>REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 2h ACROSS ANY 3 blocks</code></td>
+</tr>
+<tr>
+<td>Two hours in no more than three blocks</td>
+<td><code>REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS AT_MOST 3 blocks</code></td>
+</tr>
+<tr>
+<td>Two hours in one go: one block, or blocks in a row</td>
+<td><code>REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS CONSECUTIVE blocks</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>FOR</code> always says how the length is bounded, as a count does: <code>FOR EXACTLY 2h</code>,
+<code>FOR AT_LEAST 2h</code> or <code>FOR AT_MOST 2h</code>, never a bare <code>FOR 2h</code>. A piece
+never leaves its block, so with <code>DURING</code> a length longer than every block is an error: it
+was meant as a total, and wants <code>ACROSS</code>. Under <code>ACROSS blocks</code> the pieces fill their
+blocks, all but one, which is cut to what is left, or under <code>AT_LEAST</code> to whatever reaches
+it: two hours over 75-minute blocks is one whole block and 45 minutes of another. Where
+<code>ACROSS</code> picks or counts the blocks, any of the pieces may be cut, which is how two hours go
+into three blocks.</p>
+<p>A clinic, <code>FREE</code> or <code>BUSY</code> fills its blocks, so a <code>FOR</code> on one adds the blocks up, and takes
+<code>ACROSS</code>:</p>
+<div class="highlight"><pre><span></span><code>PREFER EACH staff.counselor FREE FOR AT_LEAST 2h ACROSS blocks.all_clinics
+</code></pre></div>
+<h3 id="asking-for-an-activity-without-naming-anybody">Asking for an activity without naming anybody<a class="headerlink" href="#asking-for-an-activity-without-naming-anybody" title="Permanent link">&para;</a></h3>
+<p>An activity already records who may run it: each of its positions needs a skill, and a
+cabin act's positions may name a person or a category outright. So a request for an
+activity names only the activity:</p>
+<div class="highlight"><pre><span></span><code>REQUEST activities.clinics.archery_1_2 DURING blocks.clinic_2
+</code></pre></div>
+<p>That asks that archery runs in clinic 2, staffed by whoever its positions allow. There is
+no <code>DO</code>, because there is no subject: adding <code>ANY 1 staff DO</code> in front would say
+the same thing twice. Filling one position of an activity fills them all, so this is a
+request for every person it needs, and the report names the activity once rather than once
+per position.</p>
+<p>A test can name no one in the same way, and is then of the activities running, whoever
+holds them: <code>IF ANY activities.clinics.ropes DURING b</code> holds when a ropes clinic runs in
+<code>b</code>, and <code>IF AT_LEAST 2 activities.clinics.ropes DURING b</code> when two do. It says only when,
+with <code>DURING</code> and <code>ON</code>; to say who, or in what role, name them: <code>ANY staff DO …</code>.</p>
+<p><code>EACH</code> over a set asks for each of them separately, which is how two lines ask for a
+whole board of cabin acts: one for the acts in the cabin act block, one for those the
+board moved to rest hour:</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
+REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
+</code></pre></div>
+<p>The names are the board of the day being scheduled. Each act is under the half it is in by
+its cabin, so <code>activities.cabin_acts.at_cabin_act.p4</code> is P4's act today, and a cabin has a
+name only on a day it has an act.</p>
+<p>A checkbox on the board's cards names the day's acts it is ticked on, in either half: a
+"Level 2 on Ground" checkbox is <code>activities.cabin_acts.level_2_on_ground</code>, and one labeled
+"Van" is <code>activities.cabin_acts.van</code>. The name is there on a day nobody ticked the box,
+as a set of nothing, and from the moment any board has the checkbox, even a blank one.</p>
+<p>An act with nobody in its HEROES cell is one the cabin runs itself. It is asked for like
+any other and runs with nobody on it, so a test that names no one sees it running.</p>
+<p>A day's clinics are asked for the same way, but a clinic can run more than once a day, in
+different blocks, so what is asked for is an <strong>offering</strong>: one clinic in the block the
+Offerings tab puts it in. <code>activities.clinics.offerings.clinic_2.archery_1_2</code> is archery
+as offered in clinic 2, and <code>activities.clinics.offerings.clinic_2</code> everything offered then. An offering already says when it runs, so its request says
+nothing more, and one standing request, at <code>CLINIC</code> priority, asks for every clinic of
+whichever day is being scheduled:</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH activities.clinics.offerings
+</code></pre></div>
+<p>Each offering is met or not on its own, and the report names any that is not by its
+offering, <code>clinic_3.riflery</code>. A double is one offering, across both its blocks. There
+are offerings only for the day being scheduled, so an offering takes no <code>ON</code>, and nothing
+else either. To ask for one clinic differently, leave its offering out and write its own
+request:</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH {activities.clinics.offerings - activities.clinics.offerings.clinic_3.riflery}
+REQUEST activities.clinics.riflery WITH staff.rob DURING blocks.clinic_3
+</code></pre></div>
+<p>To narrow who may run something beyond what the activity says, say so in a second
+statement rather than in this one:</p>
+<div class="highlight"><pre><span></span><code>REQUEST activities.clinics.candle_making DURING blocks.clinic_1
+REQUEST EACH staff.counselor NOT DO activities.clinics.candle_making
+</code></pre></div>
+<h3 id="not-do-free-and-busy">NOT DO, FREE and BUSY<a class="headerlink" href="#not-do-free-and-busy" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUEST staff.dylan NOT DO ANY activities.clinics.ropes</code></td>
+<td>Dylan does no ropes clinic today.</td>
+</tr>
+<tr>
+<td><code>REQUEST staff.dylan FREE DURING ALL blocks ON 2026-09-16</code></td>
+<td>At camp with nothing assigned all day. Somebody away is an <a href="#exclude-somebody-who-is-not-here"><code>EXCLUDE</code></a>.</td>
+</tr>
+<tr>
+<td><code>REQUEST EACH {staff - staff.director} FREE DURING blocks.playstation</code></td>
+<td>Each non-director should have nothing on during playstation.</td>
+</tr>
+<tr>
+<td><code>REQUEST EACH staff.counselor BUSY DURING blocks.clinic_1</code></td>
+<td>Every counselor has something to do in clinic 1.</td>
+</tr>
+<tr>
+<td><code>REQUEST staff.hails BUSY DURING ANY 1 blocks.evening</code></td>
+<td>Something to do in an evening block.</td>
+</tr>
+</tbody>
+</table>
+<p><code>FREE</code> means working that day with nothing assigned in the block; <code>BUSY</code> means having
+something assigned. Someone resting is neither. There is no word for "anything": nothing to
+do is <code>FREE</code>, something to do is <code>BUSY</code>.</p>
+<p>The subject of a <code>NOT</code> is who it is about: <code>ALL {…} NOT DO</code> is "none of them does",
+<code>ANY 1 {…} NOT DO</code> is "one of them, whichever the solver picks, doesn't". Everything to the right of <code>NOT</code>
+describes the situation that must not happen, so a set there is matched rather than
+counted, and says so with <code>ANY</code>: <code>REQUEST staff.rob NOT DO 'break' DURING ANY blocks.meals</code>
+is no break at any meal. <code>DURING</code> can be left out to mean all day. <code>EACH</code> splits the
+request, as it does anywhere; <code>WITH</code> and <code>WITHOUT</code> count company instead (below).</p>
+<p><code>NOT</code> turns round everything to its right, so <code>ALL</code> there is "not all of these
+together", and any one of them on its own is fine:</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUEST staff.lisa NOT DO ANY activities.clinics DURING ANY {blocks.clinic_1 + blocks.clinic_2}</code></td>
+<td>Lisa is on no clinic in either block. One request: a clinic in either block breaks it.</td>
+</tr>
+<tr>
+<td><code>REQUEST staff.lisa NOT DO ANY activities.clinics DURING EACH {blocks.clinic_1 + blocks.clinic_2}</code></td>
+<td>The same rule, as two requests, one per block: at a soft priority a clinic in both is twice as bad as one.</td>
+</tr>
+<tr>
+<td><code>REQUEST staff.lisa NOT DO ANY activities.clinics DURING ALL {blocks.clinic_1 + blocks.clinic_2}</code></td>
+<td>Lisa is not on a clinic in both blocks. A clinic in one of them is fine.</td>
+</tr>
+</tbody>
+</table>
+<p>A count or <code>ANY n</code> is rejected right of <code>NOT</code>: "not in two of them" is "in at most one",
+which a cap on what does happen says plainly — <code>REQUEST staff.lisa DO ANY
+activities.clinics DURING AT_MOST 1 {…}</code>.</p>
+<p><strong>This is how "avoid" is written.</strong> A <code>REQUEST</code> is all or nothing, so split it small and
+give it a soft priority:</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH staff.office NOT DO 'break' DURING EACH {blocks.breakfast + blocks.lunch} ON EACH dates.fridays
+</code></pre></div>
+<p>That is one small request per person, per meal, per Friday. Each break at a meal fails
+exactly one of them, so three such breaks are three times as bad as one.</p>
+<h3 id="with-and-without">WITH and WITHOUT<a class="headerlink" href="#with-and-without" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT staff.vic</code></td>
+<td>If Rob is on ropes, Vic must be on it too.</td>
+</tr>
+<tr>
+<td><code>REQUEST EACH staff.junior NOT DO ANY activities.clinics.waterfront WITHOUT AT_LEAST 1 staff.senior</code></td>
+<td>No junior at the waterfront unless a senior is there.</td>
+</tr>
+<tr>
+<td><code>REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT ALL {staff.vic + staff.charlton}</code></td>
+<td>Rob is on ropes only with both Vic and Charlton.</td>
+</tr>
+<tr>
+<td><code>REQUEST staff.jack NOT DO ANY activities.clinics WITH staff.lucy</code></td>
+<td>Jack and Lucy never share a clinic.</td>
+</tr>
+<tr>
+<td><code>REQUEST staff.caroline DO activities.clinics.climbing_wall AS_ROLE roles.trainee WITH staff.alan AS_ROLE roles.first</code></td>
+<td>Caroline trains on the climbing wall, with Alan first on that same instance.</td>
+</tr>
+</tbody>
+</table>
+<p>An <code>AS_ROLE</code> straight after the people of a <code>WITH</code> or <code>WITHOUT</code> is their role, not the
+subject's: above, <code>roles.first</code> is Alan's. The subject's own <code>AS_ROLE</code> goes before the
+<code>WITH</code>, or anywhere else after <code>DO</code>.</p>
+<p>One name stands alone. A set of several needs a count (<code>AT_LEAST 1</code>, <code>EXACTLY 2</code>, …) or
+<code>ALL</code> (every one of them), even to the right of <code>NOT</code>: <code>WITHOUT staff.senior</code> would not
+say whether one senior is enough.</p>
+<p>"X only if Y is there too" is always "X <code>NOT DO</code> it <code>WITHOUT</code> Y". At <code>MUST_HAPPEN</code> these
+are hard rules; at a soft priority they are wishes.</p>
+<h2 id="prefer-how-close">PREFER: how close<a class="headerlink" href="#prefer-how-close" title="Permanent link">&para;</a></h2>
+<p>A <code>PREFER</code> is scored by how far the day is from something, so it needs a count or a <code>FOR</code>
+to be scored against:</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PREFER EACH staff DO ANY activities.clinics DURING AT_MOST 8 blocks ACROSS dates.session_1</code></td>
+<td>Nobody should run more than 8 clinics a session. Ten is twice as bad as nine.</td>
+</tr>
+<tr>
+<td><code>PREFER staff.james DO 'dance practice' FOR AT_LEAST 2h ACROSS blocks ACROSS {2026-09-16 .. 2026-09-17}</code></td>
+<td>Two hours of dance practice across the two days, each hour short costing the same.</td>
+</tr>
+<tr>
+<td><code>PREFER staff.dylan DO activities.clinics.riflery DURING AT_LEAST 1 blocks.clinic_2</code></td>
+<td>Dylan on riflery in clinic 2, if it can be managed.</td>
+</tr>
+</tbody>
+</table>
+<p>With several counts, a <code>PREFER</code> is scored on the outermost: <code>PREFER AT_LEAST 5
+staff.counselor DO 'break' DURING AT_LEAST 2 blocks</code> scores the counselors who reach
+two breaks, and one with a single break earns nothing. <code>EACH staff.counselor</code> in its place
+scores each counselor on their own breaks.</p>
+<p>A <code>PREFER</code> measures, so it counts and does not choose: <code>ANY n</code> in one is refused.</p>
+<p>There is no <code>PREFER</code> for "as many as possible". Write it as <code>EACH</code> at a soft priority —
+<code>REQUEST EACH staff.support DO 'lifeguard' DURING blocks.rest_hour</code> — where every person
+who does it is one more request met.</p>
+<p><code>REQUEST</code> and <code>PREFER</code> take the same words. <code>REQUEST</code> is met or not, and can be
+<code>MUST_HAPPEN</code>. <code>PREFER</code> is never hard and is scored by how far off it is.</p>
+<h3 id="mappings">Mappings<a class="headerlink" href="#mappings" title="Permanent link">&para;</a></h3>
+<p>A mapping is a table on the <a href="../sheets/#mappings-config-spreadsheet">Mappings tab</a> that
+takes one or more names and gives back either a number or another name. You call it with
+one argument per key: <code>mappings.buddy(c)</code>. <code>EACH x IN &lt;set&gt;</code> gives each copy's item a
+name, so a mapping can be told what to look up.</p>
+<p>A <strong>numeric</strong> mapping is a table of ratings, and is what <code>MAXIMIZE</code> and <code>MINIMIZE</code> score
+by:</p>
+<div class="highlight"><pre><span></span><code>PREFER EACH s IN staff DO EACH c IN activities.clinics MAXIMIZE mappings.preference(s, c)
+</code></pre></div>
+<p>For each staff member <code>s</code> and clinic <code>c</code>, every assignment of <code>s</code> to <code>c</code> earns
+<code>mappings.preference(s, c)</code>, normalized to 0–1. <code>MINIMIZE</code> makes it a cost instead. A pair
+the mapping has no row for is worth that mapping's <code>default</code>.</p>
+<p>Any other mapping gives a <strong>name</strong>, and a call to it goes anywhere a name can. Each cabin
+has a buddy HERO who covers it at dinner, and <code>mappings.buddy</code> says who:</p>
+<div class="highlight"><pre><span></span><code># Every counselor's buddy covers their cabin at dinner.
+EACH c IN staff.counselor
+REQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.evening
+</code></pre></div>
+<p>A counselor whose cabin has no row gets the mapping's <code>default</code>, which is a phrase such as
+<code>ANY 1 {staff - staff.counselor - staff.director}</code>: the call stands for that
+phrase, choice and all, so the solver picks one of them. So does a counselor whose buddy is
+resting or away that day, since a buddy who isn't at work can't cover anyone.</p>
+<p>The Mappings tab says what a mapping takes and gives, so a call is checked like any other
+name. <code>mappings.buddy(staff.alan)</code> is an error if Alan isn't a counselor, and so is
+<code>mappings.buddy(c)</code> written where an activity belongs. A call can also go inside a set,
+<code>ALL {staff.office - mappings.buddy(c)}</code>, but only when it gives one name or an
+<code>ALL</code> set. A default of <code>ANY n</code> is a choice the solver hasn't made yet, so nothing
+can be taken away from it.</p>
+<h2 id="several-lines-variables-if-unless-gap">Several lines: variables, IF, UNLESS, GAP<a class="headerlink" href="#several-lines-variables-if-unless-gap" title="Permanent link">&para;</a></h2>
+<p>A line <code>EACH x IN &lt;set&gt;</code> on its own names the item for the whole request. It is how two
+lines come to be about the same person:</p>
+<div class="highlight"><pre><span></span><code># Nobody who worked the night block yesterday works clinic 1 today.
+EACH s IN staff
+IF s BUSY DURING blocks.night ON {dates.target - 1d}
+{
+    REQUEST s FREE DURING blocks.clinic_1
+}
+</code></pre></div>
+<p><code>IF &lt;test&gt; { … }</code> asks for the statements in the braces only when its test holds:
+when what it says happens, or meets its count. <code>UNLESS</code> is the opposite. Published past
+days are facts, so an <code>IF</code> about yesterday is simply true or false.</p>
+<p>The braces are required, because they are what says which statements the test is about. Everything outside them is asked for either way, so one request can hold a
+statement that always applies beside one that depends on something:</p>
+<div class="highlight"><pre><span></span><code># After a busy morning each director gets an hour of paperwork in the afternoon, and would
+# rather have the evening free. Whatever the morning, they are free at lunch.
+EACH d IN staff.director
+IF d BUSY DURING ALL {blocks.clinic_1 + blocks.clinic_2}
+{
+    REQUEST d DO 'paperwork' FOR AT_LEAST 1h ACROSS {blocks.rest_hour + blocks.playstation}
+    PREFER d FREE DURING AT_LEAST 1 blocks.evening
+}
+REQUEST d FREE DURING blocks.lunch
+</code></pre></div>
+<p>The braces hold <code>REQUEST</code> and <code>PREFER</code> statements, labeled or not, and further <code>IF</code> and
+<code>UNLESS</code> blocks, which apply only when every test around them holds. A request may hold as
+many blocks as it needs. Binding lines, definitions and <code>GAP</code> go outside them, since they
+belong to the whole request; a <code>GAP</code> between two statements holds only when both are asked
+for. A new line and an indent after <code>{</code> is how a block is written here, but the lines
+may go unindented or all on one: <code>IF … { REQUEST … PREFER … }</code> reads the same. The
+<code>REQUEST</code> statements of the request still stand or fall together, and one whose test does
+not hold asks for nothing, so it is met.</p>
+<p>Conditions join with <code>AND</code> (every one holds) and <code>OR</code> (at least one does), and a long one
+reads best a test to a line:</p>
+<div class="highlight"><pre><span></span><code># If two counselors are on break at once and Dylan is free at lunch, he covers the desk.
+IF
+AT_LEAST 2 staff.counselor DO 'break' DURING ANY blocks
+AND
+staff.dylan FREE DURING blocks.lunch
+{
+    REQUEST staff.dylan DO 'front desk' DURING blocks.lunch
+}
+</code></pre></div>
+<p>Mixing the two needs parentheses, the way mixing set operators needs braces, so there is
+no precedence to remember: <code>IF (a AND b) OR c</code>. <code>AND</code> and <code>OR</code> are keywords like any other,
+so a line beginning with either continues the condition above it.</p>
+<div class="highlight"><pre><span></span><code># Someone from the office covers the front desk in clinic 1, unless a director is free then.
+UNLESS ANY staff.director FREE DURING blocks.clinic_1
+{
+    REQUEST ANY 1 staff.office DO 'front desk' DURING blocks.clinic_1
+}
+</code></pre></div>
+<p>A test is of everything else on the schedule: what the braces themselves ask for does not
+count toward it. So a test may name what its braces ask for without asking for it
+everywhere:</p>
+<div class="highlight"><pre><span></span><code># A Level 2 is on the ground wherever a ropes clinic runs. Lvl. 2 on Ground is a ropes
+# clinic itself, and it does not count as the reason for itself.
+EACH b IN blocks
+IF ANY activities.clinics.ropes DURING b
+{
+    REQUEST activities.clinics.lvl_2_on_ground DURING b
+}
+</code></pre></div>
+<p>With the cabin acts whose board has "Level 2 on Ground" ticked added in, <code>IF ANY
+{activities.clinics.ropes + activities.cabin_acts.level_2_on_ground} DURING b</code>, the same
+request covers them too, including an act the cabin runs itself with no HEROES.</p>
+<p>Anything asked for from outside the braces counts in full: a statement of the same request
+outside them, another request, or the day's offerings. The rule is about one condition and
+its own braces, so two requests can still be each other's reason: if one's braces make the
+other's test hold and the other's make the first's hold, both may happen for no reason but
+each other.</p>
+<p><code>ANY 1 x IN &lt;set&gt;</code> on its own line picks one item for the whole request: "the same
+person sets up and tears down". <code>ANY 3 x IN &lt;set&gt;</code> picks three, and <code>x</code> is then a set,
+taken <code>ALL</code> or <code>EACH</code> where it is used. A binding line names particular people, so it
+chooses and never counts.</p>
+<p>A name bound this way can also be <strong>added into a set</strong> with <code>+</code>, which is how you say
+"Alesa and one of these two":</p>
+<div class="highlight"><pre><span></span><code>ANY 1 videographer IN {staff.dylan + staff.cam_vl}
+
+REQUEST ALL {staff.alesa + videographer}
+DO 'Video KM Rope Swing' FOR EXACTLY 30m
+DURING ANY 1 blocks
+ON ANY 1 dates.session_1
+</code></pre></div>
+<p>Alesa is named outright, so she is always in it; <code>videographer</code> brings whichever of Dylan
+and Cam the solver picked, and it is the same one everywhere the name appears in the
+request. A chosen name can also be <strong>taken away</strong> from a whole set with <code>-</code>:
+<code>{{staff.dylan + staff.cam_vl} - videographer}</code> is whoever it did not pick, which is how
+the rest are forbidden:</p>
+<div class="highlight"><pre><span></span><code>ANY 1 videographer IN {staff.dylan + staff.cam_vl}
+REQUEST ALL {staff.alesa + videographer} DO 'Video KM Rope Swing' FOR EXACTLY 30m DURING ANY 1 blocks
+REQUEST ALL {{staff.dylan + staff.cam_vl} - videographer} NOT DO 'Video KM Rope Swing'
+</code></pre></div>
+<p><code>&amp;</code> asks what a chosen name has in common with something, which cannot be answered before
+the solver has chosen. A set holding a bound name is taken with <code>ALL</code>, or with nothing at
+all, for the same reason — <code>ANY 2 {staff.alesa + videographer}</code> would be choosing out of
+something that is itself still being chosen.</p>
+<p>The first request with the choice written in place is
+<code>ALL {staff.alesa + (ANY 1 {staff.dylan + staff.cam_vl})}</code> (see
+<a href="#choosing-inside-a-set">choosing inside a set</a>). The binding line is the one to reach for
+when the name is used in more than one place.</p>
+<h3 id="naming-a-set">Naming a set<a class="headerlink" href="#naming-a-set" title="Permanent link">&para;</a></h3>
+<p><code>name: &lt;set&gt;</code> gives a set a name for the rest of the request, so a long set is written
+once and reads as what it is:</p>
+<div class="highlight"><pre><span></span><code>office_elves: {staff.lucy + staff.tom}
+
+REQUEST EACH {staff.director + office_elves}
+DO 'DYOW'
+DURING EACH {blocks.all_clinics - blocks.clinic_1}
+</code></pre></div>
+<p>The name stands for the set wherever it is used, before or after the definition, and one
+definition may use another. It is only shorthand: nothing is chosen by naming a set, and a
+group inside one chooses afresh wherever the name is used. A name can't be both a set and
+a variable or a label.</p>
+<p>A quoted task can be named the same way, and the name then goes after <code>DO</code>, so a long task
+name is written once and the lines using it cannot drift apart:</p>
+<div class="highlight"><pre><span></span><code>duty: 'front desk duty'
+REQUEST ANY 1 staff.office DO duty DURING blocks.clinic_1
+REQUEST ANY 1 staff.office DO duty DURING blocks.clinic_3
+</code></pre></div>
+<p>With a quantifier after the colon, it is a binding line written the other way round:
+<code>videographer: ANY 1 {staff.dylan + staff.cam_vl}</code> is the same as
+<code>ANY 1 videographer IN {staff.dylan + staff.cam_vl}</code>, and <code>c: EACH staff.counselor</code>
+the same as <code>EACH c IN staff.counselor</code>.</p>
+<p>Label two requirements and put a <code>GAP</code> between them:</p>
+<div class="highlight"><pre><span></span><code>EACH c IN staff.counselor
+morning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}
+afternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING ANY 1 {blocks.playstation + blocks.clinic_3}
+GAP morning TO afternoon AT_MOST 5h
+</code></pre></div>
+<p><code>GAP a TO b</code> means <code>b</code> starts after <code>a</code> ends, and the time between meets the amount, if
+it gives one. With none, <code>GAP a TO b</code> is only that order, however long between. Real start and end times are compared, so a
+one-hour task may slide around inside its 75-minute block to make a gap work. A labeled
+requirement is timed from what it makes, so it takes no cap, and no <code>ACROSS</code>.</p>
+<p>Durations are written in minutes, hours or days: <code>30m</code>, <code>1.5h</code>, <code>2d</code>. A gap can reach
+across days, which is what the longer units are for:</p>
+<div class="highlight"><pre><span></span><code>first_meeting:  REQUEST ALL {staff.dylan + staff.sarah} DO 'meeting'
+DURING ANY 1 blocks ON ANY 1 {2026-09-14 .. 2026-09-16}
+second_meeting: REQUEST ALL {staff.dylan + staff.sarah} DO 'meeting'
+DURING ANY 1 blocks ON ANY 1 {2026-09-16 .. 2026-09-18}
+GAP first_meeting TO second_meeting AT_LEAST 40h
+</code></pre></div>
+<p>One day is scheduled at a time, so what this does day by day is: while both meetings are
+still ahead, neither is forced and the solver may put the first one in. Once the first has
+been published, the day it went on is what the gap is measured from — the second cannot go
+anywhere nearer to it than forty hours, so it waits for a day that is far enough away. A
+date later than the one being scheduled holds nothing yet, so it is never the near end of a
+gap; it is checked on the day it turns into.</p>
+<h3 id="where-the-clauses-go">Where the clauses go<a class="headerlink" href="#where-the-clauses-go" title="Permanent link">&para;</a></h3>
+<p>The subject, the verb and the object keep their order. <code>DURING</code> and <code>ON</code> go anywhere, before
+the subject included; <code>AS_ROLE</code>, <code>FOR</code>, <code>WITH</code> and <code>WITHOUT</code> go anywhere after the verb.
+These are the same request:</p>
+<div class="highlight"><pre><span></span><code>REQUEST
+ON ANY 1 {2026-09-14 .. 2026-09-18}
+ALL {staff.dylan + staff.alesa}
+DO 'video'
+FOR EXACTLY 30m
+DURING ANY 1 blocks
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>REQUEST ALL {staff.dylan + staff.alesa} DO 'video' FOR EXACTLY 30m DURING ANY 1 blocks ON ANY 1 {2026-09-14 .. 2026-09-18}
+</code></pre></div>
+<p>Where a clause is written never changes what it means: the counts in it always go who,
+what, dates, blocks. <code>MAXIMIZE</code> or <code>MINIMIZE</code> goes before or after the pattern it weighs.</p>
+<h3 id="a-statement-over-several-lines">A statement over several lines<a class="headerlink" href="#a-statement-over-several-lines" title="Permanent link">&para;</a></h3>
+<p>A statement can be written on as many lines as it reads well on. A new line starts a new
+statement only where one can: at <code>REQUEST</code>, <code>PREFER</code>, <code>EXCLUDE</code>, <code>IF</code>, <code>UNLESS</code> or <code>GAP</code>,
+at a binding line (<code>EACH x IN …</code>, <code>ANY n x IN …</code>), or at a name followed by a colon (a
+label or a definition). Every other line carries on the one above it, and that includes a
+line holding only <code>{</code> or <code>}</code>. Nothing needs indenting, and where a statement fits on one
+line it can stay there.</p>
+<p>So a line inside a statement can't start with <code>EACH x IN</code> or <code>ANY n x IN</code>, which would
+be read as a binding line: put it at the end of the line above instead.</p>
+<h3 id="one-request-several-statements">One request, several statements<a class="headerlink" href="#one-request-several-statements" title="Permanent link">&para;</a></h3>
+<p>A request holds as many <code>REQUEST</code> and <code>PREFER</code> statements as the thing being asked for
+needs. Plain English often does not fit in one statement — "everyone gets a break, and we
+would rather they were not all at once" is two — and writing them as one request keeps
+them under one description, one priority and one weight, and lets them share a binding, a
+<code>GAP</code>, and an <code>IF</code> over the ones in its braces.</p>
+<div class="highlight"><pre><span></span><code># Rob runs the pole course this morning, and we would rather he were free at playstation.
+REQUEST staff.rob DO activities.clinics.pole_course_explore_level_1_2_dbl AS_ROLE roles.first DURING ALL {blocks.clinic_1 + blocks.clinic_2}
+PREFER staff.rob FREE DURING AT_LEAST 1 blocks.playstation
+</code></pre></div>
+<p>When every statement is on the same dates, say so once: an <code>ON</code> on the <strong>first line</strong> of
+the request goes on every <code>REQUEST</code>, <code>PREFER</code> and <code>EXCLUDE</code> in it. A statement that has an
+<code>ON</code> of its own is then refused, rather than one of the two quietly winning. An <code>IF</code> or
+<code>UNLESS</code> keeps its own dates, since what it tests is often another day.</p>
+<div class="highlight"><pre><span></span><code># All session 1: Rob opens the pole course, and we would rather he were free at playstation.
+ON EACH dates.session_1
+REQUEST staff.rob DO activities.clinics.pole_course_explore_level_1_2_dbl AS_ROLE roles.first DURING ALL {blocks.clinic_1 + blocks.clinic_2}
+PREFER staff.rob FREE DURING AT_LEAST 1 blocks.playstation
+</code></pre></div>
+<p>It is the same <code>ON</code> in every statement, so an <code>EACH</code> in it splits the request once, and in
+each copy every statement is on the same date. An <code>ANY 1</code> is chosen by each statement for
+itself, as it would be if written out in each; to have them all on one chosen date, bind
+it first, <code>ANY 1 d IN dates.session_1</code>, and write <code>ON d</code> in each. Only the first line
+works this way: an <code>ON</code> starting a later line carries on the statement above it.</p>
+<p>The <code>REQUEST</code> statements stand or fall together: the request is met when every one of them
+is, and that is what the report names. Each <code>PREFER</code> is weighed on its own in the request's
+tier, met or not, whether or not the requirements are.</p>
+<p>Two things to keep in mind. A binding expands the <strong>whole</strong> request, so <code>EACH s IN
+staff</code> beside a <code>REQUEST</code> makes that requirement once per person, which is usually
+what is wanted but is worth seeing. And a <code>PREFER</code> still cannot sit in a <code>MUST_HAPPEN</code>
+request, together with requirements or alone: there is no tier above the hard one to weigh
+it in, so put the preference at a soft priority, in a request of its own if the
+requirements must be hard.</p>
+<h2 id="what-makes-things-happen">What makes things happen<a class="headerlink" href="#what-makes-things-happen" title="Permanent link">&para;</a></h2>
+<p><strong>Only a positive <code>REQUEST</code> makes things happen.</strong> A clinic runs, a trainee shadows, or an
+ad hoc task exists only because some <code>REQUEST</code> asks for it. <code>NOT</code>, <code>AT_MOST</code>, <code>PREFER</code>,
+<code>IF</code> and <code>UNLESS</code> steer where those things land; they never create more of them, and an
+<code>IF</code> cannot hold because of what its own braces ask for. So a
+request that people <code>NOT DO 'break'</code> outside meals moves the breaks they already have and
+cannot buy or cost anyone a break. A count of clinics, or <code>ANY</code> of them, counts the clinics
+that are running and starts none of its own. And naming an ad hoc task no <code>REQUEST</code> asks
+for is an error, which catches misspelled task names.</p>
+<h2 id="priorities">Priorities<a class="headerlink" href="#priorities" title="Permanent link">&para;</a></h2>
+<p><code>MUST_HAPPEN</code> is hard. <code>CLINIC</code>, <code>HIGH</code>, <code>MEDIUM</code> and <code>LOW</code> are soft tiers, and no amount
+of a lower tier outweighs a higher one; within a tier, weights set the exchange rate. See
+<a href="../solver/">How the solver decides</a>. A <code>PREFER</code> cannot be <code>MUST_HAPPEN</code>, in a request of
+its own or beside requirements; a cap that must hold is a <code>REQUEST</code> with <code>AT_MOST</code>.</p>
+<h2 id="exclude-somebody-who-is-not-here">EXCLUDE: somebody who is not here<a class="headerlink" href="#exclude-somebody-who-is-not-here" title="Permanent link">&para;</a></h2>
+<p>A day off, a training course, a dentist's appointment. <code>EXCLUDE</code> says that somebody is not
+at camp for some of a day. This is different from a break -- someone who is excluded would not factor into the staff pool during the times they are gone.</p>
+<div class="highlight"><pre><span></span><code>EXCLUDE staff.dylan DO 'offsite' DURING ALL blocks ON 2026-09-16
+</code></pre></div>
+<p>Dylan holds nothing in those blocks, no clinic can use him and no request reaches him
+there, and the published schedule says <code>offsite</code> where his assignments would have been —
+on the Staff View in each of his cells, and on the Clinic View in a row of its own beside
+the clinics. The quoted word is that label, so write whatever the schedule should say.</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EXCLUDE &lt;who&gt;</code></td>
+<td>the people who are away: a name, <code>ALL</code> a set, or <code>EACH</code> one</td>
+</tr>
+<tr>
+<td><code>DO '&lt;label&gt;'</code></td>
+<td>what the schedule says where they would have been</td>
+</tr>
+<tr>
+<td><code>DURING &lt;blocks&gt;</code></td>
+<td>the blocks they are away for; left out, every block of the day</td>
+</tr>
+<tr>
+<td><code>ON &lt;dates&gt;</code></td>
+<td>the dates; left out, the date being scheduled</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The rules that must happen still must.</strong> A day's legal requirements are written about
+the staff who are here — <code>REQUEST EACH staff DO 'break' …</code> — and somebody out for a
+whole day is in no category that day, so nothing is asked of them and the day still solves.
+Somebody out for part of a day is still at camp and is still owed their breaks; they are
+simply taken in a block they are around for.</p>
+<p>An <code>EXCLUDE</code> is a fact, so nothing in it is the solver's to choose: <code>ANY</code>, <code>ANY n</code> and counts are
+refused, it takes no <code>IF</code>, and it is written at <code>MUST_HAPPEN</code> in a request of its own.
+Naming that person anyway in another request — <code>REQUEST staff.dylan DO
+activities.clinics.riflery</code> on his day off — is a contradiction the errors pane names: at
+<code>MUST_HAPPEN</code> the day will not solve, and below it the work simply never happens.</p>
+<p>The Adjustments sheet does the same thing for somebody who is <a href="../same-day/">ill or short of
+sleep</a>; <code>EXCLUDE</code> is for what is known in advance and belongs with the
+requests.</p>
+<h2 id="time-horizon">Time horizon<a class="headerlink" href="#time-horizon" title="Permanent link">&para;</a></h2>
+<p>The solver schedules the target date. Published past dates are facts: they cannot change,
+and they count in every statement, count and condition. Future dates hold nothing yet.</p>
+<p>A request that could still be met later, such as one <code>ON ANY</code> or <code>ACROSS</code> a week of dates, is
+<strong>deferrable</strong>. It does not have to happen today as long as it can still happen later,
+with a small nudge to do it early. The solver knows from the sheets when "later" runs out,
+for example because the person rests for the remainder of the week, and enforces it on the
+last day that can still hold it. <code>NOT</code>, <code>AT_MOST</code> and <code>ALL</code> dates are enforced every
+day.</p>
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<p>Names below are those of the sample data in <code>tests/fixtures</code>; the test suite validates
+every example on this page against it.</p>
+<h3 id="clinic-assignment">Clinic assignment<a class="headerlink" href="#clinic-assignment" title="Permanent link">&para;</a></h3>
+<p>Archery runs during clinic 2. <code>REQUEST EACH activities.clinics.offerings</code> asks this of every clinic on the
+Offerings tab, by name, and a clinic asked for by name is staffed from its positions;
+naming the positions instead asks for a different person in each with <code>EACH</code> — <code>ALL</code>
+would ask one person to hold both. The clinic runs fully staffed or not at all, so the
+positions stand together whichever way they are written.</p>
+<div class="highlight"><pre><span></span><code>REQUEST ANY 1 staff DO activities.clinics.archery_1_2 AS_ROLE EACH {roles.first + roles.second} DURING blocks.clinic_2 ON 2026-09-16
+</code></pre></div>
+<p>Priority <code>CLINIC</code>.</p>
+<h3 id="pinning-a-staff-member-to-a-position">Pinning a staff member to a position<a class="headerlink" href="#pinning-a-staff-member-to-a-position" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>REQUEST staff.rob DO activities.clinics.gravity_zip_line AS_ROLE roles.first DURING blocks.clinic_2 ON 2026-09-16
+</code></pre></div>
+<p>Priority <code>MUST_HAPPEN</code>.</p>
+<h3 id="lucy-and-tom-take-out-the-garbage-together-every-monday">Lucy and Tom take out the garbage together every Monday<a class="headerlink" href="#lucy-and-tom-take-out-the-garbage-together-every-monday" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>REQUEST ALL {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY 1 blocks ON EACH {dates.session_1 &amp; dates.mondays}
+</code></pre></div>
+<p>Priority <code>HIGH</code>.</p>
+<h3 id="lucy-or-tom-takes-out-the-garbage-every-monday">Lucy or Tom takes out the garbage every Monday<a class="headerlink" href="#lucy-or-tom-takes-out-the-garbage-every-monday" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>REQUEST ANY 1 {staff.lucy + staff.tom} DO 'take out garbage' DURING ANY blocks ON EACH dates.mondays
+</code></pre></div>
+<p>Priority <code>HIGH</code>.</p>
+<h3 id="two-of-three-people-twice-in-a-day">Two of three people, twice in a day<a class="headerlink" href="#two-of-three-people-twice-in-a-day" title="Permanent link">&para;</a></h3>
+<p>Two of them, together, in two blocks of the day: each choice is made once for the statement.</p>
+<div class="highlight"><pre><span></span><code>REQUEST ANY 2 {staff.lucy + staff.tom + staff.charles} DO 'take out garbage' DURING ANY 2 blocks ON 2026-09-21
+</code></pre></div>
+<p>Priority <code>MEDIUM</code>.</p>
+<h3 id="each-of-three-people-some-day-this-week-during-playstation">Each of three people, some day this week, during playstation<a class="headerlink" href="#each-of-three-people-some-day-this-week-during-playstation" title="Permanent link">&para;</a></h3>
+<p>Three separate requests, and each person may get a different day.</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH {staff.lucy + staff.tom + staff.charles} DO 'take out garbage' DURING blocks.playstation ON ANY {2026-09-21 .. 2026-09-25}
+</code></pre></div>
+<p>Priority <code>MEDIUM</code>.</p>
+<h3 id="both-clinics-if-possible-some-day-in-session-two">Both clinics if possible, some day in session two<a class="headerlink" href="#both-clinics-if-possible-some-day-in-session-two" title="Permanent link">&para;</a></h3>
+<p>One day is chosen; clinic 1 and clinic 2 on it are separate requests.</p>
+<div class="highlight"><pre><span></span><code>ANY 1 d IN dates.session_2
+REQUEST staff.dylan DO 'archery maintenance' DURING EACH {blocks.clinic_1 + blocks.clinic_2} ON d
+</code></pre></div>
+<p>Priority <code>LOW</code>.</p>
+<h3 id="training">Training<a class="headerlink" href="#training" title="Permanent link">&para;</a></h3>
+<p>Cam VL is trained on candle making for two clinics in a row, some day this week.
+<code>roles.trainee</code> resolves to shadow or scaffolded from the Skills sheet, and the trainee is
+additional to the clinic's positions.</p>
+<div class="highlight"><pre><span></span><code>REQUEST staff.cam_vl DO activities.clinics.candle_making AS_ROLE roles.trainee DURING ANY 2 CONSECUTIVE blocks.all_clinics ON ANY 1 {2026-09-14 .. 2026-09-18}
+</code></pre></div>
+<p>Priority <code>HIGH</code>.</p>
+<h3 id="keeping-someone-off-an-activity">Keeping someone off an activity<a class="headerlink" href="#keeping-someone-off-an-activity" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>REQUEST staff.dylan NOT DO ANY activities.clinics.ropes ON ANY {2026-09-14 .. 2026-09-16}
+</code></pre></div>
+<p>Priority <code>MUST_HAPPEN</code>.</p>
+<h3 id="staff-run-clinics-they-prefer">Staff run clinics they prefer<a class="headerlink" href="#staff-run-clinics-they-prefer" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>PREFER EACH s IN staff DO EACH c IN activities.clinics MAXIMIZE mappings.preference(s, c)
+</code></pre></div>
+<p>Priority <code>MEDIUM</code>, weight <code>1</code>.</p>
+<h3 id="clinic-variety-over-a-rolling-week">Clinic variety over a rolling week<a class="headerlink" href="#clinic-variety-over-a-rolling-week" title="Permanent link">&para;</a></h3>
+<p>Each person should run each clinic at most once in any seven days; every repeat costs a
+point. Shares a tier with the preference request so the two trade off.</p>
+<div class="highlight"><pre><span></span><code>PREFER EACH staff DO EACH activities.clinics DURING AT_MOST 1 blocks ACROSS {dates.target - 6d .. dates.target}
+</code></pre></div>
+<p>Priority <code>MEDIUM</code>, weight <code>0.5</code>.</p>
+<h3 id="rotate-ropes-positions">Rotate ropes positions<a class="headerlink" href="#rotate-ropes-positions" title="Permanent link">&para;</a></h3>
+<p>Nobody holds the same ropes position more than three times a session.</p>
+<div class="highlight"><pre><span></span><code>PREFER EACH staff.ropes_level_2 DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second} DURING AT_MOST 3 blocks ACROSS dates.session_1
+</code></pre></div>
+<p>Priority <code>LOW</code>.</p>
+<h3 id="balance-clinic-workload">Balance clinic workload<a class="headerlink" href="#balance-clinic-workload" title="Permanent link">&para;</a></h3>
+<p>Nobody should run more than eight clinics a session: a count of the blocks they run
+clinics in, over every day of it.</p>
+<div class="highlight"><pre><span></span><code>PREFER EACH staff DO ANY activities.clinics DURING AT_MOST 8 blocks ACROSS dates.session_1
+</code></pre></div>
+<p>Priority <code>MEDIUM</code>, weight <code>0.25</code>.</p>
+<h3 id="never-more-than-three-clinics-in-a-row">Never more than three clinics in a row<a class="headerlink" href="#never-more-than-three-clinics-in-a-row" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>REQUEST EACH staff DO ANY activities.clinics DURING AT_MOST 3 CONSECUTIVE blocks
+</code></pre></div>
+<p>Priority <code>MUST_HAPPEN</code>.</p>
+<h3 id="counselor-hours-with-a-maximum-gap">Counselor hours with a maximum gap<a class="headerlink" href="#counselor-hours-with-a-maximum-gap" title="Permanent link">&para;</a></h3>
+<p>Each counselor gets a one-hour counselor hour during clinic 1 or 2 and another during
+playstation or clinic 3, no more than five hours apart. <code>ON</code> is left out, so this applies
+every day.</p>
+<div class="highlight"><pre><span></span><code>EACH c IN staff.counselor
+morning:   REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING ANY 1 {blocks.clinic_1 + blocks.clinic_2}
+afternoon: REQUEST c DO 'counselor hour' FOR EXACTLY 1h DURING ANY 1 {blocks.playstation + blocks.clinic_3}
+GAP morning TO afternoon AT_MOST 5h
+</code></pre></div>
+<p>Priority <code>MUST_HAPPEN</code>.</p>
+<h3 id="non-counselor-breaks">Non-counselor breaks<a class="headerlink" href="#non-counselor-breaks" title="Permanent link">&para;</a></h3>
+<p>Each non-director, non-counselor staff member takes three 30-minute breaks per day, in
+three different blocks. A break in a clinic block keeps that person off clinics in it.</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH {staff - staff.director - staff.counselor} DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks
+</code></pre></div>
+<p>Priority <code>MUST_HAPPEN</code>.</p>
+<h3 id="breaks-at-meal-times">Breaks at meal times<a class="headerlink" href="#breaks-at-meal-times" title="Permanent link">&para;</a></h3>
+<p>Where those breaks land: one small request per person per non-meal block.</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH {staff - staff.director - staff.counselor} NOT DO 'break' DURING EACH {blocks - blocks.meals}
+</code></pre></div>
+<p>Priority <code>HIGH</code>, weight <code>2</code>.</p>
+<h3 id="never-more-than-two-people-on-break-at-once">Never more than two people on break at once<a class="headerlink" href="#never-more-than-two-people-on-break-at-once" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>REQUEST AT_MOST 2 staff DO 'break' DURING EACH blocks
+</code></pre></div>
+<p>Priority <code>MUST_HAPPEN</code>.</p>
+<h3 id="two-hours-of-video-editing-in-one-go">Two hours of video editing in one go<a class="headerlink" href="#two-hours-of-video-editing-in-one-go" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS CONSECUTIVE blocks
+</code></pre></div>
+<p>Priority <code>HIGH</code>.</p>
+<h3 id="exactly-one-of-two-people-rakes-the-leaves">Exactly one of two people rakes the leaves<a class="headerlink" href="#exactly-one-of-two-people-rakes-the-leaves" title="Permanent link">&para;</a></h3>
+<p>Whoever else is asked to rake, only one of these two does: one is picked, and the other is
+forbidden.</p>
+<div class="highlight"><pre><span></span><code>ANY 1 r IN {staff.dylan + staff.alesa}
+REQUEST r DO 'rake leaves' DURING ANY blocks
+REQUEST ALL {{staff.dylan + staff.alesa} - r} NOT DO 'rake leaves'
+</code></pre></div>
+<p>Priority <code>HIGH</code>.</p>
+<h3 id="at-least-two-lifeguards-more-if-possible">At least two lifeguards, more if possible<a class="headerlink" href="#at-least-two-lifeguards-more-if-possible" title="Permanent link">&para;</a></h3>
+<p>Two requests, since they matter differently: two lifeguards picked at <code>MUST_HAPPEN</code>, and
+every other support staff member asked separately at a soft priority, each one who joins
+one more request met.</p>
+<div class="highlight"><pre><span></span><code>REQUEST ANY 2 staff.support DO 'lifeguard' DURING blocks.rest_hour
+</code></pre></div>
+<p>Priority <code>MUST_HAPPEN</code>.</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH staff.support DO 'lifeguard' DURING blocks.rest_hour
+</code></pre></div>
+<p>Priority <code>LOW</code>.</p>
+<h3 id="playstation-availability">Playstation availability<a class="headerlink" href="#playstation-availability" title="Permanent link">&para;</a></h3>
+<p>As many non-directors as possible are free during the playstation block. Each free person
+is one met request; the staff view marks them <code>Available</code>.</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH {staff - staff.director} FREE DURING blocks.playstation
+</code></pre></div>
+<p>Priority <code>HIGH</code>.</p>
+<h3 id="day-off">Day off<a class="headerlink" href="#day-off" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>EXCLUDE staff.dylan DO 'day off' ON 2026-09-16
+</code></pre></div>
+<p>Priority <code>MUST_HAPPEN</code>.</p>
+<h3 id="a-review-with-every-director-on-the-second-thursday">A review with every director, on the second Thursday<a class="headerlink" href="#a-review-with-every-director-on-the-second-thursday" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>REQUEST ALL staff.director DO 'mid-session review' DURING ANY 1 blocks ON EACH {dates.session_1.week_2 &amp; dates.thursdays}
+</code></pre></div>
+<p>Priority <code>MEDIUM</code>.</p>
+<h3 id="keeping-two-staff-off-the-same-clinic">Keeping two staff off the same clinic<a class="headerlink" href="#keeping-two-staff-off-the-same-clinic" title="Permanent link">&para;</a></h3>
+<p>One request per block, so each shared clinic costs a point. At <code>MUST_HAPPEN</code> it would rule
+the pairing out, at the price of leaving a clinic unstaffed when they are the only two
+available.</p>
+<div class="highlight"><pre><span></span><code>REQUEST staff.jack NOT DO ANY activities.clinics WITH staff.lucy DURING EACH blocks
+</code></pre></div>
+<p>Priority <code>HIGH</code>, weight <code>2</code>.</p>
+<h3 id="if-rob-is-on-ropes-vic-must-be-too">If Rob is on ropes, Vic must be too<a class="headerlink" href="#if-rob-is-on-ropes-vic-must-be-too" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>REQUEST staff.rob NOT DO ANY activities.clinics.ropes WITHOUT staff.vic
+</code></pre></div>
+<p>Priority <code>MUST_HAPPEN</code>.</p>
+<h3 id="after-three-clinics-in-a-row-a-free-block">After three clinics in a row, a free block<a class="headerlink" href="#after-three-clinics-in-a-row-a-free-block" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>EACH s IN staff
+IF s DO ANY activities.clinics DURING AT_LEAST 3 CONSECUTIVE blocks
+{
+    REQUEST s FREE DURING ANY blocks
+}
+</code></pre></div>
+<p>Priority <code>HIGH</code>.</p>
+<h3 id="the-same-person-sets-up-and-tears-down">The same person sets up and tears down<a class="headerlink" href="#the-same-person-sets-up-and-tears-down" title="Permanent link">&para;</a></h3>
+<p>The teardown can be any time after the setup, so its blocks are all of them and the <code>GAP</code>
+keeps it after.</p>
+<div class="highlight"><pre><span></span><code>ANY 1 p IN staff.counselor
+setup:    REQUEST p DO 'campfire setup' DURING blocks.clinic_4
+teardown: REQUEST p DO 'campfire teardown' DURING ANY blocks
+GAP setup TO teardown
+</code></pre></div>
+<p>Priority <code>MEDIUM</code>.</p>
+<h2 id="grammar">Grammar<a class="headerlink" href="#grammar" title="Permanent link">&para;</a></h2>
+<p>The grammar the parser uses is in the <a href="../spec/#4-grammar">specification</a>, and in
+<code>puppet_strings/skedge/grammar.lark</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

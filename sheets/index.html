@@ -1,0 +1,1861 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Staff schedule automation for Camp Augusta">
+      
+      
+      
+      
+        <link rel="prev" href="../install/">
+      
+      
+        <link rel="next" href="../app/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>The sheets - Puppet Strings</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#the-sheets" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Puppet Strings" class="md-header__button md-logo" aria-label="Puppet Strings" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Puppet Strings
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              The sheets
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Puppet Strings" class="md-nav__button md-logo" aria-label="Puppet Strings" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Puppet Strings
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install and set up
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The sheets
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The sheets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#clinic_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clinic_Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skills
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#staff-categories-one-per-span-in-the-schedules-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Staff Categories (one per span, in the schedules tree)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offerings-one-per-day-in-the-schedules-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offerings (one per day, in the schedules tree)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cabin-act-sheets-the-cabin-acts-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cabin act sheets (the Cabin Acts folder)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#blocks-config-spreadsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blocks (config spreadsheet)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calendar-config-spreadsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calendar (config spreadsheet)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requests-on-this-computer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requests (on this computer)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adjustments-config-spreadsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adjustments (config spreadsheet)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mappings-config-spreadsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mappings (config spreadsheet)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mappings (config spreadsheet)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-by-step-an-enjoyment-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step by step: an enjoyment mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-by-step-buddy-heros" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step by step: buddy HEROs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-schedules-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The schedules tree
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The schedules tree">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-days-spreadsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A day's spreadsheet
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The request manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning Skedge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../same-day/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Same-day changes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skedge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How the solver decides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical-outline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#clinic_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clinic_Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Skills
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#staff-categories-one-per-span-in-the-schedules-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Staff Categories (one per span, in the schedules tree)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offerings-one-per-day-in-the-schedules-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offerings (one per day, in the schedules tree)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cabin-act-sheets-the-cabin-acts-folder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cabin act sheets (the Cabin Acts folder)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#blocks-config-spreadsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blocks (config spreadsheet)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calendar-config-spreadsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calendar (config spreadsheet)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requests-on-this-computer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requests (on this computer)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adjustments-config-spreadsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adjustments (config spreadsheet)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mappings-config-spreadsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mappings (config spreadsheet)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mappings (config spreadsheet)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-by-step-an-enjoyment-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step by step: an enjoyment mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-by-step-buddy-heros" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step by step: buddy HEROs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-schedules-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The schedules tree
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The schedules tree">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-days-spreadsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A day's spreadsheet
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="the-sheets">The sheets<a class="headerlink" href="#the-sheets" title="Permanent link">&para;</a></h1>
+<p>Every value the solver uses comes from a Google Sheet. Names become Skedge identifiers by
+this rule: trim, lowercase, replace each run of characters that are not letters or digits
+with one underscore, and drop underscores at the ends. <code>Archery 1 &amp; 2</code> becomes
+<code>activities.clinics.archery_1_2</code>; <code>Cam VL</code> becomes <code>staff.cam_vl</code>. <code>puppet-strings names</code> prints
+the identifier for every sheet value.</p>
+<h2 id="clinic_data">Clinic_Data<a class="headerlink" href="#clinic_data" title="Permanent link">&para;</a></h2>
+<p>The loader reads the <strong>combined tab</strong> (the one with a <code>Category</code> column). The per-category
+tabs are for people.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Clinic_Name</code></td>
+<td>The activity's name. A name ending in <code>(DBL)</code> spans two adjacent clinic blocks.</td>
+</tr>
+<tr>
+<td><code>Slots</code></td>
+<td>Camper slots. Shown, not used by the solver.</td>
+</tr>
+<tr>
+<td><code>Staff_Required</code></td>
+<td>Number of positions (1st, 2nd, 3rd). <code>Staff_Requested</code> is accepted too.</td>
+</tr>
+<tr>
+<td><code>RAL_Required</code></td>
+<td>One digit per position, in order: <code>53</code> means the 1st needs RAL 5 and the 2nd RAL 3. The digit count must equal <code>Staff_Required</code>.</td>
+</tr>
+<tr>
+<td><code>LG_Required</code></td>
+<td>Optional. Lifeguards <strong>in addition to</strong> <code>Staff_Required</code>. A water clinic with one facilitator and one lifeguard has <code>Staff_Required</code> 1 and <code>LG_Required</code> 1. Every lifeguard position needs the <code>LIFEGUARD</code> skill at RAL 5.</td>
+</tr>
+<tr>
+<td><code>Category</code></td>
+<td>Becomes <code>activity.&lt;category&gt;</code>, for example <code>activities.clinics.ropes</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Built in: <code>activities.clinics</code> is every clinic. Positions are <code>roles.first</code>, <code>roles.second</code>,
+<code>roles.third</code> for the facilitators, then <code>roles.lifeguard</code>, <code>roles.lifeguard_2</code> for the
+lifeguards.</p>
+<h2 id="skills">Skills<a class="headerlink" href="#skills" title="Permanent link">&para;</a></h2>
+<p><strong>Main tab.</strong> Three header rows, then one row per staff member. Row 2 holds the skill name
+and row 3 the rank; together they form the skill's full name (<code>Canopy Tour 1st</code>). A column
+whose row 2 is blank is a date column and is skipped. Column A is the name, column B the
+RAL (its first number is read, so <code>4 (6/12)</code> is 4).</p>
+<p>Each cell says where that person stands on that skill:</p>
+<table>
+<thead>
+<tr>
+<th>Cell</th>
+<th>Meaning</th>
+<th>Can fill the position</th>
+<th><code>roles.trainee</code> becomes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>✓</code>, <code>WCF</code></td>
+<td>checked off</td>
+<td>yes</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td><code>Trainer</code></td>
+<td>checked off and may supervise a scaffold</td>
+<td>yes</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td><code>w/ scaf</code>, <code>w/scaf</code>, <code>Brief scaf</code></td>
+<td>needs a scaffold</td>
+<td>no</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td><code>w/ shadow</code></td>
+<td>needs to shadow</td>
+<td>no</td>
+<td>shadow</td>
+</tr>
+<tr>
+<td>blank, <code>Past Ex</code>, <code>Interested</code>, <code>.</code></td>
+<td>not checked off</td>
+<td>no</td>
+<td>shadow</td>
+</tr>
+<tr>
+<td>anything else</td>
+<td>unknown; treated as not checked off and listed as a warning</td>
+<td>no</td>
+<td>shadow</td>
+</tr>
+</tbody>
+</table>
+<p>This table lives in one place in the code, <code>STATUS_WORDS</code> at the top of
+<code>puppet_strings/sheets/skills.py</code>. To add a status, add a row there.</p>
+<p><strong>Positions tab.</strong> <code>Clinic_Name | 1st | 2nd | 3rd</code>: the skill each position requires.
+<code>Any</code> means no checkoff is needed. Every clinic on Clinic_Data must have a row here with a
+cell filled in for each of its positions, and every skill named must be a column heading on
+the main tab (heading plus rank, e.g. <code>Canopy Tour 1st</code>). Clinic and skill names are matched
+the way every other name is, ignoring case, spacing and punctuation, so a <code>Candle making</code>
+column and a <code>Candle Making</code> cell are the same skill. A missing row, a blank cell, or a name
+nothing matches stops loading with an error listing every one. None of them is read as
+"anyone may facilitate" — that is what <code>Any</code> is for.</p>
+<p>The staff roster is the set of rows on the main tab, and <code>staff</code> names all of them.
+<code>staff.clinic_trainers</code> is everyone with at least one <code>Trainer</code> cell. A skill itself is not
+a name: it is asked for by the position that needs it, on a clinic or on a cabin act.</p>
+<h2 id="staff-categories-one-per-span-in-the-schedules-tree">Staff Categories (one per span, in the schedules tree)<a class="headerlink" href="#staff-categories-one-per-span-in-the-schedules-tree" title="Permanent link">&para;</a></h2>
+<p>One column per category, the name in row 1 and members below. Each becomes
+<code>staff.&lt;category&gt;</code> (<code>staff.counselor</code>, <code>staff.director</code>, <code>staff.village_hero</code>). Members must
+be on the Skills sheet. A column headed <code>etc.</code> is ignored.</p>
+<p><strong>Every span keeps its own</strong>, in its folder in the <a href="#the-schedules-tree">schedules tree</a>,
+because who is on staff changes from session to session — so <code>staff.counselor</code> follows the
+date being scheduled. A span with no <code>Staff Categories</code> spreadsheet is a load error naming
+the folder it looked in: loading with no categories at all would quietly drop every request
+that names one.</p>
+<p><strong>This sheet is also who is at camp.</strong> <code>staff</code> is everyone it names, not everyone with a
+Skills row: the Skills sheet keeps every person who has ever worked here, including staff
+who have left and staff who come for one session. Somebody with a Skills row and no category
+is away that span, which is the same to the solver as resting all day — no category offers
+them and no position can be filled by them. Their name still resolves, so a request that
+names them is simply not met rather than an error, and the load says how many are away.</p>
+<h2 id="offerings-one-per-day-in-the-schedules-tree">Offerings (one per day, in the schedules tree)<a class="headerlink" href="#offerings-one-per-day-in-the-schedules-tree" title="Permanent link">&para;</a></h2>
+<p>The grid you already fill in, a tab of the day's own spreadsheet. The <strong>Clinic Schedule</strong>
+spreadsheet chosen in Configure is the template a new day is started from. Row 1 is the weekday; row 2 has <code>Clinic 1</code> … <code>Clinic 4</code>
+above each group of columns. Below, category headings in capitals and clinic names. The
+lookup columns (slots, staff) are ignored, as is everything below a <code>Cancelled</code> row.</p>
+<p>Each row 2 heading must name a block on the Blocks sheet — <code>Clinic 1</code> finds the block
+<code>clinic_1</code>, <code>Playstation</code> the block <code>playstation</code>. A heading that names no block takes its
+whole column with it: nothing under it is offered, and the block looks free all day. That is
+a warning, listed with the other load warnings, not an error.</p>
+<p>A <code>(DBL)</code> clinic must appear in two adjacent clinic blocks; it becomes one instance with
+the same staff in both. The tab has no date: the target date is the <code>--date</code> argument or
+the app's date picker. A weekday mismatch is a warning.</p>
+<h2 id="cabin-act-sheets-the-cabin-acts-folder">Cabin act sheets (the Cabin Acts folder)<a class="headerlink" href="#cabin-act-sheets-the-cabin-acts-folder" title="Permanent link">&para;</a></h2>
+<p>The cabin act block is a time campers may do anything in, and somebody other than the
+Puppet Master fills in what each cabin is doing and who they want along. There is one
+spreadsheet per session and week, all of them in one Drive folder chosen in the Configure
+pane, and every one of them is read each time the sheets are read.</p>
+<p>A cabin act is an <strong>activity</strong>, like a clinic: a thing that happens, with a position per
+person it needs. It is not a request, so nothing has to be imported and there is no button
+to press. Two requests ask for all of them:</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
+REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
+</code></pre></div>
+<p>The Blocks tab must therefore have a <code>cabin_act</code> row and a <code>rest_hour</code> row.</p>
+<p>The sheet's <strong>title</strong> says which week it is for: <code>S5W1</code> is session 5, week 1, matched
+anywhere in the title, so <code>Cabin Act Sorting - S5W1</code> works. Those two numbers and the
+weekday give the date from the Calendar sheet, so nothing on the grid has to carry one.</p>
+<p>Only the <strong>Board</strong> tab is read; the Support Requests tab says the same thing a second time
+and is ignored. Its layout:</p>
+<table>
+<thead>
+<tr>
+<th>Where</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Row 1</td>
+<td>The sheet's title</td>
+</tr>
+<tr>
+<td>Row 2</td>
+<td>A weekday merged over its four columns, then the spare <code>Extra</code> columns</td>
+</tr>
+<tr>
+<td>Column A</td>
+<td>The cabin, merged down its block of rows: <code>M1</code>, <code>P4</code>, <code>O2</code></td>
+</tr>
+<tr>
+<td>Inside a cabin's block</td>
+<td>A label column and a value column beside it, per weekday</td>
+</tr>
+</tbody>
+</table>
+<p>The labels read are <code>Activity</code> and <code>HEROES</code>; everything else on the grid is for the people
+filling it in. Rows are found by their labels rather than by counting, so adding a row to
+the cabin block changes nothing. Only Monday to Friday are scheduled: the <code>Extra</code> columns
+are not days and are skipped.</p>
+<p><strong>HEROES</strong> is a comma-separated list, and each item becomes one position of the activity,
+so asking for two people asks for two people. An item is either:</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>The position it makes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A staff member on the Skills sheet</td>
+<td>Only that person may hold it</td>
+</tr>
+<tr>
+<td>A Staff Categories column</td>
+<td>Anyone in that category may hold it</td>
+</tr>
+<tr>
+<td>A Skills column</td>
+<td>Anyone checked off on that skill may hold it</td>
+</tr>
+</tbody>
+</table>
+<p>An item that is none of the three is a warning naming the cabin and the day, and the rest
+of that cabin act is still staffed. A cabin act with an empty HEROES cell asks nothing of
+anybody and becomes no activity at all.</p>
+<p>An <strong>Activity</strong> that starts or ends with <code>RH</code> or <code>Rest Hour</code> (<code>RH: Fruit Ninja</code>,
+<code>REST HOUR Aerial Yoga</code>, <code>Stranded in the back 40 - Rest Hour</code>) is moved to rest hour, and
+the cabin rests in the cabin act block instead. One that mentions rest hour only in the
+middle, such as <code>CA: Blackberry picking, RH: muffins</code>, is a warning and is treated as an
+ordinary cabin act. Ask for its rest hour part in a request of its own.</p>
+<p>The names it makes are the board of the day being scheduled: <code>activities.cabin_acts</code> for
+its acts, the two halves of it, <code>activities.cabin_acts.at_cabin_act</code> and
+<code>activities.cabin_acts.at_rest_hour</code>, and each act under its half by its cabin, for
+example <code>activities.cabin_acts.at_cabin_act.p4</code>. A cabin has a name only on a day it has
+an act, and which half it is under can change from one day to the next.</p>
+<h2 id="blocks-config-spreadsheet">Blocks (config spreadsheet)<a class="headerlink" href="#blocks-config-spreadsheet" title="Permanent link">&para;</a></h2>
+<p>One row per time block. Blocks are the units the solver assigns staff to.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>block_id</code></td>
+<td>The block's name, used in requests as <code>blocks.&lt;block_id&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>start</code>, <code>end</code></td>
+<td>The block's times, written any ordinary way: <code>8:30</code>, <code>08:30</code> and <code>8:30 AM</code> all mean the same thing. Blocks may overlap; the solver never gives one person two assignments that overlap in time.</td>
+</tr>
+<tr>
+<td><code>day_types</code></td>
+<td><strong>Comma-separated</strong>, from <code>first_day</code>, <code>last_day</code>, <code>weekday</code>, <code>weekend</code>. Which kinds of day the block exists on.</td>
+</tr>
+<tr>
+<td><code>program_type</code></td>
+<td><strong>Comma-separated</strong>, from <code>main season</code>, <code>other</code>. Which programmes it exists in.</td>
+</tr>
+<tr>
+<td><code>categories</code></td>
+<td><strong>Comma-separated.</strong> Groups of blocks a request can name at once: <code>blocks.all_clinics</code>, <code>blocks.meals</code>. <code>blocks</code> (every block) is built in and may not be used as a category name.</td>
+</tr>
+</tbody>
+</table>
+<p>A block exists on a day when the day runs one of its programmes <strong>and</strong> is one of its kinds
+of day. Nothing writes a day's kinds down: a day is <code>weekday</code> or <code>weekend</code> by the calendar,
+and also <code>first_day</code> or <code>last_day</code> when it is one end of its Calendar row, so most days are
+two kinds at once.</p>
+<p>One block id is spoken for: <code>cabin_act</code> is the slot the
+<a href="#cabin-act-sheets-the-cabin-acts-folder">cabin act sheets</a> are scheduled into.</p>
+<p>Example:</p>
+<table>
+<thead>
+<tr>
+<th>block_id</th>
+<th>start</th>
+<th>end</th>
+<th>day_types</th>
+<th>program_type</th>
+<th>categories</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>breakfast</td>
+<td>08:00</td>
+<td>09:00</td>
+<td>weekday, weekend</td>
+<td>main season, other</td>
+<td>meals</td>
+</tr>
+<tr>
+<td>clinic_1</td>
+<td>09:15</td>
+<td>10:30</td>
+<td>weekday</td>
+<td>main season</td>
+<td>all_clinics</td>
+</tr>
+<tr>
+<td>cabin_act</td>
+<td>13:00</td>
+<td>14:00</td>
+<td>weekday</td>
+<td>main season</td>
+<td></td>
+</tr>
+<tr>
+<td>pack_out</td>
+<td>09:15</td>
+<td>11:00</td>
+<td>last_day</td>
+<td>main season</td>
+<td></td>
+</tr>
+<tr>
+<td>playstation</td>
+<td>17:00</td>
+<td>18:00</td>
+<td>weekday, weekend</td>
+<td>main season, other</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>So the clinic blocks run Monday to Friday of a main season session; breakfast, lunch and
+playstation run every day of every programme; and pack-out runs only on the day a session
+ends. If every day has the same shape, write <code>weekday, weekend</code> on every block.</p>
+<p>Blocks are the real periods of the day, not 30-minute slices. A short task such as a
+break is written with <code>FOR EXACTLY 30m</code> and takes part of a block; the Staff View shows the rest
+of that block as <code>DYOW/WPs</code> ("do your own work or work projects"). See the
+<a href="../skedge/">Skedge reference</a>.</p>
+<p>Staff with no assignment in the <code>playstation</code> block are marked <code>Available</code> in the Staff
+View.</p>
+<h2 id="calendar-config-spreadsheet">Calendar (config spreadsheet)<a class="headerlink" href="#calendar-config-spreadsheet" title="Permanent link">&para;</a></h2>
+<p>One row per span of days: a session, or anything else camp runs. A fortnight is one row,
+not fourteen.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>What the span is called. A <code>main season</code> row is reached by its number rather than this name, but the name still has to be there and has to be unique.</td>
+</tr>
+<tr>
+<td><code>start date</code>, <code>end date</code></td>
+<td>Both included. Two rows may not cover the same day. Format the column as a date and write it however you like — see below.</td>
+</tr>
+<tr>
+<td><code>program type</code></td>
+<td><code>main season</code> or <code>other</code>, matched against each block's <code>program_type</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>start date</th>
+<th>end date</th>
+<th>program type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Session 1</td>
+<td>2026-06-14</td>
+<td>2026-06-27</td>
+<td>main season</td>
+</tr>
+<tr>
+<td>Session 2</td>
+<td>2026-06-28</td>
+<td>2026-07-11</td>
+<td>main season</td>
+</tr>
+<tr>
+<td>Family Camp</td>
+<td>2026-09-01</td>
+<td>2026-09-05</td>
+<td>other</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The main season rows are numbered in sheet order</strong>, and that number is the name in
+Skedge: the first is <code>dates.session_1</code>, the second <code>dates.session_2</code>. Anything
+else is reached by its name, as <code>dates.family_camp</code>. Inserting a main season row
+renumbers the ones after it, so a request naming <code>dates.session_4</code> follows the sheet.
+A row that is not main season cannot be named so that it would read as one of the other
+date names — <code>Season</code>, <code>Target</code>, <code>Session 4</code>, <code>Session Target</code> — and a load says so.</p>
+<p>The target date must be one of these spans. It is the first thing checked on every load,
+before any other sheet is read, because no block exists on a day camp is not running and so
+nothing else would mean anything.</p>
+<p><strong>Dates may be written however the sheet shows them.</strong> Google Sheets hands the program a
+date cell as whatever it <em>displays</em>, so a column formatted as a date arrives as
+<code>6/14/2026</code>, <code>14 June 2026</code> or <code>Sunday, June 14, 2026</code> depending on the sheet's locale and
+format. All of those are read, as is plain <code>2026-06-14</code> typed as text, and an unformatted
+cell's serial number. The one thing that cannot be worked out is a numeric date whose first
+two parts are both twelve or less: <code>6/7/2026</code> is the 7th of June on a sheet set to the
+United States and the 6th of July on most others. That is what <code>date_order</code> in
+<code>config.toml</code> is for — <code>mdy</code> by default, <code>dmy</code> for the rest of the world — and it is only
+consulted for dates that could be read both ways.</p>
+<p><strong>Weeks are not written down.</strong> A span's week 1 is its first seven days, week 2 the next
+seven, and so on, with a short week at the end if it does not divide evenly. A row that
+starts on the day your weeks start therefore lines up with the calendar, and the request
+manager's calendar shows each row's <code>S&lt;session&gt;</code> and <code>W&lt;week&gt;</code> down the left-hand side, so
+you can see at a glance whether it does.</p>
+<p><code>dates.session_4.week_2</code> is the second week of session 4,
+<code>{dates.session_4 &amp; dates.mondays}</code> is every Monday of it, and
+<code>dates.season</code> is every date the sheet covers. See
+<a href="../skedge/#dates">Dates</a> for the full list of date names.</p>
+<h2 id="requests-on-this-computer">Requests (on this computer)<a class="headerlink" href="#requests-on-this-computer" title="Permanent link">&para;</a></h2>
+<p>Requests are not a sheet. Nobody edits them anywhere but in the request manager, and only
+one Puppet Master schedules at a time, so they live in one file on the Puppet Master's
+computer, <code>~/.config/puppet_strings/requests.sqlite</code>. Saving a request is instant and
+costs no Google requests.</p>
+<p><strong>Backups on Drive.</strong> The requests are the one thing Puppet Strings keeps that no sheet
+holds, so a copy of them goes where the sheets are: a <strong>Database Backups</strong> folder in the
+Puppet Strings folder, one file per snapshot, named for the moment it was taken
+(<code>requests-2026-09-24-143207.sqlite</code>). The window takes one on each load, and skips it when
+no request has changed since the last one went, so a day that writes nothing sends nothing.
+<strong>Configure → Requests → Back up</strong> takes one whenever you ask, and
+<code>puppet-strings backup-requests</code> does the same from the command line.</p>
+<p>Nothing older is ever deleted or overwritten: several snapshots is the point, since the
+newest is no use if what went wrong was a request rewritten three days ago. To put one back,
+download it from Drive and <strong>Import…</strong> it, which is the handover path below.</p>
+<p><strong>Handing over.</strong> When another Puppet Master takes over, <strong>Configure → Requests → Export…</strong>
+writes the requests to a file, and they <strong>Import…</strong> it on their computer. An import
+replaces every request there with the file's; the ones it replaced are kept beside the
+file as <code>requests.before-import.sqlite</code> until the next import. A file that is not a
+requests file, or holds a request the app would refuse, is refused whole and changes
+nothing. From the command line:</p>
+<div class="highlight"><pre><span></span><code>puppet-strings export-requests handover.sqlite
+puppet-strings import-requests handover.sqlite
+</code></pre></div>
+<p>Every request has a <strong>scope</strong>: the days it is read on. A load of a date reads every
+request whose scope covers that date, and no other, so a request does its work over
+exactly the days of its scope and the rest of the season never sees it.</p>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>Read on</th>
+<th>For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Day</td>
+<td>That one date</td>
+<td>Anything asked of one day.</td>
+</tr>
+<tr>
+<td>Week</td>
+<td>Every date of its week of the session</td>
+<td>A week's arrangements.</td>
+</tr>
+<tr>
+<td>Session</td>
+<td>Every date of its session</td>
+<td>What was asked of one session in particular. A new request is scoped to its session unless you say otherwise.</td>
+</tr>
+<tr>
+<td>Season</td>
+<td>Every date of the year's season</td>
+<td>What holds all season: the legal limits, the standing agreements.</td>
+</tr>
+</tbody>
+</table>
+<p>Weeks and sessions are the Calendar sheet's: a span that is not a numbered session is its
+own session, and its weeks are its days seven at a time. The <strong>scope</strong> box in the request
+manager offers the day, week, session and season of the date being scheduled. A request's
+Skedge can still narrow the days it is about, with <code>ON</code>: its scope says when it is read,
+and its Skedge what it asks for once it is.</p>
+<p>A day's clinics are asked for by one season-long request, <code>REQUEST EACH activities.clinics.offerings</code>, which
+reads whichever day's Offerings tab is loaded; see the <a href="../skedge/#asking-for-an-activity-without-naming-anybody">Skedge
+reference</a>.</p>
+<p>Each request has these fields, all edited in the request manager:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>Unique and stable. The app gives a new request the next free number for its scope — <code>season-2</code>, <code>s4-1</code> for session 4, <code>s4w2-1</code> for its second week, <code>jun08-1</code> for a day — and never changes it. Appears in the solver's report.</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>Plain language, for people. May be left empty: the id is what names the request.</td>
+</tr>
+<tr>
+<td><code>skedge</code></td>
+<td>The request itself; see the <a href="../skedge/">Skedge reference</a>.</td>
+</tr>
+<tr>
+<td><code>priority</code></td>
+<td>One of <code>MUST_HAPPEN</code>, <code>CLINIC</code>, <code>HIGH</code>, <code>MEDIUM</code>, <code>LOW</code>. <code>STABILITY</code> is the solver's own during a <a href="../same-day/">same-day change</a> and is never a request's.</td>
+</tr>
+<tr>
+<td><code>weight</code></td>
+<td>A positive number, 1 unless said otherwise. Always 1 with <code>MUST_HAPPEN</code>.</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>Any labels you like, for filtering in the request manager.</td>
+</tr>
+<tr>
+<td><code>group</code></td>
+<td>The one <a href="../app/#groups">group</a> the request is on in the request manager, such as <code>Special daily requests</code>, or none.</td>
+</tr>
+<tr>
+<td><code>requester</code></td>
+<td>Who asked for this, as a staff name: <code>mary_kate</code>. None if it is nobody's in particular. A name that is not on the Skills sheet makes the request invalid, so a typo is caught rather than lost.</td>
+</tr>
+<tr>
+<td><code>created</code></td>
+<td>The date it was made, for the record.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="adjustments-config-spreadsheet">Adjustments (config spreadsheet)<a class="headerlink" href="#adjustments-config-spreadsheet" title="Permanent link">&para;</a></h2>
+<p>One row per staff member per date, for the day only: who is resting, and whose RAL is
+down. See <a href="../same-day/">Same-day changes</a> for what each column does and why absence
+lives here rather than in a request. The tab is optional; without it nobody is adjusted.</p>
+<table>
+<thead>
+<tr>
+<th>date</th>
+<th>staff</th>
+<th>resting</th>
+<th>RAL_penalty</th>
+<th>note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-06-15</td>
+<td>Alesa</td>
+<td>all day</td>
+<td></td>
+<td>sick</td>
+</tr>
+<tr>
+<td>2026-06-15</td>
+<td>Vic</td>
+<td></td>
+<td>1</td>
+<td>short sleep</td>
+</tr>
+</tbody>
+</table>
+<h2 id="mappings-config-spreadsheet">Mappings (config spreadsheet)<a class="headerlink" href="#mappings-config-spreadsheet" title="Permanent link">&para;</a></h2>
+<p>A mapping is a table that takes one or more names and gives back a value. There are two
+kinds:</p>
+<ul>
+<li>A <strong>numeric</strong> mapping gives a number, such as how much each staff member enjoys each
+  clinic. A request scores assignments with it using <code>MAXIMIZE</code> or <code>MINIMIZE</code>:
+  <code>PREFER EACH s IN staff DO EACH c IN activities.clinics MAXIMIZE
+  mappings.preference(s, c)</code>.</li>
+<li>Any other mapping gives a <strong>name</strong>, such as each counselor's buddy HERO, who covers their
+  cabin at dinner. A request can put the call anywhere a name goes:
+  <code>REQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.evening</code>.</li>
+</ul>
+<p>Mappings take <strong>two kinds of tab</strong> in the config spreadsheet:</p>
+<ol>
+<li><strong>One tab named <code>Mappings</code></strong> that lists every mapping you have, what it takes and what
+   it gives. Think of it as a table of contents. It has one row per mapping.</li>
+<li><strong>One tab per mapping holding the rows themselves</strong>, named <code>mapping_</code> followed by the
+   mapping's name: <code>mapping_enjoyment</code>.</li>
+</ol>
+<p>If you have no mappings yet, create the <code>Mappings</code> tab with just its header row and leave
+it empty.</p>
+<h3 id="step-by-step-an-enjoyment-mapping">Step by step: an enjoyment mapping<a class="headerlink" href="#step-by-step-an-enjoyment-mapping" title="Permanent link">&para;</a></h3>
+<p><strong>1. Add a row to the <code>Mappings</code> tab.</strong></p>
+<table>
+<thead>
+<tr>
+<th>mapping</th>
+<th>keys</th>
+<th>value</th>
+<th>scale_min</th>
+<th>scale_max</th>
+<th>default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>enjoyment</td>
+<td>staff, activities.clinics</td>
+<td>numeric</td>
+<td>1</td>
+<td>5</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>What to put there</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mapping</code></td>
+<td>A short name. It becomes <code>mappings.enjoyment</code> in requests, and names its tab <code>mapping_enjoyment</code>.</td>
+</tr>
+<tr>
+<td><code>keys</code></td>
+<td><strong>Comma-separated.</strong> What each key may be, as Skedge sets: one per argument the mapping takes. <code>staff, activities.clinics</code> means one rating per staff member per clinic. A bare namespace such as <code>staff</code> means any name in it; a set expression such as <code>{staff - staff.counselor}</code> narrows it down.</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>numeric</code> for a number, or a Skedge set the value must come from.</td>
+</tr>
+<tr>
+<td><code>scale_min</code>, <code>scale_max</code></td>
+<td>Numeric mappings only. The lowest and highest rating you will ever enter. Ratings are converted to 0–1 against this scale, not against whatever ratings happen to exist, so adding a new rating never changes how the old ones weigh. Leave both blank for any other mapping.</td>
+</tr>
+<tr>
+<td><code>default</code></td>
+<td>Optional. What a key with no row of its own gives. For a numeric mapping it is a number. Leave it blank and an unrated pair is worth <code>scale_min</code>, the bottom of the scale. Set it to the middle of the scale (3 of 1–5 above) and an unrated pair counts as ordinary rather than disliked. A default outside the scale is a load error.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>2. Create a tab named <code>mapping_enjoyment</code>.</strong> Give it one column per key, headed <code>key1</code>,
+<code>key2</code> and so on in the order the <code>keys</code> cell lists them, and then a <code>value</code> column:</p>
+<table>
+<thead>
+<tr>
+<th>key1</th>
+<th>key2</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dylan</td>
+<td>Archery 1 &amp; 2</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Dylan</td>
+<td>Candle Making</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Mogee</td>
+<td>Candle Making</td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+<p>Write the names as they appear on the other sheets (<code>Dylan</code>, <code>Archery 1 &amp; 2</code>), not as
+Skedge identifiers, so you can paste rows from elsewhere. A value outside the scale is a
+load error.</p>
+<p><strong>3. There is no step 3.</strong> A staff-and-clinic pair with no row of its own is worth the
+<code>default</code>, so you only need rows for the ratings you actually have. A second mapping, say
+<code>variety_need</code> keyed by <code>staff</code>, is another row on the <code>Mappings</code> tab and another tab named
+<code>mapping_variety_need</code> with columns <code>key1</code> and <code>value</code>.</p>
+<p>The default matters more than it looks. With a blank default, every clinic nobody has
+rated sits at the bottom of the scale, so the solver treats "not rated yet" as "disliked"
+and crowds people onto the few clinics that are rated. A default in the middle of the
+scale says "no opinion", and only the ratings you actually enter pull for or against.</p>
+<h3 id="step-by-step-buddy-heros">Step by step: buddy HEROs<a class="headerlink" href="#step-by-step-buddy-heros" title="Permanent link">&para;</a></h3>
+<p>A cabin has the same buddy for the whole session, so the buddies are a mapping from each
+counselor to someone who isn't one.</p>
+<p><strong>1. Add a row to the <code>Mappings</code> tab.</strong></p>
+<table>
+<thead>
+<tr>
+<th>mapping</th>
+<th>keys</th>
+<th>value</th>
+<th>scale_min</th>
+<th>scale_max</th>
+<th>default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>buddy</td>
+<td>staff.counselor</td>
+<td>{staff - staff.counselor}</td>
+<td></td>
+<td></td>
+<td>ANY 1 {staff - staff.counselor - staff.director}</td>
+</tr>
+</tbody>
+</table>
+<p>For a mapping that gives a name, the <code>default</code> is a Skedge phrase: what a call stands for
+when its key has no row. <code>ANY 1 {…}</code> lets the solver pick anyone from that set. A
+single name such as <code>staff.alan</code> also works, and so does <code>ALL {…}</code>. A default of more
+than one name needs its quantifier. Leave the <code>default</code> blank and every counselor needs a
+row: a request that asks about one without a row is an error.</p>
+<p><strong>2. Create a tab named <code>mapping_buddy</code>.</strong></p>
+<table>
+<thead>
+<tr>
+<th>key1</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dylan</td>
+<td>Alan</td>
+</tr>
+<tr>
+<td>James</td>
+<td>Sarah</td>
+</tr>
+</tbody>
+</table>
+<p>Every row is checked when the day loads, the same way a request is. A key that isn't a
+counselor, a buddy who is a counselor, a name that doesn't exist and a default that reaches
+outside the <code>value</code> set are all load errors, and each one names the row. The one exception is
+a person who is resting all day or away. They're in no category that day, so whether they
+are a counselor can't be checked, and it isn't. A buddy who is off that day is passed over
+for the default, so their cabin is still covered.</p>
+<h2 id="the-schedules-tree">The schedules tree<a class="headerlink" href="#the-schedules-tree" title="Permanent link">&para;</a></h2>
+<p>Everything Puppet Strings reads lives in one folder, chosen in the Configure pane. Nothing
+else is configured: the folder is walked and things are recognised by their names.</p>
+<div class="highlight"><pre><span></span><code>Puppet Strings/
+  Database Backups         a copy of the requests, one file per snapshot
+  2027/
+    Clinic_Data            the season's reference sheets, found by name
+    Clinic_Schedule
+    Skills
+    Config
+    Requests               a tab per session; see above
+    Main Season/
+      Session 1/
+        Staff Categories   one spreadsheet, for that span's staff
+        Monday_1           one spreadsheet per day
+        Tuesday_1
+        Monday_2           the second week's Monday
+    Other/
+      August Family Camp/
+        Staff Categories
+        Monday_1
+</code></pre></div>
+<p>The root holds a folder per year and the year is taken from the date being scheduled. A
+reference sheet is looked for in that year's folder first and at the root second, so a
+season can keep its own <code>Skills</code> without copying everything else, and sheets that never
+change can sit at the root.</p>
+<p>Under the year, the programme is the span's <code>program type</code> and the folder under it is its
+<code>name</code>, both read off the <a href="#calendar-config-spreadsheet">Calendar</a>, so nothing is written
+down twice. A day is named for its weekday and which week of its span it falls in, because a
+fortnight reaches Monday more than once.</p>
+<p><strong>Reload makes a day's spreadsheet</strong> when it is not there yet, with the Offerings
+grid copied from the Clinic Schedule template — weekday set to its own — and the other tabs
+empty, ready for Publish. It never touches a sheet that is already there, so a grid you have
+pruned stays pruned.</p>
+<h3 id="a-days-spreadsheet">A day's spreadsheet<a class="headerlink" href="#a-days-spreadsheet" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Tab</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Offerings</code></td>
+<td>The grid of what runs that day, started from the template and edited by hand</td>
+</tr>
+<tr>
+<td><code>Assignments</code></td>
+<td>One row per assignment: the record the solver reads back</td>
+</tr>
+<tr>
+<td><code>Staff View</code>, <code>Clinic View</code>, <code>Report</code></td>
+<td>Written on Publish, for people to read</td>
+</tr>
+<tr>
+<td><code>Changes</code></td>
+<td>Added by a same-day re-solve, saying what moved</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>Assignments</code> tab is the one the program reads; the views are drawn from it and cannot
+be read back, because a grid of names does not say who was on what for how long. A day whose
+<code>Assignments</code> tab is empty has been set up but not solved, which is how the app knows
+whether a date is published.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>staff</code>, <code>activity</code>, <code>role</code>, <code>block</code></td>
+<td>Who does what, in which role, in which block</td>
+</tr>
+<tr>
+<td><code>start</code></td>
+<td>Where the task starts inside its block, written as <code>HH:MM</code></td>
+</tr>
+<tr>
+<td><code>minutes</code></td>
+<td>How long it lasts; a clinic fills its block</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>offering</code>, or the request id that required it</td>
+</tr>
+</tbody>
+</table>
+<p>Ad hoc tasks are written in quotes (<code>'counselor hour'</code>).</p>
+<p>These tabs are overwritten on every publish:</p>
+<ul>
+<li><strong>Staff View</strong>: one row per staff member at camp, one column per block, with each block's
+  tasks in time order and <code>DYOW/WPs</code> for unused time. Only the people the span's Staff
+  Categories sheet names get a row; the Skills sheet keeps everyone who has ever worked
+  here, and the ones it lists who are not here this session are left off both views.
+  Somebody an <code>EXCLUDE</code> has taken out of a block has that request's label in the cell —
+  <code>offsite</code>, <code>at the dentist</code> — rather than an empty one.
+  A merged title says which day it is, the names and the block headings are frozen so they
+  stay put as the grid is scrolled, each block column carries the colour it has on the
+  Clinic View, every other row is banded, and the columns are wide enough — and wrapped —
+  for two tasks in one block to read as two lines.</li>
+<li>
+<p><strong>Clinic View</strong>: the printable clinic schedule. A merged title (<code>Day 4, Session 1 -
+  Wednesday</code>), a header of clinic blocks, then one row per clinic grouped by category in
+  Clinic_Data order with a blank row between groups. A clinic with two positions takes two
+  rows (1st above 2nd); trainees get a <code>Shadow</code> or <code>Scaffold</code> row beneath. Nothing has a
+  row unless somebody is on it: a clinic that was offered and could not be staffed, or that
+  a request put off to another day, is not happening today and is not on the schedule. The
+  Report is what names a clinic that was asked for and did not run. After the clinics come
+  the other tasks (counselor hours, breaks) one name per row, a row per <code>EXCLUDE</code> label
+  with the people it takes out of the day, and a final <code>DYOW/WPs</code> group listing everyone
+  with nothing in that block. Somebody who is away is in their own row rather than among
+  the people who are free. Title and clinic names are bold and the top
+  rows are frozen.</p>
+<p>It is also coloured, so a printed copy can be read across a room. Each clinic block
+has a colour of its own, on its heading and on every cell of that column with a name
+in it, which leaves the gaps white: a clinic that runs in one block and not another
+shows as blank in the block it does not run in. Each category on Clinic_Data has a colour of its own too, on
+the name of every clinic in it, so a category reads as one run down the left-hand
+column. Both sets of colours are the lists in <code>puppet_strings/publish/palette.py</code>;
+change a colour there and the next publish uses it. Colours are given out in sheet
+order and wrap round if a day ever has more clinic blocks, or Clinic_Data more
+categories, than the list has colours.
+- <strong>Report</strong>: unsatisfied and deferred requests, conflicts, and solver notes. One row per
+  request, not per <code>EACH</code> copy: the <code>request</code> column is the request's own id, and where only some copies of a request went wrong, they are listed after the
+  description — <code>no break at lunch (2026-09-18)</code>.
+- <strong>Changes</strong>: what a same-day re-solve moved, written only when the day was already
+  published. See <a href="../same-day/">Same-day changes</a>.</p>
+</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

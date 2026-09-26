@@ -1,0 +1,1139 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Staff schedule automation for Camp Augusta">
+      
+      
+      
+      
+        <link rel="prev" href="../sheets/">
+      
+      
+        <link rel="next" href="../training/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>The request manager - Puppet Strings</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#the-request-manager" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Puppet Strings" class="md-header__button md-logo" aria-label="Puppet Strings" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Puppet Strings
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              The request manager
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Puppet Strings" class="md-nav__button md-logo" aria-label="Puppet Strings" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Puppet Strings
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install and set up
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sheets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The sheets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The request manager
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The request manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#canvas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canvas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Groups
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Errors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conflicts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning Skedge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../same-day/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Same-day changes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skedge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skedge specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How the solver decides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical-outline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#canvas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canvas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Groups
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Errors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conflicts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="the-request-manager">The request manager<a class="headerlink" href="#the-request-manager" title="Permanent link">&para;</a></h1>
+<div class="highlight"><pre><span></span><code>puppet-strings app
+</code></pre></div>
+<p><img alt="The request manager" src="../img/app.png" /></p>
+<p><strong>Toolbar.</strong> Pick the target date (tomorrow by default). Only the Calendar is read when the
+window opens, so the calendar panel is shaded and numbered from the start; <strong>Reload</strong> reads every sheet for the date shown, and again whenever it is pressed.
+After the first Reload, changing the date reads the new day by itself.
+Right-clicking a day in the calendar panel and choosing <strong>Set as target</strong> does both at once:
+it makes that day the target and reads it.
+The Calendar is read first and the date checked against it, so a date camp is not running
+says so at once — naming the range the calendar covers and the nearest camp day — rather
+than after a slow read of everything else. It is a prompt to pick another date, not a
+failure: the window stays as it was, and the calendar panel shades the days you can choose.
+Reading the sheets puts up a progress panel, the one the solver uses, without a Cancel
+button: it cannot usefully be stopped part-way, but takes long enough over Google Sheets to
+be worth saying so. It runs off the window's own thread, so the panel keeps painting and
+the window stays alive while it works.
+The day's clinics are asked for by one standing request, kept all season at <code>CLINIC</code>
+priority:</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH activities.clinics.offerings
+</code></pre></div>
+<p><code>activities.clinics.offerings</code> is the loaded date's Offerings tab, each clinic in the block it runs in, so the
+one request asks for whatever that day offers; see
+<a href="../skedge/#asking-for-an-activity-without-naming-anybody">offerings</a>. Each clinic is
+staffed from its positions on Clinic_Data, and runs fully staffed or not at all.</p>
+<p><strong>Reload</strong> also makes the day's spreadsheet when it is not there yet, with its Offerings
+grid copied from the Clinic Schedule template and its other tabs empty. So a day nobody has
+set up is one click from being ready, and the next Reload reads what you put in the grid.</p>
+<p>A clinic you add to the Offerings tab or take off it is asked for, or not, on the next
+<strong>Reload</strong>. To ask for one clinic differently, for example to limit who runs it, leave its
+offering out of <code>REQUEST EACH activities.clinics.offerings</code> and write it a request of its own. <strong>Solve</strong> builds the schedule and opens
+it in a window with the staff view, the clinic view and the report; it asks first if the
+date has no clinics offered.
+<strong>Publish</strong> in that window writes the day's own spreadsheet in the
+<a href="../sheets/#the-schedules-tree">schedules tree</a>, asking first if the date is already
+published.</p>
+<p><strong>Cabin acts</strong> need no button. They are activities, read from every sheet in the Cabin
+Acts folder each time <strong>Reload</strong> runs. Two requests ask for all of them, one for the acts
+in the cabin act block and one for those the board moved to rest hour:</p>
+<div class="highlight"><pre><span></span><code>REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.cabin_act
+REQUEST EACH activities.cabin_acts.at_rest_hour DURING blocks.rest_hour
+</code></pre></div>
+<p>Each act's HEROES cell becomes its positions, so who may fill them is already written
+down. A hero nothing on the sheets answers to is reported with the other load warnings,
+naming the cabin and the day. See
+<a href="../sheets/#cabin-act-sheets-the-cabin-acts-folder">The sheets</a> for the grid they come from.</p>
+<p><strong>Configure</strong>, on the right-hand end of the toolbar, is where the Google account and the
+sheets are chosen. See <a href="../install/#5-sign-in-and-choose-the-sheets">Install and set up</a>.
+Its <strong>Requests</strong> row hands the requests over and backs them up; see
+<a href="../sheets/#requests-on-this-computer">Requests</a>. It also has <strong>Open trainer</strong>, which starts
+<a href="../training/">the trainer</a> in a window of its own.</p>
+<p><strong>Same-day changes.</strong> Once the day on screen is published, the toolbar offers
+<strong>Same-day changes</strong> and <strong>Who is off today…</strong>. See <a href="../same-day/">Same-day changes</a>.</p>
+<h2 id="canvas">Canvas<a class="headerlink" href="#canvas" title="Permanent link">&para;</a></h2>
+<p><strong>Table</strong> and <strong>Canvas</strong>, at the right-hand end of the toolbar, switch how the requests are
+shown. The window remembers which one you used last. On the canvas, every request that passes
+the filters is a card, and each group is a frame of cards. The groups are laid out in rows,
+and <code>Ungrouped</code> stands apart to their left. Everything else stays where it is: the groups
+pane, the filters, the Namespaces and Calendar panes, and the Errors and Messages tabs.</p>
+<p><img alt="The canvas" src="../img/canvas.png" /></p>
+<ul>
+<li><strong>Moving around.</strong> Scroll to zoom at the pointer. Drag the empty canvas to pan (or drag
+  with the middle button, or with Space held). Click or drag the minimap to jump somewhere;
+  it opens out under the pointer for a finer aim. <strong>F</strong> shows everything, <strong>Ctrl+1</strong> is
+  actual size, and <strong>+</strong> and <strong>−</strong> zoom. Picking a group in the groups pane takes you to
+  its frame. Until you move the camera, it keeps everything in view as the requests change.</li>
+<li><strong>Editing.</strong> Click a card and type. The card turns into the editor, with the cursor in
+  the field you clicked. A card clicked from far away is brought up to full size first.
+  Clicking away saves it, and so does <strong>Ctrl+S</strong>. Nothing is checked while you type; a card
+  that does not validate is saved all the same and says why on its bottom line, and a solve
+  leaves it out until it is fixed. <strong>Escape</strong> puts it back to how it was saved.</li>
+<li><strong>New requests.</strong> Press <strong>New request</strong> beside the zoom controls or in a frame's header,
+  double-click inside a frame, or press <strong>N</strong> for the group nearest the middle of the view.
+  A new card left empty is thrown away. New cards go at the front of their frame, and
+  stay where they are once saved for as long as you are zoomed in far enough to read the
+  cards in full, so several written in a row do not jump about. Zoom out past that and
+  they move to their priority's place with the rest.</li>
+<li><strong>Moving and deleting.</strong> Drag a card onto another frame, or onto a group in the groups
+  pane, to move it to that group. Shift-click, or Shift-drag a box, to pick several.
+  <strong>Delete</strong> deletes the cards picked, after asking.</li>
+<li><strong>Arranging the groups.</strong> Zoom out until the cards are plain blocks, then drag anywhere
+  on a group to move the whole group. At that distance a drag moves groups; close enough
+  to read the cards, it moves cards. Groups stay where you put them, even between runs.
+  <strong>Reset layout</strong>, beside the zoom controls, puts them all back. It only shows once a
+  group has been moved.</li>
+</ul>
+<p>From far away, a card shows its priority and description in large type. From further out
+still, it is a block of its priority's colour, so you can see a group's shape and find the
+one you want.</p>
+<h2 id="groups">Groups<a class="headerlink" href="#groups" title="Permanent link">&para;</a></h2>
+<p><strong>The groups pane.</strong> Down the left-hand side is every group of requests, with how many
+requests are in each. Click one and the table shows only that group. <code>All requests</code> and
+<code>Ungrouped</code> head the list and are not groups themselves: <code>Ungrouped</code> is whatever is in no
+group at all, which is how a request that has been forgotten about turns up.</p>
+<p>Two groups are always there — <strong>Special daily requests</strong> and <strong>Special weekly
+requests</strong> — and you make the rest. <strong>New</strong> asks for a name, <strong>Rename</strong>
+renames a group everywhere it is used, and <strong>Delete</strong> takes a group off its requests
+without deleting the requests themselves. The two default groups cannot be renamed or
+deleted.</p>
+<p><strong>A request sits on one shelf</strong>, the way a piece of paper is in one folder, or on none.
+Groups and tags are separate, so a request in the <code>Ropes rewrite</code> group can still be
+tagged <code>legal</code>, and a request that is about several things is a job for tags.</p>
+<p>There are two ways a request gets its group, and no others:</p>
+<ul>
+<li><strong>A new request joins the group being shown.</strong> Pick the group first, then <strong>New</strong>.</li>
+<li><strong>Drag its row onto a group's label to move it.</strong> Select one row or several, drag them
+  across to the pane, and let go over the group they should be on. What travels with the
+  pointer is a small card naming the first request, with a count on its corner when there
+  are more, and the group a drop would land on is outlined as the pointer passes over it.
+  Dropping them on
+  <code>Ungrouped</code> takes them off every shelf. The status line says how many moved. <code>All
+  requests</code> is not a shelf, so the pointer shows a refusal over it; hold the drag at the
+  top or the bottom of the list and it scrolls, so a group below the fold can be dropped
+  on like any other.</li>
+</ul>
+<p><strong>Right-click a group</strong> to choose the <a href="../sheets/#requests-on-this-computer">scope</a> its <em>new</em>
+requests take — a group of standing agreements can scope its requests to the season without
+your having to remember each time. Requests already made keep theirs: a request's scope is
+when it applies, and changing a group's default is not a reason to move them.</p>
+<p>A request's group is saved with it, so it is there again the next time the app opens. A group you have just made and put nothing in yet stays in the pane
+until you close the app.</p>
+<p><strong>The table.</strong> One row per request. Click a column heading to sort by it. Filters above
+it: free text over id, description, Skedge and requester; priority; tag; staff; activity;
+and a date. These narrow whatever group is showing, so the group is the shelf and the
+filters are the search. The number beside each group counts the requests in it that the
+filters let through, which is how many rows picking it would show. To ask how far a request reaches, filter by the date itself.</p>
+<p><strong>on date</strong> is ticked to begin with, and starts on the date being scheduled and follows it,
+because that is the day you are almost always asking about. Ticked, the table shows the
+requests read on that date that are about it; a request that does not validate is shown
+whatever the date, so it cannot hide from the view you would fix it in. Moving the filter
+to look at another day leaves the target date alone, so you can check next Monday without
+changing what Solve would build.</p>
+<p>Unticked, the table lists every request in the file, whatever date it is scoped to: other
+days' clinics, other sessions' requests, all of them. The ones scoped away from the target
+date can be opened, edited, moved between groups and deleted, but Solve only ever uses the
+ones read on the target date. This works with no date loaded too, before the first Reload
+or on a date camp is not running: ticked, the table is empty, since nothing happens on that
+date; unticked, it lists every request. Editing one needs a camp day loaded, since that is
+what its Skedge is checked against.</p>
+<p>The staff and activity filters use the names a request resolves to, so filtering by
+<code>dylan</code> finds requests written for <code>staff.counselor</code> as well.</p>
+<h2 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h2>
+<p>Along the bottom are two tabs, <strong>Errors</strong> and <strong>Messages</strong>.</p>
+<p><strong>Messages</strong> is everything the window has to say, each message with the time it was said
+and each part on a line of its own: after a load, the requests read, whether the day
+is published, the conflicts, the errors and each warning about the sheets.</p>
+<p><strong>The errors pane.</strong> Along the bottom, everything wrong with the requests that can be seen
+without solving. Two kinds of thing sit in it: <strong>conflicts</strong>, where two requests cannot
+both be kept, and <strong>errors</strong>, where one request on its own asks for something the sheets
+rule out. Both name a slot and the requests to go and look at, and double-clicking a row
+opens that request in the editor.</p>
+<h3 id="conflicts">Conflicts<a class="headerlink" href="#conflicts" title="Permanent link">&para;</a></h3>
+<p>Every place two requests contradict each other. Each heading is one collision — one person, one date, one block —
+and everything under it belongs to that collision: the requests caught in it and the
+reasons they cannot all hold. A request in two collisions appears under both.
+Double-click one to open it in the editor.</p>
+<p><strong>A conflict means the day cannot be built at all</strong>, so only <code>MUST_HAPPEN</code> requests make
+one. Two requests of any lower priority wanting different things of the same person in the
+same block is not a conflict: the solver keeps the one worth more and says in the report
+that it could not meet the other, and the day still comes out. There have to be at least
+two requests that <em>must</em> happen, about one person, in one block, on one date, asking for
+things that cannot both be true.</p>
+<table>
+<thead>
+<tr>
+<th>What it catches</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Asked to work and to be free</td>
+<td><code>REQUEST staff.dylan DO activities.clinics.riflery DURING blocks.clinic_1</code> beside <code>REQUEST staff.dylan FREE DURING blocks.clinic_1</code></td>
+</tr>
+<tr>
+<td>Asked to do something and told not to</td>
+<td>the same, beside <code>REQUEST staff.dylan NOT DO ANY activities.clinics.weapons</code></td>
+</tr>
+<tr>
+<td>Asked to be free and to be busy</td>
+<td><code>FREE</code> beside <code>BUSY</code> in one block</td>
+</tr>
+<tr>
+<td>Two things at once that do not fit</td>
+<td>two <code>FOR</code> tasks whose minutes exceed the block, or two clinics in one block</td>
+</tr>
+</tbody>
+</table>
+<p><img alt="The errors pane" src="../img/conflicts.png" /></p>
+<p>Sharing a slot is not by itself a collision: two requests asking for the same clinic agree,
+and two half-hour tasks fit in one block quite happily. What they say has to be impossible.</p>
+<p>It also reads only what is <strong>settled</strong>. <code>REQUEST ANY 1 staff DO …</code>, <code>DURING ANY
+2 blocks</code> and every <code>PREFER</code> leave the solver room to move, and moving things around each
+other is its job, so they are never reported. What is left is worth looking at: a request
+saved into a collision says so in the toolbar as it saves. One request may hold several
+statements, so it can also contradict itself, and that shows up the same way.</p>
+<h3 id="errors_1">Errors<a class="headerlink" href="#errors_1" title="Permanent link">&para;</a></h3>
+<p>One request, on its own, asking for something that cannot happen. Every name in it exists —
+the validator has already said so — and it is still wrong:</p>
+<table>
+<thead>
+<tr>
+<th>What it catches</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Somebody who is not checked off</td>
+<td><code>REQUEST staff.henry DO activities.clinics.aerial_silks DURING blocks.clinic_3</code> when Henry has no aerial silks checkoff, or not the RAL the position needs, or is not one of the people a cabin act's card asks for</td>
+</tr>
+<tr>
+<td>A position the activity does not have</td>
+<td><code>AS_ROLE roles.third</code> on a clinic with two positions</td>
+</tr>
+<tr>
+<td>A clinic the day does not run then</td>
+<td><code>DURING blocks.clinic_3</code> when the day's Offerings tab runs it in clinic 1, or does not run it at all</td>
+</tr>
+<tr>
+<td>Work asked of somebody who is away</td>
+<td>a request naming somebody an <a href="../skedge/#exclude-somebody-who-is-not-here"><code>EXCLUDE</code></a> has taken out of that block</td>
+</tr>
+</tbody>
+</table>
+<p>The error says which sheet answers it — the Skills sheet for a checkoff, the day's
+Offerings tab for a block — and, where the day runs the clinic somewhere else, which block
+that is, since that is usually what was meant.</p>
+<p>The same two rules apply as to conflicts. Only what is <strong>settled</strong> is read: <code>ANY 1
+staff</code> names nobody in particular, so nobody in particular is unqualified — the solver
+picks somebody who is checked off, and that is its job. And a day with nothing offered yet
+is not a day of errors: until its Offerings tab is filled in nothing is offered, which
+is one thing to see to rather than fifty.</p>
+<p>Asking for somebody who is not checked off is not a <code>MUST_HAPPEN</code> question, so an error is
+listed whatever the request's priority: at <code>MUST_HAPPEN</code> the day will not solve, and at any
+other priority the request is simply never met, which is worth knowing before rather than
+after.</p>
+<p>The pane is not a substitute for solving. It finds what is plain on paper; the solver
+finds the rest and names the requests it could not meet.</p>
+<p><strong>The editor.</strong> One field per request column and a Skedge editor with highlighting.
+<strong>group</strong> says which shelf the request is on and is not a field you fill in — the pane is
+where that is decided. <strong>requester</strong> records who asked for it — type a staff name and it
+completes, the same names <code>staff.</code> gives you in the Skedge box. A requester who is not on
+the Skills sheet makes the request invalid, which saving says, so a misremembered name is
+caught rather than forgotten. <strong>description</strong> is for people and may be left empty.</p>
+<p>The id is given on the first save and never changes afterwards; it is what the solver's
+report refers to. It is the next free number on the tab the request is written to — <code>s4-1</code>,
+<code>s4-2</code>, <code>season-1</code> — and is <strong>not</strong> made out of the description, so rewording a request
+does not rename it and a request needs no description at all.</p>
+<p><strong>Nothing is checked while you type</strong>: half-written Skedge is always wrong, and being told
+so at every pause is noise. The request is checked when you save it (Save, or Ctrl+S) and
+saved whatever the check finds. The line under the editor then says
+<code>✓ Saved s1-12 at 14:32:05</code>, in green, with the time, so a second save of the same request
+still visibly does something; or, in red, what is wrong with it and where: a request that
+does not validate is kept, and a solve leaves it out and says so in its report until it is
+fixed. Until you save, the line says nothing: not for a new request, and not for one you
+open. A card on the canvas still says on its bottom line how a saved request stands.
+<strong>New</strong> starts a
+fresh request; <strong>Delete</strong> removes the one being edited. To delete several, select their
+rows in the table and press the Delete key; a popup lists them and asks first. Saving is
+instant: requests are kept on this computer, not in a sheet. The <strong>scope</strong> box chooses the
+days a request is read on: this date, its week, its session (the default for a new one), or
+the season.</p>
+<p><strong>The scope follows the <code>ON</code>.</strong> As you write a Skedge whose <code>ON</code> names particular dates, the
+scope box moves to the narrowest scope that holds them all: <code>ON 2026-09-24</code> scopes the
+request to that day, <code>ON ANY {2026-09-14 .. 2026-09-18}</code> to that week, a range across weeks
+to the session. The line under the editor says when it does. An <code>ON</code> that moves with the
+date being scheduled, such as <code>dates.target - 6d .. dates.target</code>, asks the same of every
+day, so it leaves the scope alone; so does opening a request, and so does picking a scope
+yourself, which then stays for that request. A request is only read on its scope's days,
+so it cannot be saved with a scope that misses a date its <code>ON</code> names: a box says which
+days, and offers the scope that holds them. <strong>Keep editing</strong> goes back to the request.</p>
+<p><strong>Name completion.</strong> Start typing any part of a name in the Skedge box and a list of names
+appears and narrows as you keep typing. The namespace is optional: <code>dyl</code> finds
+<code>staff.dylan</code>, <code>clinic_3</code> finds <code>blocks.clinic_3</code>, and <code>riflery</code> finds
+<code>activities.clinics.riflery</code>. Typing a namespace and a dot, such as <code>staff.</code>, lists
+everything in it.</p>
+<p><img alt="Completing a staff name" src="../img/completer.png" />
+ Enter or Tab takes the highlighted
+name, Escape closes the list. The names offered are exactly the ones the validator
+accepts, so anything the list gives you is spelled right.</p>
+<p>Keywords are not looked up, so <code>do</code> is a word being written rather than a search.</p>
+<p><strong>Namespaces.</strong> The panel on the right lists every valid name with a one-line note: a staff
+member's name, how many members a category has, a block's times, a date. Press Enter, or
+right-click, to insert the highlighted name at the cursor.</p>
+<p><strong>Double-click a name to open it</strong>, which answers what the one-line note cannot:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>What opens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A staff member</td>
+<td>Where they stand on every skill they have a mark against — a tick for a checkoff, and otherwise the sheet's own word, <code>WCF</code> or <code>w/ scaf</code> — and every category they are in</td>
+</tr>
+<tr>
+<td>A staff category</td>
+<td>Its members</td>
+</tr>
+<tr>
+<td>A clinic</td>
+<td>What each position asks for, and everyone on the sheets who could hold it</td>
+</tr>
+<tr>
+<td>A cabin act</td>
+<td>The same, for the day being scheduled, plus what the cabin act board wrote on its card. A cabin with nothing on that day says which days it does have</td>
+</tr>
+<tr>
+<td>A mapping</td>
+<td>Its table, with each key column headed by the set it takes, and what a key with no row gives: a number for a numeric mapping, a Skedge phrase such as <code>ANY 1 {staff.office}</code> for any other. You can <strong>edit</strong> both; Save writes the table to the mapping tab and the default to the Mappings tab</td>
+</tr>
+<tr>
+<td>A date or a role</td>
+<td>Nothing. A date's note is the date and a role is a word</td>
+</tr>
+</tbody>
+</table>
+<p>Opening an activity is worth the habit, since a request for one names nobody: it is where
+you check that the people you expect are the people it can have.</p>
+<p><strong>Publish</strong> writes the day out with a panel up saying so, and puts the window back when
+it is done. If Google says the writing is coming too fast — it allows sixty writes a minute
+per person — it waits and tries again rather than giving up on a half-written day.</p>
+<p><strong>Reload</strong> reads the day: the sheets every pane and every request is checked against. What
+was published on the days <em>before</em> it is the solver's business alone, so it is not waited
+for — it is fetched in the background as soon as the load finishes, and is usually there
+before Solve is pressed. Pressing Solve sooner reads it then instead.</p>
+<p><strong>Calendar.</strong> Below the names, a calendar with camp days (the dates on the Calendar sheet)
+shaded. Down its left-hand side, each week is labelled with the session and week it is,
+<code>S4</code> over <code>W2</code>, taken from the Calendar sheet — the numbers <code>dates.session_4.week_2</code>
+is built from, rather than the week of the year. Click any date to insert it into the
+Skedge editor at the cursor, as <code>2026-06-15</code>.</p>
+<p>Its rows begin on the weekday the span being looked at begins on, so that a row <em>is</em> one
+week of one session and the label beside it is true of all seven days. Camp's weeks start
+on a Sunday, and so does the pane before any sheet has been read, whatever the machine's
+own idea of the first day of the week is.</p>
+<p><strong>Saving a request about other dates.</strong> A request does not have to be about the date being
+scheduled: <code>ON ALL dates.session_2.week_1</code> is a perfectly good request to write in
+the middle of session 1. It will do nothing to the schedule you are about to solve, though,
+which is easy to write by accident — a mistyped date, or <code>session_2</code> where you meant
+<code>session_1</code>. So saving such a request asks first, names the dates it <em>is</em> about, and
+lets you either save it anyway or go back to editing.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
