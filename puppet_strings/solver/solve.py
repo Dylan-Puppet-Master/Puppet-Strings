@@ -45,6 +45,7 @@ RESOLVED_AGAINST = (
     "calendar",
     "spans",
     "mappings",
+    "cabin_act_checkboxes",
 )
 
 

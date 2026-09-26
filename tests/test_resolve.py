@@ -453,6 +453,13 @@ def test_a_checkbox_is_a_name_on_a_day_nobody_ticked_it(dataset):
     assert acts_named(elsewhere, "activities.cabin_acts.lvl_2_on_ground") == []
 
 
+def test_a_checkbox_only_a_blank_board_has_is_still_a_name(dataset):
+    blank = replace(with_cards(dataset), cabin_act_checkboxes=frozenset({"Level 2 on Ground"}))
+    assert acts_named(blank, "activities.cabin_acts.level_2_on_ground") == []
+    listing = dict(name_listing(blank)["activities"])
+    assert listing["cabin_acts.level_2_on_ground"] == "category, 0 members"
+
+
 def test_a_checkbox_cannot_take_a_halfs_name(dataset):
     clash = with_cards(dataset, today=(("At Cabin Act", "FALSE"),))
     assert acts_named(clash, "activities.cabin_acts.at_cabin_act") == ["cabin_act_m2_2026_09_16"]

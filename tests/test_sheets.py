@@ -652,6 +652,24 @@ def test_a_load_can_leave_the_days_behind_it_for_later(source):
     assert load_dataset(source, CONFIG, target).published == filled.published
 
 
+BLANK_BOARD = [
+    ["Cabin Act Sorting - S6W1"],
+    ["", "Monday", "", "", "", "", "Tuesday"],
+    [],
+    ["M1", "Activity", "", "Van", "FALSE", "", "Activity", "", "Van", "FALSE"],
+    ["", "Description", "", "Risk", "N", "", "Description", "", "Risk", "N"],
+    ["", "HEROES", "", "Level 2 on Ground", "FALSE", "", "HEROES", "", "Level 2 on Ground", ""],
+]
+
+
+def test_a_blank_board_has_no_acts_but_names_its_checkboxes():
+    """A template nobody has filled in yet still says what its checkboxes are called."""
+    from puppet_strings.sheets.cabin_acts import checkbox_labels, parse_board
+
+    assert parse_board(BLANK_BOARD, "S6W1") == ()
+    assert checkbox_labels(BLANK_BOARD, "S6W1") == {"Van", "Level 2 on Ground"}
+
+
 def test_a_cabin_act_at_rest_hour_says_so_at_one_end_of_its_title():
     from datetime import date as _date
 

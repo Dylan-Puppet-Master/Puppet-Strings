@@ -12,7 +12,7 @@ from puppet_strings.requests_db import RequestDb, open_requests
 from puppet_strings.sheets import mappings as mappings_sheet
 from puppet_strings.sheets.adjustments import parse_adjustments, resting_blocks
 from puppet_strings.sheets.blocks import ALL_BLOCKS, block_categories, parse_blocks
-from puppet_strings.sheets.cabin_acts import cabin_act_activities, parse_board
+from puppet_strings.sheets.cabin_acts import cabin_act_activities, checkbox_labels, parse_board
 from puppet_strings.sheets.calendar import calendar_days, parse_calendar
 from puppet_strings.sheets.categories import parse_staff_categories
 from puppet_strings.sheets.clinic_data import parse_clinics
@@ -236,7 +236,7 @@ def _build(
             f"{len(away)} on the Skills sheet are in no category this span, so they are away"
         )
     named = {**categories, ALL: at_camp, CLINIC_TRAINERS: trainers(staff) & at_camp}
-    read_boards, board_warnings = boards.result()
+    read_boards, checkboxes, board_warnings = boards.result()
     warnings += board_warnings
     cabin_acts, cabin_warnings = cabin_act_activities(
         read_boards, _weeks_by_weekday(spans), staff, named, skills
@@ -300,6 +300,7 @@ def _build(
         away=frozenset(away),
         usual_staff=staff,
         named_categories=named,
+        cabin_act_checkboxes=checkboxes,
         warnings=tuple(warnings),
     )
     # Last, because who is away for a day is written in the requests and the requests are
@@ -322,8 +323,12 @@ CABIN_ACTS_FOLDER = "cabin_acts"
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
 
-def _cabin_act_boards(source: Source, config: Config) -> tuple[dict[str, tuple], list[str]]:
+def _cabin_act_boards(
+    source: Source, config: Config
+) -> tuple[dict[str, tuple], frozenset[str], list[str]]:
     """Every cabin act sheet's Board tab, parsed, and anything that stopped one being read.
+
+    Beside them, every checkbox label on any board: a blank template names its sets too.
 
     Only the folder itself is optional: an install that has not chosen one has no cabin
     acts and nothing to say about it. Anything that goes wrong *inside* the folder — a
@@ -335,12 +340,14 @@ def _cabin_act_boards(source: Source, config: Config) -> tuple[dict[str, tuple],
     try:
         sheets = source.group(CABIN_ACTS_FOLDER)
     except LoadError:
-        return {}, []  # no folder chosen, which is a way of having no cabin acts
+        return {}, frozenset(), []  # no folder chosen, which is a way of having no cabin acts
     try:
         tables = source.read_all(sheets, tab)
     except LoadError as e:
-        return {}, [f"cabin acts: no cabin act runs today, because {e}"]
-    return {title: parse_board(table, title) for title, table in tables.items()}, []
+        return {}, frozenset(), [f"cabin acts: no cabin act runs today, because {e}"]
+    boards = {title: parse_board(table, title) for title, table in tables.items()}
+    labels = frozenset().union(*(checkbox_labels(t, title) for title, t in tables.items()))
+    return boards, labels, []
 
 
 def _weeks_by_weekday(spans: tuple[Span, ...]) -> dict[tuple[int, int], dict[str, date]]:

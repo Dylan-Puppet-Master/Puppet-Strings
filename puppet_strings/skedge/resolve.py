@@ -407,8 +407,9 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
     `at_rest_hour` each half of them, so each half is asked for on its own.
 
     A checkbox on the board names today's acts it is ticked on, whichever half they are in:
-    `activities.cabin_acts.lvl_2_on_ground`. The name is there whenever any board has the
-    checkbox, so that a day nobody ticked it is an empty set rather than an unknown name.
+    `activities.cabin_acts.level_2_on_ground`. The name is there whenever any board has the
+    checkbox, even on a blank card, so that a day nobody ticked it is an empty set rather
+    than an unknown name.
 
     `activities.clinics.offerings` is the day's Offerings tab (`offering_names`). Its items
     are clinics at a time rather than clinics, so it is in none of the sets above it.
@@ -419,9 +420,8 @@ def activity_names(dataset: Dataset) -> dict[str, Named]:
         AT_CABIN_ACT: {i: a for i, a in today.items() if not a.rest_hour},
         AT_REST_HOUR: {i: a for i, a in today.items() if a.rest_hour},
     }
-    boxes = {
-        normalize(label) for a in dataset.activities.values() if a.cabin for label in a.checkboxes
-    } - {"", *halves}
+    labels = {label for a in dataset.activities.values() if a.cabin for label in a.checkboxes}
+    boxes = {normalize(label) for label in labels | dataset.cabin_act_checkboxes} - {"", *halves}
     ticked = {
         box: frozenset(
             i

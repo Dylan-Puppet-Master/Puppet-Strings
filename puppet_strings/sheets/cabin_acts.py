@@ -27,7 +27,7 @@ names the two kinds apart, `at_cabin_act.p4` and `at_rest_hour.p2`; which block 
 in is still for a request to say.
 
 A checkbox on the card, a label with TRUE or FALSE beside it, names the acts it is ticked
-on: "Lvl 2 on Ground" makes `activities.cabin_acts.lvl_2_on_ground`.
+on: "Level 2 on Ground" makes `activities.cabin_acts.level_2_on_ground`.
 """
 
 import re
@@ -35,7 +35,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 
-from puppet_strings.model import POSITION_ROLES, Activity, Position, Staff
+from puppet_strings.model import POSITION_ROLES, Activity, Position, Staff, checkbox
 from puppet_strings.names import normalize
 from puppet_strings.sheets.source import LoadError, Table, split_list
 
@@ -98,10 +98,43 @@ def parse_board(table: Table, where: str) -> tuple[CabinAct, ...]:
     A cabin with nothing written against a weekday yields nothing, so a mostly empty sheet
     costs nothing to read.
     """
+    acts = []
+    for (name, weekday), card in _cards(table, where).items():
+        written = {normalize(label): value for label, value in card.items()}
+        heroes = tuple(split_list(written.get(HEROES, "")))
+        ticked = any(checkbox(value) for value in card.values())
+        if heroes or written.get(ACTIVITY) or ticked:
+            acts.append(
+                CabinAct(
+                    name,
+                    weekday,
+                    written.get(ACTIVITY, ""),
+                    heroes,
+                    tuple((label, value) for label, value in card.items() if value),
+                )
+            )
+    return tuple(acts)
+
+
+def checkbox_labels(table: Table, where: str) -> frozenset[str]:
+    """The labels of every checkbox on a Board tab, blank cards included.
+
+    A new week's board is a blank template before anyone fills it in, and its checkboxes
+    should name their sets from the start, so a request can be written against them.
+    """
+    return frozenset(
+        label
+        for card in _cards(table, where).values()
+        for label, value in card.items()
+        if checkbox(value) is not None
+    )
+
+
+def _cards(table: Table, where: str) -> dict[tuple[str, str], dict[str, str]]:
+    """Each card on a Board tab, by cabin and weekday: its labels and what is beside them."""
     if len(table) <= FIRST_CABIN_ROW:
         raise LoadError(f"{where}: expected a weekday row and a row of cabins below it")
     days = _weekday_columns(table[DAY_ROW], where)
-    acts = []
     cabin = ""
     cards: dict[tuple[str, str], dict[str, str]] = {}
     for cells in table[FIRST_CABIN_ROW:]:
@@ -114,21 +147,7 @@ def parse_board(table: Table, where: str) -> tuple[CabinAct, ...]:
                 label = _cell(cells, column + pair)
                 if label:
                     cards.setdefault((cabin, weekday), {})[label] = _cell(cells, column + pair + 1)
-    for (name, weekday), card in cards.items():
-        written = {normalize(label): value for label, value in card.items()}
-        heroes = tuple(split_list(written.get(HEROES, "")))
-        ticked = any(value.strip().upper() == "TRUE" for value in card.values())
-        if heroes or written.get(ACTIVITY) or ticked:
-            acts.append(
-                CabinAct(
-                    name,
-                    weekday,
-                    written.get(ACTIVITY, ""),
-                    heroes,
-                    tuple((label, value) for label, value in card.items() if value),
-                )
-            )
-    return tuple(acts)
+    return cards
 
 
 def _weekday_columns(header: list[str], where: str) -> list[tuple[int, str]]:

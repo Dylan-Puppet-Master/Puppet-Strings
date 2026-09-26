@@ -128,6 +128,14 @@ class Position:
         return self.who is None or member.id in self.who
 
 
+def checkbox(value: str) -> bool | None:
+    """Whether a checkbox is ticked, or None if the cell is not one.
+
+    A sheet writes a checkbox as TRUE or FALSE.
+    """
+    return {"TRUE": True, "FALSE": False}.get(value.strip().upper())
+
+
 @dataclass(frozen=True)
 class Activity:
     """A clinic from Clinic_Data.
@@ -157,14 +165,9 @@ class Activity:
 
     @property
     def checkboxes(self) -> dict[str, bool]:
-        """The card's checkboxes by label, ticked or not.
-
-        A sheet writes a checkbox as TRUE or FALSE, so a label with either beside it is one.
-        """
+        """The card's checkboxes by label, ticked or not."""
         return {
-            label: value.strip().upper() == "TRUE"
-            for label, value in self.card
-            if value.strip().upper() in ("TRUE", "FALSE")
+            label: ticked for label, value in self.card if (ticked := checkbox(value)) is not None
         }
 
 
@@ -561,6 +564,9 @@ class Dataset:
     # from, so an adjustment made in the app is applied without reading anything again.
     usual_staff: Mapping[str, Staff] = field(default_factory=dict)
     named_categories: Mapping[str, frozenset[str]] = field(default_factory=dict)
+    # Every checkbox label on any cabin act board, blank cards included, so that each names
+    # a set of acts on every day, even one that holds none.
+    cabin_act_checkboxes: frozenset[str] = frozenset()
     warnings: tuple[str, ...] = ()
 
     @property

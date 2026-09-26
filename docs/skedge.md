@@ -423,9 +423,9 @@ its cabin, so `activities.cabin_acts.at_cabin_act.p4` is P4's act today, and a c
 name only on a day it has an act.
 
 A checkbox on the board's cards names the day's acts it is ticked on, in either half: a
-"Lvl 2 on Ground" checkbox is `activities.cabin_acts.lvl_2_on_ground`, and one labeled
+"Level 2 on Ground" checkbox is `activities.cabin_acts.level_2_on_ground`, and one labeled
 "Van" is `activities.cabin_acts.van`. The name is there on a day nobody ticked the box,
-as a set of nothing.
+as a set of nothing, and from the moment any board has the checkbox, even a blank one.
 
 An act with nobody in its HEROES cell is one the cabin runs itself. It is asked for like
 any other and runs with nobody on it, so a test that names no one sees it running.
@@ -672,8 +672,8 @@ IF ANY activities.clinics.ropes DURING b THEN
 }
 ```
 
-With the cabin acts whose board has "Lvl 2 on Ground" ticked added in, `IF ANY
-{activities.clinics.ropes + activities.cabin_acts.lvl_2_on_ground} DURING b`, the same
+With the cabin acts whose board has "Level 2 on Ground" ticked added in, `IF ANY
+{activities.clinics.ropes + activities.cabin_acts.level_2_on_ground} DURING b`, the same
 request covers them too, including an act the cabin runs itself with no HEROES.
 
 Anything asked for from outside the braces counts in full: a statement of the same request
