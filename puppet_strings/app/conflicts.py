@@ -80,7 +80,9 @@ def find_conflicts(
     slots: dict[tuple[str, date, str], list[Claim]] = {}
     for request in must_happen:
         for copy in resolved.get(request.id, ()):
-            for statement in copy.statements:
+            for statement, when in zip(copy.statements, copy.when, strict=True):
+                if when:
+                    continue  # an IF or UNLESS makes it the solver's to settle, not settled here
                 for slot, claim in _claims(statement, request, dataset):
                     slots.setdefault(slot, []).append(claim)
     found = []

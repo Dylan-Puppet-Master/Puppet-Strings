@@ -63,7 +63,9 @@ def find_errors(
     offered = _offered(dataset)
     for request in requests:
         for copy in resolved.get(request.id, ()):
-            for statement in copy.statements:
+            for statement, when in zip(copy.statements, copy.when, strict=True):
+                if when:
+                    continue  # an IF or UNLESS makes it the solver's to settle, not settled here
                 if isinstance(statement, Requirement):
                     found += _of_requirement(statement, request, dataset, offered)
     return tuple(_distinct(found))

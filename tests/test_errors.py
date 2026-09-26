@@ -93,6 +93,15 @@ def test_work_asked_of_somebody_who_is_away(dataset):
     assert [e.message for e in back if "is 'offsite'" in e.message] == []
 
 
+def test_a_conditional_requirement_is_not_checked_until_the_solver_settles_it(dataset):
+    """A THEN is only asked for when its IF holds, which this pane cannot know in advance."""
+    guarded = (
+        "IF ANY staff FREE DURING blocks.clinic_2 THEN\n"
+        "{ " + ARCHERY.replace("clinic_1", "clinic_2") + " }"
+    )
+    assert found(dataset, req("maybe", guarded)) == ()
+
+
 def test_a_day_that_offers_nothing_is_not_a_day_of_errors(dataset):
     """Before Load offerings there is nothing to be offered in, which is one thing, not fifty."""
     from dataclasses import replace

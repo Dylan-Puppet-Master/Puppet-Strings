@@ -55,6 +55,12 @@ def test_only_what_must_happen_can_conflict(dataset):
     assert found(dataset, req("pin", PIN), req("free", FREE))
 
 
+def test_a_conditional_requirement_does_not_conflict_until_the_solver_settles_it(dataset):
+    """A THEN is only asked for when its IF holds, which this pane cannot know in advance."""
+    guarded = f"IF ANY staff FREE DURING blocks.clinic_2 THEN\n{{ {PIN} }}"
+    assert found(dataset, req("maybe", guarded), req("free", FREE)) == ()
+
+
 def test_sharing_a_slot_is_not_a_conflict(dataset):
     """Two promises in one slot are only a conflict if they cannot both be kept."""
     second = PIN.replace(
