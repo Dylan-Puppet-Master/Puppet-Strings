@@ -166,7 +166,8 @@ class During(Clause):
     """`DURING <blocks>`, and with `consecutive`, `DURING ANY|<count> CONSECUTIVE <blocks>`.
 
     With `across` it is `ACROSS <blocks>`: the same blocks, over which a FOR is what the
-    pieces add up to rather than the length of each.
+    pieces add up to rather than the length of each. A set written bare after ACROSS is a
+    pool, so the parser gives it ANY.
     """
 
     selector: Selector
@@ -176,9 +177,10 @@ class During(Clause):
 
 @dataclass(frozen=True)
 class On(Clause):
-    """`ON <dates>`."""
+    """`ON <dates>`, and with `across`, `ACROSS <dates>`: every count and FOR adds up over them."""
 
     selector: Selector
+    across: bool = False
 
 
 @dataclass(frozen=True)

@@ -84,9 +84,10 @@ The parser reads this grammar, in [Lark](https://lark-parser.readthedocs.io) EBN
 // Each keyword is a terminal of its own at a priority above NAME, and ends in `\b` so that
 // it only ever takes a whole word: `format` is a name, not `FOR` and then `mat`.
 
-// An ON on the first line is every statement's: written once, where they would each repeat it.
-// Only the first, since an ON starting any later line carries on the statement above it.
-start       : _NL* (on _NL+)? line (_NL+ line)* _NL*
+// An ON or an ACROSS of dates on the first line is every statement's: written once, where
+// they would each repeat it. Only the first, since one starting any later line carries on
+// the statement above it.
+start       : _NL* ((on | across) _NL+)? line (_NL+ line)* _NL*
 ?line       : binding | define | define_task | if_ | unless | labeled | request | prefer | gap
             | exclude
 
@@ -147,8 +148,9 @@ length      : BOUND DURATION
 _clauses    : clause*
 ?clause     : during | across | on | as_role | for_ | with_ | without
 during      : _DURING chooser
-// The blocks a FOR adds up over: its length is what the pieces in them come to, where
-// with DURING it is the length of each piece.
+// The blocks or the dates every count and FOR adds up over, taken whole as one pool. Over
+// blocks a FOR is what the pieces in them come to, where with DURING it is each piece's
+// length; over dates, a count or a FOR is of all of them together.
 across      : _ACROSS chooser
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
@@ -163,7 +165,7 @@ without     : _WITHOUT chooser as_role?
 // ANY with no number is any of these: the set is one pool. ANY n chooses n of it, once for
 // the statement. A count measures, in front of the set it counts. CONSECUTIVE is about
 // blocks, after DURING or ACROSS: `ANY 2 CONSECUTIVE blocks` picks blocks in a row, and
-// `ACROSS ANY CONSECUTIVE blocks` adds up a FOR over each run.
+// `ACROSS CONSECUTIVE blocks` adds up a FOR over each run.
 chooser     : (ALL | ANY | amount)? CONSECUTIVE? set_
             | any_n CONSECUTIVE? set_
             | EACH set_
@@ -416,15 +418,23 @@ Evaluation order is fixed:
 same as `ANY 1`; it differs only where rules 3 and 4 differ: a choice sits outside the
 units, a pool inside them.
 
-**A block is a block on a date.** Blocks happen every day, so where a statement's dates are
-pooled with `ANY`, a count of its blocks counts each block on each of those dates:
-`DURING AT_MOST 8 blocks.all_clinics ON ANY dates.session_1` is at most eight clinic
+**`ACROSS` dates.** `ACROSS <dates>`, in place of `ON`, is the dates taken whole as one
+pool, over which every count and `FOR` of the statement adds up. `ON ANY <dates>` is the
+same pool read as "one of these dates": a count, a `FOR`, or `ANY n` blocks for n of 2 or
+more over more than one date is an error there, and takes `ACROSS`. Without them the two
+are the same. An `ACROSS` of dates takes no quantifier: `ANY` is already what it does, and
+a pick or a count of the dates themselves is written with `ON`. On the first line, an
+`ACROSS` is every statement's, as an `ON` is, and is of dates.
+
+**A block is a block on a date.** Blocks happen every day, so `ACROSS` a statement's
+dates, a count of its blocks counts each block on each of those dates:
+`DURING AT_MOST 8 blocks.all_clinics ACROSS dates.session_1` is at most eight clinic
 blocks over the session, clinic 1 on Monday and clinic 1 on Tuesday being two. Everywhere
 else the blocks are counted on one date at a time — the dates are one date, split with
 `EACH`, or counted outside the blocks by rule 2 — except under `ALL` dates, one unit by
 rule 3, where a block counts when the rest holds in it on every one of them. A count of
-blocks over pooled dates takes no group. `ANY n` of blocks over pooled dates is a pick of
-blocks on those dates, the same way: `DURING ANY 2 blocks ON ANY dates.session_1`
+blocks over pooled dates takes no group. `ANY n` of blocks `ACROSS` dates is a pick of
+blocks on those dates, the same way: `DURING ANY 2 blocks ACROSS dates.session_1`
 is two blocks in the session, on one day or two.
 
 The activity and `AS_ROLE` take one thing at a time, since a person does one thing in a
@@ -436,7 +446,7 @@ a role, `ANY` or `EACH`. A choice or a count of activities is of different ones:
 CONSECUTIVE blocks` picks two adjacent blocks. `DURING AT_LEAST 2 CONSECUTIVE
 blocks` holds when some **run** of adjacent blocks the rest holds for reaches 2,
 `AT_MOST` when no run exceeds it, and `EXACTLY` when both do. Blocks are adjacent when they
-are next to each other in the Blocks sheet, on one date. `ACROSS ANY CONSECUTIVE blocks`
+are next to each other in the Blocks sheet, on one date. `ACROSS CONSECUTIVE blocks`
 pools each run on its own, for a `FOR` to add up (§7.1). A run never crosses from one date
 to the next.
 
@@ -535,13 +545,14 @@ A piece never leaves its block: `DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks`
 breaks of 30 minutes, and `FOR EXACTLY 45m DURING ANY blocks` is one piece of 45 minutes
 in any block. A length no block of the statement is long enough for is an error.
 
-With `ACROSS` in place of `DURING`, `FOR` is what the pieces add up to over the blocks:
-`DO 'video editing' FOR AT_LEAST 2h ACROSS ANY blocks` is two hours in whichever blocks.
-Pooled dates and people are added up with them. `ACROSS ANY CONSECUTIVE` adds up each run
+With `ACROSS` in place of `DURING`, `FOR` is what the pieces add up to over the blocks.
+`ACROSS` takes its set whole as a pool, with no `ANY`: `DO 'video editing' FOR AT_LEAST 2h
+ACROSS blocks` is two hours in whichever blocks. Dates `ACROSS` and pooled people are
+added up with them. `ACROSS CONSECUTIVE` adds up each run
 on its own, a run being one staff member's blocks. `ANY n`, `ALL` or a count after `ACROSS`
 says how many of the blocks hold a piece: `FOR EXACTLY 2h ACROSS ANY 3 blocks` is two hours
 in three pieces, and `FOR AT_LEAST 2h ACROSS AT_MOST 3 blocks` is two hours in no more than
-three. Those pieces are counted a day at a time, so over pooled dates `ACROSS` pools the
+three. Those pieces are counted a day at a time, so over several dates `ACROSS` pools the
 blocks. `ACROSS` needs a `FOR`, and takes no `ANY n CONSECUTIVE` or group.
 
 `FOR` always says how the length is bounded, `EXACTLY`, `AT_LEAST` or `AT_MOST`, as a
@@ -551,7 +562,7 @@ may be cut short: to what remains, or under `AT_LEAST` to any length that reache
 `ACROSS` counts the pieces, any of them may be cut short.
 
 An activity, `FREE` or `BUSY` fills its blocks, so a `FOR` on one adds the lengths of the
-blocks up and takes `ACROSS`: `EACH staff.counselor FREE FOR AT_LEAST 2h ACROSS ANY
+blocks up and takes `ACROSS`: `EACH staff.counselor FREE FOR AT_LEAST 2h ACROSS
 blocks.all_clinics`.
 
 ## 8. Patterns
@@ -681,7 +692,7 @@ A declaration is lines of these kinds, in any order.
 | Definition | `x: s`, `x: '<task>'` | A name for a set, or for a quoted task (§6.3). |
 | Condition | `IF <test> THEN { … }` | The statements in the braces apply only when this holds. |
 | Negative condition | `UNLESS <test> THEN { … }` | The statements in the braces apply only when this does not hold. |
-| Shared dates | `ON <dates>`, on the first line only | Goes on every `REQUEST`, `PREFER` and `EXCLUDE`; none may have its own. |
+| Shared dates | `ON <dates>` or `ACROSS <dates>`, on the first line only | Goes on every `REQUEST`, `PREFER` and `EXCLUDE`; none may have its own. |
 | Gap | `GAP a TO b [<amount>]` | Relates the assignments of the `REQUEST` labeled `a` to those of the one labeled `b`. |
 
 The braces hold statements, labeled or not, and further conditions, which apply only when
@@ -850,9 +861,16 @@ the solver report:
 | `CONSECUTIVE is about blocks, so it goes after DURING or ACROSS` | `CONSECUTIVE` in any clause but `DURING` or `ACROSS`, or on a subject or activity. |
 | `ANY CONSECUTIVE is a run of blocks to add a FOR up over` | `DURING ANY CONSECUTIVE …`; the message gives `ACROSS`, and `ANY n` for blocks in a row. |
 | `ACROSS adds up a FOR over the blocks; with no FOR, write DURING` | `ACROSS` with no `FOR`. |
-| `ACROSS adds up over a run with ANY CONSECUTIVE` | `ACROSS ANY n CONSECUTIVE …` or `ACROSS AT_MOST n CONSECUTIVE …`. |
+| `ACROSS adds up over a run with CONSECUTIVE alone` | `ACROSS ANY n CONSECUTIVE …` or `ACROSS AT_MOST n CONSECUTIVE …`. |
+| `ACROSS pools its set already, so it takes no ANY` | `ACROSS ANY <set>`. |
+| `ACROSS adds up over blocks or over dates` | An `ACROSS` whose set is neither blocks nor dates, or both, or a mapping's value. |
+| `ACROSS takes its dates whole` | `ANY n`, `ALL`, `EACH` or a count after an `ACROSS` of dates. |
+| `an ACROSS on the first line is over the dates of every statement below it` | An `ACROSS` of blocks on the first line. |
+| `ON ANY is on one of these dates; to count or add up over all of them` | A count, a `FOR` or `ANY n` blocks (n of 2 or more) with `ON ANY` more than one date. |
+| `right of NOT nothing is added up, so the dates take ON ANY` | `NOT DO … ACROSS <dates>`. |
+| `a score adds nothing up, so the dates take ON ANY` | An `ACROSS` of dates in the pattern of a `PREFER … MAXIMIZE`. |
 | `ACROSS adds up over blocks taken one by one, so no groups` | A group or a bound name in the blocks of an `ACROSS` that picks or counts them. |
-| `the pieces of an ACROSS are counted a day at a time` | `ACROSS ANY n`, `ALL` or a count of blocks over pooled dates. |
+| `the pieces of an ACROSS are counted a day at a time` | `ACROSS ANY n`, `ALL` or a count of blocks over several dates. |
 | `right of NOT each piece is matched on its own` | `NOT DO … ACROSS …`. |
 | `a score adds nothing up, so the blocks take DURING, not ACROSS` | `ACROSS` in the pattern of a `PREFER … MAXIMIZE`. |
 | `right of NOT there are no blocks to choose, so no CONSECUTIVE` | `NOT DO … DURING ANY CONSECUTIVE …`; the message gives the count that limits a run instead. |
@@ -871,7 +889,7 @@ the solver report:
 | `an activity, FREE or BUSY fills its blocks, so a FOR on it adds the blocks` | Such a `FOR` with `DURING`, or with neither `DURING` nor `ACROSS`. |
 | `FOR is the length of each piece; to add the pieces up, write ACROSS` | A `FOR` with `DURING` longer than every block the statement is about; the message gives `ACROSS`. |
 | `PREFER is weighed by how close it comes, so it needs a count or a FOR length` | A `PREFER` with neither. |
-| `a GAP is measured from what a REQUEST makes` | A labeled `REQUEST` with a cap, `ANY n` blocks over pooled dates, or `ACROSS`. |
+| `a GAP is measured from what a REQUEST makes` | A labeled `REQUEST` with a cap, `ANY n` blocks over several dates, or an `ACROSS` of blocks. |
 | `given twice` | A clause repeated in one statement. |
 | `the ON on the first line gives this its dates already` | A statement with its own `ON` under an `ON` on the first line. |
 | `is a namespace, so it can't name anything else` | A variable, label or definition called `staff`, `blocks` or another namespace. |

@@ -172,7 +172,7 @@ def test_a_count_of_activities_counts_different_ones():
     ("bound", "least", "most"), [("AT_LEAST", 120, 150), ("EXACTLY", 120, 120)]
 )
 def test_a_length_over_a_pool_fills_blocks_but_one(bound, least, most):
-    text = f"REQUEST staff.cam DO 'video editing' FOR {bound} 2h ACROSS ANY blocks.all_clinics"
+    text = f"REQUEST staff.cam DO 'video editing' FOR {bound} 2h ACROSS blocks.all_clinics"
     ds = dataset(
         [staff("Cam")],
         [],
@@ -189,7 +189,7 @@ def test_a_length_over_a_pool_fills_blocks_but_one(bound, least, most):
 def test_a_length_in_one_go_is_a_run_of_adjacent_blocks():
     text = (
         "REQUEST staff.cam DO 'video editing' FOR AT_LEAST 2h "
-        "ACROSS ANY CONSECUTIVE {blocks.clinic_1 + blocks.clinic_2 + blocks.clinic_4}"
+        "ACROSS CONSECUTIVE {blocks.clinic_1 + blocks.clinic_2 + blocks.clinic_4}"
     )
     ds = dataset([staff("Cam")], [], requests=[request("edit", text, MUST)])
     assert {"clinic_1", "clinic_2"} <= blocks(run(ds), "video editing")
@@ -224,7 +224,7 @@ def test_a_count_across_the_blocks_caps_the_pieces():
 
 
 def test_a_prefer_across_a_count_of_blocks_is_met_in_that_many():
-    total = "REQUEST staff.cam DO 'video editing' FOR AT_LEAST 2h ACROSS ANY blocks.all_clinics"
+    total = "REQUEST staff.cam DO 'video editing' FOR AT_LEAST 2h ACROSS blocks.all_clinics"
     three = "PREFER staff.cam DO 'video editing' FOR AT_LEAST 2h ACROSS EXACTLY 3 blocks"
     ds = dataset(
         [staff("Cam")],
@@ -339,7 +339,7 @@ def test_a_count_of_blocks_over_pooled_dates_counts_each_block_on_each_date():
         requests=[
             request(
                 "most",
-                f"REQUEST staff.dylan DO 'x' DURING AT_MOST 3 blocks ON ANY {window}",
+                f"REQUEST staff.dylan DO 'x' DURING AT_MOST 3 blocks ACROSS {window}",
                 MUST,
             ),
             request(
@@ -360,7 +360,7 @@ def test_a_run_of_blocks_over_pooled_dates_stays_within_a_date():
         requests=[
             request(
                 "run",
-                f"REQUEST staff.dylan DO 'x' DURING AT_MOST 1 CONSECUTIVE blocks ON ANY {window}",
+                f"REQUEST staff.dylan DO 'x' DURING AT_MOST 1 CONSECUTIVE blocks ACROSS {window}",
                 MUST,
             ),
             request("first", "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1", Priority.LOW),

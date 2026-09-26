@@ -8,23 +8,26 @@ AT_MOST n <set>                a cap: no more than n
 AT_LEAST n, EXACTLY n          measure, in an IF, a PREFER, FOR and WITH
 FOR AT_LEAST|AT_MOST|EXACTLY <time>   how long: each piece with DURING
 ACROSS <blocks>                what the pieces add up to, in place of DURING
+ACROSS <dates>                 counts and lengths add up over all of them, in place of ON ANY
 
 REQUEST AT_MOST 2 staff.counselors DO 'break' DURING EACH blocks
 REQUEST EACH staff.village_heroes DO 'break' DURING ANY 3 blocks
 REQUEST EACH staff DO ANY activities.clinics DURING AT_MOST 1 CONSECUTIVE blocks
 REQUEST staff.kara DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks
-REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY blocks
+REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS blocks
 REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 2h ACROSS ANY 3 blocks
+REQUEST staff.dylan DO ANY activities.clinics DURING AT_MOST 3 blocks ACROSS dates.session_6
 
 • ANY n picks and never forbids; AT_MOST forbids the rest
 • A REQUEST picks with ANY n: it refuses AT_LEAST n, and EXACTLY n
 • "Exactly n" is a pick and a cap: ANY n in one statement, AT_MOST n in another
 • A pick is made once for the statement; EACH makes copies that pick for themselves
-• A block is a block on a date: over ANY dates, blocks are counted on every day
+• ON ANY <dates> is one of them, whichever; ACROSS <dates> is all of them together
+• A block is a block on a date: ACROSS dates, blocks are counted on every day
 • A pick of activities is of different ones; three breaks is a pick of blocks
 • With DURING, FOR is the length of each piece, however the blocks are taken
 • With ACROSS, FOR is what the pieces add up to; ANY n or a count says how many blocks hold one
-• ACROSS ANY CONSECUTIVE: the total of one run of back-to-back blocks
+• ACROSS CONSECUTIVE blocks: the total of one run of back-to-back blocks
 """
 
 [[problem]]
@@ -93,7 +96,7 @@ answer = "REQUEST staff.kara DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks"
 hints = ["Pick the blocks with ANY 3.", "With DURING, FOR is the length of each piece."]
 explain = "With DURING, FOR is always the length of each piece: three blocks, 30 minutes in each. ACROSS would make it what the pieces add up to."
 wrong = [
-  "REQUEST staff.kara DO 'break' FOR EXACTLY 30m ACROSS ANY blocks",
+  "REQUEST staff.kara DO 'break' FOR EXACTLY 30m ACROSS blocks",
   "REQUEST staff.kara DO 'break' FOR EXACTLY 90m ACROSS ANY 3 blocks",
 ]
 
@@ -101,24 +104,24 @@ wrong = [
 id = "count-two-hours-editing"
 title = "Two hours of editing"
 prompt = "Cam VL spends at least two hours on 'video editing' today, in whatever blocks."
-answer = "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY blocks"
+answer = "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS blocks"
 hints = ["A length is written 2h or 120m, and goes on FOR.", "ACROSS in place of DURING makes FOR a total."]
 explain = "With ACROSS, FOR is what the pieces add up to over the blocks. They fill their blocks, all but one, which is cut to what is left."
 alternatives = [
-  "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 120m ACROSS ANY blocks",
-  "REQUEST staff.cam_vl DO 'video editing' ACROSS ANY blocks FOR AT_LEAST 2h",
+  "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 120m ACROSS blocks",
+  "REQUEST staff.cam_vl DO 'video editing' ACROSS blocks FOR AT_LEAST 2h",
 ]
-wrong = ["REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 1h ACROSS ANY blocks"]
+wrong = ["REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 1h ACROSS blocks"]
 
 [[problem]]
 id = "count-two-hours-unbroken"
 title = "Two hours in one go"
 prompt = "Cam VL spends at least two hours on 'video editing' today, all in one go: one block, or blocks back to back."
-answer = "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY CONSECUTIVE blocks"
-hints = ["Start from the last problem's answer.", "ACROSS ANY CONSECUTIVE blocks adds the length up run by run instead of over the whole day."]
+answer = "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS CONSECUTIVE blocks"
+hints = ["Start from the last problem's answer.", "ACROSS CONSECUTIVE blocks adds the length up run by run instead of over the whole day."]
 explain = "Without CONSECUTIVE, two hours can be split across blocks hours apart. With it, one run of back-to-back blocks has to reach two hours. No block today is that long, so the run takes at least two."
-alternatives = ["REQUEST staff.cam_vl DO 'video editing' ACROSS ANY CONSECUTIVE blocks FOR AT_LEAST 2h"]
-wrong = ["REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY blocks"]
+alternatives = ["REQUEST staff.cam_vl DO 'video editing' ACROSS CONSECUTIVE blocks FOR AT_LEAST 2h"]
+wrong = ["REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS blocks"]
 
 [[problem]]
 id = "count-two-hours-three-blocks"
@@ -128,7 +131,7 @@ answer = "REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 2h ACROSS ANY 3 bl
 hints = ["Pick the blocks with ANY 3.", "The two hours are a total, so the blocks take ACROSS."]
 explain = "ANY 3 picks three blocks, each with a piece, and ACROSS makes FOR what the three add up to. With DURING it would be two hours in each."
 wrong = [
-  "REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 2h ACROSS ANY blocks",
+  "REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 2h ACROSS blocks",
   "REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 40m DURING ANY 3 blocks",
 ]
 
@@ -149,7 +152,7 @@ answer = "REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m DURING ANY 1 
 hints = ["With DURING, FOR is the length of one piece.", "ANY 1 blocks is one block, the solver's pick."]
 explain = "With DURING, FOR EXACTLY 45m is one piece of 45 minutes. With ACROSS it would be a total, which could be made of pieces at different times."
 alternatives = ["REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m DURING ANY blocks"]
-wrong = ["REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m ACROSS ANY blocks"]
+wrong = ["REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m ACROSS blocks"]
 
 [[problem]]
 id = "count-no-two-in-a-row"
@@ -229,11 +232,11 @@ wrong = ["REQUEST EACH staff.counselors FREE DURING ANY 2 blocks.all_clinics"]
 id = "count-hour-of-kitchen"
 title = "An hour in the kitchen"
 prompt = "Between them, the MFGs spend at least an hour on 'kitchen repair' today."
-answer = "REQUEST ANY staff.mfgs DO 'kitchen repair' FOR AT_LEAST 1h ACROSS ANY blocks"
+answer = "REQUEST ANY staff.mfgs DO 'kitchen repair' FOR AT_LEAST 1h ACROSS blocks"
 hints = ["Pool the MFGs with ANY, and ACROSS adds up what they do."]
 explain = "Pooled people add up the same way pooled blocks do. EACH would ask an hour of every one of them."
-alternatives = ["REQUEST ANY staff.mfgs DO 'kitchen repair' FOR AT_LEAST 60m ACROSS ANY blocks"]
-wrong = ["REQUEST EACH staff.mfgs DO 'kitchen repair' FOR AT_LEAST 1h ACROSS ANY blocks"]
+alternatives = ["REQUEST ANY staff.mfgs DO 'kitchen repair' FOR AT_LEAST 60m ACROSS blocks"]
+wrong = ["REQUEST EACH staff.mfgs DO 'kitchen repair' FOR AT_LEAST 1h ACROSS blocks"]
 
 [[problem]]
 id = "count-at-most-one-in-office"
@@ -261,9 +264,9 @@ wrong = ["REQUEST staff.hailey DO 'tack cleaning' FOR EXACTLY 30m DURING blocks.
 id = "count-half-hour-decimal"
 title = "Hours with a point"
 prompt = "Dylan spends at least an hour and a half on 'archery maintenance' today. Write the length in hours."
-answer = "REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 1.5h ACROSS ANY blocks"
-alternatives = ["REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 90m ACROSS ANY blocks"]
-wrong = ["REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 1h ACROSS ANY blocks"]
+answer = "REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 1.5h ACROSS blocks"
+alternatives = ["REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 90m ACROSS blocks"]
+wrong = ["REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 1h ACROSS blocks"]
 
 [[problem]]
 id = "count-no-more-than-four-busy"
@@ -278,11 +281,11 @@ wrong = ["REQUEST AT_MOST 4 staff.directors BUSY DURING ANY blocks"]
 id = "count-clinics-a-session"
 title = "Three a session"
 prompt = "Dylan is new to facilitating: over the whole session, he is first (roles.first) on at most three clinics."
-answer = "REQUEST staff.dylan DO ANY activities.clinics AS_ROLE roles.first DURING AT_MOST 3 blocks ON ANY dates.session_6"
-hints = ["Count the blocks he facilitates in.", "Over ANY dates of the session, each block of each day counts."]
-explain = "Clinic 1 on Monday and clinic 1 on Tuesday are two blocks, so a count of blocks over dates pooled with ANY is a number of times across the session. blocks.all_clinics says the same, since clinics only run in clinic blocks. ON ALL would count only the blocks he is first in on every day of the session, which asks almost nothing."
+answer = "REQUEST staff.dylan DO ANY activities.clinics AS_ROLE roles.first DURING AT_MOST 3 blocks ACROSS dates.session_6"
+hints = ["Count the blocks he facilitates in.", "The count is over the whole session: ACROSS its dates, each block of each day counts."]
+explain = "Clinic 1 on Monday and clinic 1 on Tuesday are two blocks, so a count of blocks ACROSS the session's dates is a number of times across the session. blocks.all_clinics says the same, since clinics only run in clinic blocks. ON ALL would count only the blocks he is first in on every day of the session, which asks almost nothing."
 alternatives = [
-  "REQUEST staff.dylan DO ANY activities.clinics AS_ROLE roles.first DURING AT_MOST 3 blocks.all_clinics ON ANY dates.session_target",
+  "REQUEST staff.dylan DO ANY activities.clinics AS_ROLE roles.first DURING AT_MOST 3 blocks.all_clinics ACROSS dates.session_target",
 ]
 wrong = [
   "REQUEST staff.dylan DO ANY activities.clinics AS_ROLE roles.first DURING AT_MOST 3 blocks ON ALL dates.session_6",
@@ -296,7 +299,7 @@ prompt = "Every day from today to Friday, Tori does 'feed the goats' in one bloc
 answer = "REQUEST staff.tori DO 'feed the goats' DURING ANY 1 blocks ON EACH {2026-08-04 .. 2026-08-07}"
 priority = "HIGH"
 hints = ["A request per day: ON EACH.", "In each, a pick of one block."]
-explain = "ON EACH makes a request per day, so the block can differ from day to day. ON ALL would make the days one unit: one block, picked once, the same every day. ON ANY would pick over all the days together: once in the whole week."
+explain = "ON EACH makes a request per day, so the block can differ from day to day. ON ALL would make the days one unit: one block, picked once, the same every day. ON ANY would be one of the days: once in the whole week."
 alternatives = ["REQUEST staff.tori DO 'feed the goats' DURING ANY blocks ON EACH {2026-08-04 .. 2026-08-07}"]
 wrong = [
   "REQUEST staff.tori DO 'feed the goats' DURING ANY 1 blocks ON ANY {2026-08-04 .. 2026-08-07}",
@@ -307,9 +310,9 @@ wrong = [
 id = "count-once-a-week"
 title = "Once, some day"
 prompt = "Between today and Friday, Tori does 'hay delivery' once, and no more — one block on one day."
-answer = "REQUEST staff.tori DO 'hay delivery' DURING ANY 1 blocks ON ANY {2026-08-04 .. 2026-08-07}\nREQUEST staff.tori DO 'hay delivery' DURING AT_MOST 1 blocks ON ANY {2026-08-04 .. 2026-08-07}"
-hints = ["Pool the days with ANY, and pick one block across all of them.", "No more is a cap: AT_MOST 1, over the same days."]
-explain = "Over dates pooled with ANY, the blocks are every block of every day, so ANY 1 is once in the four days and AT_MOST 1 keeps it to once."
+answer = "REQUEST staff.tori DO 'hay delivery' DURING ANY 1 blocks ON ANY {2026-08-04 .. 2026-08-07}\nREQUEST staff.tori DO 'hay delivery' DURING AT_MOST 1 blocks ACROSS {2026-08-04 .. 2026-08-07}"
+hints = ["One block on one of the days: ANY 1 blocks ON ANY {…}.", "No more is a cap counted over all four days: AT_MOST 1 blocks ACROSS {…}."]
+explain = "ON ANY is one of the days, so ANY 1 is once in the four days. The cap has to count over all of them, which is ACROSS: AT_MOST 1 keeps it to once."
 wrong = [
   "REQUEST staff.tori DO 'hay delivery' DURING ANY 1 blocks ON ANY {2026-08-04 .. 2026-08-07}",
   "REQUEST staff.tori DO 'hay delivery' DURING ANY 1 blocks ON EACH {2026-08-04 .. 2026-08-07}",

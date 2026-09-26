@@ -9,7 +9,7 @@ from lark import Lark, Token, Transformer, UnexpectedInput, v_args
 from lark.exceptions import VisitError
 
 from puppet_strings.skedge import ast
-from puppet_strings.skedge.namespaces import NAMESPACES, WHOLE
+from puppet_strings.skedge.namespaces import BLOCKS, DATES, MAPPINGS, NAMESPACES, WHOLE
 
 _GRAMMAR = (Path(__file__).parent / "grammar.lark").read_text()
 _CACHE = Path("~/.config/puppet_strings/parser.cache").expanduser()
@@ -206,10 +206,13 @@ class _Builder(Transformer):
 
     def start(self, meta, lines):
         lines = list(_flatten(lines, ()))
+        if isinstance(lines[0], ast.During):  # an ACROSS, which on the first line is dates
+            lines[0] = _across_dates(lines[0], _namespaces(lines[0].selector.expr, {}))
         if isinstance(lines[0], ast.On):
             lines = _on_every_statement(lines[0], lines[1:])
         _no_namespace_names(lines)
         declaration = _define(ast.Declaration(tuple(lines)))
+        declaration = _place_across(declaration)
         _check_pools(declaration)
         return declaration
 
@@ -354,12 +357,6 @@ class _Builder(Transformer):
             items = items[1:]
         consecutive = _is(items[0], "CONSECUTIVE")
         if consecutive:
-            if kind not in (ast.ANY, ast.ANY_OF, ast.COUNT):
-                raise _error(
-                    "CONSECUTIVE comes after ANY, ANY n or a count: "
-                    "DURING ANY 2 CONSECUTIVE blocks",
-                    _token_pos(items[0]),
-                )
             items = items[1:]
         if len(items) == 2:
             var = str(items[0])
@@ -368,10 +365,25 @@ class _Builder(Transformer):
 
     def during(self, meta, items):
         selector = items[0]
+        if selector.consecutive and selector.quantifier not in (ast.ANY, ast.ANY_OF, ast.COUNT):
+            raise _error(
+                "CONSECUTIVE comes after ANY, ANY n or a count: DURING ANY 2 CONSECUTIVE blocks",
+                selector.pos,
+            )
         return ast.During(_pos(meta), replace(selector, consecutive=False), selector.consecutive)
 
     def across(self, meta, items):
-        return replace(self.during(meta, items), across=True)
+        """`ACROSS <set>`, blocks or dates: which is known once the definitions are in."""
+        selector = items[0]
+        if selector.quantifier == ast.ANY:
+            raise _error(
+                "ACROSS pools its set already, so it takes no ANY: ACROSS blocks", selector.pos
+            )
+        if selector.quantifier is None:
+            selector = replace(selector, quantifier=ast.ANY)
+        return ast.During(
+            _pos(meta), replace(selector, consecutive=False), selector.consecutive, across=True
+        )
 
     def on(self, meta, items):
         return ast.On(_pos(meta), items[0])
@@ -492,7 +504,7 @@ def _check_pools(declaration: ast.Declaration) -> None:
     definitions are written in, so a group that arrives by a name is caught the same as
     one written out.
 
-    CONSECUTIVE is about blocks. A count of them in a row takes it; `ACROSS ANY CONSECUTIVE`
+    CONSECUTIVE is about blocks. A count of them in a row takes it; `ACROSS CONSECUTIVE`
     adds a FOR up over each run; right of NOT there is neither.
 
     ACROSS adds up a FOR, so it needs one, and there is nothing to add up right of NOT or
@@ -527,6 +539,10 @@ def _check_negated(line: ast.Requirement) -> None:
                 "and the blocks take DURING, not ACROSS",
                 part.pos,
             )
+        if isinstance(part, ast.On) and part.across:
+            raise _error(
+                "right of NOT nothing is added up, so the dates take ON ANY, not ACROSS", part.pos
+            )
         if isinstance(part, ast.During) and part.consecutive:
             raise _error(
                 "right of NOT there are no blocks to choose, so no CONSECUTIVE; to limit a "
@@ -549,6 +565,8 @@ def _check_score(pattern: ast.Pattern) -> None:
     for part in (pattern.who, pattern.what, *pattern.clauses):
         if isinstance(part, ast.During) and part.across:
             raise _error("a score adds nothing up, so the blocks take DURING, not ACROSS", part.pos)
+        if isinstance(part, ast.On) and part.across:
+            raise _error("a score adds nothing up, so the dates take ON ANY, not ACROSS", part.pos)
         if isinstance(part, ast.During) and part.consecutive:
             raise _error("a score counts no runs, so no CONSECUTIVE", part.pos)
         if isinstance(part, ast.With | ast.Without):
@@ -576,7 +594,7 @@ def _check_runs(phrase) -> None:
     if not during.across:
         raise _error(
             "ANY CONSECUTIVE is a run of blocks to add a FOR up over: FOR AT_LEAST 2h "
-            "ACROSS ANY CONSECUTIVE <blocks>; to pick blocks in a row, pick them: DURING "
+            "ACROSS CONSECUTIVE <blocks>; to pick blocks in a row, pick them: DURING "
             "ANY 2 CONSECUTIVE <blocks>",
             during.selector.pos,
         )
@@ -712,6 +730,92 @@ def _flatten(lines, when: tuple[ast.Pos, ...]):
             yield replace(line, when=when)
         else:
             yield line
+
+
+def _place_across(declaration: ast.Declaration) -> ast.Declaration:
+    """Each ACROSS on the blocks or the dates, by the names in its set."""
+    bound = {}
+    for node in _walk(declaration):
+        if isinstance(node, ast.Selector) and node.var:
+            bound[node.var] = node.expr
+
+    def place(node):
+        if isinstance(node, ast.During) and node.across:
+            found = _namespaces(node.selector.expr, bound)
+            if found == {BLOCKS}:
+                return node
+            if found == {DATES}:
+                return _across_dates(node, found)
+            raise _error(
+                "ACROSS adds up over blocks or over dates, so its set names one or the other",
+                node.selector.pos,
+            )
+        return node
+
+    return _rebuild(declaration, place)
+
+
+def _across_dates(across: ast.During, found: set[str]) -> ast.On:
+    """`ACROSS <dates>`: the dates as one pool, which every count and FOR adds up over."""
+    if BLOCKS in found:
+        raise _error(
+            "an ACROSS on the first line is over the dates of every statement below it",
+            across.selector.pos,
+        )
+    if across.consecutive:
+        raise _error(
+            "CONSECUTIVE is about blocks, so it goes after DURING or ACROSS <blocks>", across.pos
+        )
+    if across.selector.quantifier != ast.ANY:
+        raise _error(
+            "ACROSS takes its dates whole; to pick or count them, write ON: ON ANY 2 <dates>",
+            across.selector.pos,
+        )
+    return ast.On(across.pos, across.selector, across=True)
+
+
+def _namespaces(expr: ast.SetExpr, bound: dict) -> set[str]:
+    """The namespaces a set's names are in, through the sets its variables are bound to."""
+    found: set[str] = set()
+    for node in ast.nodes(expr):
+        if isinstance(node, ast.Call):
+            return {MAPPINGS}  # what a mapping gives is known only once it is looked up
+        if isinstance(node, ast.Ref):
+            found.add(node.namespace)
+        elif isinstance(node, ast.DateLiteral):
+            found.add(DATES)
+        elif isinstance(node, ast.Var) and node.name in bound:
+            rest = {name: expr for name, expr in bound.items() if name != node.name}
+            found |= _namespaces(bound[node.name], rest)
+    return found
+
+
+def _walk(node):
+    """Every node of a tree, the tree included."""
+    yield node
+    if isinstance(node, tuple):
+        for item in node:
+            yield from _walk(item)
+    elif is_dataclass(node) and not isinstance(node, ast.Pos):
+        for f in fields(node):
+            yield from _walk(getattr(node, f.name))
+
+
+def _rebuild(node, change):
+    """A tree with `change` made to each of its nodes, from the top down."""
+    node = change(node)
+    if isinstance(node, tuple):
+        new = tuple(_rebuild(item, change) for item in node)
+        return node if all(a is b for a, b in zip(new, node, strict=True)) else new
+    if is_dataclass(node) and not isinstance(node, ast.Pos):
+        changed = {}
+        for f in fields(node):
+            old = getattr(node, f.name)
+            new = _rebuild(old, change)
+            if new is not old:
+                changed[f.name] = new
+        return replace(node, **changed) if changed else node
+    return node
 
 
 def _on_every_statement(on: ast.On, lines: list) -> list:

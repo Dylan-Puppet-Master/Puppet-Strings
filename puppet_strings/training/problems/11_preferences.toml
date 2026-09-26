@@ -87,9 +87,9 @@ wrong = [
 id = "prefer-two-hours-rest"
 title = "Plenty of rest"
 prompt = "We'd like each counselor to be free for at least two hours of clinic time today."
-answer = "PREFER EACH staff.counselors FREE ACROSS ANY blocks.all_clinics FOR AT_LEAST 2h"
+answer = "PREFER EACH staff.counselors FREE ACROSS blocks.all_clinics FOR AT_LEAST 2h"
 priority = "LOW"
-wrong = ["PREFER ANY staff.counselors FREE ACROSS ANY blocks.all_clinics FOR AT_LEAST 2h"]
+wrong = ["PREFER ANY staff.counselors FREE ACROSS blocks.all_clinics FOR AT_LEAST 2h"]
 
 [[problem]]
 id = "prefer-not-three-in-a-row"
@@ -137,18 +137,18 @@ wrong = ["PREFER AT_LEAST 2 staff.mfgs DO 'maintenance' DURING blocks.clinic_3"]
 id = "prefer-directors-free-hour"
 title = "An hour off"
 prompt = "We'd like each director to have at least an hour free between clinic 3 and clinic 4."
-answer = "PREFER EACH staff.directors FREE ACROSS ANY {blocks.clinic_3 + blocks.clinic_4} FOR AT_LEAST 1h"
+answer = "PREFER EACH staff.directors FREE ACROSS {blocks.clinic_3 + blocks.clinic_4} FOR AT_LEAST 1h"
 priority = "LOW"
-wrong = ["PREFER ANY staff.directors FREE ACROSS ANY {blocks.clinic_3 + blocks.clinic_4} FOR AT_LEAST 1h"]
+wrong = ["PREFER ANY staff.directors FREE ACROSS {blocks.clinic_3 + blocks.clinic_4} FOR AT_LEAST 1h"]
 
 [[problem]]
 id = "prefer-weekly-balance"
 title = "Share the load"
 prompt = "Over the whole session, we'd like no counselor to run more than 8 clinics."
-answer = "PREFER EACH staff.counselors DO ANY activities.clinics DURING AT_MOST 8 blocks ON ANY dates.session_6"
+answer = "PREFER EACH staff.counselors DO ANY activities.clinics DURING AT_MOST 8 blocks ACROSS dates.session_6"
 priority = "MEDIUM"
-hints = ["Count the clinic blocks, over any day of the session."]
-explain = "Over dates pooled with ANY, a count of blocks counts each block on each date, so this is eight clinic blocks across the whole session."
+hints = ["Count the clinic blocks, ACROSS the session's dates."]
+explain = "ACROSS dates, a count of blocks counts each block on each date, so this is eight clinic blocks across the whole session."
 wrong = ["PREFER EACH staff.counselors DO ANY activities.clinics DURING AT_MOST 8 blocks"]
 
 [[problem]]

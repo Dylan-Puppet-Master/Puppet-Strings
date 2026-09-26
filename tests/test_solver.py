@@ -712,7 +712,7 @@ def test_weights_trade_within_a_tier():
 PREFERENCE = (
     "PREFER EACH s IN staff DO EACH c IN activities.clinics MAXIMIZE mappings.preference(s, c)"
 )
-VARIETY = "PREFER EACH staff DO EACH activities.clinics DURING AT_MOST 1 blocks ON ANY {dates.target - 6d .. dates.target}"
+VARIETY = "PREFER EACH staff DO EACH activities.clinics DURING AT_MOST 1 blocks ACROSS {dates.target - 6d .. dates.target}"
 
 
 @pytest.mark.parametrize(
@@ -879,7 +879,7 @@ def test_a_counted_pattern_measures_clinics_without_starting_one():
 
 def test_a_duration_amount_sums_lengths_and_past_dates_count():
     yesterday = TARGET - timedelta(days=1)
-    text = "REQUEST staff.james DO 'dance practice' ACROSS ANY blocks.all_clinics ON ANY {dates.target - 1d .. dates.target} FOR AT_LEAST 2h"
+    text = "REQUEST staff.james DO 'dance practice' ACROSS blocks.all_clinics ACROSS {dates.target - 1d .. dates.target} FOR AT_LEAST 2h"
     ds = dataset(
         [staff("James")],
         [],
@@ -896,7 +896,7 @@ def test_a_duration_amount_sums_lengths_and_past_dates_count():
 
 
 def test_consecutive_needs_adjacent_blocks():
-    text = "REQUEST staff.james DO 'training' FOR AT_LEAST 1.5h ACROSS ANY CONSECUTIVE {{{blocks}}}"
+    text = "REQUEST staff.james DO 'training' FOR AT_LEAST 1.5h ACROSS CONSECUTIVE {{{blocks}}}"
     adjacent = dataset(
         [staff("James")],
         [],
@@ -1529,7 +1529,7 @@ def test_a_later_date_holds_nothing_for_someone_resting_through_it():
 
 def test_a_deferrable_amount_stays_reachable():
     text = (
-        "REQUEST staff.dylan DO 'inventory' DURING ANY 2 blocks ON ANY {2026-09-16 .. 2026-09-17}"
+        "REQUEST staff.dylan DO 'inventory' DURING ANY 2 blocks ACROSS {2026-09-16 .. 2026-09-17}"
     )
     tomorrow = TARGET + timedelta(days=1)
     ds = dataset(

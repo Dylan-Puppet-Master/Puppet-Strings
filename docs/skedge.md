@@ -233,6 +233,7 @@ request is soft: `ALL` earns nothing for half, `EACH` earns half.
 | `DURING <blocks>` | When in the day. Left out: any block of the day. |
 | `ACROSS <blocks>` | When in the day, in place of `DURING`, with the `FOR` a total over the blocks ([lengths](#lengths-for)). |
 | `ON <dates>` | Which dates. Left out: the day being scheduled. |
+| `ACROSS <dates>` | Which dates, in place of `ON`, taken together: counts and lengths add up over all of them ([blocks across days](#blocks-across-days)). |
 | `AS_ROLE <role>` | In that position or trainee role. Left out: any position. |
 | `FOR <bound> <duration>` | How long ([lengths](#lengths-for)): `FOR EXACTLY 30m`, `FOR AT_LEAST 2h`. Left out, a task fills its block. |
 | `WITH <staff>` | That person is working the same clinic or task alongside; of a set, a count or `ALL` says how many of it. |
@@ -260,7 +261,7 @@ number — **measures**: it says how many of the set the rest of the statement h
 |---|---|
 | `REQUEST ANY 3 staff.support DO 'lifeguard' DURING blocks.rest_hour` | Three support staff lifeguard at rest hour, whichever three the solver picks. |
 | `REQUEST EACH staff.village_hero DO 'break' DURING ANY 3 blocks` | Every village hero has a break in three blocks, each their own three. |
-| `REQUEST staff.rob DO ANY 2 activities.clinics ON ANY dates.session_1` | Rob runs two different clinics this session. |
+| `REQUEST staff.rob DO ANY 2 activities.clinics ACROSS dates.session_1` | Rob runs two different clinics this session. |
 | `REQUEST AT_MOST 2 staff DO 'break' DURING EACH blocks` | A cap: never more than two people on break in the same block. |
 | `IF AT_LEAST 2 staff.counselor DO 'break' DURING ANY blocks` | A test: two or more counselors have a break today. |
 
@@ -300,11 +301,12 @@ two counselors break three or more times.
 #### Blocks across days
 
 A block happens every day, so clinic 1 on Monday and clinic 1 on Tuesday are two blocks.
-Where the dates are pooled with `ANY`, a count of blocks counts every block on every one
-of those dates, which is how a number of times over a week or a session is written:
+`ACROSS` in place of `ON` takes the dates together, and a count of blocks then counts every
+block on every one of them, which is how a number of times over a week or a session is
+written:
 
 ```skedge
-REQUEST staff.dylan DO ANY activities.clinics AS_ROLE roles.first DURING AT_MOST 8 blocks.all_clinics ON ANY dates.session_1
+REQUEST staff.dylan DO ANY activities.clinics AS_ROLE roles.first DURING AT_MOST 8 blocks.all_clinics ACROSS dates.session_1
 ```
 
 Dylan facilitates at most eight clinics in the session, however they fall across its days.
@@ -312,12 +314,31 @@ How the dates are taken decides what a count of blocks is over:
 
 | Written | A count of blocks is over |
 |---|---|
-| `ON ANY dates.session_1` | every block of every day together: `AT_MOST 1` is once in the whole session at most |
+| `ACROSS dates.session_1` | every block of every day together: `AT_MOST 1` is once in the whole session at most |
 | `ON EACH dates.session_1` | each day on its own, as a separate request: `AT_MOST 1` is at most once a day |
 | `ON ALL dates.session_1` | the days as one unit: a block counts when it happens on every one of them |
 
-`ANY n` of blocks over pooled dates picks n blocks on those dates, clinic 1 on Monday
-and clinic 1 on Tuesday being two of them.
+`ON ANY dates.session_1` is one of the days, whichever: `REQUEST staff.dylan DO 'x' DURING
+ANY 1 blocks ON ANY dates.session_1` is once, some day this session. A count, a `FOR`, or a
+pick of several blocks over several dates is of all of them together, so it takes `ACROSS`,
+and with `ON ANY` it is an error. `ANY n` of blocks `ACROSS` dates picks n blocks on those
+dates, clinic 1 on Monday and clinic 1 on Tuesday being two of them.
+
+An `ACROSS` of dates takes them whole, with no `ANY` in front: to pick or count the dates
+themselves, write `ON ANY 2 …` or `ON AT_MOST 2 …`. Written on the first line, it is every
+statement's, as an `ON` there is:
+
+```skedge
+ACROSS dates.session_1
+
+EACH h IN staff.village_hero
+
+REQUEST h DO ANY 3 activities.clinics AS_ROLE roles.first DURING AT_MOST 3 blocks
+PREFER h DO ANY activities.clinics AS_ROLE roles.first DURING AT_LEAST 1 blocks
+```
+
+Each village hero is first on three different clinics this session, in no more than three
+blocks, and is first on at least one if it can be managed.
 
 Blocks in a row stay within a day: the last block of one day and the first of the next are
 not next to each other.
@@ -359,7 +380,7 @@ REQUEST EACH staff DO 'break' DURING AT_MOST 1 CONSECUTIVE blocks
 Nobody has a break in two blocks in a row.
 
 `CONSECUTIVE` is always about blocks, since blocks are what can be in a row, so it only
-ever goes in a `DURING` or an `ACROSS`, just before the blocks. `ACROSS ANY CONSECUTIVE`
+ever goes in a `DURING` or an `ACROSS` of blocks, just before them. `ACROSS CONSECUTIVE`
 adds a `FOR` up over each run of blocks, below.
 
 ### Lengths: `FOR`
@@ -369,22 +390,22 @@ adds a `FOR` up over each run of blocks, below.
 - With `DURING`, `FOR` is the length of **each piece**, however the blocks are taken.
 - With `ACROSS` in place of `DURING`, `FOR` is what **the pieces add up to**.
 
-`ACROSS` takes the same blocks `DURING` does, and `ANY n` or a count after it says how many
-blocks get a piece:
+`ACROSS` takes a set of blocks whole, as a pool, with no `ANY` in front of it. `ANY n` or a
+count after it says how many of them get a piece:
 
 | You mean | Write |
 |---|---|
 | Three breaks of 30 minutes | `REQUEST staff.cam_vl DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks` |
 | One piece of 45 minutes, in any block | `REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 45m DURING ANY blocks` |
-| Two hours in total, split over any blocks | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY blocks` |
+| Two hours in total, split over any blocks | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS blocks` |
 | Two hours split over three blocks | `REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 2h ACROSS ANY 3 blocks` |
 | Two hours in no more than three blocks | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS AT_MOST 3 blocks` |
-| Two hours in one go: one block, or blocks in a row | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY CONSECUTIVE blocks` |
+| Two hours in one go: one block, or blocks in a row | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS CONSECUTIVE blocks` |
 
 `FOR` always says how the length is bounded, as a count does: `FOR EXACTLY 2h`,
 `FOR AT_LEAST 2h` or `FOR AT_MOST 2h`, never a bare `FOR 2h`. A piece
 never leaves its block, so with `DURING` a length longer than every block is an error: it
-was meant as a total, and wants `ACROSS`. Under `ACROSS ANY blocks` the pieces fill their
+was meant as a total, and wants `ACROSS`. Under `ACROSS blocks` the pieces fill their
 blocks, all but one, which is cut to what is left, or under `AT_LEAST` to whatever reaches
 it: two hours over 75-minute blocks is one whole block and 45 minutes of another. Where
 `ACROSS` picks or counts the blocks, any of the pieces may be cut, which is how two hours go
@@ -394,7 +415,7 @@ A clinic, `FREE` or `BUSY` fills its blocks, so a `FOR` on one adds the blocks u
 `ACROSS`:
 
 ```skedge
-PREFER EACH staff.counselor FREE FOR AT_LEAST 2h ACROSS ANY blocks.all_clinics
+PREFER EACH staff.counselor FREE FOR AT_LEAST 2h ACROSS blocks.all_clinics
 ```
 
 ### Asking for an activity without naming anybody
@@ -541,8 +562,8 @@ to be scored against:
 
 | Request | Meaning |
 |---|---|
-| `PREFER EACH staff DO ANY activities.clinics DURING AT_MOST 8 blocks ON ANY dates.session_1` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
-| `PREFER staff.james DO 'dance practice' FOR AT_LEAST 2h ACROSS ANY blocks ON ANY {2026-09-16 .. 2026-09-17}` | Two hours of dance practice across the two days, each hour short costing the same. |
+| `PREFER EACH staff DO ANY activities.clinics DURING AT_MOST 8 blocks ACROSS dates.session_1` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
+| `PREFER staff.james DO 'dance practice' FOR AT_LEAST 2h ACROSS blocks ACROSS {2026-09-16 .. 2026-09-17}` | Two hours of dance practice across the two days, each hour short costing the same. |
 | `PREFER staff.dylan DO activities.clinics.riflery DURING AT_LEAST 1 blocks.clinic_2` | Dylan on riflery in clinic 2, if it can be managed. |
 
 With several counts, a `PREFER` is scored on the outermost: `PREFER AT_LEAST 5
@@ -626,7 +647,7 @@ statement that always applies beside one that depends on something:
 EACH d IN staff.director
 IF d BUSY DURING ALL {blocks.clinic_1 + blocks.clinic_2} THEN
 {
-    REQUEST d DO 'paperwork' FOR AT_LEAST 1h ACROSS ANY {blocks.rest_hour + blocks.playstation}
+    REQUEST d DO 'paperwork' FOR AT_LEAST 1h ACROSS {blocks.rest_hour + blocks.playstation}
     PREFER d FREE DURING AT_LEAST 1 blocks.evening
 }
 REQUEST d FREE DURING blocks.lunch
@@ -931,7 +952,7 @@ requests.
 The solver schedules the target date. Published past dates are facts: they cannot change,
 and they count in every statement, count and condition. Future dates hold nothing yet.
 
-A request that could still be met later, such as one `ON ANY` a week of dates, is
+A request that could still be met later, such as one `ON ANY` or `ACROSS` a week of dates, is
 **deferrable**. It does not have to happen today as long as it can still happen later,
 with a small nudge to do it early. The solver knows from the sheets when "later" runs out,
 for example because the person rests for the remainder of the week, and enforces it on the
@@ -1046,7 +1067,7 @@ Each person should run each clinic at most once in any seven days; every repeat 
 point. Shares a tier with the preference request so the two trade off.
 
 ```skedge
-PREFER EACH staff DO EACH activities.clinics DURING AT_MOST 1 blocks ON ANY {dates.target - 6d .. dates.target}
+PREFER EACH staff DO EACH activities.clinics DURING AT_MOST 1 blocks ACROSS {dates.target - 6d .. dates.target}
 ```
 
 Priority `MEDIUM`, weight `0.5`.
@@ -1056,7 +1077,7 @@ Priority `MEDIUM`, weight `0.5`.
 Nobody holds the same ropes position more than three times a session.
 
 ```skedge
-PREFER EACH staff.ropes_level_2 DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second} DURING AT_MOST 3 blocks ON ANY dates.session_1
+PREFER EACH staff.ropes_level_2 DO ANY activities.clinics.ropes AS_ROLE EACH {roles.first + roles.second} DURING AT_MOST 3 blocks ACROSS dates.session_1
 ```
 
 Priority `LOW`.
@@ -1067,7 +1088,7 @@ Nobody should run more than eight clinics a session: a count of the blocks they 
 clinics in, over every day of it.
 
 ```skedge
-PREFER EACH staff DO ANY activities.clinics DURING AT_MOST 8 blocks ON ANY dates.session_1
+PREFER EACH staff DO ANY activities.clinics DURING AT_MOST 8 blocks ACROSS dates.session_1
 ```
 
 Priority `MEDIUM`, weight `0.25`.
@@ -1127,7 +1148,7 @@ Priority `MUST_HAPPEN`.
 ### Two hours of video editing in one go
 
 ```skedge
-REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY CONSECUTIVE blocks
+REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS CONSECUTIVE blocks
 ```
 
 Priority `HIGH`.

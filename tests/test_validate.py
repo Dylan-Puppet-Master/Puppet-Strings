@@ -360,7 +360,7 @@ def test_an_exclusion_validates(dataset):
         (
             "EXCLUDE staff.dylan DO 'offsite' ON dates.target ON dates.target",
             Priority.MUST_HAPPEN,
-            "ON given twice",
+            "ON or ACROSS given twice",
         ),
         (
             "EXCLUDE staff.counselor DO 'offsite'",
@@ -391,7 +391,7 @@ def test_an_exclusion_is_refused(dataset, skedge, priority, message):
         (
             "REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS ANY 2 CONSECUTIVE blocks",
             Priority.HIGH,
-            "ACROSS adds up over a run with ANY CONSECUTIVE",
+            "ACROSS adds up over a run with CONSECUTIVE alone",
         ),
         (
             "REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS AT_LEAST 2 blocks",
@@ -405,18 +405,34 @@ def test_an_exclusion_is_refused(dataset, skedge, priority, message):
         ),
         (
             "REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS ANY 2 blocks "
-            "ON ANY {dates.target .. dates.target + 1d}",
+            "ACROSS {dates.target .. dates.target + 1d}",
             Priority.HIGH,
             "the pieces of an ACROSS are counted a day at a time",
         ),
         (
-            "a: REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS ANY blocks\n"
+            "a: REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS blocks\n"
             "b: REQUEST staff.dylan DO 'y' DURING blocks.clinic_4\nGAP a TO b",
             Priority.HIGH,
             "a labeled one takes no cap and no ACROSS",
         ),
         (
-            "EXCLUDE staff.dylan DO 'offsite' ACROSS ANY blocks",
+            "REQUEST staff.dylan DO 'x' DURING AT_MOST 3 blocks ON ANY dates.session_1",
+            Priority.HIGH,
+            "ON ANY is on one of these dates; to count or add up over all of them",
+        ),
+        (
+            "PREFER staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS blocks "
+            "ON ANY {dates.target .. dates.target + 1d}",
+            Priority.HIGH,
+            "write ACROSS <dates>",
+        ),
+        (
+            "REQUEST staff.dylan DO 'x' DURING ANY 2 blocks ON ANY dates.session_1",
+            Priority.HIGH,
+            "write ACROSS <dates>",
+        ),
+        (
+            "EXCLUDE staff.dylan DO 'offsite' ACROSS blocks",
             Priority.MUST_HAPPEN,
             "EXCLUDE takes DURING and ON, not ACROSS",
         ),
@@ -437,6 +453,13 @@ def test_a_length_says_whether_it_is_each_piece_or_the_total(dataset, skedge, pr
         "REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS AT_MOST 3 blocks",
         "REQUEST staff.dylan DO 'x' FOR EXACTLY 2h ACROSS ALL {blocks.clinic_1 + blocks.clinic_2}",
         "PREFER staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS EXACTLY 2 blocks",
+        "REQUEST staff.dylan DO 'x' FOR AT_LEAST 30m ACROSS blocks.clinic_1",
+        "REQUEST staff.dylan DO 'x' DURING ANY 1 blocks ON ANY dates.session_1",
+        "REQUEST staff.dylan DO 'x' ACROSS dates.session_1",
+        "REQUEST staff.dylan DO 'x' DURING AT_MOST 3 blocks ACROSS dates.session_1",
+        "REQUEST staff.dylan DO 'x' DURING ANY 2 blocks ACROSS dates.session_1",
+        "ACROSS dates.session_1\nREQUEST staff.dylan DO 'x' DURING AT_MOST 3 blocks\n"
+        "PREFER staff.dylan DO 'x' DURING AT_LEAST 1 blocks",
         "IF staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS AT_LEAST 2 blocks THEN\n"
         "{ REQUEST staff.dylan FREE DURING blocks.night }",
     ],

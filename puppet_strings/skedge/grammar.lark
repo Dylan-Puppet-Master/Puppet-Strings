@@ -8,9 +8,10 @@
 // Each keyword is a terminal of its own at a priority above NAME, and ends in `\b` so that
 // it only ever takes a whole word: `format` is a name, not `FOR` and then `mat`.
 
-// An ON on the first line is every statement's: written once, where they would each repeat it.
-// Only the first, since an ON starting any later line carries on the statement above it.
-start       : _NL* (on _NL+)? line (_NL+ line)* _NL*
+// An ON or an ACROSS of dates on the first line is every statement's: written once, where
+// they would each repeat it. Only the first, since one starting any later line carries on
+// the statement above it.
+start       : _NL* ((on | across) _NL+)? line (_NL+ line)* _NL*
 ?line       : binding | define | define_task | if_ | unless | labeled | request | prefer | gap
             | exclude
 
@@ -71,8 +72,9 @@ length      : BOUND DURATION
 _clauses    : clause*
 ?clause     : during | across | on | as_role | for_ | with_ | without
 during      : _DURING chooser
-// The blocks a FOR adds up over: its length is what the pieces in them come to, where
-// with DURING it is the length of each piece.
+// The blocks or the dates every count and FOR adds up over, taken whole as one pool. Over
+// blocks a FOR is what the pieces in them come to, where with DURING it is each piece's
+// length; over dates, a count or a FOR is of all of them together.
 across      : _ACROSS chooser
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
@@ -87,7 +89,7 @@ without     : _WITHOUT chooser as_role?
 // ANY with no number is any of these: the set is one pool. ANY n chooses n of it, once for
 // the statement. A count measures, in front of the set it counts. CONSECUTIVE is about
 // blocks, after DURING or ACROSS: `ANY 2 CONSECUTIVE blocks` picks blocks in a row, and
-// `ACROSS ANY CONSECUTIVE blocks` adds up a FOR over each run.
+// `ACROSS CONSECUTIVE blocks` adds up a FOR over each run.
 chooser     : (ALL | ANY | amount)? CONSECUTIVE? set_
             | any_n CONSECUTIVE? set_
             | EACH set_

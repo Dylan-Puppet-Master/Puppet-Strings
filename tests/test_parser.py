@@ -55,12 +55,13 @@ def test_counts_and_lengths():
     assert count.what == ast.Task("break")
     (hours,) = parse(
         "PREFER staff.cam_vl DO activities.clinics.candle_making AS_ROLE roles.trainee "
-        "ON ANY {2026-09-14 .. 2026-09-18} ACROSS ANY CONSECUTIVE blocks FOR AT_LEAST 2h"
+        "ACROSS {2026-09-14 .. 2026-09-18} ACROSS CONSECUTIVE blocks FOR AT_LEAST 2h"
     ).lines
     assert isinstance(hours, ast.Preference)
     assert ast.clause(hours.pattern.clauses, ast.During).consecutive
     assert ast.clause(hours.pattern.clauses, ast.During).across
-    assert ast.clause(hours.pattern.clauses, ast.For) == ast.For(ast.Pos(1, 143), 120, ast.AT_LEAST)
+    assert ast.clause(hours.pattern.clauses, ast.On).across
+    assert ast.clause(hours.pattern.clauses, ast.For) == ast.For(ast.Pos(1, 139), 120, ast.AT_LEAST)
     role = ast.clause(hours.pattern.clauses, ast.AsRole).selector.expr
     assert role == ast.Ref("roles", "trainee", ast.Pos(1, 65))
     assert isinstance(ast.clause(hours.pattern.clauses, ast.On).selector.expr, ast.DateRange)
@@ -310,7 +311,7 @@ def test_a_keyword_may_be_written_in_either_case():
 def test_consecutive_goes_on_the_blocks():
     """A count of blocks in a row, or a pool of them added up a run at a time."""
     (measured,) = parse(
-        "REQUEST staff.dylan DO 'x' ACROSS ANY CONSECUTIVE blocks FOR AT_LEAST 2h"
+        "REQUEST staff.dylan DO 'x' ACROSS CONSECUTIVE blocks FOR AT_LEAST 2h"
     ).lines
     assert ast.clause(measured.clauses, ast.During).consecutive
     (run,) = parse("REQUEST staff.dylan DO 'x' DURING ANY 2 CONSECUTIVE blocks").lines
@@ -334,13 +335,29 @@ def test_consecutive_goes_on_the_blocks():
             "{ REQUEST staff.dylan FREE }",
             "a run of blocks to add a FOR up over",
         ),
-        ("REQUEST staff.dylan DO 'x' ACROSS ANY blocks", "with no FOR, write DURING"),
+        ("REQUEST staff.dylan DO 'x' ACROSS blocks", "with no FOR, write DURING"),
+        ("REQUEST staff.dylan DO 'x' FOR AT_LEAST 1h ACROSS ANY blocks", "takes no ANY"),
+        ("REQUEST staff.dylan DO 'x' ACROSS staff.rob", "names one or the other"),
+        ("REQUEST staff.dylan DO 'x' ACROSS ANY 2 dates.season", "ACROSS takes its dates whole"),
         (
-            "REQUEST staff.dylan NOT DO 'x' FOR AT_LEAST 1h ACROSS ANY blocks",
+            "REQUEST staff.dylan DO 'x' ACROSS AT_MOST 2 dates.season",
+            "ACROSS takes its dates whole",
+        ),
+        (
+            "REQUEST staff.dylan DO 'x' ACROSS CONSECUTIVE dates.season",
+            "CONSECUTIVE is about blocks",
+        ),
+        ("ACROSS blocks\nREQUEST staff.dylan DO 'x'", "over the dates of every statement"),
+        (
+            "REQUEST staff.dylan NOT DO 'x' ACROSS dates.season",
+            "right of NOT nothing is added up",
+        ),
+        (
+            "REQUEST staff.dylan NOT DO 'x' FOR AT_LEAST 1h ACROSS blocks",
             "right of NOT each piece is matched on its own",
         ),
         (
-            "PREFER staff.dylan DO 'x' FOR AT_LEAST 1h ACROSS ANY blocks "
+            "PREFER staff.dylan DO 'x' FOR AT_LEAST 1h ACROSS blocks "
             "MAXIMIZE mappings.m(staff.dylan)",
             "a score adds nothing up",
         ),

@@ -49,17 +49,17 @@ wrong = ["REQUEST EACH {staff - staff.directors - staff.counselors} NOT DO 'brea
 id = "big-ropes-rotation"
 title = "Rotating ropes"
 prompt = "Over the session, we'd like nobody to be first on the Climbing Wall more than 3 times."
-answer = "PREFER EACH staff DO activities.clinics.climbing_wall AS_ROLE roles.first DURING AT_MOST 3 blocks ON ANY dates.session_6"
+answer = "PREFER EACH staff DO activities.clinics.climbing_wall AS_ROLE roles.first DURING AT_MOST 3 blocks ACROSS dates.session_6"
 priority = "LOW"
 hints = ["Count the blocks, over any day of the session."]
-wrong = ["REQUEST EACH staff DO activities.clinics.climbing_wall AS_ROLE roles.first DURING AT_MOST 3 blocks ON ANY dates.session_6"]
+wrong = ["REQUEST EACH staff DO activities.clinics.climbing_wall AS_ROLE roles.first DURING AT_MOST 3 blocks ACROSS dates.session_6"]
 
 [[problem]]
 id = "big-new-archer"
 title = "A new archer"
 prompt = "Gabe trains on Archery 1 & 2 as a trainee for at least two hours sometime between today and Friday."
-answer = "REQUEST staff.gabe DO activities.clinics.archery_1_2 AS_ROLE roles.trainee ON ANY {dates.target .. 2026-08-07} FOR AT_LEAST 2h ACROSS ANY blocks"
-wrong = ["REQUEST staff.gabe DO activities.clinics.archery_1_2 AS_ROLE roles.trainee FOR AT_LEAST 2h ACROSS ANY blocks"]
+answer = "REQUEST staff.gabe DO activities.clinics.archery_1_2 AS_ROLE roles.trainee ACROSS {dates.target .. 2026-08-07} FOR AT_LEAST 2h ACROSS blocks"
+wrong = ["REQUEST staff.gabe DO activities.clinics.archery_1_2 AS_ROLE roles.trainee FOR AT_LEAST 2h ACROSS blocks"]
 
 [[problem]]
 id = "big-leaders-evening"
@@ -146,11 +146,11 @@ wrong = ["IF\nAT_LEAST 2 staff.counselors DO 'break' DURING ANY blocks\nAND\nsta
 id = "big-prefer-maintenance-range"
 title = "Between two and three hours"
 prompt = "We'd like each MFG to spend between two and three hours on 'maintenance' today, in any blocks — less or more both cost a little. One request per MFG."
-answer = "EACH m IN staff.mfgs\nPREFER m DO 'maintenance' FOR AT_LEAST 2h ACROSS ANY blocks\nPREFER m DO 'maintenance' FOR AT_MOST 3h ACROSS ANY blocks"
+answer = "EACH m IN staff.mfgs\nPREFER m DO 'maintenance' FOR AT_LEAST 2h ACROSS blocks\nPREFER m DO 'maintenance' FOR AT_MOST 3h ACROSS blocks"
 priority = "MEDIUM"
 hints = ["A range is two PREFER lines, one for each end.", "With ACROSS, FOR is the total."]
 explain = "Each PREFER is weighed on its own, so the day is marked down for falling short of two hours and for going past three."
-wrong = ["EACH m IN staff.mfgs\nPREFER m DO 'maintenance' FOR EXACTLY 2h ACROSS ANY blocks"]
+wrong = ["EACH m IN staff.mfgs\nPREFER m DO 'maintenance' FOR EXACTLY 2h ACROSS blocks"]
 
 [[problem]]
 id = "big-prefer-counselor-load"
@@ -166,9 +166,9 @@ wrong = ["EACH c IN staff.counselors\nREQUEST c DO ANY activities.clinics DURING
 id = "big-prefer-session-facilitating"
 title = "Everyone facilitates, nobody too much"
 prompt = "Over the session, each village leader is first on at most three clinics, and we'd like each of them to be first on at least one."
-answer = "EACH c IN staff.village_leaders\nREQUEST c DO ANY activities.clinics AS_ROLE roles.first DURING AT_MOST 3 blocks ON ANY dates.session_6\nPREFER c DO ANY activities.clinics AS_ROLE roles.first DURING AT_LEAST 1 blocks ON ANY dates.session_6"
+answer = "EACH c IN staff.village_leaders\nREQUEST c DO ANY activities.clinics AS_ROLE roles.first DURING AT_MOST 3 blocks ACROSS dates.session_6\nPREFER c DO ANY activities.clinics AS_ROLE roles.first DURING AT_LEAST 1 blocks ACROSS dates.session_6"
 priority = "HIGH"
-hints = ["Over ANY dates of the session, a count of blocks counts every block of every day."]
+hints = ["ACROSS the session's dates, a count of blocks counts every block of every day."]
 wrong = ["EACH c IN staff.village_leaders\nREQUEST c DO ANY activities.clinics AS_ROLE roles.first DURING AT_MOST 3 blocks ON EACH dates.session_6\nPREFER c DO ANY activities.clinics AS_ROLE roles.first DURING AT_LEAST 1 blocks ON EACH dates.session_6"]
 
 [[problem]]
@@ -186,17 +186,17 @@ wrong = ["ANY 1 e IN {staff.eq_staff - staff.hailey}\nvisit: REQUEST ALL {staff.
 id = "big-long-afternoon"
 title = "After a long afternoon"
 prompt = "For each director: if they're busy through both afternoon clinic blocks, they're free at dinner, and we'd like them to get at least an hour of 'paperwork' across rest hour and playstation as well. One request per director."
-answer = "EACH d IN staff.directors\nIF d BUSY DURING ALL {blocks.clinic_3 + blocks.clinic_4} THEN\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h ACROSS ANY {blocks.rest_hour + blocks.playstation}\n}"
+answer = "EACH d IN staff.directors\nIF d BUSY DURING ALL {blocks.clinic_3 + blocks.clinic_4} THEN\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h ACROSS {blocks.rest_hour + blocks.playstation}\n}"
 priority = "MEDIUM"
 hints = ["Busy through both is BUSY DURING ALL {…} in the condition.", "A condition governs the PREFER as well as the REQUEST."]
-wrong = ["EACH d IN staff.directors\nIF d BUSY DURING ANY {blocks.clinic_3 + blocks.clinic_4} THEN\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h ACROSS ANY {blocks.rest_hour + blocks.playstation}\n}"]
+wrong = ["EACH d IN staff.directors\nIF d BUSY DURING ANY {blocks.clinic_3 + blocks.clinic_4} THEN\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h ACROSS {blocks.rest_hour + blocks.playstation}\n}"]
 
 [[problem]]
 id = "big-trainees-supervised"
 title = "Leaders train leaders"
 prompt = "No village leader is a trainee on any clinic unless another village leader is first on that same run of it — and we'd like each village leader to train at least once this week (today to Friday). One request per leader."
-answer = "EACH v IN staff.village_leaders\nREQUEST v NOT DO ANY activities.clinics AS_ROLE roles.trainee WITHOUT AT_LEAST 1 staff.village_leaders AS_ROLE roles.first\nPREFER v DO ANY activities.clinics AS_ROLE roles.trainee DURING AT_LEAST 1 blocks ON ANY {dates.target .. 2026-08-07}"
+answer = "EACH v IN staff.village_leaders\nREQUEST v NOT DO ANY activities.clinics AS_ROLE roles.trainee WITHOUT AT_LEAST 1 staff.village_leaders AS_ROLE roles.first\nPREFER v DO ANY activities.clinics AS_ROLE roles.trainee DURING AT_LEAST 1 blocks ACROSS {dates.target .. 2026-08-07}"
 priority = "HIGH"
-hints = ["X only if Y: X NOT DO it WITHOUT Y. The other leaders' role goes straight after them.", "WITH and WITHOUT count others, so the leader is never their own company.", "A week of dates is one pool: ON ANY {…}."]
+hints = ["X only if Y: X NOT DO it WITHOUT Y. The other leaders' role goes straight after them.", "WITH and WITHOUT count others, so the leader is never their own company.", "The count is over the whole week: ACROSS {…}."]
 explain = "The AS_ROLE after the leader's DO is theirs (trainee); the one after WITHOUT's people is the other leaders' (first). A scaffolded trainee already needs a trainer on the instance, which the solver keeps on its own; this is a camp policy on top of that."
-wrong = ["EACH v IN staff.village_leaders\nREQUEST v NOT DO ANY activities.clinics AS_ROLE roles.trainee WITHOUT ALL staff.village_leaders AS_ROLE roles.first\nPREFER v DO ANY activities.clinics AS_ROLE roles.trainee DURING AT_LEAST 1 blocks ON ANY {dates.target .. 2026-08-07}"]
+wrong = ["EACH v IN staff.village_leaders\nREQUEST v NOT DO ANY activities.clinics AS_ROLE roles.trainee WITHOUT ALL staff.village_leaders AS_ROLE roles.first\nPREFER v DO ANY activities.clinics AS_ROLE roles.trainee DURING AT_LEAST 1 blocks ACROSS {dates.target .. 2026-08-07}"]

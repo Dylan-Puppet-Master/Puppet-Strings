@@ -1052,3 +1052,15 @@ Recorded so the outline matches the code.
   with any piece free to be cut short. With `DURING`, a length no block is long enough for is
   refused, since it was meant as a total. The training problems and docs that pooled a
   `FOR` were rewritten; no saved request did.
+- **ACROSS takes dates too, and its set whole** (Puppet Master, 2026-09-25). `ON ANY` read
+  as "one of these dates, whichever", but where the statement counted or measured it meant
+  all of them together: `DURING AT_MOST 3 blocks ON ANY dates.session_1` was a cap over the
+  session. `ACROSS <dates>` in place of `ON` now says so, and `ON ANY` with a count, a `FOR`
+  or a pick of several blocks over more than one date is refused (`resolve._adds_up`).
+  Without them the two are the same pool. `ACROSS` is one clause for blocks or dates, told
+  apart by the names in its set once the definitions are in (`parser._place_across`); on the
+  first line it is dates, for every statement. Its set is taken whole, so `ACROSS ANY
+  blocks` is now `ACROSS blocks` and `ACROSS ANY CONSECUTIVE` is `ACROSS CONSECUTIVE`; an
+  `ACROSS` of dates takes no quantifier at all, a pick or count of dates being `ON`'s. The
+  training problems, docs, the test fixtures and one saved request (a copy of the file
+  before is `requests.before-across-dates.sqlite`) were rewritten.

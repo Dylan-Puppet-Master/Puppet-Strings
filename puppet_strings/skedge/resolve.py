@@ -775,7 +775,7 @@ def _phrase(
         if not isinstance(what, ast.Task):
             raise _error(
                 "an activity, FREE or BUSY fills its blocks, so a FOR on it adds the blocks "
-                "up: FOR AT_LEAST 2h ACROSS ANY <blocks>",
+                "up: FOR AT_LEAST 2h ACROSS <blocks>",
                 for_.pos,
             )
         _fits(for_, during or Choice(_whole_day(on, scope), POOL), scope)
@@ -792,6 +792,13 @@ def _phrase(
     if across and during.kind != POOL:
         chosen["during"], pieces = _pieces(during, on)
     over_days = on.kind == POOL and len(on.items) > 1
+    written_on = ast.clause(clauses, ast.On)
+    if over_days and not written_on.across and _adds_up(chosen, measure):
+        raise _error(
+            "ON ANY is on one of these dates; to count or add up over all of them, write "
+            "ACROSS <dates>",
+            written_on.selector.pos,
+        )
     if (
         asking
         and over_days
@@ -831,6 +838,14 @@ def _phrase(
     return Tally(prefer, levels, pattern, measure, runs, pos, pieces), picked
 
 
+def _adds_up(chosen: dict, measure: ast.Amount | None) -> bool:
+    """Whether a statement counts or measures anything, or picks several blocks."""
+    during = chosen["during"]
+    several = isinstance(during, Choice) and during.kind == ANY and during.n > 1
+    counted = any(isinstance(c, Choice) and c.kind == COUNT for c in chosen.values())
+    return measure is not None or counted or several
+
+
 def _fits(for_: ast.For, during: Choice, scope: _Scope) -> None:
     """A piece stays in its block, so a length no block is long enough for is a total."""
     if for_.bound == ast.AT_MOST:
@@ -841,7 +856,7 @@ def _fits(for_: ast.For, during: Choice, scope: _Scope) -> None:
         raise _error(
             f"no block here is {ast.written_duration(for_.minutes)} long, and with DURING a "
             "FOR is the length of each piece; to add the pieces up, write ACROSS: "
-            "FOR AT_LEAST 2h ACROSS ANY <blocks>",
+            "FOR AT_LEAST 2h ACROSS <blocks>",
             for_.pos,
         )
 
@@ -854,7 +869,7 @@ def _pieces(during: Choice, on: Choice) -> tuple[Choice, ast.Amount]:
     """
     if during.consecutive and during.kind != POOL:
         raise _error(
-            "ACROSS adds up over a run with ANY CONSECUTIVE; to pick blocks in a row for "
+            "ACROSS adds up over a run with CONSECUTIVE alone; to pick blocks in a row for "
             "pieces of their own, write DURING",
             during.pos,
         )
@@ -862,8 +877,8 @@ def _pieces(during: Choice, on: Choice) -> tuple[Choice, ast.Amount]:
         raise _error("ACROSS adds up over blocks taken one by one, so no groups", during.pos)
     if on.kind == POOL and len(on.items) > 1:
         raise _error(
-            "the pieces of an ACROSS are counted a day at a time, so its blocks are pooled "
-            "over pooled dates: ACROSS ANY <blocks>",
+            "the pieces of an ACROSS are counted a day at a time, so over several dates its "
+            "blocks are pooled: ACROSS <blocks>",
             during.pos,
         )
     if during.kind == ALL and len(during.items) == 1:
@@ -1066,8 +1081,8 @@ def _parts(what: ast.Target, clauses: tuple[ast.Clause, ...], scope: _Scope, poo
     target = Choice((scope.dataset.target,), POOL if pool else ALL)
     # The dates come first: an activity that belongs to one day, such as a cabin act, is
     # only there on the dates the request is about if one of them is its day.
-    when = _choice(on.selector, DATES, scope, pool) if on else target
-    blocks = _choice(during.selector, BLOCKS, scope, pool) if during else None
+    when = _choice(on.selector, DATES, scope, pool, across=on.across) if on else target
+    blocks = _choice(during.selector, BLOCKS, scope, pool, across=during.across) if during else None
     if during and during.consecutive:
         if blocks.units:
             raise _error("CONSECUTIVE counts blocks one at a time, so no groups", during.pos)
@@ -1342,12 +1357,13 @@ def _choice(
     scope: _Scope,
     pool: bool,
     when: tuple[Item, ...] = (),
+    across: bool = False,
 ) -> Choice:
     """A selector as a Choice.
 
     With `pool`, the set is matched, right of NOT or in a score: it is a POOL, or ALL of
     them together right of NOT. Otherwise ANY pools it, a count counts it and ALL takes it
-    whole.
+    whole. After ACROSS (`across`) a set is pooled however few it holds.
     """
     if selector.quantifier == ast.EACH:
         item = scope.each[selector.pos]
@@ -1376,7 +1392,7 @@ def _choice(
     if bound:
         return _with_bound(selector, joined, bound, namespace, scope, pool, when)
     if isinstance(expr, ast.Var) and expr.name in scope.anys:
-        if selector.quantifier:
+        if selector.quantifier and not across:
             raise _error(
                 f"'{expr.name}' is chosen by its binding and takes no quantifier", expr.pos
             )
@@ -1409,7 +1425,8 @@ def _choice(
             "blocks",
             selector.pos,
         )
-    _no_quantifier_on_one(expr, single, selector.pos)
+    if not across:
+        _no_quantifier_on_one(expr, single, selector.pos)
     if selector.quantifier == ast.ALL:
         return Choice(_sorted(items), ALL, pos=selector.pos)
     if selector.quantifier == ast.ANY:

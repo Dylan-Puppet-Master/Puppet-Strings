@@ -12,7 +12,7 @@ from puppet_strings.skedge.resolve import Resolved, is_prefer, resolve
 
 CLAUSE_NAMES = {
     ast.During: "DURING or ACROSS",
-    ast.On: "ON",
+    ast.On: "ON or ACROSS",
     ast.AsRole: "AS_ROLE",
     ast.For: "FOR",
     ast.With: "WITH",
@@ -69,7 +69,7 @@ def _check_exclusions(declaration: ast.Declaration, hard: bool) -> None:
     for line in exclusions:
         _settled(line.who)
         for clause in line.clauses:
-            if isinstance(clause, ast.During) and clause.across:
+            if isinstance(clause, ast.During | ast.On) and clause.across:
                 raise _error("EXCLUDE takes DURING and ON, not ACROSS", clause.pos)
             if isinstance(clause, ast.During | ast.On):
                 _settled(clause.selector)
