@@ -3,12 +3,12 @@ name = "Conditions"
 blurb = "IF and UNLESS, joined with AND and OR."
 day = "2026-08-04"
 teaches = """
-IF <test> THEN { … }        what is in the braces applies only when the test holds
-UNLESS <test> THEN { … }    only when it doesn't
+IF <test> { … }      what is in the braces applies only when the test holds
+UNLESS <test> { … }  only when it doesn't
 
 A test says what happens, and is true or false of the day; with no count, it holds when it happens at all.
 
-UNLESS staff.lisa FREE DURING blocks.clinic_1 THEN
+UNLESS staff.lisa FREE DURING blocks.clinic_1
 {
     REQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1
 }
@@ -16,7 +16,7 @@ UNLESS staff.lisa FREE DURING blocks.clinic_1 THEN
 IF
 AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch
 AND
-staff.dylan FREE DURING blocks.lunch THEN
+staff.dylan FREE DURING blocks.lunch
 {
     REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch
 }
@@ -31,93 +31,93 @@ staff.dylan FREE DURING blocks.lunch THEN
 id = "if-unless-lisa"
 title = "Unless Lisa's free"
 prompt = "Unless Lisa is free during clinic 1, a permanent hero covers the 'front desk' then."
-answer = "UNLESS staff.lisa FREE DURING blocks.clinic_1 THEN\n{\n    REQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1\n}"
-hints = ["UNLESS <test> THEN, and the REQUEST in braces below."]
-alternatives = ["IF staff.lisa BUSY DURING blocks.clinic_1 THEN\n{\n    REQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1\n}"]
-wrong = ["IF staff.lisa FREE DURING blocks.clinic_1 THEN\n{\n    REQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1\n}"]
+answer = "UNLESS staff.lisa FREE DURING blocks.clinic_1\n{\n    REQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1\n}"
+hints = ["UNLESS <test>, and the REQUEST in braces below it."]
+alternatives = ["IF staff.lisa BUSY DURING blocks.clinic_1\n{\n    REQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1\n}"]
+wrong = ["IF staff.lisa FREE DURING blocks.clinic_1\n{\n    REQUEST ANY 1 staff.permanent_heroes DO 'front desk' DURING blocks.clinic_1\n}"]
 
 [[problem]]
 id = "if-busy-then-cover"
 title = "Covering for a busy director"
 prompt = "If David runs any clinic during clinic 2, Lisa does 'office cover' then."
-answer = "IF staff.david DO ANY activities.clinics DURING blocks.clinic_2 THEN\n{\n    REQUEST staff.lisa DO 'office cover' DURING blocks.clinic_2\n}"
+answer = "IF staff.david DO ANY activities.clinics DURING blocks.clinic_2\n{\n    REQUEST staff.lisa DO 'office cover' DURING blocks.clinic_2\n}"
 wrong = ["REQUEST staff.lisa DO 'office cover' DURING blocks.clinic_2"]
 
 [[problem]]
 id = "if-two-on-break"
 title = "When two are out"
 prompt = "If at least two counselors are on 'break' at lunch, Dylan does 'cabin cover' at lunch."
-answer = "IF AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch THEN\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"
+answer = "IF AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"
 wrong = ["REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch"]
 
 [[problem]]
 id = "if-and"
 title = "Both at once"
 prompt = "If at least two counselors are on 'break' at lunch AND Dylan is free at lunch, Dylan does 'cabin cover' at lunch. Put each condition on its own line."
-answer = "IF\nAT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch\nAND\nstaff.dylan FREE DURING blocks.lunch THEN\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"
+answer = "IF\nAT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch\nAND\nstaff.dylan FREE DURING blocks.lunch\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"
 hints = ["IF can end a line; so can AND. The condition carries on below."]
-alternatives = ["IF AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch AND staff.dylan FREE DURING blocks.lunch THEN\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"]
-wrong = ["IF AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch OR staff.dylan FREE DURING blocks.lunch THEN\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"]
+alternatives = ["IF AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch AND staff.dylan FREE DURING blocks.lunch\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"]
+wrong = ["IF AT_LEAST 2 staff.counselors DO 'break' DURING blocks.lunch OR staff.dylan FREE DURING blocks.lunch\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"]
 
 [[problem]]
 id = "if-or"
 title = "Either will do"
 prompt = "If Rob or Vic runs the Gravity Zip Line during clinic 2, Donny does 'zip line spotting' then."
-answer = "IF staff.rob DO activities.clinics.gravity_zip_line DURING blocks.clinic_2 OR staff.vic DO activities.clinics.gravity_zip_line DURING blocks.clinic_2 THEN\n{\n    REQUEST staff.donny DO 'zip line spotting' DURING blocks.clinic_2\n}"
-alternatives = ["IF ANY {staff.rob + staff.vic} DO activities.clinics.gravity_zip_line DURING blocks.clinic_2 THEN\n{\n    REQUEST staff.donny DO 'zip line spotting' DURING blocks.clinic_2\n}"]
-wrong = ["IF staff.rob DO activities.clinics.gravity_zip_line DURING blocks.clinic_2 AND staff.vic DO activities.clinics.gravity_zip_line DURING blocks.clinic_2 THEN\n{\n    REQUEST staff.donny DO 'zip line spotting' DURING blocks.clinic_2\n}"]
+answer = "IF staff.rob DO activities.clinics.gravity_zip_line DURING blocks.clinic_2 OR staff.vic DO activities.clinics.gravity_zip_line DURING blocks.clinic_2\n{\n    REQUEST staff.donny DO 'zip line spotting' DURING blocks.clinic_2\n}"
+alternatives = ["IF ANY {staff.rob + staff.vic} DO activities.clinics.gravity_zip_line DURING blocks.clinic_2\n{\n    REQUEST staff.donny DO 'zip line spotting' DURING blocks.clinic_2\n}"]
+wrong = ["IF staff.rob DO activities.clinics.gravity_zip_line DURING blocks.clinic_2 AND staff.vic DO activities.clinics.gravity_zip_line DURING blocks.clinic_2\n{\n    REQUEST staff.donny DO 'zip line spotting' DURING blocks.clinic_2\n}"]
 
 [[problem]]
 id = "if-each-after-clinics"
 title = "After two in a row"
 prompt = "For each village leader: if they run two clinics back to back, they get a free block somewhere today."
-answer = "EACH s IN staff.village_leaders\nIF s DO ANY activities.clinics DURING AT_LEAST 2 CONSECUTIVE blocks THEN\n{\n    REQUEST s FREE DURING ANY 1 blocks\n}"
+answer = "EACH s IN staff.village_leaders\nIF s DO ANY activities.clinics DURING AT_LEAST 2 CONSECUTIVE blocks\n{\n    REQUEST s FREE DURING ANY 1 blocks\n}"
 priority = "HIGH"
 
 [[problem]]
 id = "if-unless-any-director"
 title = "Unless a director is free"
 prompt = "Unless some director is free during clinic 3, Brian does 'front desk' during clinic 3."
-answer = "UNLESS ANY staff.directors FREE DURING blocks.clinic_3 THEN\n{\n    REQUEST staff.brian DO 'front desk' DURING blocks.clinic_3\n}"
+answer = "UNLESS ANY staff.directors FREE DURING blocks.clinic_3\n{\n    REQUEST staff.brian DO 'front desk' DURING blocks.clinic_3\n}"
 explain = "ANY staff.directors FREE is true when any one of them is free; ALL staff.directors FREE only when every one of them is."
-wrong = ["UNLESS AT_LEAST 2 staff.directors FREE DURING blocks.clinic_3 THEN\n{\n    REQUEST staff.brian DO 'front desk' DURING blocks.clinic_3\n}"]
+wrong = ["UNLESS AT_LEAST 2 staff.directors FREE DURING blocks.clinic_3\n{\n    REQUEST staff.brian DO 'front desk' DURING blocks.clinic_3\n}"]
 
 [[problem]]
 id = "if-or-unless"
 title = "Neither"
 prompt = "Unless Hailey or Alyce is free during clinic 1, Alexis does 'barn check' then."
-answer = "UNLESS staff.hailey FREE DURING blocks.clinic_1 OR staff.alyce FREE DURING blocks.clinic_1 THEN\n{\n    REQUEST staff.alexis DO 'barn check' DURING blocks.clinic_1\n}"
-alternatives = ["UNLESS ANY {staff.hailey + staff.alyce} FREE DURING blocks.clinic_1 THEN\n{\n    REQUEST staff.alexis DO 'barn check' DURING blocks.clinic_1\n}"]
-wrong = ["UNLESS staff.hailey FREE DURING blocks.clinic_1 AND staff.alyce FREE DURING blocks.clinic_1 THEN\n{\n    REQUEST staff.alexis DO 'barn check' DURING blocks.clinic_1\n}"]
+answer = "UNLESS staff.hailey FREE DURING blocks.clinic_1 OR staff.alyce FREE DURING blocks.clinic_1\n{\n    REQUEST staff.alexis DO 'barn check' DURING blocks.clinic_1\n}"
+alternatives = ["UNLESS ANY {staff.hailey + staff.alyce} FREE DURING blocks.clinic_1\n{\n    REQUEST staff.alexis DO 'barn check' DURING blocks.clinic_1\n}"]
+wrong = ["UNLESS staff.hailey FREE DURING blocks.clinic_1 AND staff.alyce FREE DURING blocks.clinic_1\n{\n    REQUEST staff.alexis DO 'barn check' DURING blocks.clinic_1\n}"]
 
 [[problem]]
 id = "if-parentheses"
 title = "Parentheses"
 prompt = "If (Rob and Vic are both free during clinic 4) or Donny is free during clinic 4, then Charlton does 'ropes inspection' during clinic 4."
-answer = "IF (staff.rob FREE DURING blocks.clinic_4 AND staff.vic FREE DURING blocks.clinic_4) OR staff.donny FREE DURING blocks.clinic_4 THEN\n{\n    REQUEST staff.charlton DO 'ropes inspection' DURING blocks.clinic_4\n}"
+answer = "IF (staff.rob FREE DURING blocks.clinic_4 AND staff.vic FREE DURING blocks.clinic_4) OR staff.donny FREE DURING blocks.clinic_4\n{\n    REQUEST staff.charlton DO 'ropes inspection' DURING blocks.clinic_4\n}"
 hints = ["IF (a AND b) OR c"]
-wrong = ["IF staff.rob FREE DURING blocks.clinic_4 AND (staff.vic FREE DURING blocks.clinic_4 OR staff.donny FREE DURING blocks.clinic_4) THEN\n{\n    REQUEST staff.charlton DO 'ropes inspection' DURING blocks.clinic_4\n}"]
+wrong = ["IF staff.rob FREE DURING blocks.clinic_4 AND (staff.vic FREE DURING blocks.clinic_4 OR staff.donny FREE DURING blocks.clinic_4)\n{\n    REQUEST staff.charlton DO 'ropes inspection' DURING blocks.clinic_4\n}"]
 
 [[problem]]
 id = "if-many-breaks-no-more"
 title = "Enough breaks already"
 prompt = "Unless Kara already has a 'break' during lunch, she takes one during dinner."
-answer = "UNLESS staff.kara DO 'break' DURING blocks.lunch THEN\n{\n    REQUEST staff.kara DO 'break' DURING blocks.dinner\n}"
-wrong = ["IF staff.kara DO 'break' DURING blocks.lunch THEN\n{\n    REQUEST staff.kara DO 'break' DURING blocks.dinner\n}"]
+answer = "UNLESS staff.kara DO 'break' DURING blocks.lunch\n{\n    REQUEST staff.kara DO 'break' DURING blocks.dinner\n}"
+wrong = ["IF staff.kara DO 'break' DURING blocks.lunch\n{\n    REQUEST staff.kara DO 'break' DURING blocks.dinner\n}"]
 
 [[problem]]
 id = "if-three-conditions-and"
 title = "Three things true"
 prompt = "If Lisa, David and Matthew are all free during rest hour, they have a 'directors huddle' during playstation."
-answer = "IF staff.lisa FREE DURING blocks.rest_hour AND staff.david FREE DURING blocks.rest_hour AND staff.matthew FREE DURING blocks.rest_hour THEN\n{\n    REQUEST ALL staff.directors DO 'directors huddle' DURING blocks.playstation\n}"
-alternatives = ["IF\nstaff.lisa FREE DURING blocks.rest_hour\nAND staff.david FREE DURING blocks.rest_hour\nAND staff.matthew FREE DURING blocks.rest_hour THEN\n{\n    REQUEST ALL staff.directors DO 'directors huddle' DURING blocks.playstation\n}"]
-wrong = ["IF staff.lisa FREE DURING blocks.rest_hour AND staff.david FREE DURING blocks.rest_hour THEN\n{\n    REQUEST ALL staff.directors DO 'directors huddle' DURING blocks.playstation\n}"]
+answer = "IF staff.lisa FREE DURING blocks.rest_hour AND staff.david FREE DURING blocks.rest_hour AND staff.matthew FREE DURING blocks.rest_hour\n{\n    REQUEST ALL staff.directors DO 'directors huddle' DURING blocks.playstation\n}"
+alternatives = ["IF\nstaff.lisa FREE DURING blocks.rest_hour\nAND staff.david FREE DURING blocks.rest_hour\nAND staff.matthew FREE DURING blocks.rest_hour\n{\n    REQUEST ALL staff.directors DO 'directors huddle' DURING blocks.playstation\n}"]
+wrong = ["IF staff.lisa FREE DURING blocks.rest_hour AND staff.david FREE DURING blocks.rest_hour\n{\n    REQUEST ALL staff.directors DO 'directors huddle' DURING blocks.playstation\n}"]
 
 [[problem]]
 id = "if-each-counselor-lunch-break"
 title = "Break then cover"
 prompt = "For each counselor: if they are on 'break' during lunch, their buddy does 'cabin cover' during lunch."
-answer = "EACH c IN staff.counselors\nIF c DO 'break' DURING blocks.lunch THEN\n{\n    REQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.lunch\n}"
+answer = "EACH c IN staff.counselors\nIF c DO 'break' DURING blocks.lunch\n{\n    REQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.lunch\n}"
 priority = "HIGH"
 wrong = ["EACH c IN staff.counselors\nREQUEST mappings.buddy(c) DO 'cabin cover' DURING blocks.lunch"]
 
@@ -125,15 +125,15 @@ wrong = ["EACH c IN staff.counselors\nREQUEST mappings.buddy(c) DO 'cabin cover'
 id = "if-busy-evening"
 title = "A busy evening"
 prompt = "If Tori has something assigned in either evening block, she is free during clinic 4."
-answer = "IF staff.tori BUSY DURING ANY blocks.evening THEN\n{\n    REQUEST staff.tori FREE DURING blocks.clinic_4\n}"
+answer = "IF staff.tori BUSY DURING ANY blocks.evening\n{\n    REQUEST staff.tori FREE DURING blocks.clinic_4\n}"
 explain = "In a condition, a set of blocks means any of them: one busy evening block is enough."
-alternatives = ["IF staff.tori BUSY DURING blocks.embers OR staff.tori BUSY DURING blocks.evening_program THEN\n{\n    REQUEST staff.tori FREE DURING blocks.clinic_4\n}"]
-wrong = ["IF staff.tori BUSY DURING blocks.embers AND staff.tori BUSY DURING blocks.evening_program THEN\n{\n    REQUEST staff.tori FREE DURING blocks.clinic_4\n}"]
+alternatives = ["IF staff.tori BUSY DURING blocks.embers OR staff.tori BUSY DURING blocks.evening_program\n{\n    REQUEST staff.tori FREE DURING blocks.clinic_4\n}"]
+wrong = ["IF staff.tori BUSY DURING blocks.embers AND staff.tori BUSY DURING blocks.evening_program\n{\n    REQUEST staff.tori FREE DURING blocks.clinic_4\n}"]
 
 [[problem]]
 id = "if-or-many-clinic"
 title = "Plenty of archery"
 prompt = "If Archery 1 & 2 runs in clinic 2 or in clinic 3, Gabe does 'target repair' during clinic 4."
-answer = "IF ANY staff DO activities.clinics.archery_1_2 DURING ANY {blocks.clinic_2 + blocks.clinic_3} THEN\n{\n    REQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4\n}"
-alternatives = ["IF ANY staff DO activities.clinics.archery_1_2 DURING blocks.clinic_2 OR ANY staff DO activities.clinics.archery_1_2 DURING blocks.clinic_3 THEN\n{\n    REQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4\n}"]
-wrong = ["IF ANY staff DO activities.clinics.archery_1_2 DURING blocks.clinic_2 THEN\n{\n    REQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4\n}"]
+answer = "IF ANY staff DO activities.clinics.archery_1_2 DURING ANY {blocks.clinic_2 + blocks.clinic_3}\n{\n    REQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4\n}"
+alternatives = ["IF ANY staff DO activities.clinics.archery_1_2 DURING blocks.clinic_2 OR ANY staff DO activities.clinics.archery_1_2 DURING blocks.clinic_3\n{\n    REQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4\n}"]
+wrong = ["IF ANY staff DO activities.clinics.archery_1_2 DURING blocks.clinic_2\n{\n    REQUEST staff.gabe DO 'target repair' DURING blocks.clinic_4\n}"]

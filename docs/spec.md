@@ -52,7 +52,7 @@ the same words are a **pattern**: they match assignments, and nothing in them is
 
 | Element | Form |
 |---|---|
-| Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `THEN`, `AND`, `OR`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `BUSY`, `DURING`, `ACROSS`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL`, `ANY`, `EACH`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
+| Keyword | Either case, upper by convention: `REQUEST`, `PREFER`, `IF`, `UNLESS`, `AND`, `OR`, `GAP`, `TO`, `DO`, `EXCLUDE`, `NOT`, `FREE`, `BUSY`, `DURING`, `ACROSS`, `ON`, `AS_ROLE`, `FOR`, `WITH`, `WITHOUT`, `IN`, `ALL`, `ANY`, `EACH`, `AT_LEAST`, `AT_MOST`, `EXACTLY`, `CONSECUTIVE`, `MAXIMIZE`, `MINIMIZE` |
 | Quantifier | `ALL`, `EACH`, `ANY`, a choice `ANY n`, and a count: `AT_LEAST n`, `AT_MOST n` or `EXACTLY n`, for any whole `n` from 1 |
 | Name | Dotted, lower case, digits and underscores; any depth: `staff.mary_kate`, `dates.session_4.week_2` |
 | Variable, label | A bare identifier: `s`, `morning`. A label or a definition is followed by a colon. |
@@ -99,8 +99,8 @@ define      : NAME ":" (ALL | EACH | any_n)? set_
 define_task : NAME ":" STRING
 // A condition is for the statements in its block, and only those. A block holds statements
 // and further IFs, on lines of their own or all on one.
-if_         : _IF _NL* condition _THEN _NL* block
-unless      : _UNLESS _NL* condition _THEN _NL* block
+if_         : _IF _NL* condition block
+unless      : _UNLESS _NL* condition block
 block       : "{" _NL* (_inner _NL*)+ "}"
 _inner      : if_ | unless | labeled | request | prefer | exclude
 labeled     : NAME ":" request
@@ -198,7 +198,6 @@ _EXCLUDE.5  : /EXCLUDE\b/i
 _PREFER.5   : /PREFER\b/i
 _IF.5       : /IF\b/i
 _UNLESS.5   : /UNLESS\b/i
-_THEN.5     : /THEN\b/i
 _GAP.5      : /GAP\b/i
 _TO.5       : /TO\b/i
 DO.5        : /DO\b/i
@@ -690,8 +689,8 @@ A declaration is lines of these kinds, in any order.
 | Statement | `[label:] REQUEST …` or `PREFER …` | §9. Only a positive `REQUEST … DO` may be labeled. |
 | Binding | `EACH x IN s`, `ANY n x IN s`, `x: ANY n s`, `x: EACH s` | §6.3. |
 | Definition | `x: s`, `x: '<task>'` | A name for a set, or for a quoted task (§6.3). |
-| Condition | `IF <test> THEN { … }` | The statements in the braces apply only when this holds. |
-| Negative condition | `UNLESS <test> THEN { … }` | The statements in the braces apply only when this does not hold. |
+| Condition | `IF <test> { … }` | The statements in the braces apply only when this holds. |
+| Negative condition | `UNLESS <test> { … }` | The statements in the braces apply only when this does not hold. |
 | Shared dates | `ON <dates>` or `ACROSS <dates>`, on the first line only | Goes on every `REQUEST`, `PREFER` and `EXCLUDE`; none may have its own. |
 | Gap | `GAP a TO b [<amount>]` | Relates the assignments of the `REQUEST` labeled `a` to those of the one labeled `b`. |
 

@@ -1064,3 +1064,9 @@ Recorded so the outline matches the code.
   `ACROSS` of dates takes no quantifier at all, a pick or count of dates being `ON`'s. The
   training problems, docs, the test fixtures and one saved request (a copy of the file
   before is `requests.before-across-dates.sqlite`) were rewritten.
+- **No THEN** (Puppet Master, 2026-09-25). An `IF` or `UNLESS` is always followed by the
+  braces of its block, so `THEN` between them said nothing the brace did not. It is gone:
+  `IF <test> { … }`. The brace cannot be read as part of the test, since a test's sets are
+  whole before it, and one on the next line carries on the `IF` as any other line does. The
+  training problems, docs, tests and the three saved requests with an `IF` (a copy of the
+  file before is `requests.before-no-then.sqlite`) were rewritten.

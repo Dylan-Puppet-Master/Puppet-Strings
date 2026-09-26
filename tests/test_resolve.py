@@ -157,7 +157,7 @@ def test_patterns_conditions_and_mappings(dataset):
     (copy,) = resolve(
         dataset,
         "EACH s IN staff.director\n"
-        "IF s DO ANY activities.clinics DURING AT_LEAST 3 CONSECUTIVE blocks THEN\n"
+        "IF s DO ANY activities.clinics DURING AT_LEAST 3 CONSECUTIVE blocks\n"
         "{ REQUEST s FREE DURING ANY 1 blocks }",
     )[:1]
     ((condition,),) = copy.when
@@ -468,7 +468,7 @@ def test_a_checkbox_cannot_take_a_halfs_name(dataset):
 def test_a_test_that_names_no_one_is_of_activities_running(dataset):
     (copy,) = resolve(
         dataset,
-        "IF ANY activities.clinics.ropes DURING blocks.clinic_1 THEN\n"
+        "IF ANY activities.clinics.ropes DURING blocks.clinic_1\n"
         "{ REQUEST staff.dylan FREE DURING blocks.clinic_2 }",
     )
     (condition,) = copy.conditions
@@ -477,7 +477,7 @@ def test_a_test_that_names_no_one_is_of_activities_running(dataset):
     with pytest.raises(SkedgeError, match="says only DURING and ON"):
         resolve(
             dataset,
-            "IF ANY activities.clinics AS_ROLE roles.first DURING blocks.clinic_1 THEN\n"
+            "IF ANY activities.clinics AS_ROLE roles.first DURING blocks.clinic_1\n"
             "{ REQUEST staff.dylan FREE DURING blocks.clinic_2 }",
         )
 
@@ -493,7 +493,7 @@ def test_a_bound_cabin_act_on_another_day_is_no_copy(dataset):
     conditioned = resolve(
         dataset,
         "EACH a IN activities.cabin_acts\n"
-        "IF staff.dylan DO a DURING blocks.cabin_act THEN\n"
+        "IF staff.dylan DO a DURING blocks.cabin_act\n"
         "{ REQUEST staff.dylan FREE DURING blocks.lunch }",
     )
     assert len(conditioned) == 1

@@ -242,7 +242,7 @@ def test_a_prefer_across_a_count_of_blocks_is_met_in_that_many():
 def test_a_test_across_a_count_of_blocks(most, marked):
     edit = "REQUEST staff.cam DO 'video editing' FOR EXACTLY 2h ACROSS ANY 2 blocks.all_clinics"
     test = (
-        f"IF staff.cam DO 'video editing' FOR AT_LEAST 2h ACROSS AT_MOST {most} blocks THEN\n"
+        f"IF staff.cam DO 'video editing' FOR AT_LEAST 2h ACROSS AT_MOST {most} blocks\n"
         "{ REQUEST staff.cam DO 'marker' DURING blocks.playstation }"
     )
     ds = dataset(

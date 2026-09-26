@@ -23,8 +23,8 @@ define      : NAME ":" (ALL | EACH | any_n)? set_
 define_task : NAME ":" STRING
 // A condition is for the statements in its block, and only those. A block holds statements
 // and further IFs, on lines of their own or all on one.
-if_         : _IF _NL* condition _THEN _NL* block
-unless      : _UNLESS _NL* condition _THEN _NL* block
+if_         : _IF _NL* condition block
+unless      : _UNLESS _NL* condition block
 block       : "{" _NL* (_inner _NL*)+ "}"
 _inner      : if_ | unless | labeled | request | prefer | exclude
 labeled     : NAME ":" request
@@ -122,7 +122,6 @@ _EXCLUDE.5  : /EXCLUDE\b/i
 _PREFER.5   : /PREFER\b/i
 _IF.5       : /IF\b/i
 _UNLESS.5   : /UNLESS\b/i
-_THEN.5     : /THEN\b/i
 _GAP.5      : /GAP\b/i
 _TO.5       : /TO\b/i
 DO.5        : /DO\b/i

@@ -1268,7 +1268,7 @@ def test_if_reads_a_published_fact():
     yesterday = TARGET - timedelta(days=1)
     text = (
         "EACH s IN staff\n"
-        "IF s BUSY DURING blocks.playstation ON {dates.target - 1d} THEN\n"
+        "IF s BUSY DURING blocks.playstation ON {dates.target - 1d}\n"
         "{ REQUEST s FREE DURING blocks.clinic_1 }"
     )
     members = [staff("Dylan", archery_1_2=OK), staff("Randy", archery_1_2=OK)]
@@ -1293,7 +1293,7 @@ def test_if_reads_a_published_fact():
 
 def test_unless_applies_only_when_the_pattern_has_no_match():
     text = (
-        "UNLESS ANY staff.director FREE DURING blocks.clinic_1 THEN\n"
+        "UNLESS ANY staff.director FREE DURING blocks.clinic_1\n"
         "{ REQUEST ANY 1 staff.office DO 'front desk' DURING blocks.clinic_1 }"
     )
     members = [staff("David", archery_1_2=OK), staff("Lisa")]
@@ -1315,9 +1315,9 @@ def test_unless_applies_only_when_the_pattern_has_no_match():
 def test_only_what_is_in_the_braces_depends_on_the_test():
     """Mail is asked for either way; the desk only when a director is busy, and Lisa free later."""
     text = (
-        "IF ANY staff.director BUSY DURING blocks.clinic_1 THEN\n"
+        "IF ANY staff.director BUSY DURING blocks.clinic_1\n"
         "{\n"
-        "    IF ANY staff.office FREE DURING blocks.clinic_3 THEN\n"
+        "    IF ANY staff.office FREE DURING blocks.clinic_3\n"
         "    {\n"
         "        REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1\n"
         "    }\n"
@@ -1345,7 +1345,7 @@ def test_only_what_is_in_the_braces_depends_on_the_test():
 def test_if_with_an_amount_over_a_run():
     text = (
         "EACH s IN staff\n"
-        "IF s DO ANY activities.clinics DURING AT_LEAST 2 CONSECUTIVE blocks THEN\n"
+        "IF s DO ANY activities.clinics DURING AT_LEAST 2 CONSECUTIVE blocks\n"
         "{ REQUEST s FREE DURING blocks.clinic_3 }"
     )
     ds = dataset(
@@ -1373,7 +1373,7 @@ def test_and_or_join_conditions():
 
     def desk(joined):
         text = (
-            f"IF ANY staff.director FREE DURING blocks.clinic_1\n{joined} staff.lisa FREE DURING blocks.clinic_2 THEN\n"
+            f"IF ANY staff.director FREE DURING blocks.clinic_1\n{joined} staff.lisa FREE DURING blocks.clinic_2\n"
             "{ REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1 }"
         )
         ds = dataset(members, [ARCHERY], categories=categories, requests=[request("desk", text)])
@@ -1382,7 +1382,7 @@ def test_and_or_join_conditions():
     # Lisa is free in clinic 2 whatever happens, so OR holds and AND holds too.
     assert desk("AND") and desk("OR")
     busy = (
-        "IF ANY staff.director BUSY DURING blocks.clinic_1\n{} staff.lisa FREE DURING blocks.clinic_2 THEN\n"
+        "IF ANY staff.director BUSY DURING blocks.clinic_1\n{} staff.lisa FREE DURING blocks.clinic_2\n"
         "{{ REQUEST staff.lisa DO 'front desk' DURING blocks.clinic_1 }}"
     )
     for joined, expected in (("AND", False), ("OR", True)):
@@ -1398,7 +1398,7 @@ def test_and_or_join_conditions():
 LVL_2 = clinic("Lvl 2 on Ground", (None, 1), category="ropes")
 ON_THE_GROUND = (
     "EACH b IN blocks\n"
-    "IF ANY staff DO ANY activities.clinics.ropes DURING b THEN\n"
+    "IF ANY staff DO ANY activities.clinics.ropes DURING b\n"
     "{ REQUEST activities.clinics.lvl_2_on_ground DURING b }"
 )
 # Something that would like Lvl 2 to run everywhere, and would get it if an IF could hold
@@ -1423,7 +1423,7 @@ def test_an_if_does_not_hold_because_of_what_it_asks_for():
 
 RUNS_ON_THE_GROUND = (
     "EACH b IN blocks\n"
-    "IF ANY {activities.clinics.ropes + activities.cabin_acts.lvl_2_on_ground} DURING b THEN\n"
+    "IF ANY {activities.clinics.ropes + activities.cabin_acts.lvl_2_on_ground} DURING b\n"
     "{ REQUEST activities.clinics.lvl_2_on_ground DURING b }"
 )
 CABIN_ACTS = "REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.playstation"
@@ -1460,7 +1460,7 @@ def test_a_ticked_act_nobody_is_scheduled_for_still_needs_a_level_2(ticked):
 
 def test_a_busy_test_does_not_count_the_task_its_if_asks_for():
     text = (
-        "IF staff.dylan BUSY DURING blocks.clinic_1 THEN\n"
+        "IF staff.dylan BUSY DURING blocks.clinic_1\n"
         "{ REQUEST staff.dylan DO 'paperwork' DURING blocks.clinic_1 }"
     )
     keen = "PREFER staff.dylan BUSY DURING AT_LEAST 1 blocks"
@@ -1476,7 +1476,7 @@ def test_a_busy_test_does_not_count_the_task_its_if_asks_for():
 def test_what_the_request_asks_for_outside_its_if_still_counts():
     text = (
         "REQUEST staff.dylan DO 'setup' DURING blocks.clinic_1\n"
-        "IF staff.dylan BUSY DURING blocks.clinic_1 THEN\n"
+        "IF staff.dylan BUSY DURING blocks.clinic_1\n"
         "{ REQUEST staff.dylan FREE DURING blocks.clinic_2 }"
     )
     ds = dataset(

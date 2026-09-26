@@ -56,8 +56,8 @@ def test_only_what_must_happen_can_conflict(dataset):
 
 
 def test_a_conditional_requirement_does_not_conflict_until_the_solver_settles_it(dataset):
-    """A THEN is only asked for when its IF holds, which this pane cannot know in advance."""
-    guarded = f"IF ANY staff FREE DURING blocks.clinic_2 THEN\n{{ {PIN} }}"
+    """What an IF asks for is only asked for when it holds, which this pane cannot know in advance."""
+    guarded = f"IF ANY staff FREE DURING blocks.clinic_2\n{{ {PIN} }}"
     assert found(dataset, req("maybe", guarded), req("free", FREE)) == ()
 
 

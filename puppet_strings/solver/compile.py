@@ -1649,7 +1649,7 @@ class Compiler:
 
         Something other than the statements inside the condition must ask for it. Without
         this an IF could hold because of what it asks for. In `IF ANY staff DO ANY
-        activities.clinics.ropes DURING b THEN { REQUEST activities.clinics.lvl_2 DURING b }`,
+        activities.clinics.ropes DURING b { REQUEST activities.clinics.lvl_2 DURING b }`,
         where lvl_2 is a ropes clinic itself, lvl_2 running would make the test hold, and the
         test holding would be the request that lets it run. What asks for an assignment is
         known only once every request is compiled, so `close` defines the literal.

@@ -710,7 +710,7 @@ def _name_tasks(declaration: ast.Declaration) -> ast.Declaration:
 
 @dataclass(frozen=True)
 class _Block:
-    """`IF … THEN {…}` as the rules build it, before `start` flattens it."""
+    """`IF … {…}` as the rules build it, before `start` flattens it."""
 
     condition: ast.Condition
     lines: tuple

@@ -94,9 +94,9 @@ def test_work_asked_of_somebody_who_is_away(dataset):
 
 
 def test_a_conditional_requirement_is_not_checked_until_the_solver_settles_it(dataset):
-    """A THEN is only asked for when its IF holds, which this pane cannot know in advance."""
+    """What an IF asks for is only asked for when it holds, which this pane cannot know in advance."""
     guarded = (
-        "IF ANY staff FREE DURING blocks.clinic_2 THEN\n"
+        "IF ANY staff FREE DURING blocks.clinic_2\n"
         "{ " + ARCHERY.replace("clinic_1", "clinic_2") + " }"
     )
     assert found(dataset, req("maybe", guarded)) == ()

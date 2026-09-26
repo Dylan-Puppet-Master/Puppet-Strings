@@ -363,7 +363,7 @@ def predicates(test: Test) -> Iterator[Predicate]:
 
 @dataclass(frozen=True)
 class Condition:
-    """`IF … THEN {…}` or, with `unless`, `UNLESS … THEN {…}`.
+    """`IF … {…}` or, with `unless`, `UNLESS … {…}`.
 
     The block is not kept here: each statement in it names this condition by its `pos` in
     its own `when`, and the condition is a line of the declaration like the statements.

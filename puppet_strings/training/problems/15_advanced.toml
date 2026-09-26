@@ -75,7 +75,7 @@ wrong = ["REQUEST ANY 1 staff.village_leaders DO 'night patrol' DURING EACH bloc
 id = "big-front-desk"
 title = "The front desk"
 prompt = "Unless a director is free during clinic 1, one permanent hero who isn't a director covers the 'front desk' then — and it's never Rob."
-answer = "UNLESS ANY staff.directors FREE DURING blocks.clinic_1 THEN\n{\n    REQUEST ANY 1 {staff.permanent_heroes - staff.directors - staff.rob} DO 'front desk' DURING blocks.clinic_1\n}"
+answer = "UNLESS ANY staff.directors FREE DURING blocks.clinic_1\n{\n    REQUEST ANY 1 {staff.permanent_heroes - staff.directors - staff.rob} DO 'front desk' DURING blocks.clinic_1\n}"
 wrong = ["REQUEST ANY 1 {staff.permanent_heroes - staff.directors - staff.rob} DO 'front desk' DURING blocks.clinic_1"]
 
 [[problem]]
@@ -105,11 +105,11 @@ wrong = ["ANY 1 v IN {staff.dylan + staff.cam_vl}\nREQUEST ALL {staff.alesa + v}
 id = "big-rest-after-long-morning"
 title = "A long morning"
 prompt = "For each village leader: if they're busy in both clinic 1 and clinic 2, they get rest hour free. Make it count per leader."
-answer = "EACH c IN staff.village_leaders\nIF c BUSY DURING blocks.clinic_1 AND c BUSY DURING blocks.clinic_2 THEN\n{\n    REQUEST c FREE DURING blocks.rest_hour\n}"
+answer = "EACH c IN staff.village_leaders\nIF c BUSY DURING blocks.clinic_1 AND c BUSY DURING blocks.clinic_2\n{\n    REQUEST c FREE DURING blocks.rest_hour\n}"
 priority = "HIGH"
 hints = ["BUSY DURING ANY {a + b} is busy in either one. For both, ALL {a + b}, or two tests joined with AND."]
-alternatives = ["EACH c IN staff.village_leaders\nIF c BUSY DURING ALL {blocks.clinic_1 + blocks.clinic_2} THEN\n{\n    REQUEST c FREE DURING blocks.rest_hour\n}"]
-wrong = ["EACH c IN staff.village_leaders\nIF c BUSY DURING ANY {blocks.clinic_1 + blocks.clinic_2} THEN\n{\n    REQUEST c FREE DURING blocks.rest_hour\n}"]
+alternatives = ["EACH c IN staff.village_leaders\nIF c BUSY DURING ALL {blocks.clinic_1 + blocks.clinic_2}\n{\n    REQUEST c FREE DURING blocks.rest_hour\n}"]
+wrong = ["EACH c IN staff.village_leaders\nIF c BUSY DURING ANY {blocks.clinic_1 + blocks.clinic_2}\n{\n    REQUEST c FREE DURING blocks.rest_hour\n}"]
 
 [[problem]]
 id = "big-unbroken-training"
@@ -137,10 +137,10 @@ wrong = ["REQUEST staff.caroline DO activities.clinics.climbing_wall WITH staff.
 id = "big-the-original"
 title = "Where AND began"
 prompt = "If two counselors are on 'break' in the same block — any block — and Dylan is free during lunch, Dylan does 'cabin cover' during lunch. Put each condition on its own line, joined by AND."
-answer = "IF\nAT_LEAST 2 staff.counselors DO 'break' DURING EACH blocks\nAND\nstaff.dylan FREE DURING blocks.lunch THEN\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"
+answer = "IF\nAT_LEAST 2 staff.counselors DO 'break' DURING EACH blocks\nAND\nstaff.dylan FREE DURING blocks.lunch\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"
 hints = ["EACH blocks makes a copy per block, each asking whether two counselors are on break in it."]
 explain = "Without EACH, DURING ANY blocks would ask whether two counselors had a break at all today, whether or not at the same time."
-wrong = ["IF\nAT_LEAST 2 staff.counselors DO 'break' DURING ANY blocks\nAND\nstaff.dylan FREE DURING blocks.lunch THEN\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"]
+wrong = ["IF\nAT_LEAST 2 staff.counselors DO 'break' DURING ANY blocks\nAND\nstaff.dylan FREE DURING blocks.lunch\n{\n    REQUEST staff.dylan DO 'cabin cover' DURING blocks.lunch\n}"]
 
 [[problem]]
 id = "big-prefer-maintenance-range"
@@ -186,10 +186,10 @@ wrong = ["ANY 1 e IN {staff.eq_staff - staff.hailey}\nvisit: REQUEST ALL {staff.
 id = "big-long-afternoon"
 title = "After a long afternoon"
 prompt = "For each director: if they're busy through both afternoon clinic blocks, they're free at dinner, and we'd like them to get at least an hour of 'paperwork' across rest hour and playstation as well. One request per director."
-answer = "EACH d IN staff.directors\nIF d BUSY DURING ALL {blocks.clinic_3 + blocks.clinic_4} THEN\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h ACROSS {blocks.rest_hour + blocks.playstation}\n}"
+answer = "EACH d IN staff.directors\nIF d BUSY DURING ALL {blocks.clinic_3 + blocks.clinic_4}\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h ACROSS {blocks.rest_hour + blocks.playstation}\n}"
 priority = "MEDIUM"
 hints = ["Busy through both is BUSY DURING ALL {…} in the condition.", "A condition governs the PREFER as well as the REQUEST."]
-wrong = ["EACH d IN staff.directors\nIF d BUSY DURING ANY {blocks.clinic_3 + blocks.clinic_4} THEN\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h ACROSS {blocks.rest_hour + blocks.playstation}\n}"]
+wrong = ["EACH d IN staff.directors\nIF d BUSY DURING ANY {blocks.clinic_3 + blocks.clinic_4}\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h ACROSS {blocks.rest_hour + blocks.playstation}\n}"]
 
 [[problem]]
 id = "big-trainees-supervised"

@@ -460,7 +460,7 @@ def test_a_length_says_whether_it_is_each_piece_or_the_total(dataset, skedge, pr
         "REQUEST staff.dylan DO 'x' DURING ANY 2 blocks ACROSS dates.session_1",
         "ACROSS dates.session_1\nREQUEST staff.dylan DO 'x' DURING AT_MOST 3 blocks\n"
         "PREFER staff.dylan DO 'x' DURING AT_LEAST 1 blocks",
-        "IF staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS AT_LEAST 2 blocks THEN\n"
+        "IF staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS AT_LEAST 2 blocks\n"
         "{ REQUEST staff.dylan FREE DURING blocks.night }",
     ],
 )
