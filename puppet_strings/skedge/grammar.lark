@@ -31,7 +31,7 @@ labeled     : NAME ":" request
 gap         : _GAP NAME _TO NAME length?
 
 // A statement is its subject, verb and object in that order, with its clauses around them.
-// DURING and ON may go anywhere; AS_ROLE, FOR, WITH and WITHOUT describe the activity, so
+// DURING, ACROSS and ON may go anywhere; AS_ROLE, FOR, WITH and WITHOUT describe the activity, so
 // the builder refuses them before the verb, which is why the verb is kept in the tree.
 request     : _REQUEST _clauses chooser _clauses DO _clauses do_target _clauses               -> request_do
             | _REQUEST _clauses chooser _clauses                                             -> request_activity
@@ -69,8 +69,11 @@ length      : BOUND DURATION
 
 ?do_target  : chooser | STRING
 _clauses    : clause*
-?clause     : during | on | as_role | for_ | with_ | without
+?clause     : during | across | on | as_role | for_ | with_ | without
 during      : _DURING chooser
+// The blocks a FOR adds up over: its length is what the pieces in them come to, where
+// with DURING it is the length of each piece.
+across      : _ACROSS chooser
 on          : _ON chooser
 as_role     : _AS_ROLE chooser
 // A length says how it is bounded.
@@ -83,8 +86,8 @@ without     : _WITHOUT chooser as_role?
 
 // ANY with no number is any of these: the set is one pool. ANY n chooses n of it, once for
 // the statement. A count measures, in front of the set it counts. CONSECUTIVE is about
-// blocks, after DURING: `ANY 2 CONSECUTIVE blocks` picks blocks in a row, and
-// `ANY CONSECUTIVE blocks` pools each run for a FOR to measure.
+// blocks, after DURING or ACROSS: `ANY 2 CONSECUTIVE blocks` picks blocks in a row, and
+// `ACROSS ANY CONSECUTIVE blocks` adds up a FOR over each run.
 chooser     : (ALL | ANY | amount)? CONSECUTIVE? set_
             | any_n CONSECUTIVE? set_
             | EACH set_
@@ -124,6 +127,7 @@ DO.5        : /DO\b/i
 _NOT.5      : /NOT\b/i
 _IN.5       : /IN\b/i
 _DURING.5   : /DURING\b/i
+_ACROSS.5   : /ACROSS\b/i
 _ON.5       : /ON\b/i
 _AS_ROLE.5  : /AS_ROLE\b/i
 _FOR.5      : /FOR\b/i

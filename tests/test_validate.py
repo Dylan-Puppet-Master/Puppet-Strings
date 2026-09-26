@@ -19,7 +19,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (
             "REQUEST staff.dylan DO 'x' DURING ANY CONSECUTIVE blocks.all_clinics",
             Priority.HIGH,
-            "ANY CONSECUTIVE pools each run of blocks for a FOR to measure",
+            "ANY CONSECUTIVE is a run of blocks to add a FOR up over",
             1,
             35,
         ),
@@ -58,7 +58,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
             1,
             51,
         ),
-        (f"{DO} DURING blocks.clinic_2", Priority.HIGH, "DURING given twice", 1, 51),
+        (f"{DO} DURING blocks.clinic_2", Priority.HIGH, "DURING or ACROSS given twice", 1, 51),
         (
             "REQUEST staff.dylan DO 'x' DURING blocks.nope",
             Priority.HIGH,
@@ -119,7 +119,7 @@ DO = "REQUEST staff.dylan DO 'x' DURING blocks.clinic_1"
         (
             "REQUEST staff.dylan DO activities.clinics.riflery FOR EXACTLY 1h DURING blocks.clinic_1",
             Priority.HIGH,
-            "FOR on an activity, FREE or BUSY measures its time across blocks",
+            "an activity, FREE or BUSY fills its blocks, so a FOR on it adds the blocks up",
             1,
             51,
         ),
@@ -373,3 +373,73 @@ def test_an_exclusion_is_refused(dataset, skedge, priority, message):
     with pytest.raises(SkedgeError) as info:
         validate_request(request(skedge, priority), dataset)
     assert message in info.value.message
+
+
+@pytest.mark.parametrize(
+    ("skedge", "priority", "message"),
+    [
+        (
+            "REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h DURING ANY blocks",
+            Priority.HIGH,
+            "no block here is 2h long, and with DURING a FOR is the length of each piece",
+        ),
+        (
+            "REQUEST staff.dylan DO 'x' FOR EXACTLY 100m",
+            Priority.HIGH,
+            "no block here is 100m long",
+        ),
+        (
+            "REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS ANY 2 CONSECUTIVE blocks",
+            Priority.HIGH,
+            "ACROSS adds up over a run with ANY CONSECUTIVE",
+        ),
+        (
+            "REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS AT_LEAST 2 blocks",
+            Priority.HIGH,
+            "to pick 2, write ANY 2",
+        ),
+        (
+            "PREFER staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS ANY 2 blocks",
+            Priority.HIGH,
+            "a PREFER measures",
+        ),
+        (
+            "REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS ANY 2 blocks "
+            "ON ANY {dates.target .. dates.target + 1d}",
+            Priority.HIGH,
+            "the pieces of an ACROSS are counted a day at a time",
+        ),
+        (
+            "a: REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS ANY blocks\n"
+            "b: REQUEST staff.dylan DO 'y' DURING blocks.clinic_4\nGAP a TO b",
+            Priority.HIGH,
+            "a labeled one takes no cap and no ACROSS",
+        ),
+        (
+            "EXCLUDE staff.dylan DO 'offsite' ACROSS ANY blocks",
+            Priority.MUST_HAPPEN,
+            "EXCLUDE takes DURING and ON, not ACROSS",
+        ),
+    ],
+)
+def test_a_length_says_whether_it_is_each_piece_or_the_total(dataset, skedge, priority, message):
+    with pytest.raises(SkedgeError) as info:
+        validate_request(request(skedge, priority), dataset)
+    assert message in info.value.message
+
+
+@pytest.mark.parametrize(
+    "skedge",
+    [
+        "REQUEST staff.dylan DO 'x' FOR AT_LEAST 80m DURING ANY blocks",  # the evening is 90m
+        "REQUEST staff.dylan DO 'x' FOR AT_MOST 2h DURING ANY blocks",
+        "REQUEST staff.dylan DO 'x' FOR EXACTLY 2h ACROSS ANY 3 blocks",
+        "REQUEST staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS AT_MOST 3 blocks",
+        "REQUEST staff.dylan DO 'x' FOR EXACTLY 2h ACROSS ALL {blocks.clinic_1 + blocks.clinic_2}",
+        "PREFER staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS EXACTLY 2 blocks",
+        "IF staff.dylan DO 'x' FOR AT_LEAST 2h ACROSS AT_LEAST 2 blocks THEN\n"
+        "{ REQUEST staff.dylan FREE DURING blocks.night }",
+    ],
+)
+def test_across_takes_a_pick_or_a_count(dataset, skedge):
+    assert validate_request(request(skedge), dataset)

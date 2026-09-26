@@ -231,13 +231,14 @@ request is soft: `ALL` earns nothing for half, `EACH` earns half.
 | Clause | Meaning |
 |---|---|
 | `DURING <blocks>` | When in the day. Left out: any block of the day. |
+| `ACROSS <blocks>` | When in the day, in place of `DURING`, with the `FOR` a total over the blocks ([lengths](#lengths-for)). |
 | `ON <dates>` | Which dates. Left out: the day being scheduled. |
 | `AS_ROLE <role>` | In that position or trainee role. Left out: any position. |
 | `FOR <bound> <duration>` | How long ([lengths](#lengths-for)): `FOR EXACTLY 30m`, `FOR AT_LEAST 2h`. Left out, a task fills its block. |
 | `WITH <staff>` | That person is working the same clinic or task alongside; of a set, a count or `ALL` says how many of it. |
 | `WITHOUT <staff>` | The opposite of `WITH` the same. |
 
-`DURING` and `ON` go anywhere in a statement, even before the subject. `AS_ROLE`, `FOR`,
+`DURING`, `ACROSS` and `ON` go anywhere in a statement, even before the subject. `AS_ROLE`, `FOR`,
 `WITH` and `WITHOUT` describe the activity, so they go after `DO`, `FREE` or `BUSY`:
 
 ```skedge
@@ -358,34 +359,42 @@ REQUEST EACH staff DO 'break' DURING AT_MOST 1 CONSECUTIVE blocks
 Nobody has a break in two blocks in a row.
 
 `CONSECUTIVE` is always about blocks, since blocks are what can be in a row, so it only
-ever goes in a `DURING`, just before the blocks. After `ANY` it pools each run of blocks
-for a `FOR` to measure, below.
+ever goes in a `DURING` or an `ACROSS`, just before the blocks. `ACROSS ANY CONSECUTIVE`
+adds a `FOR` up over each run of blocks, below.
 
 ### Lengths: `FOR`
 
-`FOR` says how long, and measures the activity within one unit of the blocks. Blocks taken
-one at a time — one block, `ALL`, `EACH`, `ANY n` or a count — make each block a unit, so `FOR` is
-the length of each piece. Blocks pooled with `ANY` are one unit together, so `FOR` is what
-the pieces add up to:
+`FOR` says how long. Which length it is depends only on the word before the blocks:
+
+- With `DURING`, `FOR` is the length of **each piece**, however the blocks are taken.
+- With `ACROSS` in place of `DURING`, `FOR` is what **the pieces add up to**.
+
+`ACROSS` takes the same blocks `DURING` does, and `ANY n` or a count after it says how many
+blocks get a piece:
 
 | You mean | Write |
 |---|---|
-| Two hours in total, split over any blocks | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks` |
-| Two hours in one go: one block, or blocks in a row | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY CONSECUTIVE blocks` |
-| One piece of 45 minutes, in one block | `REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 45m DURING ANY 1 blocks` |
 | Three breaks of 30 minutes | `REQUEST staff.cam_vl DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks` |
+| One piece of 45 minutes, in any block | `REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 45m DURING ANY blocks` |
+| Two hours in total, split over any blocks | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY blocks` |
+| Two hours split over three blocks | `REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 2h ACROSS ANY 3 blocks` |
+| Two hours in no more than three blocks | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS AT_MOST 3 blocks` |
+| Two hours in one go: one block, or blocks in a row | `REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY CONSECUTIVE blocks` |
 
 `FOR` always says how the length is bounded, as a count does: `FOR EXACTLY 2h`,
 `FOR AT_LEAST 2h` or `FOR AT_MOST 2h`, never a bare `FOR 2h`. A piece
-never leaves its block, so one block shorter than the length cannot hold it. Over a pool
-the pieces fill their blocks, all but one, which is cut to what is left, or under
-`AT_LEAST` to whatever reaches it: two hours over 75-minute blocks is one whole block and
-45 minutes of another.
+never leaves its block, so with `DURING` a length longer than every block is an error: it
+was meant as a total, and wants `ACROSS`. Under `ACROSS ANY blocks` the pieces fill their
+blocks, all but one, which is cut to what is left, or under `AT_LEAST` to whatever reaches
+it: two hours over 75-minute blocks is one whole block and 45 minutes of another. Where
+`ACROSS` picks or counts the blocks, any of the pieces may be cut, which is how two hours go
+into three blocks.
 
-`FOR` on a clinic, `FREE` or `BUSY` adds up the blocks, so it needs the blocks pooled:
+A clinic, `FREE` or `BUSY` fills its blocks, so a `FOR` on one adds the blocks up, and takes
+`ACROSS`:
 
 ```skedge
-PREFER EACH staff.counselor FREE FOR AT_LEAST 2h DURING ANY blocks.all_clinics
+PREFER EACH staff.counselor FREE FOR AT_LEAST 2h ACROSS ANY blocks.all_clinics
 ```
 
 ### Asking for an activity without naming anybody
@@ -533,7 +542,7 @@ to be scored against:
 | Request | Meaning |
 |---|---|
 | `PREFER EACH staff DO ANY activities.clinics DURING AT_MOST 8 blocks ON ANY dates.session_1` | Nobody should run more than 8 clinics a session. Ten is twice as bad as nine. |
-| `PREFER staff.james DO 'dance practice' FOR AT_LEAST 2h DURING ANY blocks ON ANY {2026-09-16 .. 2026-09-17}` | Two hours of dance practice across the two days, each hour short costing the same. |
+| `PREFER staff.james DO 'dance practice' FOR AT_LEAST 2h ACROSS ANY blocks ON ANY {2026-09-16 .. 2026-09-17}` | Two hours of dance practice across the two days, each hour short costing the same. |
 | `PREFER staff.dylan DO activities.clinics.riflery DURING AT_LEAST 1 blocks.clinic_2` | Dylan on riflery in clinic 2, if it can be managed. |
 
 With several counts, a `PREFER` is scored on the outermost: `PREFER AT_LEAST 5
@@ -617,7 +626,7 @@ statement that always applies beside one that depends on something:
 EACH d IN staff.director
 IF d BUSY DURING ALL {blocks.clinic_1 + blocks.clinic_2} THEN
 {
-    REQUEST d DO 'paperwork' FOR AT_LEAST 1h DURING ANY {blocks.rest_hour + blocks.playstation}
+    REQUEST d DO 'paperwork' FOR AT_LEAST 1h ACROSS ANY {blocks.rest_hour + blocks.playstation}
     PREFER d FREE DURING AT_LEAST 1 blocks.evening
 }
 REQUEST d FREE DURING blocks.lunch
@@ -765,7 +774,7 @@ GAP morning TO afternoon AT_MOST 5h
 `GAP a TO b` means `b` starts after `a` ends, and the time between meets the amount, if
 it gives one. With none, `GAP a TO b` is only that order, however long between. Real start and end times are compared, so a
 one-hour task may slide around inside its 75-minute block to make a gap work. A labeled
-requirement is timed from what it makes, so it takes no cap, and no `FOR` over a pool.
+requirement is timed from what it makes, so it takes no cap, and no `ACROSS`.
 
 Durations are written in minutes, hours or days: `30m`, `1.5h`, `2d`. A gap can reach
 across days, which is what the longer units are for:
@@ -1118,7 +1127,7 @@ Priority `MUST_HAPPEN`.
 ### Two hours of video editing in one go
 
 ```skedge
-REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY CONSECUTIVE blocks
+REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY CONSECUTIVE blocks
 ```
 
 Priority `HIGH`.

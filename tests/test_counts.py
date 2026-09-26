@@ -172,7 +172,7 @@ def test_a_count_of_activities_counts_different_ones():
     ("bound", "least", "most"), [("AT_LEAST", 120, 150), ("EXACTLY", 120, 120)]
 )
 def test_a_length_over_a_pool_fills_blocks_but_one(bound, least, most):
-    text = f"REQUEST staff.cam DO 'video editing' FOR {bound} 2h DURING ANY blocks.all_clinics"
+    text = f"REQUEST staff.cam DO 'video editing' FOR {bound} 2h ACROSS ANY blocks.all_clinics"
     ds = dataset(
         [staff("Cam")],
         [],
@@ -189,10 +189,66 @@ def test_a_length_over_a_pool_fills_blocks_but_one(bound, least, most):
 def test_a_length_in_one_go_is_a_run_of_adjacent_blocks():
     text = (
         "REQUEST staff.cam DO 'video editing' FOR AT_LEAST 2h "
-        "DURING ANY CONSECUTIVE {blocks.clinic_1 + blocks.clinic_2 + blocks.clinic_4}"
+        "ACROSS ANY CONSECUTIVE {blocks.clinic_1 + blocks.clinic_2 + blocks.clinic_4}"
     )
     ds = dataset([staff("Cam")], [], requests=[request("edit", text, MUST)])
     assert {"clinic_1", "clinic_2"} <= blocks(run(ds), "video editing")
+
+
+def test_a_total_across_three_blocks_is_three_pieces():
+    text = "REQUEST staff.cam DO 'video editing' FOR EXACTLY 2h ACROSS ANY 3 blocks.all_clinics"
+    ds = dataset(
+        [staff("Cam")],
+        [],
+        requests=[
+            request("edit", text, MUST),
+            request("free", "REQUEST staff.cam FREE DURING EACH blocks", Priority.LOW),
+        ],
+    )
+    pieces = rows(run(ds), "video editing")
+    assert len({a.block for a in pieces}) == 3
+    assert sum(a.minutes for a in pieces) == 120
+
+
+def test_a_count_across_the_blocks_caps_the_pieces():
+    text = "REQUEST staff.cam DO 'video editing' FOR AT_LEAST 2h ACROSS AT_MOST 2 blocks"
+    more = "REQUEST staff.cam DO 'video editing' DURING EACH blocks"
+    ds = dataset(
+        [staff("Cam")],
+        [],
+        requests=[request("edit", text, MUST), request("more", more, Priority.LOW)],
+    )
+    pieces = rows(run(ds), "video editing")
+    assert len({a.block for a in pieces}) == 2
+    assert sum(a.minutes for a in pieces) >= 120
+
+
+def test_a_prefer_across_a_count_of_blocks_is_met_in_that_many():
+    total = "REQUEST staff.cam DO 'video editing' FOR AT_LEAST 2h ACROSS ANY blocks.all_clinics"
+    three = "PREFER staff.cam DO 'video editing' FOR AT_LEAST 2h ACROSS EXACTLY 3 blocks"
+    ds = dataset(
+        [staff("Cam")],
+        [],
+        requests=[
+            request("edit", total, MUST),
+            request("three", three, Priority.HIGH),
+            request("free", "REQUEST staff.cam FREE DURING EACH blocks", Priority.LOW),
+        ],
+    )
+    assert len(blocks(run(ds), "video editing")) == 3
+
+
+@pytest.mark.parametrize(("most", "marked"), [(2, True), (1, False)])
+def test_a_test_across_a_count_of_blocks(most, marked):
+    edit = "REQUEST staff.cam DO 'video editing' FOR EXACTLY 2h ACROSS ANY 2 blocks.all_clinics"
+    test = (
+        f"IF staff.cam DO 'video editing' FOR AT_LEAST 2h ACROSS AT_MOST {most} blocks THEN\n"
+        "{ REQUEST staff.cam DO 'marker' DURING blocks.playstation }"
+    )
+    ds = dataset(
+        [staff("Cam")], [], requests=[request("edit", edit, MUST), request("if", test, MUST)]
+    )
+    assert bool(rows(run(ds), "marker")) == marked
 
 
 def test_a_length_in_one_piece_is_one_block():

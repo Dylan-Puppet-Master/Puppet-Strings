@@ -11,7 +11,7 @@ from puppet_strings.skedge.parser import parse
 from puppet_strings.skedge.resolve import Resolved, is_prefer, resolve
 
 CLAUSE_NAMES = {
-    ast.During: "DURING",
+    ast.During: "DURING or ACROSS",
     ast.On: "ON",
     ast.AsRole: "AS_ROLE",
     ast.For: "FOR",
@@ -69,6 +69,8 @@ def _check_exclusions(declaration: ast.Declaration, hard: bool) -> None:
     for line in exclusions:
         _settled(line.who)
         for clause in line.clauses:
+            if isinstance(clause, ast.During) and clause.across:
+                raise _error("EXCLUDE takes DURING and ON, not ACROSS", clause.pos)
             if isinstance(clause, ast.During | ast.On):
                 _settled(clause.selector)
             else:
@@ -105,7 +107,8 @@ def _check_clauses(clauses: tuple[ast.Clause, ...], what: ast.Target, matched: b
     seen: set[type] = set()
     for clause in clauses:
         if type(clause) in seen:
-            raise _error(f"{CLAUSE_NAMES[type(clause)]} given twice", clause.pos)
+            name = CLAUSE_NAMES[type(clause)]
+            raise _error(f"{name} given twice", clause.pos)
         seen.add(type(clause))
         if isinstance(clause, ast.AsRole) and not isinstance(what, ast.Selector):
             raise _error("AS_ROLE needs an activity", clause.pos)

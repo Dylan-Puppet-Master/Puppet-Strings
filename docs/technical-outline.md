@@ -1041,3 +1041,14 @@ Recorded so the outline matches the code.
   under its half by its cabin, `activities.cabin_acts.at_cabin_act.p4`. A cabin has a name
   only on a day it has an act. The saved requests naming a cabin were all for one day's act
   in the cabin act block, and were rewritten to `at_cabin_act`.
+- **ACROSS says a FOR is a total** (Puppet Master, 2026-09-25). Whether `FOR` was the length
+  of each piece or what the pieces added up to hung on how the blocks were taken: `DURING
+  ANY 3 blocks` made it each piece and `DURING ANY blocks` the total, one digit apart, and
+  no `DURING` at all or an `ON ANY` made it a total too. A total over a chosen number of
+  blocks could not be written. Now `DURING` always makes `FOR` each piece and `ACROSS`, in
+  its place, makes it the total (`During.across`, `resolve._phrase`). `ACROSS` takes the
+  blocks as `DURING` does, and a pick, count or `ALL` of them is a `Tally.pieces`: how many
+  of the pooled blocks hold a piece, counted beside the total (`Compiler._pieces_hold`),
+  with any piece free to be cut short. With `DURING`, a length no block is long enough for is
+  refused, since it was meant as a total. The training problems and docs that pooled a
+  `FOR` were rewritten; no saved request did.

@@ -180,8 +180,10 @@ class Tally:
     `levels` are its counts, outermost first: who, then what, then the dates, then the
     blocks. `pattern` is what is left once each is taken one item at a time, where a set
     taken ALL is one unit and a POOL is matched by any of its items; a counted field holds
-    the whole set it counts. `measure` is a FOR over what the pattern pools, and `runs`
-    says the pooled blocks are measured one run of adjacent blocks at a time.
+    the whole set it counts. `measure` is a FOR written with ACROSS, what the pieces add up
+    to over what the pattern pools, and `runs` says the pooled blocks are measured one run
+    of adjacent blocks at a time. `pieces` is how many of those blocks hold a piece, where
+    ACROSS picks, counts or takes ALL of them.
 
     A REQUEST, a PREFER (`prefer`), and the test of a condition all take this form.
     """
@@ -192,6 +194,7 @@ class Tally:
     measure: ast.Amount | None
     runs: bool
     pos: ast.Pos
+    pieces: ast.Amount | None = None
 
 
 @dataclass(frozen=True)
@@ -751,9 +754,12 @@ def _phrase(
     """A statement that says what happens, and the choices made once for it, by name.
 
     A REQUEST chooses, with ANY n, and caps, with AT_MOST; a PREFER and a condition's test
-    measure, with AT_LEAST, AT_MOST and EXACTLY. A REQUEST with no cap and no FOR measured
-    over a pool is a requirement, every choice in it made once; anything else is a tally,
-    where a REQUEST's choices are made once as well, as a binding line's would be.
+    measure, with AT_LEAST, AT_MOST and EXACTLY. A REQUEST with no cap and no ACROSS is a
+    requirement, every choice in it made once; anything else is a tally, where a REQUEST's
+    choices are made once as well, as a binding line's would be.
+
+    With DURING a FOR is the length of each piece; with ACROSS it is what the pieces add up
+    to, over the blocks pooled, and a pick, count or ALL of them says how many hold one.
     """
     anyone = who_selector is None
     if anyone and test:
@@ -761,16 +767,19 @@ def _phrase(
     who = _anyone(what, scope, pos) if anyone else _choice(who_selector, STAFF, scope, pool=False)
     parts = _parts(what, clauses, scope, pool=False)
     for_ = ast.clause(clauses, ast.For)
+    written = ast.clause(clauses, ast.During)
+    across = written is not None and written.across
     during, on = parts["during"], parts["on"]
-    pooled = during is None or during.kind == POOL or on.kind == POOL
     measure = None
-    if for_ is not None and (not isinstance(what, ast.Task) or pooled):
-        if not pooled:
+    if for_ is not None and not across:
+        if not isinstance(what, ast.Task):
             raise _error(
-                "FOR on an activity, FREE or BUSY measures its time across blocks, so the "
-                "blocks take ANY: DURING ANY <blocks>",
+                "an activity, FREE or BUSY fills its blocks, so a FOR on it adds the blocks "
+                "up: FOR AT_LEAST 2h ACROSS ANY <blocks>",
                 for_.pos,
             )
+        _fits(for_, during or Choice(_whole_day(on, scope), POOL), scope)
+    if across:
         measure = ast.Amount(for_.bound or ast.EXACTLY, for_.minutes, True, for_.pos)
         parts = {**parts, "minutes": None}
     chosen = {"who": who, **parts}
@@ -779,8 +788,18 @@ def _phrase(
         _no_measures(chosen)
     else:
         _no_choices(chosen, "a PREFER" if prefer else "a test")
+    pieces = None
+    if across and during.kind != POOL:
+        chosen["during"], pieces = _pieces(during, on)
     over_days = on.kind == POOL and len(on.items) > 1
-    if asking and over_days and during is not None and during.kind == ANY and not during.var:
+    if (
+        asking
+        and over_days
+        and not across
+        and during is not None
+        and during.kind == ANY
+        and not during.var
+    ):
         # a pick of blocks over pooled dates is of blocks on dates, as a count of them is
         chosen["during"] = replace(during, kind=COUNT, bound=ast.AT_LEAST)
     levels = tuple(
@@ -797,7 +816,7 @@ def _phrase(
     if label is not None:
         raise _error(
             "a GAP is measured from what a REQUEST makes, so a labeled one takes no cap and "
-            "no FOR measured over ANY",
+            "no ACROSS",
             pos,
         )
     picked = {}
@@ -809,7 +828,50 @@ def _phrase(
                 chosen[key] = picked[name] = replace(choice, var=name)
     runs = during is not None and during.consecutive and during.kind == POOL
     pattern = Pattern(busy=busy, pos=pos, anyone=anyone and test, **chosen)
-    return Tally(prefer, levels, pattern, measure, runs, pos), picked
+    return Tally(prefer, levels, pattern, measure, runs, pos, pieces), picked
+
+
+def _fits(for_: ast.For, during: Choice, scope: _Scope) -> None:
+    """A piece stays in its block, so a length no block is long enough for is a total."""
+    if for_.bound == ast.AT_MOST:
+        return
+    blocks = scope.dataset.blocks
+    longest = max((blocks[b].minutes for b in _everyone(during) if b in blocks), default=None)
+    if longest is not None and longest < for_.minutes:
+        raise _error(
+            f"no block here is {ast.written_duration(for_.minutes)} long, and with DURING a "
+            "FOR is the length of each piece; to add the pieces up, write ACROSS: "
+            "FOR AT_LEAST 2h ACROSS ANY <blocks>",
+            for_.pos,
+        )
+
+
+def _pieces(during: Choice, on: Choice) -> tuple[Choice, ast.Amount]:
+    """The blocks an ACROSS adds up over, pooled, and how many of them hold a piece.
+
+    ANY n picks n blocks, each with a piece; ALL is every one of them; a count bounds how
+    many. The pieces are counted on the day, so over pooled dates they are not.
+    """
+    if during.consecutive and during.kind != POOL:
+        raise _error(
+            "ACROSS adds up over a run with ANY CONSECUTIVE; to pick blocks in a row for "
+            "pieces of their own, write DURING",
+            during.pos,
+        )
+    if during.var is not None or during.parts or during.units:
+        raise _error("ACROSS adds up over blocks taken one by one, so no groups", during.pos)
+    if on.kind == POOL and len(on.items) > 1:
+        raise _error(
+            "the pieces of an ACROSS are counted a day at a time, so its blocks are pooled "
+            "over pooled dates: ACROSS ANY <blocks>",
+            during.pos,
+        )
+    if during.kind == ALL and len(during.items) == 1:
+        return replace(during, kind=POOL), None
+    bound = {ANY: ast.EXACTLY, ALL: ast.EXACTLY}.get(during.kind, during.bound)
+    n = len(during.items) if during.kind == ALL else during.n
+    pooled = Choice(during.items, POOL, pos=during.pos)
+    return pooled, ast.Amount(bound, n, False, during.pos)
 
 
 def _only_when(clauses: tuple[ast.Clause, ...]) -> None:

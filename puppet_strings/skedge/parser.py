@@ -370,6 +370,9 @@ class _Builder(Transformer):
         selector = items[0]
         return ast.During(_pos(meta), replace(selector, consecutive=False), selector.consecutive)
 
+    def across(self, meta, items):
+        return replace(self.during(meta, items), across=True)
+
     def on(self, meta, items):
         return ast.On(_pos(meta), items[0])
 
@@ -435,7 +438,7 @@ AFTER_THE_VERB = {ast.AsRole: "AS_ROLE", ast.For: "FOR", ast.With: "WITH", ast.W
 def _phrases(items, verb: int | None = None) -> tuple[list, tuple[ast.Clause, ...]]:
     """A statement's subject and object, and its clauses from wherever they were written.
 
-    DURING and ON may go anywhere. AS_ROLE, FOR, WITH and WITHOUT describe the activity, so
+    DURING, ACROSS and ON may go anywhere. AS_ROLE, FOR, WITH and WITHOUT describe the activity, so
     one written before the verb is refused, with where it goes.
     """
     if verb is None:
@@ -489,8 +492,11 @@ def _check_pools(declaration: ast.Declaration) -> None:
     definitions are written in, so a group that arrives by a name is caught the same as
     one written out.
 
-    CONSECUTIVE is about blocks. A count of them in a row takes it; `ANY CONSECUTIVE` pools
-    each run for a FOR to measure, so it needs one; right of NOT there is neither.
+    CONSECUTIVE is about blocks. A count of them in a row takes it; `ACROSS ANY CONSECUTIVE`
+    adds a FOR up over each run; right of NOT there is neither.
+
+    ACROSS adds up a FOR, so it needs one, and there is nothing to add up right of NOT or
+    in a score's pattern, which match one assignment at a time.
     """
     for line in declaration.lines:
         _consecutive_only_in_during(line)
@@ -515,6 +521,12 @@ def _phrases_of(line: ast.Line):
 
 def _check_negated(line: ast.Requirement) -> None:
     for part in (line.what, *line.clauses):
+        if isinstance(part, ast.During) and part.across:
+            raise _error(
+                "right of NOT each piece is matched on its own, so a FOR there is its length "
+                "and the blocks take DURING, not ACROSS",
+                part.pos,
+            )
         if isinstance(part, ast.During) and part.consecutive:
             raise _error(
                 "right of NOT there are no blocks to choose, so no CONSECUTIVE; to limit a "
@@ -535,6 +547,8 @@ def _check_negated(line: ast.Requirement) -> None:
 
 def _check_score(pattern: ast.Pattern) -> None:
     for part in (pattern.who, pattern.what, *pattern.clauses):
+        if isinstance(part, ast.During) and part.across:
+            raise _error("a score adds nothing up, so the blocks take DURING, not ACROSS", part.pos)
         if isinstance(part, ast.During) and part.consecutive:
             raise _error("a score counts no runs, so no CONSECUTIVE", part.pos)
         if isinstance(part, ast.With | ast.Without):
@@ -551,14 +565,19 @@ def _check_score(pattern: ast.Pattern) -> None:
 
 
 def _check_runs(phrase) -> None:
-    """`DURING ANY CONSECUTIVE` pools each run for a FOR to measure, so it needs a FOR."""
+    """ACROSS adds up a FOR, and `ANY CONSECUTIVE` is a run of blocks for ACROSS to add up."""
     during = ast.clause(phrase.clauses, ast.During)
-    if during is None or not during.consecutive or during.selector.quantifier != ast.ANY:
+    if during is None:
         return
-    if ast.clause(phrase.clauses, ast.For) is None:
+    if during.across and ast.clause(phrase.clauses, ast.For) is None:
+        raise _error("ACROSS adds up a FOR over the blocks; with no FOR, write DURING", during.pos)
+    if not during.consecutive or during.selector.quantifier != ast.ANY:
+        return
+    if not during.across:
         raise _error(
-            "ANY CONSECUTIVE pools each run of blocks for a FOR to measure; to pick blocks "
-            "in a row, pick them: DURING ANY 2 CONSECUTIVE <blocks>",
+            "ANY CONSECUTIVE is a run of blocks to add a FOR up over: FOR AT_LEAST 2h "
+            "ACROSS ANY CONSECUTIVE <blocks>; to pick blocks in a row, pick them: DURING "
+            "ANY 2 CONSECUTIVE <blocks>",
             during.selector.pos,
         )
 
@@ -567,7 +586,8 @@ def _consecutive_only_in_during(node) -> None:
     """A DURING has taken its CONSECUTIVE off its selector; one left anywhere is misplaced."""
     if isinstance(node, ast.Selector) and node.consecutive:
         raise _error(
-            "CONSECUTIVE is about blocks, so it goes after DURING: DURING ANY 2 CONSECUTIVE …",
+            "CONSECUTIVE is about blocks, so it goes after DURING or ACROSS: DURING ANY 2 "
+            "CONSECUTIVE …",
             node.pos,
         )
     if isinstance(node, tuple):

@@ -131,8 +131,8 @@ class Selector:
     `quantifier` is ALL, ANY (a pool), ANY_OF (ANY n, a choice), EACH or COUNT (with
     `bound` and `n`), or None for
     one thing written on its own. `var` is the `x` of `EACH x IN s`. `consecutive` is
-    `ANY CONSECUTIVE` or `<count> CONSECUTIVE`, which only a DURING takes: the parser moves
-    it onto the During and refuses it anywhere else.
+    `ANY CONSECUTIVE` or `<count> CONSECUTIVE`, which only a DURING or an ACROSS takes: the
+    parser moves it onto the During and refuses it anywhere else.
     """
 
     expr: SetExpr
@@ -163,10 +163,15 @@ class Clause:
 
 @dataclass(frozen=True)
 class During(Clause):
-    """`DURING <blocks>`, and with `consecutive`, `DURING ANY|<count> CONSECUTIVE <blocks>`."""
+    """`DURING <blocks>`, and with `consecutive`, `DURING ANY|<count> CONSECUTIVE <blocks>`.
+
+    With `across` it is `ACROSS <blocks>`: the same blocks, over which a FOR is what the
+    pieces add up to rather than the length of each.
+    """
 
     selector: Selector
     consecutive: bool = False
+    across: bool = False
 
 
 @dataclass(frozen=True)
@@ -512,6 +517,11 @@ def chooses(selector: Selector) -> bool:
 def worded(bound: str | None, n: int | None) -> str:
     """A count as it is written: `AT_LEAST 3`."""
     return f"{bound} {n}"
+
+
+def written_duration(minutes: int) -> str:
+    """A length as it is written: `2h`, or `90m` where it is not whole hours."""
+    return f"{minutes // 60}h" if minutes % 60 == 0 else f"{minutes}m"
 
 
 def substitute(node, found: Callable[[Var], SetExpr | None]):

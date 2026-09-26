@@ -50,6 +50,7 @@ KEYWORD_WORDS = (
     "FREE",
     "BUSY",
     "DURING",
+    "ACROSS",
     "ON",
     "AS_ROLE",
     "FOR",

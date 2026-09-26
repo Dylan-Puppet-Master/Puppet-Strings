@@ -1172,10 +1172,22 @@ class Compiler:
                 length_bound=pattern.length_bound,
             )
             return [self._require(requirement, active, name)[1]]
-        return [
-            self._measure(unit, st.measure, st.runs, active, f"{name}:unit{i}")
-            for i, unit in enumerate(self._units(pattern))
-        ]
+        deferred = []
+        for i, unit in enumerate(self._units(pattern)):
+            label = f"{name}:unit{i}"
+            deferred.append(self._measure(unit, st.measure, st.runs, active, label, st.pieces))
+            if st.pieces is not None:
+                self._imply([active], self._pieces_hold(unit, st.pieces, label))
+        return deferred
+
+    def _pieces_hold(self, pattern: Pattern, amount: ast.Amount, name: str) -> Literal:
+        """Whether as many blocks hold a piece of an ACROSS as it picks, counts or takes."""
+        blocks: dict = {}
+        for m in self._matches(pattern, past=True):
+            blocks.setdefault((m.date, m.block), []).append(m.literal)
+        holds = [self._any_of(lits, f"{name}:piece:{d}:{b}") for (d, b), lits in blocks.items()]
+        terms, constant = _split(holds)
+        return self._compare(terms, constant, amount, f"{name}:pieces")
 
     def _each_holds(
         self, st: Tally, level: Level, rest, pattern: Pattern, name: str, sense: str = EXACT
@@ -1213,7 +1225,7 @@ class Compiler:
         item holds when one of its own matches does, so the matches of the whole set are
         found once and grouped by item rather than found again for each. None otherwise.
         """
-        if rest or (st.measure is not None and st.runs):
+        if rest or (st.measure is not None and (st.runs or st.pieces is not None)):
             return None
         members = set(level.choice.items) | {i for unit in level.choice.units for i in unit.items}
         attr = FIELDS[level.field]
@@ -1318,6 +1330,8 @@ class Compiler:
             else:
                 terms, constant = self._amount(matches, True)
                 parts.append(self._compare(terms, constant, st.measure, label))
+            if st.pieces is not None:
+                parts.append(self._pieces_hold(unit, st.pieces, label))
         return self._all_of(parts, name)
 
     def _units(self, pattern: Pattern) -> list[Pattern]:
@@ -1391,7 +1405,10 @@ class Compiler:
         if not st.levels:
             misses, bound = [], 0
             for i, unit in enumerate(self._units(st.pattern)):
-                miss, most = self._miss(st.measure, unit, st.runs, f"{name}:unit{i}")
+                label = f"{name}:unit{i}"
+                miss, most = self._miss(st.measure, unit, st.runs, label)
+                if st.pieces is not None:
+                    miss, most = self._missed_pieces(miss, most, unit, st, label)
                 if not isinstance(miss, int):
                     misses.append(miss)
                     bound += most
@@ -1419,6 +1436,19 @@ class Compiler:
         if choice.bound != ast.AT_LEAST:
             self.model.Add(miss >= total - n)
         return miss, bound
+
+    def _missed_pieces(self, miss, most: int, unit: Pattern, st: Tally, name: str) -> tuple:
+        """A PREFER's miss of its FOR, or all of it where its pieces are too many or too few."""
+        pieces = self._pieces_hold(unit, st.pieces, name)
+        most = max(most, st.measure.value)
+        if pieces is True:
+            return miss, most
+        if pieces is False:
+            return most, most
+        gated = self.model.NewIntVar(0, most, f"miss:{name}:pieces")
+        self.model.Add(gated >= miss)
+        self.model.Add(gated >= most).OnlyEnforceIf(pieces.Not())
+        return gated, most
 
     def _runs_miss(self, level: Level, holds: dict, pattern: Pattern, name: str) -> tuple:
         """How far the runs of counted blocks are from a CONSECUTIVE count."""
@@ -1449,12 +1479,13 @@ class Compiler:
             self.model.Add(miss >= n - best)
         return miss, bound
 
-    def _allow_partial(self, matches: list[Match], name: str) -> None:
+    def _allow_partial(self, matches: list[Match], name: str, pieces: bool = False) -> None:
         """A FOR over a pool fills whole blocks, all but one of which may be cut short.
 
         A task with no FOR of its own fills its block; this lets one of the pieces a length
         is made of be shorter, so two hours and six minutes over one-hour blocks is two
-        blocks and six minutes of a third.
+        blocks and six minutes of a third. Where the pieces are counted, any may be cut,
+        which is how two hours go into three one-hour blocks.
         """
         target = self.dataset.target
         partial = []
@@ -1464,10 +1495,12 @@ class Compiler:
             cut = self.model.NewBoolVar(f"{name}:partial:{m.staff}:{m.activity}:{m.block}")
             self.shortened.setdefault(Slot(m.staff, m.activity, None, m.block), []).append(cut)
             partial.append(cut)
-        if len(partial) > 1:
+        if len(partial) > 1 and not pieces:
             self.model.Add(sum(partial) <= 1)
 
-    def _measure(self, p: Pattern, amount, consecutive: bool, active, name: str) -> Literal:
+    def _measure(
+        self, p: Pattern, amount, consecutive: bool, active, name: str, pieces=None
+    ) -> Literal:
         """A FOR over a pool. Returns the literal for its being deferred."""
         n = amount.value
         target = self.dataset.target
@@ -1476,8 +1509,8 @@ class Compiler:
         if later and amount.bound != ast.AT_MOST:
             capacity = self._capacity(p, later, amount.duration, consecutive)
         matches = self._matches(p, past=True)
-        self._allow_partial(matches, name)
-        if amount.bound != ast.AT_MOST:
+        self._allow_partial(matches, name, pieces is not None)
+        if amount.bound != ast.AT_MOST or (pieces is not None and pieces.bound != ast.AT_MOST):
             self._ask_for(matches, p, active)
         # a run must fit inside one date, so it defers only to a date that can hold all of it
         due = n if consecutive else 1

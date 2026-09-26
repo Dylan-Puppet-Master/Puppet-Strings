@@ -6,12 +6,15 @@ teaches = """
 ANY n <set>                    the solver picks n — what a REQUEST asks for
 AT_MOST n <set>                a cap: no more than n
 AT_LEAST n, EXACTLY n          measure, in an IF, a PREFER, FOR and WITH
-FOR AT_LEAST|AT_MOST|EXACTLY <time>   how long
+FOR AT_LEAST|AT_MOST|EXACTLY <time>   how long: each piece with DURING
+ACROSS <blocks>                what the pieces add up to, in place of DURING
 
 REQUEST AT_MOST 2 staff.counselors DO 'break' DURING EACH blocks
 REQUEST EACH staff.village_heroes DO 'break' DURING ANY 3 blocks
 REQUEST EACH staff DO ANY activities.clinics DURING AT_MOST 1 CONSECUTIVE blocks
-REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks
+REQUEST staff.kara DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks
+REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY blocks
+REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 2h ACROSS ANY 3 blocks
 
 • ANY n picks and never forbids; AT_MOST forbids the rest
 • A REQUEST picks with ANY n: it refuses AT_LEAST n, and EXACTLY n
@@ -19,8 +22,9 @@ REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks
 • A pick is made once for the statement; EACH makes copies that pick for themselves
 • A block is a block on a date: over ANY dates, blocks are counted on every day
 • A pick of activities is of different ones; three breaks is a pick of blocks
-• FOR in blocks taken one at a time is each piece; over ANY blocks it is the total
-• ANY CONSECUTIVE: the total of one run of back-to-back blocks
+• With DURING, FOR is the length of each piece, however the blocks are taken
+• With ACROSS, FOR is what the pieces add up to; ANY n or a count says how many blocks hold one
+• ACROSS ANY CONSECUTIVE: the total of one run of back-to-back blocks
 """
 
 [[problem]]
@@ -86,41 +90,66 @@ id = "count-three-short-breaks"
 title = "Three half hours"
 prompt = "Kara takes three 30-minute 'break's today, each in a different block."
 answer = "REQUEST staff.kara DO 'break' FOR EXACTLY 30m DURING ANY 3 blocks"
-hints = ["Pick the blocks; FOR is the length of each piece."]
-explain = "The blocks are taken one at a time here, picked, so FOR is the length of the piece in each of them."
-wrong = ["REQUEST staff.kara DO 'break' FOR EXACTLY 30m DURING ANY blocks"]
+hints = ["Pick the blocks with ANY 3.", "With DURING, FOR is the length of each piece."]
+explain = "With DURING, FOR is always the length of each piece: three blocks, 30 minutes in each. ACROSS would make it what the pieces add up to."
+wrong = [
+  "REQUEST staff.kara DO 'break' FOR EXACTLY 30m ACROSS ANY blocks",
+  "REQUEST staff.kara DO 'break' FOR EXACTLY 90m ACROSS ANY 3 blocks",
+]
 
 [[problem]]
 id = "count-two-hours-editing"
 title = "Two hours of editing"
 prompt = "Cam VL spends at least two hours on 'video editing' today, in whatever blocks."
-answer = "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks"
-hints = ["A length is written 2h or 120m, and goes on FOR.", "Over ANY blocks, FOR is the total."]
-explain = "Pooled with ANY, the blocks are one unit, so FOR adds up the pieces. They fill their blocks, all but one, which is cut to what is left."
+answer = "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY blocks"
+hints = ["A length is written 2h or 120m, and goes on FOR.", "ACROSS in place of DURING makes FOR a total."]
+explain = "With ACROSS, FOR is what the pieces add up to over the blocks. They fill their blocks, all but one, which is cut to what is left."
 alternatives = [
-  "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 120m DURING ANY blocks",
-  "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h",
+  "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 120m ACROSS ANY blocks",
+  "REQUEST staff.cam_vl DO 'video editing' ACROSS ANY blocks FOR AT_LEAST 2h",
 ]
-wrong = ["REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 1h DURING ANY blocks"]
+wrong = ["REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 1h ACROSS ANY blocks"]
 
 [[problem]]
 id = "count-two-hours-unbroken"
 title = "Two hours in one go"
 prompt = "Cam VL spends at least two hours on 'video editing' today, all in one go: one block, or blocks back to back."
-answer = "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY CONSECUTIVE blocks"
-hints = ["Start from the last problem's answer.", "DURING ANY CONSECUTIVE blocks measures the length run by run instead of over the whole day."]
+answer = "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY CONSECUTIVE blocks"
+hints = ["Start from the last problem's answer.", "ACROSS ANY CONSECUTIVE blocks adds the length up run by run instead of over the whole day."]
 explain = "Without CONSECUTIVE, two hours can be split across blocks hours apart. With it, one run of back-to-back blocks has to reach two hours. No block today is that long, so the run takes at least two."
-alternatives = ["REQUEST staff.cam_vl DO 'video editing' DURING ANY CONSECUTIVE blocks FOR AT_LEAST 2h"]
-wrong = ["REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h DURING ANY blocks"]
+alternatives = ["REQUEST staff.cam_vl DO 'video editing' ACROSS ANY CONSECUTIVE blocks FOR AT_LEAST 2h"]
+wrong = ["REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY blocks"]
+
+[[problem]]
+id = "count-two-hours-three-blocks"
+title = "Two hours in three"
+prompt = "Cam VL spends exactly two hours on 'video editing' today, split over three blocks."
+answer = "REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 2h ACROSS ANY 3 blocks"
+hints = ["Pick the blocks with ANY 3.", "The two hours are a total, so the blocks take ACROSS."]
+explain = "ANY 3 picks three blocks, each with a piece, and ACROSS makes FOR what the three add up to. With DURING it would be two hours in each."
+wrong = [
+  "REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 2h ACROSS ANY blocks",
+  "REQUEST staff.cam_vl DO 'video editing' FOR EXACTLY 40m DURING ANY 3 blocks",
+]
+
+[[problem]]
+id = "count-two-hours-few-sittings"
+title = "Not too scattered"
+prompt = "Cam VL spends at least two hours on 'video editing' today, in no more than three blocks."
+answer = "REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS AT_MOST 3 blocks"
+hints = ["A cap on the blocks is a count: AT_MOST 3.", "The two hours are a total, so the blocks take ACROSS."]
+explain = "ACROSS takes a count as DURING does. Here it caps the blocks that hold a piece, and FOR is what the pieces in them add up to."
+wrong = ["REQUEST staff.cam_vl DO 'video editing' FOR AT_LEAST 2h ACROSS ANY 3 blocks"]
 
 [[problem]]
 id = "count-one-sitting"
 title = "One sitting"
 prompt = "Hails does 45 minutes of 'lesson planning' today in one sitting, in whichever block."
 answer = "REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m DURING ANY 1 blocks"
-hints = ["FOR sets the length of one piece when the blocks are taken one at a time.", "ANY 1 blocks is one block, the solver's pick."]
-explain = "Over ANY blocks, 45 minutes would be a total that could be made of pieces at different times. Picked, each block is its own unit, so FOR EXACTLY 45m is one piece in one block."
-wrong = ["REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m DURING ANY blocks"]
+hints = ["With DURING, FOR is the length of one piece.", "ANY 1 blocks is one block, the solver's pick."]
+explain = "With DURING, FOR EXACTLY 45m is one piece of 45 minutes. With ACROSS it would be a total, which could be made of pieces at different times."
+alternatives = ["REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m DURING ANY blocks"]
+wrong = ["REQUEST staff.hails DO 'lesson planning' FOR EXACTLY 45m ACROSS ANY blocks"]
 
 [[problem]]
 id = "count-no-two-in-a-row"
@@ -200,11 +229,11 @@ wrong = ["REQUEST EACH staff.counselors FREE DURING ANY 2 blocks.all_clinics"]
 id = "count-hour-of-kitchen"
 title = "An hour in the kitchen"
 prompt = "Between them, the MFGs spend at least an hour on 'kitchen repair' today."
-answer = "REQUEST ANY staff.mfgs DO 'kitchen repair' FOR AT_LEAST 1h"
-hints = ["Pool the MFGs with ANY, and FOR adds up what they do."]
+answer = "REQUEST ANY staff.mfgs DO 'kitchen repair' FOR AT_LEAST 1h ACROSS ANY blocks"
+hints = ["Pool the MFGs with ANY, and ACROSS adds up what they do."]
 explain = "Pooled people add up the same way pooled blocks do. EACH would ask an hour of every one of them."
-alternatives = ["REQUEST ANY staff.mfgs DO 'kitchen repair' FOR AT_LEAST 60m DURING ANY blocks"]
-wrong = ["REQUEST EACH staff.mfgs DO 'kitchen repair' FOR AT_LEAST 1h"]
+alternatives = ["REQUEST ANY staff.mfgs DO 'kitchen repair' FOR AT_LEAST 60m ACROSS ANY blocks"]
+wrong = ["REQUEST EACH staff.mfgs DO 'kitchen repair' FOR AT_LEAST 1h ACROSS ANY blocks"]
 
 [[problem]]
 id = "count-at-most-one-in-office"
@@ -232,9 +261,9 @@ wrong = ["REQUEST staff.hailey DO 'tack cleaning' FOR EXACTLY 30m DURING blocks.
 id = "count-half-hour-decimal"
 title = "Hours with a point"
 prompt = "Dylan spends at least an hour and a half on 'archery maintenance' today. Write the length in hours."
-answer = "REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 1.5h"
-alternatives = ["REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 90m"]
-wrong = ["REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 1h"]
+answer = "REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 1.5h ACROSS ANY blocks"
+alternatives = ["REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 90m ACROSS ANY blocks"]
+wrong = ["REQUEST staff.dylan DO 'archery maintenance' FOR AT_LEAST 1h ACROSS ANY blocks"]
 
 [[problem]]
 id = "count-no-more-than-four-busy"

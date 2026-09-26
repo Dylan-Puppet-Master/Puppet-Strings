@@ -8,7 +8,7 @@ Checklist:
   1. Who: one person, ALL a set, ANY of it, ANY n of it, a cap on it, or EACH it?
   2. What: a quoted task, an activity, FREE, BUSY, or NOT?
   3. When: which blocks and dates — all of them, any, or how many?
-  4. How long: FOR each piece, or FOR the total over ANY blocks?
+  4. How long: FOR each piece (DURING), or the total (ACROSS)?
   5. REQUEST (met or not) or PREFER (closer is better)?
   6. Does it depend on anything (IF / UNLESS)?
 """
@@ -58,8 +58,8 @@ wrong = ["REQUEST EACH staff DO activities.clinics.climbing_wall AS_ROLE roles.f
 id = "big-new-archer"
 title = "A new archer"
 prompt = "Gabe trains on Archery 1 & 2 as a trainee for at least two hours sometime between today and Friday."
-answer = "REQUEST staff.gabe DO activities.clinics.archery_1_2 AS_ROLE roles.trainee ON ANY {dates.target .. 2026-08-07} FOR AT_LEAST 2h"
-wrong = ["REQUEST staff.gabe DO activities.clinics.archery_1_2 AS_ROLE roles.trainee FOR AT_LEAST 2h"]
+answer = "REQUEST staff.gabe DO activities.clinics.archery_1_2 AS_ROLE roles.trainee ON ANY {dates.target .. 2026-08-07} FOR AT_LEAST 2h ACROSS ANY blocks"
+wrong = ["REQUEST staff.gabe DO activities.clinics.archery_1_2 AS_ROLE roles.trainee FOR AT_LEAST 2h ACROSS ANY blocks"]
 
 [[problem]]
 id = "big-leaders-evening"
@@ -146,11 +146,11 @@ wrong = ["IF\nAT_LEAST 2 staff.counselors DO 'break' DURING ANY blocks\nAND\nsta
 id = "big-prefer-maintenance-range"
 title = "Between two and three hours"
 prompt = "We'd like each MFG to spend between two and three hours on 'maintenance' today, in any blocks — less or more both cost a little. One request per MFG."
-answer = "EACH m IN staff.mfgs\nPREFER m DO 'maintenance' FOR AT_LEAST 2h DURING ANY blocks\nPREFER m DO 'maintenance' FOR AT_MOST 3h DURING ANY blocks"
+answer = "EACH m IN staff.mfgs\nPREFER m DO 'maintenance' FOR AT_LEAST 2h ACROSS ANY blocks\nPREFER m DO 'maintenance' FOR AT_MOST 3h ACROSS ANY blocks"
 priority = "MEDIUM"
-hints = ["A range is two PREFER lines, one for each end.", "Over ANY blocks, FOR is the total."]
+hints = ["A range is two PREFER lines, one for each end.", "With ACROSS, FOR is the total."]
 explain = "Each PREFER is weighed on its own, so the day is marked down for falling short of two hours and for going past three."
-wrong = ["EACH m IN staff.mfgs\nPREFER m DO 'maintenance' FOR EXACTLY 2h DURING ANY blocks"]
+wrong = ["EACH m IN staff.mfgs\nPREFER m DO 'maintenance' FOR EXACTLY 2h ACROSS ANY blocks"]
 
 [[problem]]
 id = "big-prefer-counselor-load"
@@ -186,10 +186,10 @@ wrong = ["ANY 1 e IN {staff.eq_staff - staff.hailey}\nvisit: REQUEST ALL {staff.
 id = "big-long-afternoon"
 title = "After a long afternoon"
 prompt = "For each director: if they're busy through both afternoon clinic blocks, they're free at dinner, and we'd like them to get at least an hour of 'paperwork' across rest hour and playstation as well. One request per director."
-answer = "EACH d IN staff.directors\nIF d BUSY DURING ALL {blocks.clinic_3 + blocks.clinic_4} THEN\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h DURING ANY {blocks.rest_hour + blocks.playstation}\n}"
+answer = "EACH d IN staff.directors\nIF d BUSY DURING ALL {blocks.clinic_3 + blocks.clinic_4} THEN\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h ACROSS ANY {blocks.rest_hour + blocks.playstation}\n}"
 priority = "MEDIUM"
 hints = ["Busy through both is BUSY DURING ALL {…} in the condition.", "A condition governs the PREFER as well as the REQUEST."]
-wrong = ["EACH d IN staff.directors\nIF d BUSY DURING ANY {blocks.clinic_3 + blocks.clinic_4} THEN\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h DURING ANY {blocks.rest_hour + blocks.playstation}\n}"]
+wrong = ["EACH d IN staff.directors\nIF d BUSY DURING ANY {blocks.clinic_3 + blocks.clinic_4} THEN\n{\n    REQUEST d FREE DURING blocks.dinner\n    PREFER d DO 'paperwork' FOR AT_LEAST 1h ACROSS ANY {blocks.rest_hour + blocks.playstation}\n}"]
 
 [[problem]]
 id = "big-trainees-supervised"

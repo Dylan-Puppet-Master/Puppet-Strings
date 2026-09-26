@@ -87,9 +87,9 @@ wrong = [
 id = "prefer-two-hours-rest"
 title = "Plenty of rest"
 prompt = "We'd like each counselor to be free for at least two hours of clinic time today."
-answer = "PREFER EACH staff.counselors FREE DURING ANY blocks.all_clinics FOR AT_LEAST 2h"
+answer = "PREFER EACH staff.counselors FREE ACROSS ANY blocks.all_clinics FOR AT_LEAST 2h"
 priority = "LOW"
-wrong = ["PREFER ANY staff.counselors FREE DURING ANY blocks.all_clinics FOR AT_LEAST 2h"]
+wrong = ["PREFER ANY staff.counselors FREE ACROSS ANY blocks.all_clinics FOR AT_LEAST 2h"]
 
 [[problem]]
 id = "prefer-not-three-in-a-row"
@@ -137,9 +137,9 @@ wrong = ["PREFER AT_LEAST 2 staff.mfgs DO 'maintenance' DURING blocks.clinic_3"]
 id = "prefer-directors-free-hour"
 title = "An hour off"
 prompt = "We'd like each director to have at least an hour free between clinic 3 and clinic 4."
-answer = "PREFER EACH staff.directors FREE DURING ANY {blocks.clinic_3 + blocks.clinic_4} FOR AT_LEAST 1h"
+answer = "PREFER EACH staff.directors FREE ACROSS ANY {blocks.clinic_3 + blocks.clinic_4} FOR AT_LEAST 1h"
 priority = "LOW"
-wrong = ["PREFER ANY staff.directors FREE DURING ANY {blocks.clinic_3 + blocks.clinic_4} FOR AT_LEAST 1h"]
+wrong = ["PREFER ANY staff.directors FREE ACROSS ANY {blocks.clinic_3 + blocks.clinic_4} FOR AT_LEAST 1h"]
 
 [[problem]]
 id = "prefer-weekly-balance"

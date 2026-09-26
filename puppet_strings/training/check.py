@@ -207,7 +207,13 @@ def _shape_difference(
             "It is the right kind of statement, but it is about something different. Check "
             "each name in it against the request."
         )
-    if _lengths(answer) != _lengths(expected):
+    lengths, wanted_lengths = _lengths(answer), _lengths(expected)
+    if lengths != wanted_lengths and _unsorted(lengths) == _unsorted(wanted_lengths):
+        return (
+            "The lengths are right, but not what they are lengths of. With DURING a FOR is "
+            "the length of each piece; with ACROSS it is what the pieces add up to."
+        )
+    if lengths != wanted_lengths:
         return (
             "The tasks in it last a different length of time. Check each FOR against the "
             "request: a task with no FOR fills its whole block."
@@ -232,18 +238,26 @@ def _shape_difference(
 
 
 def _lengths(copies) -> set[tuple]:
-    """Each quoted task with the FOR length it is asked for with, wherever one is given."""
+    """Each quoted task with the FOR length it is asked for with, wherever one is given.
+
+    Last in each is whether the length is of each piece or, with ACROSS, of them all.
+    """
     found = set()
     for st in _statements(copies):
         for part in (st, getattr(st, "pattern", None)):
             minutes = getattr(part, "minutes", None)
             if minutes is not None and isinstance(part.what, ast.Task):
-                found.add((part.what.text, part.length_bound, minutes))
+                found.add((part.what.text, part.length_bound, minutes, "each"))
         if isinstance(st, Tally) and st.measure is not None:
             what = st.pattern.what
             text = what.text if isinstance(what, ast.Task) else None
-            found.add((text, st.measure.bound, st.measure.value))
+            found.add((text, st.measure.bound, st.measure.value, "total"))
     return found
+
+
+def _unsorted(lengths: set[tuple]) -> set[tuple]:
+    """The lengths without whether each is of a piece or a total."""
+    return {length[:-1] for length in lengths}
 
 
 def _kind(statement) -> str:

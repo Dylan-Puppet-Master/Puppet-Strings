@@ -55,10 +55,11 @@ def test_counts_and_lengths():
     assert count.what == ast.Task("break")
     (hours,) = parse(
         "PREFER staff.cam_vl DO activities.clinics.candle_making AS_ROLE roles.trainee "
-        "ON ANY {2026-09-14 .. 2026-09-18} DURING ANY CONSECUTIVE blocks FOR AT_LEAST 2h"
+        "ON ANY {2026-09-14 .. 2026-09-18} ACROSS ANY CONSECUTIVE blocks FOR AT_LEAST 2h"
     ).lines
     assert isinstance(hours, ast.Preference)
     assert ast.clause(hours.pattern.clauses, ast.During).consecutive
+    assert ast.clause(hours.pattern.clauses, ast.During).across
     assert ast.clause(hours.pattern.clauses, ast.For) == ast.For(ast.Pos(1, 143), 120, ast.AT_LEAST)
     role = ast.clause(hours.pattern.clauses, ast.AsRole).selector.expr
     assert role == ast.Ref("roles", "trainee", ast.Pos(1, 65))
@@ -307,9 +308,9 @@ def test_a_keyword_may_be_written_in_either_case():
 
 
 def test_consecutive_goes_on_the_blocks():
-    """A count of blocks in a row, or a pool of them measured a run at a time."""
+    """A count of blocks in a row, or a pool of them added up a run at a time."""
     (measured,) = parse(
-        "REQUEST staff.dylan DO 'x' DURING ANY CONSECUTIVE blocks FOR AT_LEAST 2h"
+        "REQUEST staff.dylan DO 'x' ACROSS ANY CONSECUTIVE blocks FOR AT_LEAST 2h"
     ).lines
     assert ast.clause(measured.clauses, ast.During).consecutive
     (run,) = parse("REQUEST staff.dylan DO 'x' DURING ANY 2 CONSECUTIVE blocks").lines
@@ -331,7 +332,17 @@ def test_consecutive_goes_on_the_blocks():
         (
             "IF staff.dylan DO ANY activities.clinics DURING ANY CONSECUTIVE blocks THEN\n"
             "{ REQUEST staff.dylan FREE }",
-            "for a FOR to measure",
+            "a run of blocks to add a FOR up over",
+        ),
+        ("REQUEST staff.dylan DO 'x' ACROSS ANY blocks", "with no FOR, write DURING"),
+        (
+            "REQUEST staff.dylan NOT DO 'x' FOR AT_LEAST 1h ACROSS ANY blocks",
+            "right of NOT each piece is matched on its own",
+        ),
+        (
+            "PREFER staff.dylan DO 'x' FOR AT_LEAST 1h ACROSS ANY blocks "
+            "MAXIMIZE mappings.m(staff.dylan)",
+            "a score adds nothing up",
         ),
         ("REQUEST staff.cam FOR EXACTLY 30m DO 'x' DURING blocks.a", "FOR describes the activity"),
         ("REQUEST WITH staff.x staff.cam FREE DURING blocks.a", "so it goes after FREE"),

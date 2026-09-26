@@ -879,7 +879,7 @@ def test_a_counted_pattern_measures_clinics_without_starting_one():
 
 def test_a_duration_amount_sums_lengths_and_past_dates_count():
     yesterday = TARGET - timedelta(days=1)
-    text = "REQUEST staff.james DO 'dance practice' DURING ANY blocks.all_clinics ON ANY {dates.target - 1d .. dates.target} FOR AT_LEAST 2h"
+    text = "REQUEST staff.james DO 'dance practice' ACROSS ANY blocks.all_clinics ON ANY {dates.target - 1d .. dates.target} FOR AT_LEAST 2h"
     ds = dataset(
         [staff("James")],
         [],
@@ -896,7 +896,7 @@ def test_a_duration_amount_sums_lengths_and_past_dates_count():
 
 
 def test_consecutive_needs_adjacent_blocks():
-    text = "REQUEST staff.james DO 'training' FOR AT_LEAST 1.5h DURING ANY CONSECUTIVE {{{blocks}}}"
+    text = "REQUEST staff.james DO 'training' FOR AT_LEAST 1.5h ACROSS ANY CONSECUTIVE {{{blocks}}}"
     adjacent = dataset(
         [staff("James")],
         [],
