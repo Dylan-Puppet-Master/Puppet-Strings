@@ -223,9 +223,12 @@ class Amount:
 
 @dataclass(frozen=True)
 class Pattern:
-    """`<who> DO <what> …`, `<who> FREE …` or `<who> BUSY …` (`busy`)."""
+    """`<who> DO <what> …`, `<who> FREE …` or `<who> BUSY …` (`busy`).
 
-    who: Selector
+    `who` is None for a test of activities running, `IF <activities> …`, which names no one.
+    """
+
+    who: Selector | None
     what: Target
     busy: bool
     clauses: tuple[Clause, ...]

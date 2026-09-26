@@ -126,7 +126,10 @@ exclude     : _EXCLUDE _clauses chooser _clauses DO _clauses STRING _clauses
 // parentheses, as mixing set operators does, so there is no precedence to remember.
 ?condition  : term ((AND | OR) _NL* term)*        -> junction
 ?term       : test | "(" _NL* condition ")"
+// With no subject a test is of activities running, whoever holds them, as `REQUEST
+// <activity>` asks for one to run.
 test        : pattern
+            | _clauses chooser _clauses                                             -> test_runs
 
 pattern     : _clauses chooser _clauses DO _clauses do_target _clauses               -> pattern_doing
             | _clauses chooser _clauses FREE _clauses                               -> pattern_free

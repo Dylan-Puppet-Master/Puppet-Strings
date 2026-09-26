@@ -268,6 +268,12 @@ class _Builder(Transformer):
     def test(self, meta, items):
         return ast.Predicate(items[0], _pos(meta))
 
+    def test_runs(self, meta, items):
+        """`IF <activities> …`: whether they run, whoever holds them."""
+        (what,), clauses = _phrases(items, verb=what_at(items))
+        pattern = ast.Pattern(None, _target(what), False, clauses, _pos(meta))
+        return ast.Predicate(pattern, _pos(meta))
+
     def labeled(self, meta, items):
         name, statement = items
         return replace(statement, label=str(name))

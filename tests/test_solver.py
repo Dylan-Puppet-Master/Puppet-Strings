@@ -1421,6 +1421,43 @@ def test_an_if_does_not_hold_because_of_what_it_asks_for():
     assert [a.block for a in where(result, activity="lvl_2_on_ground")] == ["clinic_2"]
 
 
+RUNS_ON_THE_GROUND = (
+    "EACH b IN blocks\n"
+    "IF ANY {activities.clinics.ropes + activities.cabin_acts.lvl_2_on_ground} DURING b THEN\n"
+    "{ REQUEST activities.clinics.lvl_2_on_ground DURING b }"
+)
+CABIN_ACTS = "REQUEST EACH activities.cabin_acts.at_cabin_act DURING blocks.playstation"
+
+
+def tree_climbing(ticked: bool):
+    """A cabin's own act, run by its counselor, so with no HEROES and nobody on the schedule."""
+    act = cabin_act("M1", "Tree climbing")
+    return replace(act, card=(("Lvl 2 on Ground", "TRUE" if ticked else "FALSE"),))
+
+
+@pytest.mark.parametrize("ticked", [True, False])
+def test_a_ticked_act_nobody_is_scheduled_for_still_needs_a_level_2(ticked):
+    members = [
+        staff("Dylan"),
+        staff("Rob", gravity_zip_line_1st=OK),
+        staff("Randy", gravity_zip_line_2nd=OK),
+    ]
+    ds = dataset(
+        members,
+        [ZIP, LVL_2, tree_climbing(ticked)],
+        offerings=[("Gravity Zip Line", ["clinic_2"])],
+        requests=[
+            request("ground", RUNS_ON_THE_GROUND, Priority.MUST_HAPPEN),
+            request("acts", CABIN_ACTS, Priority.CLINIC),
+            request("keen", KEEN),
+        ],
+    )
+    result = run(ds)
+    assert result.feasible and result.unsatisfied == ()
+    blocks = [a.block for a in where(result, activity="lvl_2_on_ground")]
+    assert sorted(blocks) == (["clinic_2", "playstation"] if ticked else ["clinic_2"])
+
+
 def test_a_busy_test_does_not_count_the_task_its_if_asks_for():
     text = (
         "IF staff.dylan BUSY DURING blocks.clinic_1 THEN\n"

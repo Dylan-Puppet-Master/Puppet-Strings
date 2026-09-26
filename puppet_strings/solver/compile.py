@@ -146,6 +146,7 @@ class Compiler:
         self._grounding: str | None = None  # the condition whose test is being compiled
         self._grounded: dict[tuple[str, Slot], cp_model.IntVar] = {}
         self._grounded_busy: dict[tuple[str, str, str], cp_model.IntVar] = {}
+        self._grounded_runs: dict[tuple[str, int], tuple[cp_model.IntVar, Instance]] = {}
 
     # -- preparation ---------------------------------------------------------------------------
 
@@ -517,7 +518,11 @@ class Compiler:
             return var, interval.start, interval.end
         asks = self._all_of(conds, f"asks:{name}:{s}:{w}:{b}")
         self._ask(self.asked_instances, (w, b), asks)
-        if r is None:
+        if st.anyone and not self.dataset.activities[w].positions:
+            # an act the cabin runs itself needs nobody from the schedule: it just runs
+            instance = self.variables.instances.get((w, b))
+            held = False if instance is None else instance.filled
+        elif r is None:
             held = self._any_of(self.variables.holders(s, w, b), f"holds:{name}:{s}:{w}:{b}")
         elif r == TRAINEE or r in TRAINEE_ROLES:
             role, var = self.variables.trainee(s, w, b, name)
@@ -763,6 +768,8 @@ class Compiler:
 
     def _matches(self, pattern: Pattern, past: bool) -> list[Match]:
         """Every assignment the pattern matches on the target date and, with `past`, before it."""
+        if pattern.anyone:
+            return self._runs(pattern, past)
         target = self.dataset.target
         who = self._pool(pattern.who)
         whats = self._pool(pattern.what) if isinstance(pattern.what, Choice) else None
@@ -791,6 +798,33 @@ class Compiler:
                 matches.append(
                     Match(row.staff, row.activity, row.role, d, row.block, literal, row.minutes)
                 )
+        return matches
+
+    def _runs(self, pattern: Pattern, past: bool) -> list[Match]:
+        """Each activity of a test that names no one, in each block it could be running in.
+
+        Today it runs where its instance is filled, which is what `REQUEST <activity>` asks
+        for; before today, where it was published. It is matched with nobody holding it.
+        """
+        target = self.dataset.target
+        whats = self._pool(pattern.what)
+        blocks = set(pattern.during.items) if pattern.during else None
+        matches = []
+        for d in pattern.on.items:
+            if d > target or (d < target and not past):
+                continue
+            ran = {(a.activity, a.block) for a in self.variables.published(d)}
+            for block, (w, on_w) in product(self.dataset.blocks_on(d), whats.items()):
+                if blocks is not None and block.id not in blocks:
+                    continue
+                if d < target:
+                    runs = (w, block.id) in ran
+                elif (instance := self.variables.instances.get((w, block.id))) is None:
+                    runs = False
+                else:
+                    runs = self._ground_runs(instance) if self._grounding else instance.filled
+                literal = self._all_of([runs, on_w], f"runs:{w}:{d}:{block.id}")
+                matches.append(Match("", w, None, d, block.id, literal, block.minutes))
         return matches
 
     def _state(self, s: str, d: date, b: str, busy: bool) -> Literal:
@@ -1208,12 +1242,13 @@ class Compiler:
     def _exclusive(self, matches: list[Match]) -> bool:
         """Whether at most one of these can hold, so that their sum counts the item exactly.
 
-        One person's whole-block assignments in one block on one date never overlap.
+        One person's whole-block assignments in one block on one date never overlap. An
+        activity running (`_runs`) is held by nobody, and several can run at once.
         """
         if len(matches) < 2:
             return False
         first = matches[0]
-        return all(
+        return bool(first.staff) and all(
             m.staff == first.staff
             and m.date == first.date
             and m.block == first.block
@@ -1603,6 +1638,14 @@ class Compiler:
             self._grounded_busy[key] = self.model.NewBoolVar(f"ground:{key[0]}:busy:{s}:{b}")
         return self._grounded_busy[key]
 
+    def _ground_runs(self, instance: Instance) -> cp_model.IntVar:
+        """Whether an activity runs, as a condition's test sees it (`_ground`)."""
+        key = (self._grounding, id(instance))
+        if key not in self._grounded_runs:
+            name = f"ground:{key[0]}:runs:{instance.activity.id}:{instance.blocks[0]}"
+            self._grounded_runs[key] = self.model.NewBoolVar(name), instance
+        return self._grounded_runs[key][0]
+
     def _slot_asks(self, slot: Slot) -> list[Ask]:
         """What asks for an assignment: its quoted task, its trainee place, or its clinic."""
         if slot.activity not in self.dataset.activities:
@@ -1623,15 +1666,20 @@ class Compiler:
             ]
             self._same(held, self._any_of(here, f"ground:{tag}:busy:{s}:{b}:any"))
         for (tag, slot), held in list(self._grounded.items()):
-            var = self.variables.x[slot]
-            asks = self._slot_asks(slot)
-            if not any(tag in a.guards for a in asks):
-                self._same(held, var)  # nothing inside the condition asks for it
-                continue
-            others = [a.literal for a in asks if tag not in a.guards]
             label = f"ground:{tag}:{slot.staff}:{slot.activity}:{slot.block}"
-            asked = self._any_of(others, f"{label}:asked")
-            self._same(held, self._all_of([var, asked], label))
+            self._define_ground(held, self.variables.x[slot], self._slot_asks(slot), tag, label)
+        for (tag, _), (held, instance) in self._grounded_runs.items():
+            label = f"ground:{tag}:runs:{instance.activity.id}:{instance.blocks[0]}"
+            self._define_ground(held, instance.filled, self._instance_asks(instance), tag, label)
+
+    def _define_ground(self, held, var, asks: list[Ask], tag: str, label: str) -> None:
+        """`held` is `var` made and asked for by something outside the condition `tag`."""
+        if not any(tag in a.guards for a in asks):
+            self._same(held, var)  # nothing inside the condition asks for it
+            return
+        others = [a.literal for a in asks if tag not in a.guards]
+        asked = self._any_of(others, f"{label}:asked")
+        self._same(held, self._all_of([var, asked], label))
 
     def _same(self, var: cp_model.IntVar, literal: Literal) -> None:
         """`var` is true exactly when `literal` is."""

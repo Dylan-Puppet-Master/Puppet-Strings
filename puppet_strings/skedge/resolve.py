@@ -105,7 +105,8 @@ class Pattern:
     """`<who> DO <what> …`, `<who> FREE …` or (`busy`) `<who> BUSY …`, resolved.
 
     `minutes` is a FOR that picks out assignments of that length, compared by
-    `length_bound`; a FOR that measures a pool is a Tally's `measure` instead.
+    `length_bound`; a FOR that measures a pool is a Tally's `measure` instead. A test that
+    names no one (`anyone`) matches the activities running, whoever holds them.
     """
 
     who: Choice
@@ -119,6 +120,7 @@ class Pattern:
     without: Company | None
     pos: ast.Pos
     length_bound: str = ast.EXACTLY
+    anyone: bool = False
 
 
 @dataclass(frozen=True)
@@ -128,6 +130,7 @@ class Requirement:
     Every set in it is taken whole (ALL), chosen from (ANY n, a count of AT_LEAST n), or
     pooled (POOL), where one of its items is chosen for each combination of the rest.
     `minutes` is the length of each quoted-task piece, compared by `length_bound`.
+    `anyone` is `REQUEST <activity>`, which names no one: the activity runs.
     """
 
     who: Choice
@@ -142,6 +145,7 @@ class Requirement:
     pos: ast.Pos
     busy: bool = False
     length_bound: str = ast.EXACTLY
+    anyone: bool = False
 
 
 @dataclass(frozen=True)
@@ -751,11 +755,10 @@ def _phrase(
     over a pool is a requirement, every choice in it made once; anything else is a tally,
     where a REQUEST's choices are made once as well, as a binding line's would be.
     """
-    who = (
-        _anyone(what, scope, pos)
-        if who_selector is None
-        else _choice(who_selector, STAFF, scope, pool=False)
-    )
+    anyone = who_selector is None
+    if anyone and test:
+        _only_when(clauses)
+    who = _anyone(what, scope, pos) if anyone else _choice(who_selector, STAFF, scope, pool=False)
     parts = _parts(what, clauses, scope, pool=False)
     for_ = ast.clause(clauses, ast.For)
     during, on = parts["during"], parts["on"]
@@ -790,7 +793,7 @@ def _phrase(
     if asking and measure is None and not levels:
         if chosen["during"] is None:
             chosen["during"] = Choice(_whole_day(chosen["on"], scope), POOL, pos=pos)
-        return Requirement(label=label, busy=busy, pos=pos, **chosen), {}
+        return Requirement(label=label, busy=busy, pos=pos, anyone=anyone, **chosen), {}
     if label is not None:
         raise _error(
             "a GAP is measured from what a REQUEST makes, so a labeled one takes no cap and "
@@ -805,8 +808,19 @@ def _phrase(
                 name = f"_pick_{key}_{choice.pos.line}_{choice.pos.column}"
                 chosen[key] = picked[name] = replace(choice, var=name)
     runs = during is not None and during.consecutive and during.kind == POOL
-    pattern = Pattern(busy=busy, pos=pos, **chosen)
+    pattern = Pattern(busy=busy, pos=pos, anyone=anyone and test, **chosen)
     return Tally(prefer, levels, pattern, measure, runs, pos), picked
+
+
+def _only_when(clauses: tuple[ast.Clause, ...]) -> None:
+    """A test of activities running says only when: who holds them is not its business."""
+    for clause in clauses:
+        if not isinstance(clause, ast.During | ast.On):
+            raise _error(
+                "a test that names no one is of activities running, so it says only DURING "
+                "and ON; name who to say more: ANY staff DO …",
+                clause.pos,
+            )
 
 
 def _no_measures(chosen: dict) -> None:
@@ -956,6 +970,7 @@ def _offering(statement: ast.Requirement, scope: _Scope) -> Requirement:
     if offering is None:
         raise _error("an offering is asked for apart from other activities", what.pos)
     return Requirement(
+        anyone=True,
         who=_anyone(what, scope, statement.pos),
         what=Choice((offering.activity,), ALL, pos=what.pos),
         during=Choice(offering.blocks, ALL, pos=what.pos),

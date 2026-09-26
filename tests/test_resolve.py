@@ -294,7 +294,7 @@ def test_name_listing_matches_the_namespaces(dataset):
         "mappings",
     ]
     assert ("", "category, 21 members") in listing["staff"]
-    assert ("", "category, 20 members") in listing["activities"]
+    assert ("", "category, 22 members") in listing["activities"]
     assert ("clinics", "category, 16 members") in listing["activities"]
     assert ("cabin_acts", "category, 1 members") in listing["activities"]
     assert ("cabin_acts.at_cabin_act.m2", "M2 Fort Building") in listing["activities"]
@@ -456,6 +456,23 @@ def test_a_checkbox_is_a_name_on_a_day_nobody_ticked_it(dataset):
 def test_a_checkbox_cannot_take_a_halfs_name(dataset):
     clash = with_cards(dataset, today=(("At Cabin Act", "FALSE"),))
     assert acts_named(clash, "activities.cabin_acts.at_cabin_act") == ["cabin_act_m2_2026_09_16"]
+
+
+def test_a_test_that_names_no_one_is_of_activities_running(dataset):
+    (copy,) = resolve(
+        dataset,
+        "IF ANY activities.clinics.ropes DURING blocks.clinic_1 THEN\n"
+        "{ REQUEST staff.dylan FREE DURING blocks.clinic_2 }",
+    )
+    (condition,) = copy.conditions
+    pattern = condition.test.tally.pattern
+    assert pattern.anyone and pattern.during.items == ("clinic_1",)
+    with pytest.raises(SkedgeError, match="says only DURING and ON"):
+        resolve(
+            dataset,
+            "IF ANY activities.clinics AS_ROLE roles.first DURING blocks.clinic_1 THEN\n"
+            "{ REQUEST staff.dylan FREE DURING blocks.clinic_2 }",
+        )
 
 
 def test_a_cabin_has_no_name_on_a_day_its_act_is_not_there(dataset):

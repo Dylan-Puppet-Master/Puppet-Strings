@@ -18,7 +18,8 @@ filling it in. The Support Requests tab says the same thing a second time and is
 
 Each act becomes an `Activity` under `activities.cabin_acts`, staffed like a clinic: one
 position per hero the HEROES cell names. That is why a cabin act needs no requests of its
-own — one request asks for all of them, and the positions say who by.
+own — one request asks for all of them, and the positions say who by. An act with no
+HEROES is one the cabin runs itself: it has no positions, and runs with nobody on it.
 
 An act whose title starts or ends with "RH" or "Rest Hour" is moved to rest hour, and the
 cabin rests in the cabin act block instead. It is marked so, and `activities.cabin_acts`
@@ -116,7 +117,8 @@ def parse_board(table: Table, where: str) -> tuple[CabinAct, ...]:
     for (name, weekday), card in cards.items():
         written = {normalize(label): value for label, value in card.items()}
         heroes = tuple(split_list(written.get(HEROES, "")))
-        if heroes:  # an act nobody is asked for needs nobody scheduled
+        ticked = any(value.strip().upper() == "TRUE" for value in card.values())
+        if heroes or written.get(ACTIVITY) or ticked:
             acts.append(
                 CabinAct(
                     name,
@@ -177,8 +179,6 @@ def cabin_act_activities(
                 continue
             activity, act_warnings = _activity(act, day, title, staff, categories, skills)
             warnings += act_warnings
-            if activity is None:
-                continue
             if activity.id in activities:
                 warnings.append(f"{title}: {act.cabin} on {day} is on another sheet too")
                 continue
@@ -193,7 +193,7 @@ def _activity(
     staff: Mapping[str, Staff],
     categories: Mapping[str, frozenset[str]],
     skills: Mapping[str, str],
-) -> tuple[Activity | None, list[str]]:
+) -> tuple[Activity, list[str]]:
     """One cabin act as an activity, with a position per hero its HEROES cell names."""
     positions, warnings = [], []
     for hero in act.heroes:
@@ -211,8 +211,6 @@ def _activity(
             )
             continue
         positions.append(position)
-    if not positions:  # an act nobody is asked for needs nobody scheduled
-        return None, warnings
     rest_hour = bool(AT_REST_HOUR.search(act.activity))
     if not rest_hour and MENTIONS_REST_HOUR.search(act.activity):
         # "CA: Blackberry picking, RH: muffins" is split between the two blocks, and which

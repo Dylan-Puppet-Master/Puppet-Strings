@@ -404,6 +404,11 @@ the same thing twice. Filling one position of an activity fills them all, so thi
 request for every person it needs, and the report names the activity once rather than once
 per position.
 
+A test can name no one in the same way, and is then of the activities running, whoever
+holds them: `IF ANY activities.clinics.ropes DURING b` holds when a ropes clinic runs in
+`b`, and `IF AT_LEAST 2 activities.clinics.ropes DURING b` when two do. It says only when,
+with `DURING` and `ON`; to say who, or in what role, name them: `ANY staff DO …`.
+
 `EACH` over a set asks for each of them separately, which is how two lines ask for a
 whole board of cabin acts: one for the acts in the cabin act block, one for those the
 board moved to rest hour:
@@ -421,6 +426,9 @@ A checkbox on the board's cards names the day's acts it is ticked on, in either 
 "Lvl 2 on Ground" checkbox is `activities.cabin_acts.lvl_2_on_ground`, and one labeled
 "Van" is `activities.cabin_acts.van`. The name is there on a day nobody ticked the box,
 as a set of nothing.
+
+An act with nobody in its HEROES cell is one the cabin runs itself. It is asked for like
+any other and runs with nobody on it, so a test that names no one sees it running.
 
 A day's clinics are asked for the same way, but a clinic can run more than once a day, in
 different blocks, so what is asked for is an **offering**: one clinic in the block the
@@ -658,11 +666,15 @@ everywhere:
 # A Level 2 is on the ground wherever a ropes clinic runs. Lvl. 2 on Ground is a ropes
 # clinic itself, and it does not count as the reason for itself.
 EACH b IN blocks
-IF ANY staff DO ANY activities.clinics.ropes DURING b THEN
+IF ANY activities.clinics.ropes DURING b THEN
 {
     REQUEST activities.clinics.lvl_2_on_ground DURING b
 }
 ```
+
+With the cabin acts whose board has "Lvl 2 on Ground" ticked added in, `IF ANY
+{activities.clinics.ropes + activities.cabin_acts.lvl_2_on_ground} DURING b`, the same
+request covers them too, including an act the cabin runs itself with no HEROES.
 
 Anything asked for from outside the braces counts in full: a statement of the same request
 outside them, another request, or the day's offerings. The rule is about one condition and
