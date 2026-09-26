@@ -645,6 +645,26 @@ UNLESS ANY staff.director FREE DURING blocks.clinic_1 THEN
 }
 ```
 
+A test is of everything else on the schedule: what the braces themselves ask for does not
+count toward it. So a test may name what its braces ask for without asking for it
+everywhere:
+
+```skedge
+# A Level 2 is on the ground wherever a ropes clinic runs. Lvl. 2 on Ground is a ropes
+# clinic itself, and it does not count as the reason for itself.
+EACH b IN blocks
+IF ANY staff DO ANY activities.clinics.ropes DURING b THEN
+{
+    REQUEST activities.clinics.lvl_2_on_ground DURING b
+}
+```
+
+Anything asked for from outside the braces counts in full: a statement of the same request
+outside them, another request, or the day's offerings. The rule is about one condition and
+its own braces, so two requests can still be each other's reason: if one's braces make the
+other's test hold and the other's make the first's hold, both may happen for no reason but
+each other.
+
 `ANY 1 x IN <set>` on its own line picks one item for the whole request: "the same
 person sets up and tears down". `ANY 3 x IN <set>` picks three, and `x` is then a set,
 taken `ALL` or `EACH` where it is used. A binding line names particular people, so it
@@ -829,7 +849,8 @@ requirements must be hard.
 
 **Only a positive `REQUEST` makes things happen.** A clinic runs, a trainee shadows, or an
 ad hoc task exists only because some `REQUEST` asks for it. `NOT`, `AT_MOST`, `PREFER`,
-`IF` and `UNLESS` steer where those things land; they never create more of them. So a
+`IF` and `UNLESS` steer where those things land; they never create more of them, and an
+`IF` cannot hold because of what its own braces ask for. So a
 request that people `NOT DO 'break'` outside meals moves the breaks they already have and
 cannot buy or cost anyone a break. A count of clinics, or `ANY` of them, counts the clinics
 that are running and starts none of its own. And naming an ad hoc task no `REQUEST` asks

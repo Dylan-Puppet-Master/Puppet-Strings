@@ -52,7 +52,7 @@ from puppet_strings.skedge.resolve import (
     asks,
     is_prefer,
 )
-from puppet_strings.solver.variables import Literal, Slot, Variables
+from puppet_strings.solver.variables import Instance, Literal, Slot, Variables
 
 SCALE = 1000
 DEFER_BONUS = 1  # for acting early on a deferrable request; sits in the last tier
@@ -113,6 +113,14 @@ class Row:
     start: int | cp_model.IntVar
 
 
+@dataclass(frozen=True)
+class Ask:
+    """One thing asking for an assignment, and the conditions (their tags) it is under."""
+
+    literal: Literal
+    guards: frozenset[str]
+
+
 class Compiler:
     """Adds requests to a CpModel. Create one per solve."""
 
@@ -122,9 +130,11 @@ class Compiler:
         self.dataset = dataset
         self.terms: dict[Priority, list[tuple[int, cp_model.IntVar]]] = {t: [] for t in SOFT_TIERS}
         self.compiled: list[Compiled] = []
-        self.asked_for: dict[Slot, list[Literal]] = {}  # what asks for each quoted-task assignment
-        self.asked_instances: dict[tuple[str, str], list[Literal]] = {}  # and for each clinic
-        self.asked_trainees: dict[tuple[str, str, str], list[Literal]] = {}  # and each trainee
+        # What asks for each quoted-task assignment, each clinic and each trainee, with the
+        # conditions each ask is under (see `_ground`).
+        self.asked_for: dict[Slot, list[Ask]] = {}
+        self.asked_instances: dict[tuple[str, str], list[Ask]] = {}
+        self.asked_trainees: dict[tuple[str, str, str], list[Ask]] = {}
         self.shortened: dict[Slot, list[Literal]] = {}  # what gives it a FOR length
         self._same_starts: dict[tuple[int, int], cp_model.IntVar] = {}
         self._published: dict[date, dict[tuple[str, str], list[Row]]] = {}
@@ -132,6 +142,10 @@ class Compiler:
         self._name = ""
         self._bindings: dict[str, Choice] = {}
         self._shared: dict[str, dict] = {}
+        self._guards: frozenset[str] = frozenset()  # the conditions around the statement
+        self._grounding: str | None = None  # the condition whose test is being compiled
+        self._grounded: dict[tuple[str, Slot], cp_model.IntVar] = {}
+        self._grounded_busy: dict[tuple[str, str, str], cp_model.IntVar] = {}
 
     # -- preparation ---------------------------------------------------------------------------
 
@@ -203,7 +217,8 @@ class Compiler:
         self._name = name = f"{request.id}[{copy.key}]" if copy.key else request.id
         self._bindings, self._shared = copy.bindings, {}
         tier = Priority.CLINIC if request.priority.hard else request.priority
-        holds = {id(c): self._holds(c, f"if:{name}.{i}") for i, c in enumerate(copy.conditions)}
+        tags = {id(c): f"{name}.if{i}" for i, c in enumerate(copy.conditions)}
+        holds = {id(c): self._holds(c, tags[id(c)]) for c in copy.conditions}
         applies: dict[tuple[int, ...], Literal] = {}  # statements in one block share theirs
         for when in copy.when:
             key = tuple(id(c) for c in when)
@@ -212,18 +227,19 @@ class Compiler:
                     [holds[k] for k in key], f"applies:{name}.{len(applies)}"
                 )
         guarded = [
-            (st, applies[tuple(id(c) for c in when)])
+            (st, applies[tuple(id(c) for c in when)], frozenset(tags[id(c)] for c in when))
             for st, when in zip(copy.statements, copy.when, strict=True)
         ]
-        wanted = [(st, guard) for st, guard in guarded if is_prefer(st)]
-        required = [(st, guard) for st, guard in guarded if not is_prefer(st)]
+        wanted = [g for g in guarded if is_prefer(g[0])]
+        required = [g for g in guarded if not is_prefer(g[0])]
         if required:
             # first, so that a preference can be about what the requirements chose, and so
             # that `_collapse` sees only the constraints the requirements posted
             self._required(request, copy, required, tier, name)
-        for index, (statement, guard) in enumerate(wanted):
+        for index, (statement, guard, self._guards) in enumerate(wanted):
             label = name if index == 0 else f"{name}#{index + 1}"
             self._prefer(statement, guard, request.weight, tier, label)
+        self._guards = frozenset()
         return True
 
     def _required(
@@ -250,7 +266,7 @@ class Compiler:
         posted = len(self.model.Proto().constraints)
         deferred: list[Literal] = []
         made: dict[str, tuple[list[Made], Literal]] = {}
-        for st, applies in statements:
+        for st, applies, self._guards in statements:
             if isinstance(st, Requirement):
                 assignments, later = self._require(st, active(applies), name)
                 deferred.append(later)
@@ -266,7 +282,7 @@ class Compiler:
             both = self._all_of([sat, first_applies, second_applies], f"gap:{name}:applies")
             self._gap(gap, both, first, second, name)
         if not request.priority.hard:
-            conditional = any(applies is not True for _, applies in statements)
+            conditional = any(applies is not True for _, applies, _ in statements)
             sat = self._collapse(sat, not conditional, posted)
             self.terms[tier].append((round(SCALE * request.weight), sat))
         self.compiled.append(
@@ -301,9 +317,17 @@ class Compiler:
             return True
         return any(d < target for d in dates) and any(d > target for d in dates)
 
-    def _holds(self, condition: Condition, name: str) -> Literal:
-        """A literal true when an IF's test holds, or an UNLESS's does not."""
-        holds = self._test(condition.test, name)
+    def _holds(self, condition: Condition, tag: str) -> Literal:
+        """A literal true when an IF's test holds, or an UNLESS's does not.
+
+        The test is of the schedule less what the condition's own statements ask for, so
+        that an IF cannot hold because of what it asks for (`_ground`).
+        """
+        self._grounding = tag
+        try:
+            holds = self._test(condition.test, f"if:{tag}")
+        finally:
+            self._grounding = None
         return _negate(holds) if condition.unless else holds
 
     def _test(self, test: Predicate | Junction, name: str) -> Literal:
@@ -486,19 +510,19 @@ class Compiler:
             slot = Slot(s, w.text, None, b)
             interval = self.variables.intervals[slot]
             selector = self._all_of(conds, f"asks:{name}:{s}:{b}")
-            self.asked_for.setdefault(slot, []).append(selector)
+            self._ask(self.asked_for, slot, selector)
             if st.minutes is not None:
                 self._add(_length(interval.size, st.minutes, st.length_bound), conds)
                 self.shortened.setdefault(slot, []).append(selector)
             return var, interval.start, interval.end
         asks = self._all_of(conds, f"asks:{name}:{s}:{w}:{b}")
-        self.asked_instances.setdefault((w, b), []).append(asks)
+        self._ask(self.asked_instances, (w, b), asks)
         if r is None:
             held = self._any_of(self.variables.holders(s, w, b), f"holds:{name}:{s}:{w}:{b}")
         elif r == TRAINEE or r in TRAINEE_ROLES:
             role, var = self.variables.trainee(s, w, b, name)
             held = var if r in (TRAINEE, role) else False
-            self.asked_trainees.setdefault((s, w, b), []).append(asks)
+            self._ask(self.asked_trainees, (s, w, b), asks)
         else:
             held = self.variables.lookup(s, w, r, b)
         return held, block.start_minute, block.end_minute
@@ -510,7 +534,7 @@ class Compiler:
             if isinstance(w, ast.Task):
                 selector = self._all_of(conds, f"asks:{name}:{s}:{b}:with")
                 for p in st.with_.staff - {s}:
-                    self.asked_for.setdefault(Slot(p, w.text, None, b), []).append(selector)
+                    self._ask(self.asked_for, Slot(p, w.text, None, b), selector)
             self._imply(conds, self._company(s, w, target, b, st.with_, f"with:{name}:{s}:{b}"))
         if st.without is not None:
             company = self._company(s, w, target, b, st.without, f"without:{name}:{s}:{b}")
@@ -771,6 +795,9 @@ class Compiler:
 
     def _state(self, s: str, d: date, b: str, busy: bool) -> Literal:
         if d == self.dataset.target:
+            if self._grounding is not None:
+                held = self._ground_busy(s, b)
+                return held if busy else _negate(held)
             return self.variables.busy(s, b) if busy else self.variables.free(s, b)
         free = self.variables.was_free(s, d, b)
         return not free if busy else free
@@ -796,7 +823,7 @@ class Compiler:
                     slot.activity,
                     slot.role,
                     slot.block,
-                    self.variables.x[slot],
+                    self._ground(slot) if self._grounding else self.variables.x[slot],
                     interval.size,
                     interval.start,
                 )
@@ -1449,10 +1476,10 @@ class Compiler:
                 continue
             if isinstance(p.what, ast.Task):
                 for s in {m.staff, *(p.with_.staff if p.with_ else ())}:
-                    self.asked_for.setdefault(Slot(s, m.activity, None, m.block), []).append(active)
+                    self._ask(self.asked_for, Slot(s, m.activity, None, m.block), active)
                 continue
             if m.role in TRAINEE_ROLES:  # a clinic itself runs only where a REQUEST … DO says
-                self.asked_trainees.setdefault((m.staff, m.activity, m.block), []).append(active)
+                self._ask(self.asked_trainees, (m.staff, m.activity, m.block), active)
 
     def _bonus(self, term) -> None:
         """The incentive to act early on a deferrable request, below every tier's requests."""
@@ -1509,6 +1536,7 @@ class Compiler:
         holders need no rule of their own: a clinic that runs is staffed and one that does
         not is empty. A quoted task is as long as its block unless a `FOR` selects it.
         """
+        self._define_grounded()
         for slot, var in self.variables.x.items():
             if slot.activity in self.dataset.activities:
                 continue
@@ -1520,25 +1548,98 @@ class Compiler:
             unless = [var, *(s.Not() for s in shortened)]
             self.model.Add(interval.size == interval.block.minutes).OnlyEnforceIf(unless)
         for instance in self.variables.unique_instances():
-            activity = instance.activity.id
-            asked = [
-                a for b in instance.blocks for a in self.asked_instances.get((activity, b), [])
-            ]
-            self._only_if_asked(instance.filled, asked)
+            self._only_if_asked(instance.filled, self._instance_asks(instance))
             for staff_id, (_, var) in instance.trainees.items():
-                asked = [
-                    a
-                    for b in instance.blocks
-                    for a in self.asked_trainees.get((staff_id, activity, b), [])
-                ]
-                self._only_if_asked(var, asked)
+                self._only_if_asked(var, self._trainee_asks(instance, staff_id))
 
-    def _only_if_asked(self, var: cp_model.IntVar, asked: list[Literal]) -> None:
+    def _instance_asks(self, instance: Instance) -> list[Ask]:
+        activity = instance.activity.id
+        return [a for b in instance.blocks for a in self.asked_instances.get((activity, b), [])]
+
+    def _trainee_asks(self, instance: Instance, staff_id: str) -> list[Ask]:
+        activity = instance.activity.id
+        return [
+            a for b in instance.blocks for a in self.asked_trainees.get((staff_id, activity, b), [])
+        ]
+
+    def _only_if_asked(self, var: cp_model.IntVar, asked: list[Ask]) -> None:
         """Allow this only where one of these selected it."""
-        live = _distinct([a for a in asked if a is not False])
-        if any(a is True for a in asked):
+        literals = [a.literal for a in asked]
+        live = _distinct([a for a in literals if a is not False])
+        if any(a is True for a in literals):
             return
         self.model.AddBoolOr([var.Not(), *live])
+
+    # -- grounding conditions ------------------------------------------------------------------
+
+    def _ask(self, table: dict, key, literal: Literal) -> None:
+        """Record that `literal` asks for what `key` names, under the statement's conditions."""
+        table.setdefault(key, []).append(Ask(literal, self._guards))
+
+    def _ground(self, slot: Slot, tag: str | None = None) -> cp_model.IntVar:
+        """An assignment as a condition's test sees it: made, and asked for from outside it.
+
+        Something other than the statements inside the condition must ask for it. Without
+        this an IF could hold because of what it asks for. In `IF ANY staff DO ANY
+        activities.clinics.ropes DURING b THEN { REQUEST activities.clinics.lvl_2 DURING b }`,
+        where lvl_2 is a ropes clinic itself, lvl_2 running would make the test hold, and the
+        test holding would be the request that lets it run. What asks for an assignment is
+        known only once every request is compiled, so `close` defines the literal.
+        """
+        tag = tag or self._grounding
+        key = (tag, slot)
+        if key not in self._grounded:
+            self._grounded[key] = self.model.NewBoolVar(
+                f"ground:{tag}:{slot.staff}:{slot.activity}:{slot.role}:{slot.block}"
+            )
+        return self._grounded[key]
+
+    def _ground_busy(self, s: str, b: str) -> Literal:
+        """Whether someone is busy in a block, by `_ground`ed assignments."""
+        if b in self.dataset.staff[s].resting_blocks:
+            return False
+        key = (self._grounding, s, b)
+        if key not in self._grounded_busy:
+            self._grounded_busy[key] = self.model.NewBoolVar(f"ground:{key[0]}:busy:{s}:{b}")
+        return self._grounded_busy[key]
+
+    def _slot_asks(self, slot: Slot) -> list[Ask]:
+        """What asks for an assignment: its quoted task, its trainee place, or its clinic."""
+        if slot.activity not in self.dataset.activities:
+            return self.asked_for.get(slot, [])
+        instance = self.variables.instances[slot.activity, slot.block]
+        if slot.role in TRAINEE_ROLES:
+            return self._trainee_asks(instance, slot.staff)
+        return self._instance_asks(instance)
+
+    def _define_grounded(self) -> None:
+        """Define the literals `_ground` and `_ground_busy` handed out, now that asks are known."""
+        blocks = self.dataset.blocks
+        for (tag, s, b), held in self._grounded_busy.items():
+            here = [
+                self._ground(slot, tag)
+                for slot in self.variables.by_staff.get(s, ())
+                if blocks[slot.block].overlaps(blocks[b])
+            ]
+            self._same(held, self._any_of(here, f"ground:{tag}:busy:{s}:{b}:any"))
+        for (tag, slot), held in list(self._grounded.items()):
+            var = self.variables.x[slot]
+            asks = self._slot_asks(slot)
+            if not any(tag in a.guards for a in asks):
+                self._same(held, var)  # nothing inside the condition asks for it
+                continue
+            others = [a.literal for a in asks if tag not in a.guards]
+            label = f"ground:{tag}:{slot.staff}:{slot.activity}:{slot.block}"
+            asked = self._any_of(others, f"{label}:asked")
+            self._same(held, self._all_of([var, asked], label))
+
+    def _same(self, var: cp_model.IntVar, literal: Literal) -> None:
+        """`var` is true exactly when `literal` is."""
+        if isinstance(literal, bool):
+            self.model.Add(var == int(literal))
+            return
+        self.model.AddImplication(var, literal)
+        self.model.AddImplication(literal, var)
 
     # -- literals ------------------------------------------------------------------------------
 

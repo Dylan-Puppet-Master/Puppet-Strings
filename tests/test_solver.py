@@ -1395,6 +1395,66 @@ def test_and_or_join_conditions():
         assert bool(where(run(ds), activity="front desk")) is expected
 
 
+LVL_2 = clinic("Lvl 2 on Ground", (None, 1), category="ropes")
+ON_THE_GROUND = (
+    "EACH b IN blocks\n"
+    "IF ANY staff DO ANY activities.clinics.ropes DURING b THEN\n"
+    "{ REQUEST activities.clinics.lvl_2_on_ground DURING b }"
+)
+# Something that would like Lvl 2 to run everywhere, and would get it if an IF could hold
+# because of what it asks for.
+KEEN = "PREFER staff.dylan DO activities.clinics.lvl_2_on_ground DURING AT_LEAST 5 blocks"
+
+
+def test_an_if_does_not_hold_because_of_what_it_asks_for():
+    """Lvl 2 is a ropes clinic itself, and still runs only alongside another."""
+    members = [staff("Dylan"), staff("Rob", gravity_zip_line_1st=OK, gravity_zip_line_2nd=OK)]
+    requests = [request("ground", ON_THE_GROUND, Priority.MUST_HAPPEN), request("keen", KEEN)]
+    alone = run(dataset(members, [ZIP, LVL_2], requests=requests))
+    assert alone.feasible and not where(alone, activity="lvl_2_on_ground")
+    zip_line = [staff("Randy", gravity_zip_line_2nd=OK), *members]
+    ds = dataset(
+        zip_line, [ZIP, LVL_2], offerings=[("Gravity Zip Line", ["clinic_2"])], requests=requests
+    )
+    result = run(ds)
+    assert [a.block for a in where(result, activity="gravity_zip_line")] == ["clinic_2"] * 2
+    assert [a.block for a in where(result, activity="lvl_2_on_ground")] == ["clinic_2"]
+
+
+def test_a_busy_test_does_not_count_the_task_its_if_asks_for():
+    text = (
+        "IF staff.dylan BUSY DURING blocks.clinic_1 THEN\n"
+        "{ REQUEST staff.dylan DO 'paperwork' DURING blocks.clinic_1 }"
+    )
+    keen = "PREFER staff.dylan BUSY DURING AT_LEAST 1 blocks"
+    ds = dataset(
+        [staff("Dylan")],
+        [ARCHERY],
+        requests=[request("paperwork", text, Priority.MUST_HAPPEN), request("keen", keen)],
+    )
+    result = run(ds)
+    assert result.feasible and not where(result, activity="paperwork")
+
+
+def test_what_the_request_asks_for_outside_its_if_still_counts():
+    text = (
+        "REQUEST staff.dylan DO 'setup' DURING blocks.clinic_1\n"
+        "IF staff.dylan BUSY DURING blocks.clinic_1 THEN\n"
+        "{ REQUEST staff.dylan FREE DURING blocks.clinic_2 }"
+    )
+    ds = dataset(
+        [staff("Dylan")],
+        [ARCHERY],
+        requests=[
+            request("setup", text, Priority.HIGH),
+            request("mail", "REQUEST staff.dylan DO 'mail' DURING blocks.clinic_2", Priority.LOW),
+        ],
+    )
+    result = run(ds)
+    assert where(result, activity="setup") and not where(result, activity="mail")
+    assert ids(result.unsatisfied) == ["mail"]
+
+
 # -- the time horizon ------------------------------------------------------------------------
 
 MAINTENANCE = "REQUEST staff.dylan DO 'archery maintenance' DURING ANY 1 blocks ON ANY 1 {2026-09-16 .. 2026-09-17}"
