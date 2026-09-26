@@ -17,14 +17,14 @@ places they would have had anyway, so moving one group never shuffles the others
 from dataclasses import dataclass
 from math import ceil, sqrt
 
-CARD_WIDTH = 360.0
-GAP = 18.0  # between two cards
+CARD_WIDTH = 450.0
+GAP = 20.0  # between two cards
 PAD = 26.0  # between a frame's edge and its cards
 HEADER = 70.0  # a frame's title strip
 EMPTY = 110.0  # the room an empty frame keeps for its hint
 FRAME_GAP = 90.0  # between two frames
 ASIDE_GAP = 4 * FRAME_GAP  # between the frames and the one kept apart
-MOST_COLUMNS = 10
+MOST_COLUMNS = 15
 
 
 @dataclass(frozen=True)

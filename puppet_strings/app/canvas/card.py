@@ -54,7 +54,7 @@ INSET = 16.0  # between a card's edge and what is written on it
 RADIUS = 12.0
 STRIPE = 4.0  # the priority's colour down the left-hand edge
 INNER = CARD_WIDTH - 2 * INSET
-CODE_PAD = 10.0  # between the Skedge block's edge and the Skedge
+CODE_PAD = 8.0  # between the Skedge block's edge and the Skedge
 LABEL_WIDTH = 82.0  # the SCOPE / REQUESTER / CREATED column
 
 # what each priority is painted in: the stripe, the chip, the block seen from far away
